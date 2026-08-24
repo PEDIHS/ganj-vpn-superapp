@@ -51,7 +51,7 @@ API نسخه‌دار برای حساب، سرویس‌ها، سرورها، Ent
 | Android | Kotlin + Jetpack Compose | کنترل مستقیم `VpnService`، عملکرد، تست و UX Native |
 | Architecture | Modular Clean + MVI | جداسازی VPN Core از Store/Account و کاهش ریسک |
 | Local Data | Room + DataStore + Android Keystore | Cache ساختاریافته و نگهداری امن Token/Key |
-| Backend | Laravel Modular Monolith | نزدیکی به PHP فعلی، تحویل سریع و مرزهای ماژولی |
+| Backend | Node.js Modular Monolith | Control API کم‌وابستگی، مرزهای تست‌پذیر و اتصال Adapterمحور به PHP/MariaDB فعلی |
 | Database | PostgreSQL | Ledger، Concurrency، JSONB، Constraints و گزارش‌گیری |
 | Cache/Queue | Redis | Rate Limit، Job، Lock و Outbox delivery |
 | Admin | React + TypeScript + Tailwind | پنل سریع، Type-safe و Design Token مشترک |
@@ -76,4 +76,3 @@ API نسخه‌دار برای حساب، سرویس‌ها، سرورها، Ent
 - Crash-free users حداقل 99.7% و ANR کمتر از 0.25% باشد.
 - هیچ Secret یا Config در Log/Crash/Analytics مشاهده نشود.
 - خرید Play، Wallet Direct و Sync ربات Idempotent و قابل Audit باشند.
-

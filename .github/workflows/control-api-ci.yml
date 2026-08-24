@@ -1,0 +1,50 @@
+name: Control API CI
+
+on:
+  pull_request:
+    paths:
+      - "services/control-api/**"
+      - ".github/workflows/control-api-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/control-api/**"
+      - ".github/workflows/control-api-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: control-api-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Node checks and policy tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/control-api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Coverage gates
+        run: npm run test:coverage
+
+      - name: Package manifest smoke test
+        run: npm pack --dry-run --ignore-scripts

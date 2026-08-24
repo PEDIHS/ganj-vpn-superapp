@@ -1,0 +1,16 @@
+{
+  "name": "@ganj-vpn/control-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "start:test-adapters": "CONTROL_API_ADAPTER_MODE=test node src/index.js",
+    "test": "node --test --test-reporter=spec test/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=80 test/*.test.js",
+    "check": "node --check src/*.js && node --check src/adapters/*.js && node --check test/*.js"
+  }
+}

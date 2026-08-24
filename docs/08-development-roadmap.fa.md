@@ -38,7 +38,7 @@ Exit gate: تأیید Product Scope، Application ID، payment channels و priva
 
 ### Backend
 
-- Laravel modules، PostgreSQL، Redis، OpenAPI generation؛
+- Node.js modules، PostgreSQL، Redis و OpenAPI generation؛
 - users/devices/sessions؛
 - Telegram OIDC PKCE؛
 - legacy read adapter و mapping؛

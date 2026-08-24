@@ -2,15 +2,15 @@
 
 مخزن مرجع محصول جدید **Ganj VPN**؛ یک کلاینت VPN اختصاصی Android به‌همراه API، پنل مدیریت، فروش اشتراک، همگام‌سازی Telegram Bot و زیرساخت مارکتینگ.
 
-> وضعیت فعلی: **Phase 0 — Product & Architecture Baseline**  
+> وضعیت فعلی: **Phase 1–2 — Android, Subscription & Control API Foundations**
 > تاریخ مبنا: 2026-08-24  
-> این شاخه هنوز شامل کد Production یا Secret نیست.
+> این مخزن شامل Vertical Slice تست‌شده است؛ Adapterهای Production و Secretها عمداً خارج مخزن می‌مانند.
 
 ## تصمیم‌های قطعی فاز صفر
 
 - کلاینت Android به‌صورت Native با Kotlin و Jetpack Compose ساخته می‌شود.
 - ظاهر یا کد v2rayNG کپی نمی‌شود؛ هستهٔ Xray پشت یک رابط مستقل `VpnEngine` قرار می‌گیرد.
-- Backend جدید یک Modular Monolith مبتنی بر Laravel و PostgreSQL است و با Adapter به ربات PHP/MariaDB فعلی متصل می‌شود.
+- Backend به‌صورت Modular Monolith مبتنی بر Node.js و PostgreSQL طراحی می‌شود و با Adapter به ربات PHP/MariaDB فعلی متصل خواهد شد.
 - ورود Telegram از OIDC Authorization Code + PKCE استفاده می‌کند؛ Deep Link ربات مسیر جایگزین است.
 - نسخه Google Play فقط از Play Billing یا برنامه‌های پرداخت جایگزین مجاز استفاده می‌کند؛ نسخه Direct می‌تواند Wallet/Telegram/Gateway داشته باشد.
 - اپ هیچ ورودی دستی، QR import، Clipboard import یا نمایش/Export کانفیگ ندارد؛ اتصال فقط از سرویس و Entitlement متعلق به کاربر انجام می‌شود.
@@ -41,6 +41,13 @@
 - [PostgreSQL baseline schema](database/schema.sql)
 - [Design tokens](design/tokens.json)
 
+اجزای اجرایی فعلی:
+
+- [`services/control-api`](services/control-api/README.md): Catalog، My Services، Checkout، Play verification و صدور Profile رمز‌شده
+- `apps/android/core/control-api`: کلاینت HTTPS و Vault یک‌بارمصرف envelope
+- `apps/android/core/billing`: state machine خرید/بازیابی/Refund با verification سروری
+- `apps/android/core/subscription`: سیاست Entitlement و state فروشگاه/اتصال
+
 ## ساختار هدف مخزن
 
 ```text
@@ -48,7 +55,7 @@ apps/
   android/                  Native Android application
   admin-web/                React + TypeScript admin panel
 services/
-  control-api/              Laravel modular monolith
+  control-api/              Node.js control-plane vertical slice
   telemetry-worker/         Queue consumers and server probes
 packages/
   contracts/                OpenAPI-generated DTOs and SDKs

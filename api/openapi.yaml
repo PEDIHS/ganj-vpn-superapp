@@ -424,6 +424,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderResponse'
         '409': { $ref: '#/components/responses/Conflict' }
+  /orders/{order_id}:
+    get:
+      summary: Get an owned order and its verification status
+      tags: [Store]
+      operationId: getOrder
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Ownership-scoped order state for checkout recovery and reconciliation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /billing/play/verify:
     post:
       summary: Verify a Google Play purchase
@@ -1100,6 +1116,11 @@ components:
       schema: { type: string, format: uuid }
     ConnectionId:
       name: connection_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    OrderId:
+      name: order_id
       in: path
       required: true
       schema: { type: string, format: uuid }
