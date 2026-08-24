@@ -16,8 +16,8 @@ android {
         applicationId = "com.ganj.vpn"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -53,6 +53,7 @@ dependencies {
     implementation(project(":core:control-api"))
     implementation(project(":core:play-billing"))
     implementation(project(":core:vpn-api"))
+    implementation(project(":core:xray-runtime"))
 
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
     implementation(composeBom)

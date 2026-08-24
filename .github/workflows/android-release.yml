@@ -1,0 +1,592 @@
+name: Android signed AAB release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Protected tag, for example android-v1.2.3 or android-v1.2.3-rc.1
+        required: true
+        type: string
+      stage:
+        description: Protected GitHub Environment used for signing approval
+        required: true
+        default: candidate
+        type: choice
+        options:
+          - candidate
+          - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ inputs.release_tag }}-${{ inputs.stage }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate protected release ref
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      version_code: ${{ steps.release.outputs.version_code }}
+    steps:
+      - name: Check out exact release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate tag, commit and Android version
+        id: release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SELECTED_REF_NAME: ${{ github.ref_name }}
+          SELECTED_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^android-v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([1-9][0-9]*))?$ ]]; then
+            printf '%s\n' 'release_tag does not match the Android release naming policy.' >&2
+            exit 1
+          fi
+          if [[ "$SELECTED_REF_TYPE" != "tag" || "$SELECTED_REF_NAME" != "$RELEASE_TAG" ]]; then
+            printf '%s\n' 'Dispatch this workflow from the exact release tag, not a branch or another ref.' >&2
+            exit 1
+          fi
+          if [[ "$(git cat-file -t "refs/tags/$RELEASE_TAG")" != "tag" ]]; then
+            printf '%s\n' 'Release tag must be an annotated protected tag.' >&2
+            exit 1
+          fi
+          if [[ "$(git rev-list -n 1 "$RELEASE_TAG")" != "$GITHUB_SHA" ]]; then
+            printf '%s\n' 'Checked-out commit does not match the release tag.' >&2
+            exit 1
+          fi
+          git show-ref --verify --quiet refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main; then
+            printf '%s\n' 'Release commit is not reachable from main.' >&2
+            exit 1
+          fi
+
+          version_with_channel="${RELEASE_TAG#android-v}"
+          version="${version_with_channel%%-rc.*}"
+          build_file="apps/android/app/build.gradle.kts"
+          version_name="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)"[[:space:]]*$/\1/p' "$build_file")"
+          version_code="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]*=[[:space:]]*([0-9]+)[[:space:]]*$/\1/p' "$build_file")"
+          if [[ -z "$version_name" || "$version_name" != "$version" ]]; then
+            printf '%s\n' 'Android versionName does not match the release tag.' >&2
+            exit 1
+          fi
+          if [[ ! "$version_code" =~ ^[1-9][0-9]*$ ]]; then
+            printf '%s\n' 'Android versionCode must be a positive integer literal.' >&2
+            exit 1
+          fi
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          printf 'version_code=%s\n' "$version_code" >> "$GITHUB_OUTPUT"
+
+      - name: Guard repository contents
+        shell: bash
+        run: bash .github/scripts/repository-guard.sh
+
+  upstream:
+    name: Rebuild pinned official libXray
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Check out exact release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up pinned Go toolchain
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.3"
+          cache: false
+
+      - name: Set up Java for gomobile
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: "14742923"
+
+      - name: Install pinned native toolchain
+        shell: bash
+        run: >-
+          sdkmanager
+          "platforms;android-21"
+          "build-tools;36.0.0"
+          "ndk;29.0.14206865"
+
+      - name: Build and verify official libXray source pin
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          : "${ANDROID_SDK_ROOT:?Android SDK root is not configured}"
+          ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/29.0.14206865" \
+            bash .github/scripts/build-pinned-libxray.sh "$RUNNER_TEMP/pinned-libxray"
+
+      - name: Generate libXray SPDX SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          path: ${{ runner.temp }}/pinned-libxray/evidence
+          format: spdx-json
+          output-file: ${{ runner.temp }}/pinned-libxray/evidence/libxray.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Validate and scan libXray evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/pinned-libxray/evidence"
+          (
+            cd "$evidence"
+            sha256sum -c SHA256SUMS
+          )
+          jq -e '
+            .repository == "https://github.com/XTLS/libXray.git" and
+            .tag == "v26.7.28" and
+            .commit == "80263da83e96b2972455b0a94b13ee1a10e51391" and
+            (.aarSha256 | test("^[0-9a-f]{64}$"))
+          ' "$evidence/libxray-provenance.json" >/dev/null
+          jq -e '.spdxVersion and (.packages | type == "array")' "$evidence/libxray.spdx.json" >/dev/null
+
+      - name: Block high and critical libXray vulnerabilities
+        uses: anchore/scan-action@v7.4.0
+        with:
+          sbom: ${{ runner.temp }}/pinned-libxray/evidence/libxray.spdx.json
+          fail-build: true
+          severity-cutoff: high
+          output-format: table
+          only-fixed: false
+          cache-db: true
+
+      - name: Upload short-lived pinned libXray repository and evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: pinned-official-libxray-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pinned-libxray/**
+          if-no-files-found: error
+          retention-days: 1
+
+  quality:
+    name: Release test, lint, SBOM and vulnerability gate
+    needs: [preflight, upstream]
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+    env:
+      GRADLE_OPTS: >-
+        -Dorg.gradle.daemon=false
+        -Dorg.gradle.logging.stacktrace=all
+        -Dkotlin.incremental=false
+      GANJ_CANDIDATE_CONTROL_API_BASE_URL: ${{ vars.GANJ_CANDIDATE_CONTROL_API_BASE_URL }}
+      GANJ_PRODUCTION_CONTROL_API_BASE_URL: ${{ vars.GANJ_PRODUCTION_CONTROL_API_BASE_URL }}
+      RELEASE_STAGE: ${{ inputs.stage }}
+    steps:
+      - name: Check out exact release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: "14742923"
+
+      - name: Install required Android SDK packages
+        shell: bash
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6.3.0
+        with:
+          gradle-version: "9.4.1"
+          cache-provider: basic
+          cache-read-only: true
+
+      - name: Download pinned official libXray build
+        uses: actions/download-artifact@v7
+        with:
+          name: pinned-official-libxray-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pinned-libxray
+
+      - name: Verify pinned libXray handoff
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/pinned-libxray/evidence"
+          pinned_repository="$RUNNER_TEMP/pinned-libxray/maven"
+          test -d "$pinned_repository"
+          cmp --silent UPSTREAM.lock.json "$evidence/UPSTREAM.lock.json"
+          (
+            cd "$evidence"
+            sha256sum -c SHA256SUMS
+          )
+          expected_aar_sha="$(jq -er '.aarSha256' "$evidence/libxray-provenance.json")"
+          actual_aar_sha="$(sha256sum "$evidence/libXray.aar" | cut -d ' ' -f 1)"
+          if [[ "$expected_aar_sha" != "$actual_aar_sha" ]]; then
+            printf '%s\n' 'Official libXray AAR checksum changed during workflow handoff.' >&2
+            exit 1
+          fi
+          jq -e '
+            .commit == "80263da83e96b2972455b0a94b13ee1a10e51391" and
+            .tag == "v26.7.28" and
+            .goVersion == "1.26.3" and
+            .androidNdkVersion == "29.0.14206865"
+          ' "$evidence/libxray-provenance.json" >/dev/null
+          printf 'GANJ_PINNED_LIBXRAY_REPOSITORY=%s\n' "$pinned_repository" >> "$GITHUB_ENV"
+
+      - name: Enforce repository and Android product policy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash .github/scripts/repository-guard.sh
+          bash .github/scripts/android-product-guard.sh
+
+      - name: Validate stage-specific public API endpoint
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "$RELEASE_STAGE" == "production" ]]; then
+            release_api="$GANJ_PRODUCTION_CONTROL_API_BASE_URL"
+          else
+            release_api="$GANJ_CANDIDATE_CONTROL_API_BASE_URL"
+          fi
+          : "${release_api:?Missing stage-specific Control API repository variable}"
+          GANJ_RELEASE_CONTROL_API_BASE_URL="$release_api" python3 - <<'PY'
+          import os
+          import sys
+          from urllib.parse import urlsplit
+
+          parsed = urlsplit(os.environ["GANJ_RELEASE_CONTROL_API_BASE_URL"])
+          valid = (
+              parsed.scheme == "https"
+              and bool(parsed.hostname)
+              and parsed.username is None
+              and parsed.password is None
+              and not parsed.query
+              and not parsed.fragment
+          )
+          if not valid:
+              print("Stage Control API URL must be an HTTPS origin/path without credentials, query or fragment.", file=sys.stderr)
+              raise SystemExit(1)
+          PY
+          printf 'GANJ_RELEASE_CONTROL_API_BASE_URL=%s\n' "$release_api" >> "$GITHUB_ENV"
+
+      - name: Run release unit tests, lint and bundle build
+        working-directory: apps/android
+        shell: bash
+        run: >-
+          gradle --no-daemon --stacktrace --warning-mode all
+          --init-script "$GITHUB_WORKSPACE/.github/gradle/pinned-libxray.init.gradle"
+          -PGANJ_CONTROL_API_BASE_URL="$GANJ_RELEASE_CONTROL_API_BASE_URL"
+          testReleaseUnitTest
+          lintRelease
+          :app:bundleRelease
+
+      - name: Verify unsigned release bundle and R8 evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          aab="apps/android/app/build/outputs/bundle/release/app-release.aab"
+          mapping="apps/android/app/build/outputs/mapping/release/mapping.txt"
+          bash .github/scripts/android-artifact-guard.sh "$aab"
+          bash .github/scripts/verify-libxray-embedding.sh \
+            "$RUNNER_TEMP/pinned-libxray/evidence/libXray.aar" \
+            "$aab"
+          test -s "$mapping"
+
+      - name: Capture release runtime dependency graph
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p app/build/reports
+          gradle --no-daemon --console=plain \
+            --init-script "$GITHUB_WORKSPACE/.github/gradle/pinned-libxray.init.gradle" \
+            -PGANJ_CONTROL_API_BASE_URL="$GANJ_RELEASE_CONTROL_API_BASE_URL" \
+            :app:dependencies --configuration releaseRuntimeClasspath \
+            > app/build/reports/release-runtime-dependencies.txt
+
+      - name: Generate SPDX release SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          path: apps/android
+          format: spdx-json
+          output-file: apps/android/app/build/reports/ganj-vpn-release.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Validate release SBOM
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sbom="apps/android/app/build/reports/ganj-vpn-release.spdx.json"
+          test -s "$sbom"
+          jq -e '.spdxVersion and (.packages | type == "array") and (.packages | length > 0)' "$sbom" >/dev/null
+
+      - name: Block high and critical known vulnerabilities
+        uses: anchore/scan-action@v7.4.0
+        with:
+          sbom: apps/android/app/build/reports/ganj-vpn-release.spdx.json
+          fail-build: true
+          severity-cutoff: high
+          output-format: table
+          only-fixed: false
+          cache-db: true
+
+      - name: Stage immutable signing input
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          input="$RUNNER_TEMP/release-input"
+          install -d -m 0700 "$input"
+          install -m 0644 apps/android/app/build/outputs/bundle/release/app-release.aab "$input/unsigned.aab"
+          install -m 0644 apps/android/app/build/outputs/mapping/release/mapping.txt "$input/mapping.txt"
+          install -m 0644 apps/android/app/build/reports/ganj-vpn-release.spdx.json "$input/sbom.spdx.json"
+          install -m 0644 apps/android/app/build/reports/release-runtime-dependencies.txt "$input/release-runtime-dependencies.txt"
+          install -m 0644 "$RUNNER_TEMP/pinned-libxray/evidence/libXray.aar" "$input/official-libXray.aar"
+          install -d -m 0755 "$input/libxray-evidence"
+          for evidence_file in \
+            UPSTREAM.lock.json \
+            Xray-core-LICENSE-MPL-2.0.txt \
+            libXray-LICENSE-MIT.txt \
+            libXray-go.mod \
+            libXray-go.sum \
+            libxray-provenance.json \
+            libxray.spdx.json; do
+            install -m 0644 \
+              "$RUNNER_TEMP/pinned-libxray/evidence/$evidence_file" \
+              "$input/libxray-evidence/$evidence_file"
+          done
+          sha256sum "$input/unsigned.aab" > "$input/unsigned.aab.sha256"
+
+      - name: Upload short-lived unsigned signing input
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-signing-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-input/**
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload release quality evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-release-quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            apps/android/**/build/reports/**
+            apps/android/**/build/test-results/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  sign:
+    name: Sign and attest approved AAB
+    needs: [preflight, quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ${{ format('android-{0}', inputs.stage) }}
+    permissions:
+      actions: read
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out release policy scripts
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Java signing tools
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Download immutable signing input
+        uses: actions/download-artifact@v7
+        with:
+          name: android-signing-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-input
+
+      - name: Fail closed, sign and create release evidence
+        id: signed
+        shell: bash
+        env:
+          GANJ_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          GANJ_UPLOAD_KEYSTORE_SHA256: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_SHA256 }}
+          GANJ_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          GANJ_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          GANJ_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+          GANJ_EXPECTED_UPLOAD_CERT_SHA256: ${{ vars.ANDROID_UPLOAD_CERT_SHA256 }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_STAGE: ${{ inputs.stage }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+          RELEASE_VERSION_CODE: ${{ needs.preflight.outputs.version_code }}
+        run: |
+          set -Eeuo pipefail
+          : "${GANJ_UPLOAD_KEYSTORE_B64:?Missing protected Android upload keystore}"
+          : "${GANJ_UPLOAD_KEYSTORE_SHA256:?Missing protected keystore checksum}"
+          : "${GANJ_UPLOAD_STORE_PASSWORD:?Missing protected keystore password}"
+          : "${GANJ_UPLOAD_KEY_ALIAS:?Missing protected upload key alias}"
+          : "${GANJ_UPLOAD_KEY_PASSWORD:?Missing protected upload key password}"
+          : "${GANJ_EXPECTED_UPLOAD_CERT_SHA256:?Missing expected upload certificate fingerprint}"
+
+          input="$RUNNER_TEMP/release-input"
+          output="$RUNNER_TEMP/release-output"
+          keystore="$RUNNER_TEMP/android-upload-keystore.jks"
+          install -d -m 0700 "$output"
+          trap 'truncate -s 0 "$keystore" 2>/dev/null || true; rm -f "$keystore"' EXIT
+
+          printf '%s' "$GANJ_UPLOAD_KEYSTORE_B64" | base64 --decode > "$keystore"
+          chmod 0600 "$keystore"
+          test -s "$keystore"
+
+          normalize_sha256() {
+            tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]'
+          }
+          expected_keystore_sha="$(printf '%s' "$GANJ_UPLOAD_KEYSTORE_SHA256" | normalize_sha256)"
+          actual_keystore_sha="$(sha256sum "$keystore" | cut -d ' ' -f 1)"
+          [[ "$expected_keystore_sha" =~ ^[0-9a-f]{64}$ ]]
+          if [[ "$actual_keystore_sha" != "$expected_keystore_sha" ]]; then
+            printf '%s\n' 'Upload keystore checksum mismatch.' >&2
+            exit 1
+          fi
+
+          expected_cert_sha="$(printf '%s' "$GANJ_EXPECTED_UPLOAD_CERT_SHA256" | normalize_sha256)"
+          actual_cert_sha="$(
+            keytool -exportcert \
+              -keystore "$keystore" \
+              -storepass:env GANJ_UPLOAD_STORE_PASSWORD \
+              -alias "$GANJ_UPLOAD_KEY_ALIAS" |
+              sha256sum | cut -d ' ' -f 1
+          )"
+          [[ "$expected_cert_sha" =~ ^[0-9a-f]{64}$ ]]
+          if [[ "$actual_cert_sha" != "$expected_cert_sha" ]]; then
+            printf '%s\n' 'Upload certificate fingerprint mismatch.' >&2
+            exit 1
+          fi
+
+          unsigned="$input/unsigned.aab"
+          expected_unsigned_sha="$(cut -d ' ' -f 1 "$input/unsigned.aab.sha256")"
+          actual_unsigned_sha="$(sha256sum "$unsigned" | cut -d ' ' -f 1)"
+          [[ "$expected_unsigned_sha" =~ ^[0-9a-f]{64}$ ]]
+          if [[ "$actual_unsigned_sha" != "$expected_unsigned_sha" ]]; then
+            printf '%s\n' 'Downloaded unsigned AAB checksum mismatch.' >&2
+            exit 1
+          fi
+
+          signed="$output/ganj-vpn-${RELEASE_VERSION}-signed.aab"
+          install -m 0600 "$unsigned" "$signed"
+          jarsigner \
+            -keystore "$keystore" \
+            -storepass:env GANJ_UPLOAD_STORE_PASSWORD \
+            -keypass:env GANJ_UPLOAD_KEY_PASSWORD \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            "$signed" "$GANJ_UPLOAD_KEY_ALIAS" >/dev/null
+          jarsigner -verify -strict "$signed" >/dev/null
+          chmod 0644 "$signed"
+          bash .github/scripts/android-artifact-guard.sh "$signed"
+          bash .github/scripts/verify-libxray-embedding.sh "$input/official-libXray.aar" "$signed"
+
+          signed_sha="$(sha256sum "$signed" | cut -d ' ' -f 1)"
+          printf '%s  %s\n' "$signed_sha" "$(basename "$signed")" > "$signed.sha256"
+          install -m 0644 "$input/mapping.txt" "$output/mapping.txt"
+          install -m 0644 "$input/sbom.spdx.json" "$output/sbom.spdx.json"
+          install -m 0644 "$input/release-runtime-dependencies.txt" "$output/release-runtime-dependencies.txt"
+          install -d -m 0755 "$output/libxray-evidence"
+          install -m 0644 "$input/libxray-evidence/"* "$output/libxray-evidence/"
+
+          libxray_commit="$(jq -er '.commit' "$input/libxray-evidence/libxray-provenance.json")"
+          libxray_aar_sha="$(jq -er '.aarSha256' "$input/libxray-evidence/libxray-provenance.json")"
+          if [[ "$libxray_commit" != "80263da83e96b2972455b0a94b13ee1a10e51391" ]]; then
+            printf '%s\n' 'Signed release evidence contains an unapproved libXray commit.' >&2
+            exit 1
+          fi
+          if [[ "$(sha256sum "$input/official-libXray.aar" | cut -d ' ' -f 1)" != "$libxray_aar_sha" ]]; then
+            printf '%s\n' 'Signed release official libXray AAR checksum mismatch.' >&2
+            exit 1
+          fi
+
+          jq -n \
+            --arg schema_version "1" \
+            --arg tag "$RELEASE_TAG" \
+            --arg stage "$RELEASE_STAGE" \
+            --arg version "$RELEASE_VERSION" \
+            --arg version_code "$RELEASE_VERSION_CODE" \
+            --arg commit_sha "$GITHUB_SHA" \
+            --arg workflow_run_id "$GITHUB_RUN_ID" \
+            --arg workflow_run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg actor "$GITHUB_ACTOR" \
+            --arg artifact "$(basename "$signed")" \
+            --arg artifact_sha256 "$signed_sha" \
+            --arg upload_certificate_sha256 "$actual_cert_sha" \
+            --arg libxray_commit "$libxray_commit" \
+            --arg libxray_aar_sha256 "$libxray_aar_sha" \
+            --arg built_at_utc "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            '{
+              schemaVersion: ($schema_version | tonumber),
+              tag: $tag,
+              stage: $stage,
+              versionName: $version,
+              versionCode: ($version_code | tonumber),
+              commitSha: $commit_sha,
+              workflowRunId: $workflow_run_id,
+              workflowRunAttempt: $workflow_run_attempt,
+              actor: $actor,
+              artifact: $artifact,
+              artifactSha256: $artifact_sha256,
+              uploadCertificateSha256: $upload_certificate_sha256,
+              libXrayCommit: $libxray_commit,
+              libXrayOfficialAarSha256: $libxray_aar_sha256,
+              builtAtUtc: $built_at_utc
+            }' > "$output/release-evidence.json"
+          jq -e '
+            .schemaVersion == 1 and
+            (.versionCode | type == "number") and
+            (.artifactSha256 | test("^[0-9a-f]{64}$")) and
+            (.uploadCertificateSha256 | test("^[0-9a-f]{64}$")) and
+            .libXrayCommit == "80263da83e96b2972455b0a94b13ee1a10e51391" and
+            (.libXrayOfficialAarSha256 | test("^[0-9a-f]{64}$"))
+          ' "$output/release-evidence.json" >/dev/null
+          printf 'aab=%s\n' "$signed" >> "$GITHUB_OUTPUT"
+
+      - name: Attest signed AAB provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ${{ steps.signed.outputs.aab }}
+
+      - name: Upload signed AAB and release evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: ganj-vpn-android-${{ needs.preflight.outputs.version }}-${{ inputs.stage }}-${{ github.sha }}
+          path: ${{ runner.temp }}/release-output/**
+          if-no-files-found: error
+          retention-days: 30

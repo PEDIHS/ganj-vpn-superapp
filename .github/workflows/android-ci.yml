@@ -4,14 +4,26 @@ on:
   pull_request:
     paths:
       - "apps/android/**"
+      - "UPSTREAM.lock.json"
+      - ".github/gradle/**"
       - ".github/workflows/android-ci.yml"
+      - ".github/workflows/android-release.yml"
       - ".github/scripts/android-product-guard.sh"
+      - ".github/scripts/android-artifact-guard.sh"
+      - ".github/scripts/build-pinned-libxray.sh"
+      - ".github/scripts/verify-libxray-embedding.sh"
   push:
     branches: [main]
     paths:
       - "apps/android/**"
+      - "UPSTREAM.lock.json"
+      - ".github/gradle/**"
       - ".github/workflows/android-ci.yml"
+      - ".github/workflows/android-release.yml"
       - ".github/scripts/android-product-guard.sh"
+      - ".github/scripts/android-artifact-guard.sh"
+      - ".github/scripts/build-pinned-libxray.sh"
+      - ".github/scripts/verify-libxray-embedding.sh"
   workflow_dispatch:
 
 permissions:
@@ -64,24 +76,34 @@ jobs:
         shell: bash
         run: bash .github/scripts/android-product-guard.sh
 
-      - name: Run unit tests, Android lint and debug build
+      - name: Run debug and release unit tests, lint and trusted debug build
         working-directory: apps/android
         shell: bash
         run: >-
           gradle --no-daemon --stacktrace --warning-mode all
           testDebugUnitTest
+          testReleaseUnitTest
           lintDebug
+          lintRelease
           :app:assembleDebug
 
-      - name: Verify debug APK and generate checksum
+      - name: Verify generated debug APK
         shell: bash
         run: |
           set -Eeuo pipefail
           apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$apk"
-          unzip -tqq "$apk"
+          bash .github/scripts/android-artifact-guard.sh "$apk"
           sha256sum "$apk" > "$apk.sha256"
-          test "$(stat -c '%s' "$apk")" -lt 209715200
+
+      - name: Capture release dependency graph
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p app/build/reports
+          gradle --no-daemon --console=plain \
+            :app:dependencies --configuration releaseRuntimeClasspath \
+            > app/build/reports/release-runtime-dependencies.txt
 
       - name: Generate source and dependency SBOM
         uses: anchore/sbom-action@v0.24.0

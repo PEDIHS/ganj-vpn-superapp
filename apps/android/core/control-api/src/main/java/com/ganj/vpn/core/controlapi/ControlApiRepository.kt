@@ -10,19 +10,40 @@ interface ControlApiRepository {
 }
 
 object ControlApiRepositoryFactory {
-    fun create(
+    /**
+     * Creates the entitlement client and its one-time profile broker over the same private vault.
+     * The default crypto provider is deliberately unavailable until an audited, device-bound
+     * X25519 implementation is supplied by the production application.
+     */
+    fun createComponents(
         baseUrl: String,
         tokenProvider: AuthTokenProvider,
         authenticationEvents: AuthenticationEventSink = AuthenticationEventSink.NONE,
-    ): ControlApiRepository {
+        cryptoProvider: Gvp1CryptoProvider = UnavailableGvp1CryptoProvider,
+    ): ControlApiComponents {
+        val vault = InMemoryConnectionEnvelopeVault()
         val client = ControlApiClient(
             transport = UrlConnectionTransport(baseUrl),
             tokenProvider = tokenProvider,
             authenticationEvents = authenticationEvents,
         )
-        return DefaultControlApiRepository(client, InMemoryConnectionEnvelopeVault())
+        return ControlApiComponents(
+            repository = DefaultControlApiRepository(client, vault),
+            profileBroker = OneTimeConnectionProfileBroker(vault, cryptoProvider),
+        )
     }
+
+    fun create(
+        baseUrl: String,
+        tokenProvider: AuthTokenProvider,
+        authenticationEvents: AuthenticationEventSink = AuthenticationEventSink.NONE,
+    ): ControlApiRepository = createComponents(baseUrl, tokenProvider, authenticationEvents).repository
 }
+
+data class ControlApiComponents(
+    val repository: ControlApiRepository,
+    val profileBroker: ConnectionProfileBroker,
+)
 
 internal class DefaultControlApiRepository(
     private val client: ControlApiClient,

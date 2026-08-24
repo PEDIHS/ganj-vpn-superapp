@@ -577,6 +577,17 @@ paths:
         - name: If-None-Match
           in: header
           schema: { type: string }
+        - name: X-App-Version
+          in: header
+          required: true
+          schema: { type: string, pattern: '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$' }
+        - name: X-Platform
+          in: header
+          required: true
+          schema: { type: string, enum: [android] }
+        - name: Accept-Language
+          in: header
+          schema: { type: string, default: fa-IR }
       responses:
         '200':
           description: Signed, versioned runtime values and deterministic feature assignments.
@@ -629,7 +640,11 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/AnalyticsBatchRequest' }
       responses:
-        '202': { description: Valid consented events queued; disallowed fields rejected or redacted. }
+        '202':
+          description: Valid consented events persisted idempotently; disallowed fields are rejected.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsBatchResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /telemetry/crashes:
@@ -918,18 +933,56 @@ paths:
       description: Requires dual control for security, billing, privacy, or VPN policy keys.
       tags: [AdminProduct]
       operationId: adminCreateRemoteConfigRelease
+      x-required-scopes: [admin:config:write]
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/RemoteConfigReleaseRequest' }
       responses:
-        '201': { description: Draft release created; publication is separately authorized and audited. }
+        '201':
+          description: Draft release created; publication is separately authorized and audited.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RemoteConfigReleaseResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/remote-config/releases/{release_id}/publish:
+    post:
+      summary: Publish a reviewed immutable remote-configuration release
+      description: Production publication requires a different authenticated administrator from the creator.
+      tags: [AdminProduct]
+      operationId: adminPublishRemoteConfigRelease
+      x-required-scopes: [admin:config:publish]
+      parameters:
+        - name: release_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 8, maxLength: 500 }
+      responses:
+        '200':
+          description: Release published and previous release retired atomically.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RemoteConfigReleaseResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/feature-flags/{flag_key}:
     put:
       summary: Version a feature flag rollout policy
       tags: [AdminProduct]
       operationId: adminUpdateFeatureFlag
+      x-required-scopes: [admin:flags:write]
       parameters:
         - name: flag_key
           in: path
@@ -941,7 +994,25 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/FeatureFlagPolicyRequest' }
       responses:
-        '204': { description: New immutable flag version stored; assignment remains deterministic. }
+        '200':
+          description: New immutable flag version stored; assignment remains deterministic.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeatureFlagVersionResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/audit-log:
+    get:
+      summary: List append-only administrative control-plane audit events
+      tags: [AdminProduct]
+      operationId: adminListAuditEvents
+      x-required-scopes: [admin:audit:read]
+      responses:
+        '200':
+          description: Sanitized audit metadata; content and secret values are never returned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /admin/monitoring/overview:
     get:
       summary: Get privacy-safe operational health aggregates
@@ -1550,7 +1621,7 @@ components:
       properties:
         data:
           type: object
-          required: [version, etag, values, feature_assignments, expires_at, signature]
+          required: [version, etag, values, feature_assignments, expires_at, key_version, signature]
           properties:
             version: { type: integer, minimum: 1 }
             etag: { type: string }
@@ -1559,6 +1630,7 @@ components:
               type: array
               items: { $ref: '#/components/schemas/FeatureAssignment' }
             expires_at: { type: string, format: date-time }
+            key_version: { type: string, minLength: 1, maxLength: 128 }
             signature: { type: string, contentEncoding: base64 }
         meta: { $ref: '#/components/schemas/Meta' }
         error: { type: 'null' }
@@ -1606,6 +1678,7 @@ components:
         error: { type: 'null' }
     AnalyticsBatchRequest:
       type: object
+      additionalProperties: false
       required: [batch_id, consent_receipt_id, sent_at, events]
       properties:
         batch_id: { type: string, format: uuid }
@@ -1617,6 +1690,7 @@ components:
           maxItems: 100
           items:
             type: object
+            additionalProperties: false
             required: [event_id, name, occurred_at, schema_version]
             properties:
               event_id: { type: string, format: uuid }
@@ -1627,7 +1701,27 @@ components:
               properties:
                 type: object
                 description: Allowlisted, low-cardinality properties only.
-                additionalProperties: true
+                maxProperties: 16
+                additionalProperties:
+                  oneOf:
+                    - { type: string, maxLength: 64 }
+                    - { type: number }
+                    - { type: boolean }
+    AnalyticsBatchResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [batch_id, accepted_count, duplicate_count, replayed]
+          properties:
+            batch_id: { type: string, format: uuid }
+            accepted_count: { type: integer, minimum: 0, maximum: 100 }
+            duplicate_count: { type: integer, minimum: 0, maximum: 100 }
+            replayed: { type: boolean }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
     CrashEventRequest:
       type: object
       required: [occurrence_id, device_id, app_version, os_version, module, exception_class, stack_trace, occurred_at]
@@ -1652,11 +1746,16 @@ components:
       enum: [new, investigating, assigned, fixing, testing, released, closed]
     BugReportRequest:
       type: object
+      additionalProperties: false
       required: [client_report_id, title, description, category, device_id, occurred_at, automatic_context_consent]
       properties:
         client_report_id: { type: string, format: uuid }
-        title: { type: string, minLength: 3, maxLength: 200 }
-        description: { type: string, minLength: 3, maxLength: 12000 }
+        title: { type: string, minLength: 3, maxLength: 160 }
+        description:
+          type: string
+          minLength: 10
+          maxLength: 5000
+          description: Raw VPN URIs, credentials, tokens, private keys, and manual configurations are rejected.
         category: { type: string, enum: [connection, purchase, account, ui, performance, security, other] }
         device_id: { type: string, format: uuid }
         occurred_at: { type: string, format: date-time }
@@ -1728,6 +1827,7 @@ components:
         error: { type: 'null' }
     DiagnosticReportRequest:
       type: object
+      additionalProperties: false
       required: [client_report_id, device_id, explicit_consent, started_at, completed_at, tests]
       properties:
         client_report_id: { type: string, format: uuid }
@@ -1739,9 +1839,11 @@ components:
         completed_at: { type: string, format: date-time }
         tests:
           type: array
+          minItems: 1
           maxItems: 50
           items:
             type: object
+            additionalProperties: false
             required: [kind, outcome]
             properties:
               kind: { type: string, enum: [network, dns_resolver, server_ping, packet_loss, vpn_state, device_integrity] }
@@ -1764,13 +1866,18 @@ components:
         error: { type: 'null' }
     SupportTicketRequest:
       type: object
+      additionalProperties: false
       required: [client_ticket_id, category, subject, body]
       properties:
         client_ticket_id: { type: string, format: uuid }
         category: { type: string, enum: [connection, billing, account, security, feedback, other] }
         priority: { type: string, enum: [normal, high], default: normal }
-        subject: { type: string, minLength: 3, maxLength: 200 }
-        body: { type: string, minLength: 3, maxLength: 8000 }
+        subject: { type: string, minLength: 3, maxLength: 160 }
+        body:
+          type: string
+          minLength: 10
+          maxLength: 5000
+          description: Raw VPN URIs, credentials, tokens, private keys, and manual configurations are rejected.
     SupportTicket:
       type: object
       required: [id, public_code, category, priority, status, subject, created_at, updated_at]
@@ -1825,11 +1932,12 @@ components:
         contact_allowed: { type: boolean, default: false }
     ConsentUpdateRequest:
       type: object
+      additionalProperties: false
       required: [purpose, granted, policy_version]
       properties:
         purpose: { type: string, enum: [essential, product_analytics, crash_diagnostics, personalized_marketing, support_diagnostics] }
         granted: { type: boolean }
-        policy_version: { type: string, maxLength: 32 }
+        policy_version: { type: string, minLength: 1, maxLength: 64 }
     ConsentListResponse:
       type: object
       required: [data, meta, error]
@@ -1916,32 +2024,111 @@ components:
         error: { type: 'null' }
     RemoteConfigReleaseRequest:
       type: object
-      required: [environment, reason, entries]
+      additionalProperties: false
+      required: [environment, version, reason, entries]
       properties:
         environment: { type: string, enum: [development, testing, staging, production] }
-        reason: { type: string, minLength: 3, maxLength: 1000 }
+        version: { type: integer, minimum: 1 }
+        reason: { type: string, minLength: 8, maxLength: 500 }
         entries:
           type: array
           minItems: 1
-          maxItems: 500
+          maxItems: 200
           items:
             type: object
+            additionalProperties: false
             required: [key, value, sensitivity, target]
             properties:
               key: { type: string, pattern: '^[a-z][a-z0-9_.-]{2,127}$' }
-              value: {}
+              value:
+                description: Safe client presentation or behavior value; connection material and secrets are prohibited.
               sensitivity: { type: string, enum: [public, internal] }
-              target: { type: object, additionalProperties: true }
+              target: { $ref: '#/components/schemas/TargetingRule' }
     FeatureFlagPolicyRequest:
       type: object
+      additionalProperties: false
       required: [enabled, default_variant, rollout_percent, audience, reason]
       properties:
         enabled: { type: boolean }
         default_variant: { type: string, maxLength: 64 }
         rollout_percent: { type: number, minimum: 0, maximum: 100 }
-        audience: { type: object, additionalProperties: true }
-        experiment_key: { type: [string, 'null'] }
-        reason: { type: string, minLength: 3, maxLength: 1000 }
+        audience: { $ref: '#/components/schemas/TargetingRule' }
+        experiment_key: { type: [string, 'null'], maxLength: 128 }
+        reason: { type: string, minLength: 8, maxLength: 500 }
+    TargetingRule:
+      type: object
+      additionalProperties: false
+      properties:
+        tiers:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items: { type: string, enum: [free, premium, vip] }
+        locales:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, minLength: 2, maxLength: 32 }
+        platforms:
+          type: array
+          minItems: 1
+          maxItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [android] }
+        min_app_version: { type: string, pattern: '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$' }
+        max_app_version: { type: string, pattern: '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$' }
+    RemoteConfigReleaseResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [id, environment, version, status]
+          properties:
+            id: { type: string, format: uuid }
+            environment: { type: string, enum: [development, testing, staging, production] }
+            version: { type: integer, minimum: 1 }
+            status: { type: string, enum: [draft, published, retired] }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    FeatureFlagVersionResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [key, version]
+          properties:
+            key: { type: string }
+            version: { type: integer, minimum: 1 }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    AdminAuditListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, actor_subject, action, resource_type, resource_id, reason, request_id, outcome, created_at]
+            properties:
+              id: { type: string, format: uuid }
+              actor_subject: { type: string }
+              action: { type: string }
+              resource_type: { type: string }
+              resource_id: { type: string }
+              reason: { type: string }
+              request_id: { type: string, format: uuid }
+              outcome: { type: string, enum: [success, denied, failed] }
+              created_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
     MonitoringOverviewResponse:
       type: object
       required: [data, meta, error]

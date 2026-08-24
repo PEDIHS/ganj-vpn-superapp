@@ -52,6 +52,13 @@ Release artifact شامل موارد زیر است:
 
 Artifact یا Log عمومی نباید Config، Endpoint خصوصی، Token، Keystore، `google-services.json` یا دادهٔ کاربر داشته باشد.
 
+جزئیات Workflow امضای fail-closed، نام Environment/Secretها و قالب Evidence در [Android Signed AAB و Release Evidence](15-android-production-release-evidence.fa.md) تعریف شده است.
+
+Production AAB علاوه بر Gateهای عمومی فقط با libXray بازسازی‌شده از Source رسمی و Pin ثبت‌شده در
+[`UPSTREAM.lock.json`](../UPSTREAM.lock.json) مجاز است. تصمیم، محدودیت Debug artifact و روش تطبیق
+native binary در [ADR-0005](adr/0005-pinned-official-libxray-release.md) ثبت شده‌اند. شکست هر مرحلهٔ
+provenance یا Toolchain باید Workflow را بدون تولید AAB قابل امضا متوقف کند.
+
 ## Signing
 
 1. Play App Signing مالک کلید توزیع Play است؛ Upload key جدا و قابل Rotation است.
@@ -118,6 +125,7 @@ Hotfix از Tag تولیدی Branch می‌گیرد، فقط کمترین اصل
 
 - [ ] نسخه، `versionCode`، Commit و Changelog نهایی‌اند.
 - [ ] Secret/Dependency/CodeQL/License findings بررسی شده‌اند.
+- [ ] libXray official tag/commit، license، SBOM، toolchain و native embedding evidence تأیید شده‌اند.
 - [ ] Feature Flagها owner و expiry دارند.
 - [ ] Privacy Policy، Data Safety و VpnService declaration delta بررسی شده است.
 - [ ] Rollback owner و incident channel مشخص‌اند.

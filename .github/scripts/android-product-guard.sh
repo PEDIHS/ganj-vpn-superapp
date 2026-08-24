@@ -8,8 +8,10 @@ if [[ ! -d "$android_main" ]]; then
   exit 1
 fi
 
-forbidden_api_pattern='(ClipboardManager|ACTION_OPEN_DOCUMENT|ACTION_GET_CONTENT|ActivityResultContracts\.GetContent|BarcodeScanner|QRCodeReader|mockSubscriptionState|mockPurchasedService|mockServers)'
-forbidden_uri_pattern='(vless|vmess|trojan|shadowsocks|ss)://'
+forbidden_api_pattern='(ClipboardManager|ACTION_OPEN_DOCUMENT|ACTION_GET_CONTENT|ActivityResultContracts\.GetContent|BarcodeScanner|QRCodeReader|mockSubscriptionState|mockPurchasedService|mockServers|import(Config|Profile)|manual(Config|Profile)|startsWith\("(vless|vmess|trojan|shadowsocks|ss)://)'
+# Exact scheme literals are allowed only as privacy-redaction denylist values. A URI with payload is
+# always blocked, as are parser/import entry points covered by forbidden_api_pattern above.
+forbidden_uri_pattern='(vless|vmess|trojan|shadowsocks|ss)://[^"[:space:]]{4,}'
 
 if grep -RInE --include='*.kt' --include='*.java' "$forbidden_api_pattern" "$android_main"; then
   printf '%s\n' "Manual configuration import API found in production Android source." >&2

@@ -26,9 +26,9 @@ const TOKENS = Object.freeze({
   [PURCHASE_PROOFS.vip]: 'ganj.vip.90d',
 });
 
-function setup({ purchaseVerifier: purchaseOverride, playNotifications: notificationsOverride } = {}) {
+function setup({ purchaseVerifier: purchaseOverride, playNotifications: notificationsOverride, auth: authOverride } = {}) {
   const repository = new InMemoryRepository(createSeed(NOW));
-  const auth = createTestAuthAdapter({ deviceSecrets: SECRETS });
+  const auth = authOverride ?? createTestAuthAdapter({ deviceSecrets: SECRETS });
   const purchaseVerifier = purchaseOverride ?? createTestPurchaseVerifier({ approvedTokens: TOKENS });
   const telegramAuth = createTestTelegramAuthAdapter();
   const playNotifications = notificationsOverride ?? { kind: 'test-only', async verifyAndDecode() { throw new Error('not configured'); } };
@@ -196,6 +196,58 @@ test('connection profile is device-bound, short-lived, encrypted and contains no
   for (const forbidden of ['endpoint', 'credential', 'uri', 'server-side-premium-secret']) {
     assert.equal(serialized.includes(forbidden), false);
   }
+});
+
+test('connection profile plaintext is a strict versioned server provisioned Xray schema', async () => {
+  const observed = {};
+  const delegate = createTestAuthAdapter({ deviceSecrets: SECRETS });
+  const auth = {
+    ...delegate,
+    async sealConnectionProfile(input) {
+      observed.plaintext = input.plaintext;
+      observed.associatedData = input.associatedData;
+      return delegate.sealConnectionProfile(input);
+    },
+  };
+  const { app } = setup({ auth });
+
+  const response = await request(app, 'POST', `/v1/services/${FIXTURES.services.premium}/connection-profile`, {
+    body: profileBody(),
+  });
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(observed.plaintext.transport, { type: 'tcp' });
+  assert.deepEqual(observed.plaintext.security, {
+    type: 'tls', server_name: 'de-premium.internal.invalid', fingerprint: 'chrome',
+  });
+  assert.equal(observed.plaintext.schema_version, 1);
+  assert.equal(observed.plaintext.protocol, 'vless');
+  assert.equal(observed.plaintext.service_id, FIXTURES.services.premium);
+  assert.equal(observed.plaintext.server_id, FIXTURES.servers.premium);
+  assert.equal(observed.plaintext.device_id, FIXTURES.devices.primary);
+  assert.equal(observed.associatedData.profileId, observed.plaintext.profile_id);
+  assert.equal(observed.associatedData.expiresAt, observed.plaintext.expires_at);
+});
+
+test('misconfigured or insecure server material fails closed without leaking the resolver payload', async () => {
+  const { app, repository } = setup();
+  const current = repository.servers.get(FIXTURES.servers.premium);
+  repository.servers.set(FIXTURES.servers.premium, {
+    ...current,
+    connection: {
+      ...current.connection,
+      security: { ...current.connection.security, allow_insecure: true },
+    },
+  });
+
+  const response = await request(app, 'POST', `/v1/services/${FIXTURES.services.premium}/connection-profile`, {
+    body: profileBody(),
+  });
+
+  assert.equal(response.status, 500);
+  assert.equal(response.body.error.code, 'internal_error');
+  assert.equal(JSON.stringify(response.body).includes('allow_insecure'), false);
+  assert.equal(JSON.stringify(response.body).includes('credential'), false);
 });
 
 test('manual configuration fields are explicitly rejected', async () => {

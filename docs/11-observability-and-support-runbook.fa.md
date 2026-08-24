@@ -90,6 +90,8 @@ Error Budget ماهانه مبنای توقف Feature rollout است. اگر 50%
 
 Alert فقط وقتی ایجاد می‌شود که Action مشخص داشته باشد. هر Alert شامل `severity`، محیط، مؤلفه، زمان شروع، Dashboard، Runbook و correlation نمونه است.
 
+قرارداد machine-readable Ruleها، آستانه‌های اولیه و Provisioning checklist در [Enterprise Monitoring و Alert Catalog](16-enterprise-monitoring-alert-catalog.fa.md) نگهداری می‌شود. تغییر Rule بدون عبور از Validator، Owner review و Game Day evidence مجاز نیست.
+
 | Severity | مقصد | پاسخ |
 |---|---|---:|
 | SEV-0/1 | On-call + Admin Panel + Telegram alert channel | فوری |

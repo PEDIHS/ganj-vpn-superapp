@@ -26,12 +26,9 @@ data class ConnectionState(
     val errorCode: String? = null,
 )
 
-data class ConnectionRequest(
-    val serviceId: String,
-    val serverId: String,
-    val protocol: VpnProtocol,
-    val encryptedProfile: ByteArray,
-)
+class ConnectionRequest(val profile: ProvisionedProfile) {
+    override fun toString(): String = "ConnectionRequest(profile=[REDACTED])"
+}
 
 interface VpnEngine {
     fun currentState(): ConnectionState

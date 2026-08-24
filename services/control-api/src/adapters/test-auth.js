@@ -19,7 +19,8 @@ export function createTestAuthAdapter({ deviceSecrets }) {
       if (!userId || !deviceId || !secrets.has(deviceId)) {
         throw new ApiError(401, 'unauthorized', 'Test principal headers are missing or invalid.');
       }
-      return { userId, deviceId, subject: `test:${userId}`, authMethod: 'test-only' };
+      const scopes = (request.headers.get('x-test-scopes') ?? '').split(' ').filter(Boolean);
+      return { userId, deviceId, subject: request.headers.get('x-test-subject') ?? `test:${userId}`, scopes, authMethod: 'test-only' };
     },
     async verifyDeviceProof({ principal, payload, proof }) {
       const secret = secrets.get(principal.deviceId);

@@ -5,6 +5,7 @@ import { createDeviceProof, createTestAuthAdapter } from '../src/adapters/test-a
 import { createTestPurchaseVerifier } from '../src/adapters/test-purchase-verifier.js';
 import { createTestTelegramAuthAdapter } from '../src/adapters/test-telegram-auth.js';
 import { PostgresRepository } from '../src/adapters/postgres.js';
+import { createTestEnterpriseSecurity } from '../src/enterprise.js';
 import { FIXTURES } from '../src/repository.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -17,7 +18,12 @@ test('PostgreSQL repository enforces the subscription vertical slice atomically'
     serverSecretResolver: {
       kind: 'test-only',
       async resolveServerConnection() {
-        return { endpoint: 'integration.internal.invalid', port: 443, protocol: 'vless', credential: 'integration-only-credential' };
+        return {
+          endpoint: 'integration.internal.invalid', port: 443, protocol: 'vless',
+          credential: '60000000-0000-4000-8000-000000000004', flow: 'xtls-rprx-vision',
+          transport: { type: 'tcp' },
+          security: { type: 'tls', server_name: 'integration.internal.invalid', fingerprint: 'chrome' },
+        };
       },
     },
   });
@@ -34,6 +40,7 @@ test('PostgreSQL repository enforces the subscription vertical slice atomically'
     telegramAuth: createTestTelegramAuthAdapter(),
     purchaseVerifier,
     playNotifications: { async verifyAndDecode() { throw new Error('not used'); } },
+    enterpriseSecurity: createTestEnterpriseSecurity(),
   });
   const headers = {
     'content-type': 'application/json',
@@ -100,6 +107,40 @@ test('PostgreSQL repository enforces the subscription vertical slice atomically'
 
     const foreign = await repository.findOwnedOrder(FIXTURES.users.secondary, first.body.data.id);
     assert.equal(foreign, null);
+
+    const consentId = '60000000-0000-4000-8000-000000000099';
+    const now = new Date();
+    await repository.saveConsent({
+      id: consentId, userId: FIXTURES.users.primary, purpose: 'product_analytics', status: 'granted',
+      policyVersion: 'integration-v1', grantedAt: now.toISOString(), revokedAt: null,
+    });
+    const analyticsBody = {
+      batch_id: '70000000-0000-4000-8000-000000000099',
+      consent_receipt_id: consentId,
+      sent_at: now.toISOString(),
+      events: [{
+        event_id: '71000000-0000-4000-8000-000000000099', name: 'app.opened',
+        occurred_at: now.toISOString(), schema_version: 1, properties: { app_version: '3.2.1' },
+      }],
+    };
+    const analytics = await call('POST', '/v1/telemetry/events:batch', analyticsBody);
+    assert.equal(analytics.status, 202);
+    const analyticsReplay = await call('POST', '/v1/telemetry/events:batch', analyticsBody);
+    assert.equal(analyticsReplay.body.data.replayed, true);
+
+    const release = await call('POST', '/v1/admin/remote-config/releases', {
+      environment: 'staging', version: 1, reason: 'PostgreSQL integration release',
+      entries: [{ key: 'home.banner.title', value: 'Integration', sensitivity: 'public', target: { platforms: ['android'] } }],
+    }, { 'x-test-scopes': 'admin:config:write', 'x-test-subject': 'integration:maker' });
+    assert.equal(release.status, 201);
+    const published = await call('POST', `/v1/admin/remote-config/releases/${release.body.data.id}/publish`, {
+      reason: 'Approved in PostgreSQL integration test',
+    }, { 'x-test-scopes': 'admin:config:publish', 'x-test-subject': 'integration:publisher' });
+    assert.equal(published.status, 200);
+    await assert.rejects(
+      () => pool.query("UPDATE control_admin_audit_log SET outcome = 'failed'"),
+      /append-only/,
+    );
   } finally {
     await repository.close();
   }

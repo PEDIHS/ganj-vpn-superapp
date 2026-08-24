@@ -27,6 +27,9 @@ export const FIXTURES = Object.freeze({
     vip: '50000000-0000-4000-8000-000000000003',
     maintenance: '50000000-0000-4000-8000-000000000004',
   },
+  consents: {
+    analytics: '60000000-0000-4000-8000-000000000001',
+  },
 });
 
 function copy(value) {
@@ -82,22 +85,37 @@ export function createSeed(now = new Date()) {
       {
         id: FIXTURES.servers.free, code: 'nl-free-01', name: 'Netherlands Free 01', country_code: 'NL', city: 'Amsterdam',
         tier: 'free', status: 'active', load_ratio: 0.31, latency_hint_ms: 85, protocols: ['vless'],
-        connection: { endpoint: 'nl-free.internal.invalid', port: 443, protocol: 'vless', credential: 'server-side-free-secret' },
+        connection: {
+          endpoint: 'nl-free.internal.invalid', port: 443, protocol: 'vless',
+          credential: '60000000-0000-4000-8000-000000000001', flow: 'xtls-rprx-vision',
+          transport: { type: 'tcp' }, security: { type: 'tls', server_name: 'nl-free.internal.invalid', fingerprint: 'chrome' },
+        },
       },
       {
         id: FIXTURES.servers.premium, code: 'de-premium-01', name: 'Germany Premium 01', country_code: 'DE', city: 'Frankfurt',
         tier: 'premium', status: 'active', load_ratio: 0.22, latency_hint_ms: 61, protocols: ['vless', 'trojan'],
-        connection: { endpoint: 'de-premium.internal.invalid', port: 443, protocol: 'vless', credential: 'server-side-premium-secret' },
+        connection: {
+          endpoint: 'de-premium.internal.invalid', port: 443, protocol: 'vless',
+          credential: '60000000-0000-4000-8000-000000000002', flow: 'xtls-rprx-vision',
+          transport: { type: 'tcp' }, security: { type: 'tls', server_name: 'de-premium.internal.invalid', fingerprint: 'chrome' },
+        },
       },
       {
         id: FIXTURES.servers.vip, code: 'ch-vip-01', name: 'Switzerland VIP 01', country_code: 'CH', city: 'Zurich',
         tier: 'vip', status: 'active', load_ratio: 0.12, latency_hint_ms: 73, protocols: ['vless', 'trojan'],
-        connection: { endpoint: 'ch-vip.internal.invalid', port: 443, protocol: 'trojan', credential: 'server-side-vip-secret' },
+        connection: {
+          endpoint: 'ch-vip.internal.invalid', port: 443, protocol: 'trojan', credential: 'server-side-vip-secret',
+          transport: { type: 'tcp' }, security: { type: 'tls', server_name: 'ch-vip.internal.invalid', fingerprint: 'chrome' },
+        },
       },
       {
         id: FIXTURES.servers.maintenance, code: 'de-premium-02', name: 'Germany Premium 02', country_code: 'DE', city: 'Frankfurt',
         tier: 'premium', status: 'maintenance', load_ratio: 0, latency_hint_ms: null, protocols: ['vless'],
-        connection: { endpoint: 'offline.internal.invalid', port: 443, protocol: 'vless', credential: 'offline-secret' },
+        connection: {
+          endpoint: 'offline.internal.invalid', port: 443, protocol: 'vless',
+          credential: '60000000-0000-4000-8000-000000000003', flow: 'xtls-rprx-vision',
+          transport: { type: 'tcp' }, security: { type: 'tls', server_name: 'offline.internal.invalid', fingerprint: 'chrome' },
+        },
       },
     ],
   };
@@ -114,6 +132,23 @@ export class InMemoryRepository {
     this.purchaseTokens = new Map();
     this.profileGrants = new Map();
     this.webhookEvents = new Map();
+    this.consents = new Map([[FIXTURES.consents.analytics, {
+      id: FIXTURES.consents.analytics,
+      userId: FIXTURES.users.primary,
+      purpose: 'product_analytics',
+      status: 'granted',
+      policyVersion: '2026-08',
+      grantedAt: new Date().toISOString(),
+      revokedAt: null,
+    }]]);
+    this.remoteConfigReleases = new Map();
+    this.featureFlags = new Map();
+    this.analyticsBatches = new Map();
+    this.analyticsEvents = new Map();
+    this.bugReports = new Map();
+    this.supportTickets = new Map();
+    this.diagnosticReports = new Map();
+    this.adminAuditLog = [];
     this.transactionTail = Promise.resolve();
   }
 
@@ -129,6 +164,15 @@ export class InMemoryRepository {
       purchaseTokens: new Map(this.purchaseTokens),
       profileGrants: new Map([...this.profileGrants].map(([key, value]) => [key, copy(value)])),
       webhookEvents: new Map([...this.webhookEvents].map(([key, value]) => [key, copy(value)])),
+      consents: new Map([...this.consents].map(([key, value]) => [key, copy(value)])),
+      remoteConfigReleases: new Map([...this.remoteConfigReleases].map(([key, value]) => [key, copy(value)])),
+      featureFlags: new Map([...this.featureFlags].map(([key, value]) => [key, copy(value)])),
+      analyticsBatches: new Map([...this.analyticsBatches].map(([key, value]) => [key, copy(value)])),
+      analyticsEvents: new Map([...this.analyticsEvents].map(([key, value]) => [key, copy(value)])),
+      bugReports: new Map([...this.bugReports].map(([key, value]) => [key, copy(value)])),
+      supportTickets: new Map([...this.supportTickets].map(([key, value]) => [key, copy(value)])),
+      diagnosticReports: new Map([...this.diagnosticReports].map(([key, value]) => [key, copy(value)])),
+      adminAuditLog: copy(this.adminAuditLog),
     };
     try {
       return await work();
@@ -139,6 +183,15 @@ export class InMemoryRepository {
       this.purchaseTokens = snapshot.purchaseTokens;
       this.profileGrants = snapshot.profileGrants;
       this.webhookEvents = snapshot.webhookEvents;
+      this.consents = snapshot.consents;
+      this.remoteConfigReleases = snapshot.remoteConfigReleases;
+      this.featureFlags = snapshot.featureFlags;
+      this.analyticsBatches = snapshot.analyticsBatches;
+      this.analyticsEvents = snapshot.analyticsEvents;
+      this.bugReports = snapshot.bugReports;
+      this.supportTickets = snapshot.supportTickets;
+      this.diagnosticReports = snapshot.diagnosticReports;
+      this.adminAuditLog = snapshot.adminAuditLog;
       throw error;
     } finally {
       release();
@@ -234,5 +287,173 @@ export class InMemoryRepository {
     const key = `${provider}:${eventId}`;
     const existing = this.webhookEvents.get(key);
     if (existing) this.webhookEvents.set(key, { ...existing, status });
+  }
+
+  ownsDevice(userId, deviceId) {
+    return [...this.services.values()].some((item) => item.userId === userId && item.deviceIds.includes(deviceId))
+      || (userId === FIXTURES.users.primary && deviceId === FIXTURES.devices.second)
+      || (userId === FIXTURES.users.secondary && deviceId === FIXTURES.devices.secondary);
+  }
+
+  findConsent(userId, receiptId, purpose) {
+    const consent = this.consents.get(receiptId);
+    return consent?.userId === userId && consent.purpose === purpose ? copy(consent) : null;
+  }
+
+  saveConsent(value) {
+    if (value.status === 'revoked') {
+      for (const [id, consent] of this.consents) {
+        if (consent.userId === value.userId && consent.purpose === value.purpose && consent.status === 'granted') {
+          this.consents.set(id, { ...consent, status: 'revoked', revokedAt: value.revokedAt });
+        }
+      }
+    }
+    const stored = { ...copy(value), id: value.id ?? randomUUID() };
+    this.consents.set(stored.id, stored);
+    return copy(stored);
+  }
+
+  listConsents(userId) {
+    const latest = new Map();
+    for (const item of this.consents.values()) if (item.userId === userId) latest.set(item.purpose, item);
+    return [...latest.values()].map(copy);
+  }
+
+  getPublishedRuntimeConfiguration(environment) {
+    const release = [...this.remoteConfigReleases.values()]
+      .find((item) => item.environment === environment && item.status === 'published');
+    return {
+      release: release ? copy(release) : null,
+      flags: [...this.featureFlags.values()].map(copy),
+    };
+  }
+
+  createRemoteConfigRelease(value) {
+    const duplicate = [...this.remoteConfigReleases.values()]
+      .some((item) => item.environment === value.environment && item.version === value.version);
+    if (duplicate) throw new ApiError(409, 'config_version_exists', 'Remote configuration version already exists.');
+    const stored = { ...copy(value), id: value.id ?? randomUUID(), status: 'draft', publishedAt: null, publishedBy: null };
+    this.remoteConfigReleases.set(stored.id, stored);
+    return copy(stored);
+  }
+
+  publishRemoteConfigRelease({ releaseId, publisher, publishedAt }) {
+    const release = this.remoteConfigReleases.get(releaseId);
+    if (!release) return null;
+    if (release.status !== 'draft') throw new ApiError(409, 'config_not_publishable', 'Only a draft release can be published.');
+    if (release.environment === 'production' && release.createdBy === publisher) {
+      throw new ApiError(409, 'dual_control_required', 'A different administrator must publish a production release.');
+    }
+    for (const [id, item] of this.remoteConfigReleases) {
+      if (item.environment === release.environment && item.status === 'published') {
+        this.remoteConfigReleases.set(id, { ...item, status: 'retired' });
+      }
+    }
+    const published = { ...release, status: 'published', publishedBy: publisher, publishedAt };
+    this.remoteConfigReleases.set(releaseId, published);
+    return copy(published);
+  }
+
+  upsertFeatureFlag(value) {
+    const versions = this.featureFlags.get(value.flagKey) ?? [];
+    const stored = { ...copy(value), id: value.id ?? randomUUID(), version: (versions.at(-1)?.version ?? 0) + 1 };
+    this.featureFlags.set(value.flagKey, [...versions, stored]);
+    return copy(stored);
+  }
+
+  listCurrentFeatureFlags() {
+    return [...this.featureFlags.values()].map((items) => copy(items.at(-1)));
+  }
+
+  ingestAnalyticsBatch(value) {
+    const consent = this.consents.get(value.consentReceiptId);
+    if (!consent || consent.userId !== value.userId || consent.purpose !== 'product_analytics'
+      || consent.status !== 'granted' || consent.revokedAt) {
+      throw new ApiError(403, 'analytics_consent_required', 'A current analytics consent receipt is required.');
+    }
+    const key = `${value.userId}:${value.batchId}`;
+    const existing = this.analyticsBatches.get(key);
+    if (existing) {
+      if (existing.payloadDigest !== value.payloadDigest) {
+        throw new ApiError(409, 'analytics_batch_conflict', 'Batch ID was already used with different content.');
+      }
+      return { replay: true, acceptedCount: 0, duplicateCount: value.events.length };
+    }
+    this.analyticsBatches.set(key, copy(value));
+    let acceptedCount = 0;
+    let duplicateCount = 0;
+    for (const event of value.events) {
+      const eventKey = `${value.userId}:${event.event_id}`;
+      if (this.analyticsEvents.has(eventKey)) duplicateCount += 1;
+      else {
+        this.analyticsEvents.set(eventKey, copy({ ...event, userId: value.userId, batchId: value.batchId }));
+        acceptedCount += 1;
+      }
+    }
+    return { replay: false, acceptedCount, duplicateCount };
+  }
+
+  createBugReport(value) {
+    const existing = [...this.bugReports.values()]
+      .find((item) => item.userId === value.userId && item.clientReportId === value.clientReportId);
+    if (existing) {
+      if (existing.payloadDigest !== value.payloadDigest) throw new ApiError(409, 'bug_report_conflict', 'Client report ID was reused with different content.');
+      return { replay: true, report: copy(existing) };
+    }
+    const report = { ...copy(value), id: value.id ?? randomUUID() };
+    this.bugReports.set(report.id, report);
+    return { replay: false, report: copy(report) };
+  }
+
+  listBugReports(userId) {
+    return [...this.bugReports.values()].filter((item) => item.userId === userId).map(copy);
+  }
+
+  findOwnedBugReport(userId, id) {
+    const item = this.bugReports.get(id);
+    return item?.userId === userId ? copy(item) : null;
+  }
+
+  createSupportTicket(value) {
+    const existing = [...this.supportTickets.values()]
+      .find((item) => item.userId === value.userId && item.clientTicketId === value.clientTicketId);
+    if (existing) {
+      if (existing.payloadDigest !== value.payloadDigest) throw new ApiError(409, 'support_ticket_conflict', 'Client ticket ID was reused with different content.');
+      return { replay: true, ticket: copy(existing) };
+    }
+    const ticket = { ...copy(value), id: value.id ?? randomUUID() };
+    this.supportTickets.set(ticket.id, ticket);
+    return { replay: false, ticket: copy(ticket) };
+  }
+
+  listSupportTickets(userId) {
+    return [...this.supportTickets.values()].filter((item) => item.userId === userId).map(copy);
+  }
+
+  findOwnedSupportTicket(userId, id) {
+    const item = this.supportTickets.get(id);
+    return item?.userId === userId ? copy(item) : null;
+  }
+
+  createDiagnosticReport(value) {
+    const existing = [...this.diagnosticReports.values()]
+      .find((item) => item.userId === value.userId && item.clientReportId === value.clientReportId);
+    if (existing) {
+      if (existing.payloadDigest !== value.payloadDigest) throw new ApiError(409, 'diagnostic_report_conflict', 'Client report ID was reused with different content.');
+      return { replay: true, report: copy(existing) };
+    }
+    const report = { ...copy(value), id: value.id ?? randomUUID() };
+    this.diagnosticReports.set(report.id, report);
+    return { replay: false, report: copy(report) };
+  }
+
+  appendAdminAudit(value) {
+    const event = { ...copy(value), id: value.id ?? randomUUID() };
+    this.adminAuditLog.push(event);
+    return copy(event);
+  }
+
+  listAdminAudit({ limit = 100 } = {}) {
+    return this.adminAuditLog.slice(-limit).reverse().map(copy);
   }
 }

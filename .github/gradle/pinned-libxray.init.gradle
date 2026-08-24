@@ -1,0 +1,28 @@
+import org.gradle.api.GradleException
+
+settingsEvaluated { settings ->
+    def repositoryPath = System.getenv("GANJ_PINNED_LIBXRAY_REPOSITORY")
+    if (repositoryPath == null || repositoryPath.trim().isEmpty()) {
+        throw new GradleException("GANJ_PINNED_LIBXRAY_REPOSITORY is required for release dependency resolution")
+    }
+    def repositoryDirectory = new File(repositoryPath)
+    if (!repositoryDirectory.isDirectory()) {
+        throw new GradleException("Pinned libXray repository does not exist")
+    }
+
+    settings.dependencyResolutionManagement.repositories.exclusiveContent {
+        forRepository {
+            maven {
+                name = "ganjPinnedOfficialLibXray"
+                url = repositoryDirectory.toURI()
+                metadataSources {
+                    mavenPom()
+                    artifact()
+                }
+            }
+        }
+        filter {
+            includeModule("io.github.toolshubofficial", "libxray")
+        }
+    }
+}
