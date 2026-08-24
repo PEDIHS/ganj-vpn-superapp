@@ -131,7 +131,7 @@ internal class ControlApiClient(
         val requestId = runCatching { meta?.optionalString("request_id") }.getOrNull() ?: requestIdHeader
         val error = runCatching { root?.optionalObject("error") }.getOrNull()
         val code = runCatching { error?.optionalString("code") }.getOrNull()
-        val retryable = runCatching { error?.optionalBoolean("retryable") }.getOrDefault(false)
+        val retryable = runCatching { error?.optionalBoolean("retryable") }.getOrNull() ?: false
         return when (response.statusCode) {
             400, 422 -> ApiError.Validation(requestId, "request", code ?: "invalid_request")
             401 -> ApiError.AuthenticationExpired(requestId, code).also {
