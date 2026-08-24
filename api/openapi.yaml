@@ -3,6 +3,9 @@ info:
   title: Ganj VPN Control API
   version: 0.1.0
   summary: Versioned contract for Ganj VPN mobile, Telegram, and admin clients.
+  license:
+    name: Proprietary
+    url: https://github.com/PEDIHS/ganj-vpn-superapp/blob/main/LICENSE
   description: >-
     Phase 0 baseline. Connection profiles are device-bound encrypted envelopes;
     raw VPN credentials are never returned from list endpoints.
@@ -15,17 +18,27 @@ security:
   - bearerAuth: []
 tags:
   - name: Bootstrap
+    description: Public application configuration and compatibility policy.
   - name: Auth
+    description: Guest and Telegram authentication session lifecycle.
   - name: Account
+    description: Current user profile and trusted devices.
   - name: Services
+    description: Purchased VPN services and device-bound connection profiles.
   - name: Servers
+    description: Entitlement-filtered server catalog and Smart Connect ranking.
   - name: Connections
+    description: Privacy-minimized VPN connection session accounting.
   - name: Store
+    description: Plans, orders, and channel-specific purchase verification.
   - name: Wallet
+    description: Wallet balance and immutable ledger views.
   - name: Notifications
+    description: User inbox and push delivery registration.
 paths:
   /app/bootstrap:
     get:
+      summary: Get public app bootstrap
       tags: [Bootstrap]
       operationId: getBootstrap
       security: []
@@ -36,8 +49,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BootstrapResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /auth/guest:
     post:
+      summary: Create a guest session
       tags: [Auth]
       operationId: createGuestSession
       security: []
@@ -58,8 +74,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /auth/telegram/start:
     post:
+      summary: Start Telegram OIDC authorization
       tags: [Auth]
       operationId: startTelegramOidc
       security: []
@@ -87,8 +106,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TelegramStartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /auth/telegram/exchange:
     post:
+      summary: Exchange Telegram authorization code
       tags: [Auth]
       operationId: exchangeTelegramCode
       security: []
@@ -114,6 +136,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
   /auth/refresh:
     post:
+      summary: Rotate an authenticated session
       tags: [Auth]
       operationId: refreshSession
       security: []
@@ -138,12 +161,15 @@ paths:
           $ref: '#/components/responses/Unauthorized'
   /auth/logout:
     post:
+      summary: Revoke the current session
       tags: [Auth]
       operationId: logoutSession
       responses:
         '204': { description: Current session revoked. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /me:
     get:
+      summary: Get the current user
       tags: [Account]
       operationId: getCurrentUser
       responses:
@@ -153,8 +179,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /me/devices:
     get:
+      summary: List trusted devices
       tags: [Account]
       operationId: listDevices
       responses:
@@ -164,8 +192,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeviceListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /me/devices/{device_id}:
     delete:
+      summary: Revoke a trusted device
       tags: [Account]
       operationId: revokeDevice
       parameters:
@@ -175,6 +205,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
   /services:
     get:
+      summary: List owned VPN services
       tags: [Services]
       operationId: listServices
       responses:
@@ -184,8 +215,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServiceListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /services/{service_id}:
     get:
+      summary: Get a VPN service
       tags: [Services]
       operationId: getService
       parameters:
@@ -200,6 +233,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
   /services/{service_id}/connection-profile:
     post:
+      summary: Issue a device-bound connection profile
       tags: [Services]
       operationId: createConnectionProfile
       parameters:
@@ -226,6 +260,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
   /servers:
     get:
+      summary: List available VPN servers
       tags: [Servers]
       operationId: listServers
       parameters:
@@ -248,8 +283,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /servers/recommend:
     post:
+      summary: Rank Smart Connect server candidates
       tags: [Servers]
       operationId: recommendServers
       requestBody:
@@ -274,8 +311,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerRecommendationResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
   /connections/start:
     post:
+      summary: Start a connection accounting session
       tags: [Connections]
       operationId: startConnectionSession
       requestBody:
@@ -298,8 +337,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionSessionResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
   /connections/{connection_id}/end:
     post:
+      summary: Finalize a connection accounting session
       tags: [Connections]
       operationId: endConnectionSession
       parameters:
@@ -318,8 +359,11 @@ paths:
                 error_code: { type: [string, 'null'], maxLength: 64 }
       responses:
         '204': { description: Session finalized. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /store/plans:
     get:
+      summary: List purchasable subscription plans
       tags: [Store]
       operationId: listPlans
       security: []
@@ -335,8 +379,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PlanListResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
   /orders:
     post:
+      summary: Create an idempotent order
       tags: [Store]
       operationId: createOrder
       parameters:
@@ -362,6 +408,7 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
   /billing/play/verify:
     post:
+      summary: Verify a Google Play purchase
       tags: [Store]
       operationId: verifyPlayPurchase
       parameters:
@@ -384,8 +431,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrderResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
   /wallet:
     get:
+      summary: Get wallet balance
       tags: [Wallet]
       operationId: getWallet
       responses:
@@ -395,8 +444,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WalletResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /wallet/transactions:
     get:
+      summary: List wallet transactions
       tags: [Wallet]
       operationId: listWalletTransactions
       parameters:
@@ -410,8 +461,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WalletTransactionListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /notifications:
     get:
+      summary: List user notifications
       tags: [Notifications]
       operationId: listNotifications
       parameters:
@@ -425,8 +478,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /devices/{device_id}/push-token:
     put:
+      summary: Register a device push token
       tags: [Notifications]
       operationId: upsertPushToken
       parameters:
@@ -443,6 +498,8 @@ paths:
                 token: { type: string, minLength: 16 }
       responses:
         '204': { description: Push token encrypted and registered. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
     bearerAuth:
@@ -804,4 +861,3 @@ components:
             policy_signature: { type: string }
         meta: { $ref: '#/components/schemas/Meta' }
         error: { type: 'null' }
-
