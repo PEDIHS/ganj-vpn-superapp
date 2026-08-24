@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "com.ganj.vpn.core.vpn"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24
