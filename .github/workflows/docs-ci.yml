@@ -1,27 +1,59 @@
-name: Phase 0 docs
+name: Documentation and contracts
 
 on:
   pull_request:
+    paths:
+      - "README.md"
+      - "SECURITY.md"
+      - "docs/**"
+      - "api/**"
+      - "database/**"
+      - "design/**"
+      - ".github/scripts/**"
+      - ".github/workflows/docs-ci.yml"
   push:
     branches: [main]
+    paths:
+      - "README.md"
+      - "SECURITY.md"
+      - "docs/**"
+      - "api/**"
+      - "database/**"
+      - "design/**"
+      - ".github/scripts/**"
+      - ".github/workflows/docs-ci.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: docs-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
+    name: Validate documentation and contracts
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - name: Validate JSON design tokens
-        run: jq empty design/tokens.json
-      - name: Lint OpenAPI
-        run: npx --yes @redocly/cli@1.34.5 lint api/openapi.yaml
-      - name: Block common private artifacts
-        shell: bash
-        run: |
-          if git ls-files | grep -E '(^|/)(google-services\.json|GoogleService-Info\.plist|.*\.(apk|aab|jks|keystore|p12)|error_log)$'; then
-            echo 'Sensitive or generated artifact is tracked.'
-            exit 1
-          fi
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
+      - name: Guard repository contents
+        shell: bash
+        run: bash .github/scripts/repository-guard.sh
+
+      - name: Validate JSON design tokens
+        shell: bash
+        run: jq empty design/tokens.json
+
+      - name: Lint OpenAPI contract
+        shell: bash
+        run: npx --yes @redocly/cli@1.34.5 lint api/openapi.yaml
+
+      - name: Validate local Markdown links
+        shell: bash
+        run: python3 .github/scripts/check-doc-links.py

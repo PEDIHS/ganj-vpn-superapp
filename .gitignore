@@ -36,6 +36,10 @@ node_modules/
 dist/
 .vite/
 
+# Python tooling
+__pycache__/
+*.py[cod]
+
 # PHP
 vendor/
 .phpunit.result.cache
@@ -44,4 +48,3 @@ vendor/
 .DS_Store
 Thumbs.db
 .vscode/
-

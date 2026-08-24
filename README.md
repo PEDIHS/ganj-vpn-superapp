@@ -13,6 +13,8 @@
 - Backend جدید یک Modular Monolith مبتنی بر Laravel و PostgreSQL است و با Adapter به ربات PHP/MariaDB فعلی متصل می‌شود.
 - ورود Telegram از OIDC Authorization Code + PKCE استفاده می‌کند؛ Deep Link ربات مسیر جایگزین است.
 - نسخه Google Play فقط از Play Billing یا برنامه‌های پرداخت جایگزین مجاز استفاده می‌کند؛ نسخه Direct می‌تواند Wallet/Telegram/Gateway داشته باشد.
+- اپ هیچ ورودی دستی، QR import، Clipboard import یا نمایش/Export کانفیگ ندارد؛ اتصال فقط از سرویس و Entitlement متعلق به کاربر انجام می‌شود.
+- خرید، تمدید و فعال‌سازی اشتراک یک جریان هسته‌ای محصول است و فقط پس از تأیید Server-side پرداخت، Entitlement صادر می‌شود.
 - اطلاعات مقصد، DNS، محتوای ترافیک و تاریخچهٔ مرور جمع‌آوری یا ثبت نمی‌شود.
 - فایل‌های APK، ZIP سرور، `google-services.json`، Bot Token، Keystore و Config واقعی هرگز Commit نمی‌شوند.
 
@@ -28,6 +30,10 @@
 8. [امنیت و Threat Model](docs/07-security-threat-model.fa.md)
 9. [Roadmap توسعه](docs/08-development-roadmap.fa.md)
 10. [انتشار و انطباق Google Play](docs/09-play-release-compliance.fa.md)
+11. [پلتفرم Enterprise](docs/10-enterprise-platform.fa.md)
+12. [Observability، Bug Tracking و پشتیبانی](docs/11-observability-and-support-runbook.fa.md)
+13. [Release، Update و Supply Chain](docs/12-release-and-update-runbook.fa.md)
+14. [Incident Response و Disaster Recovery](docs/13-incident-response-runbook.fa.md)
 
 فایل‌های ماشینی:
 
@@ -55,6 +61,16 @@ database/
 infra/
 ```
 
+## مدل توسعه موازی
+
+توسعه Android در سه Track هم‌زمان انجام می‌شود:
+
+1. **Product & Subscription:** حساب، سرویس‌های من، Store، خرید/تمدید و Entitlement.
+2. **VPN & Reliability:** Config Broker، Xray wrapper، Smart Connect، Kill Switch و Diagnostics.
+3. **Enterprise & Operations:** Bug/Crash، Analytics، Feature Flag، Support، Monitoring، SOC و Release Automation.
+
+هر Track روی شاخه جدا، با Pull Request و Quality Gate وارد `main` می‌شود؛ قابلیت وابسته تا زمانی که قرارداد امنیتی و تست آن کامل نشده در Production فعال نمی‌شود.
+
 ## Quality Gates برنامه‌ریزی‌شده
 
 - Android: unit, instrumentation, VPN smoke, macrobenchmark, lint, detekt, dependency verification.
@@ -68,4 +84,3 @@ infra/
 - `v2rayNG_2.2.6-fdroid_arm64-v8a.apk`: فقط مرجع مقایسه و مجوز؛ وارد مخزن نمی‌شود.
 - `well-known (26).zip`: کد ربات/پنل فعلی؛ دارای Secret و Runtime Data و خارج از Git است.
 - `google-services.json`: شناسهٔ بستهٔ آن با APK فعلی همخوان نیست و باید برای Application ID نهایی دوباره تولید شود.
-

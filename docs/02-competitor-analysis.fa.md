@@ -67,7 +67,7 @@ Account محل تنظیم VPN نیست. Profile، Telegram، Plan، Devices، Wa
 4. **Local market payments:** در نسخه Direct، Wallet و درگاه‌های فعلی حفظ می‌شوند.
 5. **Transparent Free:** محدودیت سرعت/حجم و نوع تبلیغ قبل از اتصال روشن است.
 6. **No traffic monetization:** تبلیغ از Context حساب و پلن هدف می‌گیرد، نه مقصدهای مرور.
-7. **Pro controls without clutter:** Import، Routing و Per-app VPN در Advanced Mode قرار می‌گیرند.
+7. **Pro controls without clutter:** Routing و Per-app VPN در Advanced Mode قرار می‌گیرند؛ Import دستی عمداً وجود ندارد و اتصال فقط از اشتراک کاربر فعال می‌شود.
 
 ## منابع رسمی
 
@@ -79,4 +79,3 @@ Account محل تنظیم VPN نیست. Profile، Telegram، Plan، Devices، Wa
 - [Windscribe Free](https://windscribe.net/features/use-for-free)
 - [Outline access key model](https://support.getoutline.org/en-GB/client/getting-started/get-access-key/)
 - [v2rayNG repository and GPL-3.0 license](https://github.com/2dust/v2rayNG)
-

@@ -14,7 +14,17 @@
 
 Exit gate: تأیید Product Scope، Application ID، payment channels و privacy position.
 
-## Phase 1 — Foundations (هفته 3–6)
+## مدل تحویل موازی
+
+فازها صرفاً صف خطی نیستند. بعد از تثبیت قراردادهای فاز صفر، سه Track به‌صورت هم‌زمان اجرا می‌شوند و در نقاط ادغام مشترک به هم می‌رسند:
+
+- Track A — Android Product: Design System، حساب، سرویس‌ها، Store و Subscription.
+- Track B — Control Platform: API، داده، Telegram Sync، پرداخت، Admin و Enterprise Systems.
+- Track C — VPN & Operations: Xray، Config Broker، Smart Connect، Observability، Security و Release.
+
+وابستگی‌های امنیتی حذف نمی‌شوند: برای مثال UI خرید می‌تواند هم‌زمان با VPN Core ساخته شود، اما فعال‌سازی سرویس فقط پس از Server-side verification و Entitlement معتبر ممکن است.
+
+## Phase 1 — Foundations (هفته 3–6، هم‌زمان با شروع Phase 3 و 4)
 
 ### Android
 
@@ -22,6 +32,8 @@ Exit gate: تأیید Product Scope، Application ID، payment channels و priva
 - Compose Design System، RTL، dark/light؛
 - encrypted local session، networking و error model؛
 - VPN engine interface و isolated service process؛
+- navigation پنج‌تب، My Services و Store state machine؛
+- ممنوعیت کامل manual/QR/clipboard/file config import؛
 - unit/lint/detekt/CI.
 
 ### Backend
@@ -34,20 +46,21 @@ Exit gate: تأیید Product Scope، Application ID، payment channels و priva
 
 Exit gate: login guest/Telegram و bootstrap روی staging.
 
-## Phase 2 — VPN MVP (هفته 7–12)
+## Phase 2 — VPN MVP (هفته 5–12، هم‌زمان با Commerce و Observability)
 
 - Xray wrapper pinned and licensed؛
 - VLESS/VMess/Trojan/Shadowsocks؛
 - Android VpnService، foreground notification، reconnect؛
 - Home/Servers/Connect؛
 - server catalog، health و Config Broker؛
+- entitlement-only, device-bound encrypted profiles؛
 - Smart Connect v1؛
 - Kill Switch، DNS leak protection، local stats؛
 - end-to-end connection tests روی Android 8–16.
 
 Exit gate: P95 connect <4s روی test matrix، no cleartext leak، crash-free lab pass.
 
-## Phase 3 — Commerce & Sync (هفته 13–18)
+## Phase 3 — Commerce & Sync (هفته 4–18)
 
 - My Services، Plan، Store، Wallet و Transactions؛
 - Google Play Billing flavor و server verification؛
@@ -55,11 +68,12 @@ Exit gate: P95 connect <4s روی test matrix، no cleartext leak، crash-free l
 - entitlement sync با Bot؛
 - multi-device/revoke؛
 - idempotency/reconciliation؛
+- purchase/renewal state machine، pending payment recovery و refund/chargeback revocation؛
 - React admin: users, plans, servers, orders.
 
 Exit gate: sandbox purchase → entitlement → connect → revoke با Audit کامل.
 
-## Phase 4 — Marketing & Quality (هفته 19–22)
+## Phase 4 — Enterprise, Marketing & Quality (هفته 4–22)
 
 - FCM، notification preferences و consent؛
 - banners/popup/announcement/campaign targeting؛
@@ -67,6 +81,11 @@ Exit gate: sandbox purchase → entitlement → connect → revoke با Audit ک
 - favorites، search/filter/sort، speed test؛
 - accessibility، performance profiles، battery tests؛
 - privacy policy/data safety drafts.
+- bug/crash reporting، support tickets و privacy-safe diagnostics؛
+- remote config، feature flags، staged rollout و A/B testing؛
+- analytics funnels، product dashboard و consent governance؛
+- server/backend monitoring، alerting، audit، SOC و anti-abuse؛
+- backup/restore drills و disaster recovery evidence.
 
 Exit gate: internal alpha و policy review.
 
@@ -128,4 +147,3 @@ Exit gate: Production readiness review و rollout 5% → 20% → 50% → 100%.
 - staging provider accounts و safe test configs؛
 - Privacy/Terms owner و refund policy؛
 - تصمیم نهایی Free quota/ads و pricing.
-

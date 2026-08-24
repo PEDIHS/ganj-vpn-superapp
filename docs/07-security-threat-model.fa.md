@@ -44,7 +44,7 @@
 - `usesCleartextTraffic=false` با استثنای محدود loopback در صورت نیاز Core؛
 - exported component فقط با ضرورت و permission؛
 - PendingIntent immutable پیش‌فرض؛
-- Clipboard برای Config با auto-clear و warning؛
+- Clipboard هیچ‌گاه برای Config یا credential استفاده نمی‌شود؛ پروفایل فقط از Entitlement معتبر و به‌صورت device-bound صادر می‌شود؛
 - screenshot protection روی Config/Recovery screen؛
 - release `debuggable=false` و R8 full mode؛
 - no WebView برای Auth اصلی؛ Custom Tabs + verified App Links؛
@@ -107,4 +107,3 @@ Severity، owner و Runbook برای موارد زیر قبل از Production آ
 - Play/Firebase service outage.
 
 هر Incident شامل containment، revoke/rotation، customer impact، evidence preservation، notification decision و postmortem بدون سرزنش است.
-

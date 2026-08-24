@@ -16,4 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "GanjVpnAndroid"
 include(":app")
+include(":core:subscription")
 include(":core:vpn-api")

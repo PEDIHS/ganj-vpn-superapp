@@ -43,6 +43,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:subscription"))
     implementation(project(":core:vpn-api"))
 
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")

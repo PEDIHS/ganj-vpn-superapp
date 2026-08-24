@@ -1,0 +1,60 @@
+name: Dependency review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: GitHub dependency diff
+    if: ${{ vars.GHAS_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Detect vulnerable or disallowed dependencies
+        uses: actions/dependency-review-action@v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never
+          license-check: true
+          deny-licenses: AGPL-1.0-only, AGPL-1.0-or-later, AGPL-3.0-only, AGPL-3.0-or-later
+
+  portable-vulnerability-review:
+    name: Portable dependency vulnerability scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Generate dependency SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          path: apps/android
+          format: spdx-json
+          output-file: dependency-review.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Validate dependency SBOM
+        shell: bash
+        run: jq -e '.spdxVersion and (.packages | length > 0)' dependency-review.spdx.json >/dev/null
+
+      - name: Block high and critical known vulnerabilities
+        uses: anchore/scan-action@v7.4.0
+        with:
+          sbom: dependency-review.spdx.json
+          fail-build: true
+          severity-cutoff: high
+          output-format: table
+          only-fixed: false
+          cache-db: true
