@@ -1,14 +1,16 @@
 openapi: 3.1.0
 info:
   title: Ganj VPN Control API
-  version: 0.1.0
+  version: 0.2.0
   summary: Versioned contract for Ganj VPN mobile, Telegram, and admin clients.
   license:
     name: Proprietary
     url: https://github.com/PEDIHS/ganj-vpn-superapp/blob/main/LICENSE
   description: >-
-    Phase 0 baseline. Connection profiles are device-bound encrypted envelopes;
-    raw VPN credentials are never returned from list endpoints.
+    Phase 0 Enterprise contract. Connection profiles are issued exclusively from
+    an active user entitlement as device-bound encrypted envelopes. Manual URI,
+    clipboard, QR, file, or arbitrary VPN configuration import is intentionally
+    unsupported. Raw VPN credentials are never accepted or returned by this API.
   contact:
     name: Ganj VPN Engineering
 servers:
@@ -35,6 +37,22 @@ tags:
     description: Wallet balance and immutable ledger views.
   - name: Notifications
     description: User inbox and push delivery registration.
+  - name: Experience
+    description: Consent-aware analytics, remote configuration, feature assignment, and feedback.
+  - name: Reliability
+    description: Privacy-minimized crash, bug, attachment, and diagnostic reporting.
+  - name: Support
+    description: Tickets, conversations, FAQ, and knowledge-base discovery.
+  - name: Privacy
+    description: Consent, export, deletion, and processing transparency controls.
+  - name: AdminIssues
+    description: Scoped issue triage and controlled bug lifecycle transitions.
+  - name: AdminOperations
+    description: Monitoring, alerts, releases, backups, disaster recovery, and quality gates.
+  - name: AdminSecurity
+    description: SOC investigation and anti-abuse decisions with immutable audit evidence.
+  - name: AdminProduct
+    description: Aggregated product metrics, funnels, localization, and product intelligence.
 paths:
   /app/bootstrap:
     get:
@@ -500,6 +518,569 @@ paths:
         '204': { description: Push token encrypted and registered. }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /app/runtime-config:
+    get:
+      summary: Resolve signed remote configuration and feature assignments
+      description: >-
+        Returns only values applicable to the authenticated device, locale,
+        subscription, and rollout cohort. Secrets and raw VPN configuration are excluded.
+      tags: [Experience]
+      operationId: getRuntimeConfiguration
+      parameters:
+        - name: If-None-Match
+          in: header
+          schema: { type: string }
+      responses:
+        '200':
+          description: Signed, versioned runtime values and deterministic feature assignments.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RuntimeConfigurationResponse' }
+        '304': { description: Cached configuration remains current. }
+  /app/localizations/{locale}:
+    get:
+      summary: Get a signed localization delta
+      tags: [Experience]
+      operationId: getLocalizationBundle
+      security: []
+      parameters:
+        - name: locale
+          in: path
+          required: true
+          schema: { type: string, enum: [fa-IR, en-US, ar, tr-TR, de-DE] }
+        - name: version
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Public copy-only localization bundle; security-critical copy remains app-bundled.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocalizationBundleResponse' }
+  /app/update-policy:
+    get:
+      summary: Resolve update requirement for this installation
+      tags: [Experience]
+      operationId: getUpdatePolicy
+      responses:
+        '200':
+          description: Signed force/optional/beta policy resolved for the device.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UpdatePolicyResponse' }
+  /telemetry/events:batch:
+    post:
+      summary: Submit a consent-aware analytics batch
+      description: >-
+        Analytics is accepted only for a currently granted purpose and contains no
+        VPN destinations, DNS queries, payload content, raw IP address, or advertising ID.
+      tags: [Experience]
+      operationId: ingestAnalyticsEvents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnalyticsBatchRequest' }
+      responses:
+        '202': { description: Valid consented events queued; disallowed fields rejected or redacted. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /telemetry/crashes:
+    post:
+      summary: Submit a privacy-scrubbed crash event
+      tags: [Reliability]
+      operationId: ingestCrashEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CrashEventRequest' }
+      responses:
+        '202': { description: Crash fingerprinted and queued after server-side redaction. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /reliability/bug-reports:
+    get:
+      summary: List bug reports created by the current user
+      tags: [Reliability]
+      operationId: listMyBugReports
+      responses:
+        '200':
+          description: User-safe status summaries without internal investigation details.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BugReportListResponse' }
+    post:
+      summary: Create a structured bug report
+      tags: [Reliability]
+      operationId: createBugReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BugReportRequest' }
+      responses:
+        '201':
+          description: Report created with sanitized diagnostic context.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BugReportResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /reliability/bug-reports/{bug_id}/attachments:
+    post:
+      summary: Register an encrypted bug-report attachment upload
+      description: >-
+        Returns a short-lived upload grant after MIME, size, ownership, malware-scan,
+        and retention policy checks. Screen recordings require explicit consent.
+      tags: [Reliability]
+      operationId: createBugAttachmentUpload
+      parameters:
+        - $ref: '#/components/parameters/BugId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AttachmentUploadRequest' }
+      responses:
+        '201':
+          description: Short-lived object-storage upload grant.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttachmentUploadResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /diagnostics/reports:
+    post:
+      summary: Submit an explicitly approved diagnostic report
+      description: >-
+        Accepts allowlisted DNS result classes, latency, packet loss, network type,
+        VPN state, and coarse device data. Hostnames, destinations, credentials, and content are prohibited.
+      tags: [Reliability]
+      operationId: createDiagnosticReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiagnosticReportRequest' }
+      responses:
+        '201':
+          description: Redacted diagnostic report with a bounded retention period.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiagnosticReportResponse' }
+  /support/tickets:
+    get:
+      summary: List the current user's support tickets
+      tags: [Support]
+      operationId: listSupportTickets
+      responses:
+        '200':
+          description: Support ticket list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SupportTicketListResponse' }
+    post:
+      summary: Open a support ticket
+      tags: [Support]
+      operationId: createSupportTicket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SupportTicketRequest' }
+      responses:
+        '201':
+          description: Ticket created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SupportTicketResponse' }
+  /support/tickets/{ticket_id}/messages:
+    post:
+      summary: Add a message to an owned support ticket
+      tags: [Support]
+      operationId: createSupportMessage
+      parameters:
+        - $ref: '#/components/parameters/TicketId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_message_id, body]
+              properties:
+                client_message_id: { type: string, format: uuid }
+                body: { type: string, minLength: 1, maxLength: 8000 }
+      responses:
+        '201': { description: Message appended idempotently. }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /support/knowledge-base:
+    get:
+      summary: Search localized published help content
+      tags: [Support]
+      operationId: searchKnowledgeBase
+      security: []
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 128 }
+        - name: locale
+          in: query
+          schema: { type: string, default: fa-IR }
+      responses:
+        '200':
+          description: Published FAQ and knowledge-base results.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeBaseResponse' }
+  /feedback:
+    post:
+      summary: Send categorized product feedback or a feature request
+      tags: [Experience]
+      operationId: createFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeedbackRequest' }
+      responses:
+        '201': { description: Feedback accepted without exposing identity to product analytics by default. }
+  /me/consents:
+    get:
+      summary: Get current consent state by purpose
+      tags: [Privacy]
+      operationId: listMyConsents
+      responses:
+        '200':
+          description: Current consent receipts and policy versions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsentListResponse' }
+    put:
+      summary: Grant or withdraw consent
+      tags: [Privacy]
+      operationId: updateConsent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConsentUpdateRequest' }
+      responses:
+        '204': { description: Consent receipt appended; withdrawal takes effect for future processing. }
+  /me/accessibility:
+    get:
+      summary: Get accessibility preferences
+      tags: [Privacy]
+      operationId: getAccessibilityPreferences
+      responses:
+        '200':
+          description: Account-level accessibility preferences.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccessibilityPreferencesResponse' }
+    put:
+      summary: Update accessibility preferences
+      tags: [Privacy]
+      operationId: updateAccessibilityPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccessibilityPreferences' }
+      responses:
+        '204': { description: Preferences updated. }
+  /me/privacy/export:
+    post:
+      summary: Request a portable personal-data export
+      tags: [Privacy]
+      operationId: requestPrivacyExport
+      responses:
+        '202':
+          description: Identity-verified export job created; download is short-lived and encrypted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequestResponse' }
+  /me/privacy/deletion-request:
+    post:
+      summary: Request account and personal-data deletion
+      tags: [Privacy]
+      operationId: requestAccountDeletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmation, device_proof]
+              properties:
+                confirmation: { type: string, const: DELETE_MY_ACCOUNT }
+                device_proof: { type: string, minLength: 32 }
+      responses:
+        '202':
+          description: Deletion workflow created subject to fraud, billing, and legal holds.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequestResponse' }
+  /admin/issues:
+    get:
+      summary: Search and prioritize reliability issues
+      description: Requires `admin:issues:read`, MFA, tenant policy, and audited access.
+      tags: [AdminIssues]
+      operationId: adminListIssues
+      parameters:
+        - name: severity
+          in: query
+          schema: { type: string, enum: [critical, high, medium, low] }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/BugStatus' }
+      responses:
+        '200':
+          description: Prioritized bug groups and user-impact estimates.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminIssueListResponse' }
+  /admin/issues/{bug_id}/transition:
+    post:
+      summary: Apply a controlled issue lifecycle transition
+      description: Requires `admin:issues:write`; impossible transitions return 409 and every attempt is audited.
+      tags: [AdminIssues]
+      operationId: adminTransitionIssue
+      parameters:
+        - $ref: '#/components/parameters/BugId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BugTransitionRequest' }
+      responses:
+        '204': { description: Transition and assignment history appended. }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/crashes/groups:
+    get:
+      summary: List deduplicated crash groups
+      tags: [AdminIssues]
+      operationId: adminListCrashGroups
+      responses:
+        '200':
+          description: Crash fingerprints, affected version/user counts, and priority.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CrashGroupListResponse' }
+  /admin/remote-config/releases:
+    post:
+      summary: Stage an immutable remote-configuration release
+      description: Requires dual control for security, billing, privacy, or VPN policy keys.
+      tags: [AdminProduct]
+      operationId: adminCreateRemoteConfigRelease
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RemoteConfigReleaseRequest' }
+      responses:
+        '201': { description: Draft release created; publication is separately authorized and audited. }
+  /admin/feature-flags/{flag_key}:
+    put:
+      summary: Version a feature flag rollout policy
+      tags: [AdminProduct]
+      operationId: adminUpdateFeatureFlag
+      parameters:
+        - name: flag_key
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-z][a-z0-9_.-]{2,127}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeatureFlagPolicyRequest' }
+      responses:
+        '204': { description: New immutable flag version stored; assignment remains deterministic. }
+  /admin/monitoring/overview:
+    get:
+      summary: Get privacy-safe operational health aggregates
+      tags: [AdminOperations]
+      operationId: adminGetMonitoringOverview
+      responses:
+        '200':
+          description: Server/backend CPU, memory, bandwidth, latency, packet loss, queue, DB, and error-rate aggregates.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MonitoringOverviewResponse' }
+  /admin/alerts:
+    get:
+      summary: List active alert incidents
+      tags: [AdminOperations]
+      operationId: adminListAlerts
+      responses:
+        '200':
+          description: Deduplicated and routed infrastructure, backend, security, and product alerts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AlertListResponse' }
+  /admin/alerts/{alert_id}/acknowledge:
+    post:
+      summary: Acknowledge an alert incident
+      tags: [AdminOperations]
+      operationId: adminAcknowledgeAlert
+      parameters:
+        - $ref: '#/components/parameters/AlertId'
+      responses:
+        '204': { description: Alert acknowledged with actor and timestamp in the audit log. }
+  /admin/releases:
+    post:
+      summary: Create an application or backend release candidate
+      tags: [AdminOperations]
+      operationId: adminCreateRelease
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReleaseRequest' }
+      responses:
+        '201': { description: Release candidate created in development or testing. }
+  /admin/releases/{release_id}/promote:
+    post:
+      summary: Promote a release through an allowed environment gate
+      description: Production promotion requires signed artifacts, passing quality/security gates, approval, and rollback metadata.
+      tags: [AdminOperations]
+      operationId: adminPromoteRelease
+      parameters:
+        - name: release_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_environment]
+              properties:
+                target_environment: { type: string, enum: [testing, staging, production] }
+                rollout_percent: { type: integer, minimum: 1, maximum: 100, default: 5 }
+      responses:
+        '202': { description: Gated deployment queued. }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/quality/runs:
+    post:
+      summary: Record a CI test, scan, or quality run
+      tags: [AdminOperations]
+      operationId: adminCreateQualityRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QualityRunRequest' }
+      responses:
+        '201': { description: Immutable run and findings registered using artifact digests. }
+  /admin/backups:
+    post:
+      summary: Start a policy-controlled backup
+      tags: [AdminOperations]
+      operationId: adminCreateBackup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BackupRequest' }
+      responses:
+        '202': { description: Encrypted backup job queued in a separate failure domain. }
+  /admin/disaster-recovery/exercises:
+    post:
+      summary: Schedule or record a disaster-recovery exercise
+      tags: [AdminOperations]
+      operationId: adminCreateDisasterRecoveryExercise
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DisasterRecoveryExerciseRequest' }
+      responses:
+        '201': { description: Exercise created with RPO/RTO objectives and isolated restore target. }
+  /admin/security/cases:
+    get:
+      summary: List SOC cases visible to the current analyst
+      tags: [AdminSecurity]
+      operationId: adminListSecurityCases
+      responses:
+        '200':
+          description: Least-privilege security cases with pseudonymous subjects.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SecurityCaseListResponse' }
+  /admin/security/abuse-actions:
+    post:
+      summary: Apply a proportionate anti-abuse action
+      description: Automated signals alone cannot permanently block or delete a user; high-impact action requires review and appeal metadata.
+      tags: [AdminSecurity]
+      operationId: adminCreateAbuseAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AbuseActionRequest' }
+      responses:
+        '202': { description: Action queued or held for required human approval. }
+  /admin/product/metrics:
+    get:
+      summary: Get k-anonymous product and commercial aggregates
+      tags: [AdminProduct]
+      operationId: adminGetProductMetrics
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Growth, retention, revenue, conversion, churn, and active-user aggregates with small-cell suppression.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductMetricsResponse' }
+  /admin/product/funnels/{funnel_key}:
+    get:
+      summary: Get a consent-aware funnel aggregate
+      tags: [AdminProduct]
+      operationId: adminGetFunnel
+      parameters:
+        - name: funnel_key
+          in: path
+          required: true
+          schema: { type: string, maxLength: 128 }
+      responses:
+        '200':
+          description: Aggregated step conversion and drop-off with no event-level export.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FunnelResponse' }
+  /admin/product-intelligence/recommendations:
+    get:
+      summary: List explainable product intelligence recommendations
+      description: Recommendations are advisory, versioned, drift-monitored, and require a human decision for user-affecting changes.
+      tags: [AdminProduct]
+      operationId: adminListProductIntelligenceRecommendations
+      responses:
+        '200':
+          description: Churn, quality, server, and campaign recommendations with confidence and evidence windows.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductRecommendationListResponse' }
+  /admin/documentation/artifacts:
+    get:
+      summary: List versioned operational and developer documentation artifacts
+      tags: [AdminOperations]
+      operationId: adminListDocumentationArtifacts
+      responses:
+        '200':
+          description: Architecture, API, database, deployment, security, and developer guide versions and owners.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentationArtifactListResponse' }
 components:
   securitySchemes:
     bearerAuth:
@@ -519,6 +1100,21 @@ components:
       schema: { type: string, format: uuid }
     ConnectionId:
       name: connection_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    BugId:
+      name: bug_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TicketId:
+      name: ticket_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AlertId:
+      name: alert_id
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -859,5 +1455,598 @@ components:
             maintenance_message: { type: [string, 'null'] }
             feature_flags: { type: object, additionalProperties: { type: boolean } }
             policy_signature: { type: string }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    RuntimeConfigurationResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [version, etag, values, feature_assignments, expires_at, signature]
+          properties:
+            version: { type: integer, minimum: 1 }
+            etag: { type: string }
+            values: { type: object, additionalProperties: true }
+            feature_assignments:
+              type: array
+              items: { $ref: '#/components/schemas/FeatureAssignment' }
+            expires_at: { type: string, format: date-time }
+            signature: { type: string, contentEncoding: base64 }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    FeatureAssignment:
+      type: object
+      required: [key, enabled, variant, assignment_id, config_version]
+      properties:
+        key: { type: string }
+        enabled: { type: boolean }
+        variant: { type: string }
+        assignment_id: { type: string, format: uuid }
+        config_version: { type: integer, minimum: 1 }
+    LocalizationBundleResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [locale, version, messages, checksum, signature]
+          properties:
+            locale: { type: string }
+            version: { type: string }
+            messages: { type: object, additionalProperties: { type: string } }
+            checksum: { type: string }
+            signature: { type: string, contentEncoding: base64 }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    UpdatePolicyResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [channel, current_version, minimum_version, latest_version, requirement, signature]
+          properties:
+            channel: { type: string, enum: [stable, beta] }
+            current_version: { type: string }
+            minimum_version: { type: string }
+            latest_version: { type: string }
+            requirement: { type: string, enum: [none, optional, forced] }
+            reason_code: { type: [string, 'null'] }
+            store_uri: { type: [string, 'null'], format: uri }
+            signature: { type: string, contentEncoding: base64 }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    AnalyticsBatchRequest:
+      type: object
+      required: [batch_id, consent_receipt_id, sent_at, events]
+      properties:
+        batch_id: { type: string, format: uuid }
+        consent_receipt_id: { type: string, format: uuid }
+        sent_at: { type: string, format: date-time }
+        events:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [event_id, name, occurred_at, schema_version]
+            properties:
+              event_id: { type: string, format: uuid }
+              name: { type: string, pattern: '^[a-z][a-z0-9_.]{2,127}$' }
+              occurred_at: { type: string, format: date-time }
+              schema_version: { type: integer, minimum: 1 }
+              session_id: { type: [string, 'null'], format: uuid }
+              properties:
+                type: object
+                description: Allowlisted, low-cardinality properties only.
+                additionalProperties: true
+    CrashEventRequest:
+      type: object
+      required: [occurrence_id, device_id, app_version, os_version, module, exception_class, stack_trace, occurred_at]
+      properties:
+        occurrence_id: { type: string, format: uuid }
+        device_id: { type: string, format: uuid }
+        app_version: { type: string, maxLength: 32 }
+        os_version: { type: string, maxLength: 32 }
+        module: { type: string, maxLength: 128 }
+        exception_class: { type: string, maxLength: 255 }
+        stack_trace:
+          type: string
+          maxLength: 65536
+          description: Application stack only; scrub tokens, paths, user input, URLs, and network destinations before upload.
+        error_code: { type: [string, 'null'], maxLength: 64 }
+        connection_state: { type: string, enum: [disconnected, connecting, connected, disconnecting, unknown] }
+        server_id: { type: [string, 'null'], format: uuid }
+        network_type: { type: string, enum: [wifi, cellular, ethernet, unknown] }
+        occurred_at: { type: string, format: date-time }
+    BugStatus:
+      type: string
+      enum: [new, investigating, assigned, fixing, testing, released, closed]
+    BugReportRequest:
+      type: object
+      required: [client_report_id, title, description, category, device_id, occurred_at, automatic_context_consent]
+      properties:
+        client_report_id: { type: string, format: uuid }
+        title: { type: string, minLength: 3, maxLength: 200 }
+        description: { type: string, minLength: 3, maxLength: 12000 }
+        category: { type: string, enum: [connection, purchase, account, ui, performance, security, other] }
+        device_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        automatic_context_consent: { type: boolean, const: true }
+        context:
+          type: object
+          properties:
+            app_version: { type: string, maxLength: 32 }
+            os_version: { type: string, maxLength: 32 }
+            device_model: { type: string, maxLength: 128 }
+            connection_state: { type: string, enum: [disconnected, connecting, connected, disconnecting, unknown] }
+            server_id: { type: [string, 'null'], format: uuid }
+            network_type: { type: string, enum: [wifi, cellular, ethernet, unknown] }
+            error_code: { type: [string, 'null'], maxLength: 64 }
+          additionalProperties: false
+    BugReport:
+      type: object
+      required: [id, public_code, title, category, severity, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        public_code: { type: string }
+        title: { type: string }
+        category: { type: string }
+        severity: { type: string, enum: [critical, high, medium, low] }
+        status: { $ref: '#/components/schemas/BugStatus' }
+        user_impact_count: { type: integer, minimum: 0 }
+        affected_versions: { type: array, items: { type: string } }
+        related_module: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BugReportResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { $ref: '#/components/schemas/BugReport' }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    BugReportListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/BugReport' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    AttachmentUploadRequest:
+      type: object
+      required: [attachment_id, kind, file_name, media_type, size_bytes, sha256, explicit_consent]
+      properties:
+        attachment_id: { type: string, format: uuid }
+        kind: { type: string, enum: [screenshot, screen_recording, log, document] }
+        file_name: { type: string, minLength: 1, maxLength: 255 }
+        media_type: { type: string, maxLength: 128 }
+        size_bytes: { type: integer, minimum: 1, maximum: 52428800 }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        explicit_consent: { type: boolean, const: true }
+    AttachmentUploadResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [attachment_id, upload_url, upload_expires_at, retention_expires_at]
+          properties:
+            attachment_id: { type: string, format: uuid }
+            upload_url: { type: string, format: uri }
+            upload_expires_at: { type: string, format: date-time }
+            retention_expires_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    DiagnosticReportRequest:
+      type: object
+      required: [client_report_id, device_id, explicit_consent, started_at, completed_at, tests]
+      properties:
+        client_report_id: { type: string, format: uuid }
+        device_id: { type: string, format: uuid }
+        bug_report_id: { type: [string, 'null'], format: uuid }
+        support_ticket_id: { type: [string, 'null'], format: uuid }
+        explicit_consent: { type: boolean, const: true }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        tests:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required: [kind, outcome]
+            properties:
+              kind: { type: string, enum: [network, dns_resolver, server_ping, packet_loss, vpn_state, device_integrity] }
+              outcome: { type: string, enum: [passed, warning, failed, unavailable] }
+              latency_ms: { type: [integer, 'null'], minimum: 0 }
+              packet_loss_ratio: { type: [number, 'null'], minimum: 0, maximum: 1 }
+              result_code: { type: [string, 'null'], maxLength: 64 }
+    DiagnosticReportResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [id, redaction_version, expires_at]
+          properties:
+            id: { type: string, format: uuid }
+            redaction_version: { type: string }
+            expires_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    SupportTicketRequest:
+      type: object
+      required: [client_ticket_id, category, subject, body]
+      properties:
+        client_ticket_id: { type: string, format: uuid }
+        category: { type: string, enum: [connection, billing, account, security, feedback, other] }
+        priority: { type: string, enum: [normal, high], default: normal }
+        subject: { type: string, minLength: 3, maxLength: 200 }
+        body: { type: string, minLength: 3, maxLength: 8000 }
+    SupportTicket:
+      type: object
+      required: [id, public_code, category, priority, status, subject, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        public_code: { type: string }
+        category: { type: string }
+        priority: { type: string, enum: [normal, high, urgent] }
+        status: { type: string, enum: [open, waiting_support, waiting_user, resolved, closed] }
+        subject: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    SupportTicketResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { $ref: '#/components/schemas/SupportTicket' }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    SupportTicketListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/SupportTicket' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    KnowledgeBaseResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [slug, title, summary, locale, version]
+            properties:
+              slug: { type: string }
+              title: { type: string }
+              summary: { type: string }
+              locale: { type: string }
+              version: { type: string }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    FeedbackRequest:
+      type: object
+      required: [client_feedback_id, category, body]
+      properties:
+        client_feedback_id: { type: string, format: uuid }
+        category: { type: string, enum: [bug, suggestion, complaint, praise, feature_request] }
+        body: { type: string, minLength: 1, maxLength: 8000 }
+        rating: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+        contact_allowed: { type: boolean, default: false }
+    ConsentUpdateRequest:
+      type: object
+      required: [purpose, granted, policy_version]
+      properties:
+        purpose: { type: string, enum: [essential, product_analytics, crash_diagnostics, personalized_marketing, support_diagnostics] }
+        granted: { type: boolean }
+        policy_version: { type: string, maxLength: 32 }
+    ConsentListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [receipt_id, purpose, granted, policy_version, recorded_at]
+            properties:
+              receipt_id: { type: string, format: uuid }
+              purpose: { type: string }
+              granted: { type: boolean }
+              policy_version: { type: string }
+              recorded_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    AccessibilityPreferences:
+      type: object
+      properties:
+        use_system_font_scale: { type: boolean, default: true }
+        high_contrast: { type: boolean, default: false }
+        reduce_motion: { type: boolean, default: false }
+        screen_reader_optimized: { type: boolean, default: false }
+        haptics_enabled: { type: boolean, default: true }
+    AccessibilityPreferencesResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { $ref: '#/components/schemas/AccessibilityPreferences' }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    PrivacyRequestResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [id, kind, status, submitted_at]
+          properties:
+            id: { type: string, format: uuid }
+            kind: { type: string, enum: [export, deletion] }
+            status: { type: string, enum: [submitted, identity_verification, processing, completed, rejected, cancelled] }
+            submitted_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    AdminIssueListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/BugReport' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    BugTransitionRequest:
+      type: object
+      required: [from_status, to_status, reason]
+      properties:
+        from_status: { $ref: '#/components/schemas/BugStatus' }
+        to_status: { $ref: '#/components/schemas/BugStatus' }
+        reason: { type: string, minLength: 3, maxLength: 2000 }
+        assigned_developer_id: { type: [string, 'null'], format: uuid }
+        release_id: { type: [string, 'null'], format: uuid }
+    CrashGroupListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, fingerprint, module, exception_class, event_count, affected_users, first_seen_at, last_seen_at, priority]
+            properties:
+              id: { type: string, format: uuid }
+              fingerprint: { type: string }
+              module: { type: string }
+              exception_class: { type: string }
+              event_count: { type: integer, minimum: 1 }
+              affected_users: { type: integer, minimum: 0 }
+              affected_versions: { type: array, items: { type: string } }
+              priority: { type: string, enum: [critical, high, medium, low] }
+              first_seen_at: { type: string, format: date-time }
+              last_seen_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    RemoteConfigReleaseRequest:
+      type: object
+      required: [environment, reason, entries]
+      properties:
+        environment: { type: string, enum: [development, testing, staging, production] }
+        reason: { type: string, minLength: 3, maxLength: 1000 }
+        entries:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            required: [key, value, sensitivity, target]
+            properties:
+              key: { type: string, pattern: '^[a-z][a-z0-9_.-]{2,127}$' }
+              value: {}
+              sensitivity: { type: string, enum: [public, internal] }
+              target: { type: object, additionalProperties: true }
+    FeatureFlagPolicyRequest:
+      type: object
+      required: [enabled, default_variant, rollout_percent, audience, reason]
+      properties:
+        enabled: { type: boolean }
+        default_variant: { type: string, maxLength: 64 }
+        rollout_percent: { type: number, minimum: 0, maximum: 100 }
+        audience: { type: object, additionalProperties: true }
+        experiment_key: { type: [string, 'null'] }
+        reason: { type: string, minLength: 3, maxLength: 1000 }
+    MonitoringOverviewResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [window, services, servers]
+          properties:
+            window: { type: string, example: PT5M }
+            services: { type: array, items: { $ref: '#/components/schemas/OperationalMetricSet' } }
+            servers: { type: array, items: { $ref: '#/components/schemas/OperationalMetricSet' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    OperationalMetricSet:
+      type: object
+      required: [resource_id, resource_kind, health, sampled_at, metrics]
+      properties:
+        resource_id: { type: string }
+        resource_kind: { type: string, enum: [vpn_server, api, database, queue, worker] }
+        health: { type: string, enum: [healthy, degraded, critical, unknown] }
+        sampled_at: { type: string, format: date-time }
+        metrics:
+          type: object
+          additionalProperties: { type: number }
+    Alert:
+      type: object
+      required: [id, rule_key, severity, status, title, opened_at]
+      properties:
+        id: { type: string, format: uuid }
+        rule_key: { type: string }
+        severity: { type: string, enum: [info, warning, high, critical] }
+        status: { type: string, enum: [open, acknowledged, mitigated, resolved] }
+        title: { type: string }
+        resource_kind: { type: string }
+        resource_id: { type: [string, 'null'] }
+        opened_at: { type: string, format: date-time }
+    AlertListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Alert' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    ReleaseRequest:
+      type: object
+      required: [component, version, environment, artifact_uri, artifact_sha256, source_commit]
+      properties:
+        component: { type: string, enum: [android, backend, admin, bot, infrastructure] }
+        version: { type: string, maxLength: 64 }
+        environment: { type: string, enum: [development, testing] }
+        artifact_uri: { type: string, format: uri }
+        artifact_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        source_commit: { type: string, pattern: '^[a-f0-9]{40}$' }
+        rollback_release_id: { type: [string, 'null'], format: uuid }
+    QualityRunRequest:
+      type: object
+      required: [release_id, kind, tool, status, started_at, completed_at, artifact_sha256]
+      properties:
+        release_id: { type: string, format: uuid }
+        kind: { type: string, enum: [unit, integration, ui, security, static_analysis, lint, dependency_scan, performance, accessibility] }
+        tool: { type: string, maxLength: 128 }
+        status: { type: string, enum: [passed, failed, warning] }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        artifact_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        findings:
+          type: array
+          maxItems: 1000
+          items:
+            type: object
+            required: [rule_id, severity, fingerprint, status]
+            properties:
+              rule_id: { type: string }
+              severity: { type: string, enum: [critical, high, medium, low, info] }
+              fingerprint: { type: string }
+              status: { type: string, enum: [open, accepted_risk, fixed, false_positive] }
+    BackupRequest:
+      type: object
+      required: [scope, reason]
+      properties:
+        scope: { type: string, enum: [database, user_data, configurations, server_settings, full] }
+        reason: { type: string, minLength: 3, maxLength: 1000 }
+        retention_class: { type: string, enum: [daily, weekly, monthly, legal_hold], default: daily }
+    DisasterRecoveryExerciseRequest:
+      type: object
+      required: [name, scheduled_at, target_environment, rpo_minutes, rto_minutes]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 200 }
+        scheduled_at: { type: string, format: date-time }
+        target_environment: { type: string, enum: [isolated_test] }
+        rpo_minutes: { type: integer, minimum: 0 }
+        rto_minutes: { type: integer, minimum: 1 }
+    SecurityCaseListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, public_code, severity, status, category, opened_at]
+            properties:
+              id: { type: string, format: uuid }
+              public_code: { type: string }
+              severity: { type: string, enum: [critical, high, medium, low] }
+              status: { type: string, enum: [open, investigating, contained, monitoring, closed] }
+              category: { type: string, enum: [login_abuse, token_abuse, api_abuse, suspicious_device, account_sharing, traffic_abuse] }
+              pseudonymous_subject: { type: [string, 'null'] }
+              opened_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    AbuseActionRequest:
+      type: object
+      required: [case_id, action, reason, expires_at, appeal_allowed]
+      properties:
+        case_id: { type: string, format: uuid }
+        action: { type: string, enum: [challenge, rate_limit, revoke_session, restrict_device, suspend_service, block_account] }
+        reason: { type: string, minLength: 3, maxLength: 2000 }
+        expires_at: { type: [string, 'null'], format: date-time }
+        appeal_allowed: { type: boolean }
+        human_approval_id: { type: [string, 'null'], format: uuid }
+    ProductMetricsResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [from, to, minimum_cohort_size, metrics]
+          properties:
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+            minimum_cohort_size: { type: integer, minimum: 10 }
+            metrics: { type: object, additionalProperties: { type: number } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    FunnelResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [key, window, minimum_cohort_size, steps]
+          properties:
+            key: { type: string }
+            window: { type: string }
+            minimum_cohort_size: { type: integer, minimum: 10 }
+            steps:
+              type: array
+              items:
+                type: object
+                required: [name, users, conversion_ratio]
+                properties:
+                  name: { type: string }
+                  users: { type: integer, minimum: 0 }
+                  conversion_ratio: { type: number, minimum: 0, maximum: 1 }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    ProductRecommendationListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, kind, model_version, confidence, evidence_window, explanation, status]
+            properties:
+              id: { type: string, format: uuid }
+              kind: { type: string, enum: [server_quality, churn_risk, recurring_issue, campaign_opportunity] }
+              model_version: { type: string }
+              confidence: { type: number, minimum: 0, maximum: 1 }
+              evidence_window: { type: string }
+              explanation: { type: string }
+              status: { type: string, enum: [proposed, accepted, rejected, expired] }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    DocumentationArtifactListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [key, kind, version, owner, source_uri, checksum, reviewed_at]
+            properties:
+              key: { type: string }
+              kind: { type: string, enum: [architecture, api, database, deployment, security, developer_guide, runbook] }
+              version: { type: string }
+              owner: { type: string }
+              source_uri: { type: string, format: uri }
+              checksum: { type: string }
+              reviewed_at: { type: string, format: date-time }
         meta: { $ref: '#/components/schemas/Meta' }
         error: { type: 'null' }

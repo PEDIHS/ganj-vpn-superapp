@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: گزارش خصوصی آسیب‌پذیری
+    url: https://github.com/PEDIHS/ganj-vpn-superapp/security/advisories/new
+    about: آسیب‌پذیری‌ها، Secretهای افشاشده و موارد قابل سوءاستفاده را فقط خصوصی گزارش کنید.
+  - name: راهنمای امنیت
+    url: https://github.com/PEDIHS/ganj-vpn-superapp/security/policy
+    about: قبل از ارسال گزارش، دامنه و روش گزارش مسئولانه را مطالعه کنید.

@@ -1,0 +1,37 @@
+name: درخواست Security Hardening
+description: فقط موضوعات عمومی و فاقد جزئیات قابل سوءاستفاده
+title: "[Security Hardening]: "
+labels: [security, hardening, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **آسیب‌پذیری افشانشده یا قابل سوءاستفاده را اینجا ثبت نکنید.** برای گزارش خصوصی از Security Advisory مخزن استفاده کنید. این فرم فقط برای پیشنهادهای عمومی مانند Header، Policy، Dependency یا Hardening است.
+  - type: textarea
+    id: proposal
+    attributes:
+      label: پیشنهاد عمومی
+      description: بدون Payload، Credential، Token، دادهٔ کاربر یا مراحل Exploit توضیح دهید.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: حوزه
+      options:
+        - Android
+        - VPN Core
+        - API / Authentication
+        - Commerce
+        - Infrastructure / CI
+        - Privacy
+        - Dependency
+    validations:
+      required: true
+  - type: checkboxes
+    id: disclosure
+    attributes:
+      label: تأیید انتشار عمومی
+      options:
+        - label: این Issue شامل جزئیات آسیب‌پذیری، Exploit، Secret یا دادهٔ شخصی نیست.
+          required: true

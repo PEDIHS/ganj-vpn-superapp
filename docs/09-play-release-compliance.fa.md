@@ -40,7 +40,7 @@ VPN subscription یک Digital Service است. بنابراین:
 | POST_NOTIFICATIONS | runtime و بعد از توضیح value |
 | FOREGROUND_SERVICE / SPECIAL_USE | برای VPN با subtype/description دقیق |
 | RECEIVE_BOOT_COMPLETED | فقط اگر Auto Connect روشن باشد |
-| CAMERA | on-demand برای QR import؛ بدون درخواست هنگام onboarding |
+| CAMERA | حذف؛ اپ هیچ QR import یا مسیر ورود دستی کانفیگ ندارد |
 | QUERY_ALL_PACKAGES | حذف؛ targeted `<queries>` یا declaration مستدل |
 | Location | ممنوع؛ Smart Connect از coarse server-side region استفاده می‌کند |
 | SMS/Call Log | ممنوع در این اپ |
@@ -104,4 +104,3 @@ Collect نمی‌شود:
 - [ ] AAB signed and Play pre-launch report clean
 - [ ] crash/ANR/performance thresholds met
 - [ ] closed-track test account and server available for reviewer
-

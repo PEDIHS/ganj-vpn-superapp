@@ -1,0 +1,50 @@
+name: پیشنهاد قابلیت
+description: پیشنهاد قابل سنجش برای بهبود محصول
+title: "[Feature]: "
+labels: [enhancement, product]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: مسئلهٔ کاربر
+      description: این قابلیت کدام مشکل واقعی کاربر را حل می‌کند؟
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: نتیجهٔ مورد انتظار
+      description: رفتار مطلوب را بدون تحمیل پیاده‌سازی فنی توضیح دهید.
+    validations:
+      required: true
+  - type: dropdown
+    id: audience
+    attributes:
+      label: کاربران هدف
+      multiple: true
+      options:
+        - Guest / Free
+        - Premium
+        - VIP
+        - Support Agent
+        - Administrator
+    validations:
+      required: true
+  - type: textarea
+    id: metric
+    attributes:
+      label: معیار موفقیت
+      placeholder: افزایش conversion، کاهش failed connect یا کاهش ticket
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: ریسک‌های امنیت، حریم خصوصی و سیاست فروشگاه
+  - type: checkboxes
+    id: config_policy
+    attributes:
+      label: محدودیت محصول
+      options:
+        - label: این پیشنهاد ورودی یا Export دستی کانفیگ VPN اضافه نمی‌کند.
+          required: true

@@ -209,6 +209,9 @@ CREATE TABLE config_envelopes (
     service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
     device_id uuid NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
     server_id uuid NOT NULL REFERENCES vpn_servers(id),
+    profile_source text NOT NULL DEFAULT 'entitlement' CHECK (profile_source = 'entitlement'),
+    entitlement_revision bigint NOT NULL CHECK (entitlement_revision > 0),
+    device_public_key_hash bytea NOT NULL,
     key_version varchar(64) NOT NULL,
     ciphertext bytea NOT NULL,
     nonce bytea NOT NULL,
@@ -218,6 +221,8 @@ CREATE TABLE config_envelopes (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX config_envelopes_lookup_idx ON config_envelopes(service_id, device_id, expires_at);
+COMMENT ON TABLE config_envelopes IS
+'Only server-issued, entitlement-derived, device-key-bound profiles are allowed. Manual URI/QR/file/clipboard configuration import is prohibited.';
 
 CREATE TABLE connection_sessions (
     id uuid PRIMARY KEY,
@@ -491,5 +496,758 @@ CREATE TABLE security_events (
 );
 CREATE INDEX security_events_recent_idx ON security_events(severity, occurred_at DESC);
 
-COMMIT;
+-- Enterprise release, automated testing, CI/CD, and code-quality contracts.
+CREATE TABLE app_releases (
+    id uuid PRIMARY KEY,
+    component text NOT NULL CHECK (component IN ('android','backend','admin','bot','infrastructure')),
+    version varchar(64) NOT NULL,
+    channel text NOT NULL CHECK (channel IN ('stable','beta','internal')),
+    status text NOT NULL CHECK (status IN ('draft','testing','staging','rolling_out','released','halted','rolled_back')),
+    source_commit char(40) NOT NULL,
+    artifact_uri text NOT NULL,
+    artifact_sha256 char(64) NOT NULL CHECK (artifact_sha256 ~ '^[a-f0-9]{64}$'),
+    signing_key_version varchar(64),
+    rollback_release_id uuid REFERENCES app_releases(id),
+    created_by uuid REFERENCES users(id),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    released_at timestamptz,
+    UNIQUE (component, version, channel)
+);
 
+CREATE TABLE release_deployments (
+    id uuid PRIMARY KEY,
+    release_id uuid NOT NULL REFERENCES app_releases(id) ON DELETE CASCADE,
+    environment text NOT NULL CHECK (environment IN ('development','testing','staging','production')),
+    status text NOT NULL CHECK (status IN ('queued','running','succeeded','failed','cancelled','rolled_back')),
+    rollout_percent numeric(5,2) NOT NULL DEFAULT 100 CHECK (rollout_percent > 0 AND rollout_percent <= 100),
+    approval_audit_log_id bigint REFERENCES audit_logs(id),
+    started_at timestamptz,
+    completed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (release_id, environment)
+);
+
+CREATE TABLE quality_runs (
+    id uuid PRIMARY KEY,
+    release_id uuid REFERENCES app_releases(id) ON DELETE CASCADE,
+    kind text NOT NULL CHECK (kind IN ('unit','integration','ui','security','static_analysis','lint','dependency_scan','performance','accessibility')),
+    tool varchar(128) NOT NULL,
+    status text NOT NULL CHECK (status IN ('running','passed','failed','warning','cancelled')),
+    artifact_uri text,
+    artifact_sha256 char(64),
+    started_at timestamptz NOT NULL,
+    completed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX quality_runs_release_idx ON quality_runs(release_id, kind, created_at DESC);
+
+CREATE TABLE quality_findings (
+    id uuid PRIMARY KEY,
+    quality_run_id uuid NOT NULL REFERENCES quality_runs(id) ON DELETE CASCADE,
+    rule_id varchar(255) NOT NULL,
+    fingerprint varchar(255) NOT NULL,
+    severity text NOT NULL CHECK (severity IN ('critical','high','medium','low','info')),
+    status text NOT NULL CHECK (status IN ('open','accepted_risk','fixed','false_positive')),
+    source_path text,
+    source_line integer CHECK (source_line IS NULL OR source_line > 0),
+    summary text NOT NULL,
+    details_redacted jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (quality_run_id, fingerprint)
+);
+
+CREATE TABLE app_update_policies (
+    id uuid PRIMARY KEY,
+    platform text NOT NULL CHECK (platform IN ('android')),
+    channel text NOT NULL CHECK (channel IN ('stable','beta','internal')),
+    minimum_version varchar(64) NOT NULL,
+    latest_version varchar(64) NOT NULL,
+    requirement text NOT NULL CHECK (requirement IN ('none','optional','forced')),
+    reason_code varchar(64),
+    audience_rule jsonb NOT NULL DEFAULT '{}'::jsonb,
+    policy_signature bytea NOT NULL,
+    effective_from timestamptz NOT NULL,
+    effective_until timestamptz,
+    created_by uuid REFERENCES users(id),
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Bug reporting and crash grouping. Attachments live in encrypted object storage.
+CREATE TABLE crash_groups (
+    id uuid PRIMARY KEY,
+    fingerprint varchar(255) NOT NULL UNIQUE,
+    module varchar(128) NOT NULL,
+    exception_class varchar(255) NOT NULL,
+    normalized_top_frame text,
+    priority text NOT NULL DEFAULT 'medium' CHECK (priority IN ('critical','high','medium','low')),
+    status text NOT NULL DEFAULT 'new' CHECK (status IN ('new','investigating','assigned','fixing','testing','released','closed')),
+    first_seen_at timestamptz NOT NULL,
+    last_seen_at timestamptz NOT NULL,
+    event_count bigint NOT NULL DEFAULT 0 CHECK (event_count >= 0),
+    affected_user_count bigint NOT NULL DEFAULT 0 CHECK (affected_user_count >= 0),
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE crash_events (
+    id uuid PRIMARY KEY,
+    occurrence_id uuid NOT NULL UNIQUE,
+    crash_group_id uuid NOT NULL REFERENCES crash_groups(id) ON DELETE CASCADE,
+    user_pseudonym bytea,
+    device_id uuid REFERENCES devices(id) ON DELETE SET NULL,
+    app_version varchar(32) NOT NULL,
+    os_version varchar(32) NOT NULL,
+    server_id uuid REFERENCES vpn_servers(id) ON DELETE SET NULL,
+    connection_state varchar(32),
+    network_type varchar(16),
+    error_code varchar(64),
+    stacktrace_ciphertext bytea NOT NULL,
+    redaction_version varchar(32) NOT NULL,
+    occurred_at timestamptz NOT NULL,
+    received_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NOT NULL
+);
+CREATE INDEX crash_events_group_recent_idx ON crash_events(crash_group_id, occurred_at DESC);
+
+CREATE TABLE bug_reports (
+    id uuid PRIMARY KEY,
+    public_code varchar(32) NOT NULL UNIQUE,
+    client_report_id uuid NOT NULL,
+    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    device_id uuid REFERENCES devices(id) ON DELETE SET NULL,
+    crash_group_id uuid REFERENCES crash_groups(id) ON DELETE SET NULL,
+    title varchar(200) NOT NULL,
+    description_ciphertext bytea NOT NULL,
+    category text NOT NULL CHECK (category IN ('connection','purchase','account','ui','performance','security','other')),
+    severity text NOT NULL DEFAULT 'medium' CHECK (severity IN ('critical','high','medium','low')),
+    status text NOT NULL DEFAULT 'new' CHECK (status IN ('new','investigating','assigned','fixing','testing','released','closed')),
+    related_module varchar(128),
+    assigned_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    affected_version varchar(32),
+    error_code varchar(64),
+    connection_state varchar(32),
+    server_id uuid REFERENCES vpn_servers(id) ON DELETE SET NULL,
+    network_type varchar(16),
+    context_redacted jsonb NOT NULL DEFAULT '{}'::jsonb,
+    occurred_at timestamptz NOT NULL,
+    closed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (user_id, client_report_id)
+);
+CREATE INDEX bug_reports_triage_idx ON bug_reports(status, severity, updated_at DESC);
+
+CREATE TABLE bug_status_history (
+    id uuid PRIMARY KEY,
+    bug_report_id uuid NOT NULL REFERENCES bug_reports(id) ON DELETE CASCADE,
+    from_status text,
+    to_status text NOT NULL CHECK (to_status IN ('new','investigating','assigned','fixing','testing','released','closed')),
+    actor_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    assigned_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    release_id uuid REFERENCES app_releases(id) ON DELETE SET NULL,
+    reason text NOT NULL,
+    occurred_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX bug_status_history_bug_idx ON bug_status_history(bug_report_id, occurred_at);
+
+CREATE TABLE bug_attachments (
+    id uuid PRIMARY KEY,
+    bug_report_id uuid NOT NULL REFERENCES bug_reports(id) ON DELETE CASCADE,
+    kind text NOT NULL CHECK (kind IN ('screenshot','screen_recording','log','document')),
+    media_type varchar(128) NOT NULL,
+    original_name_ciphertext bytea NOT NULL,
+    object_reference text NOT NULL UNIQUE,
+    sha256 char(64) NOT NULL CHECK (sha256 ~ '^[a-f0-9]{64}$'),
+    size_bytes bigint NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 52428800),
+    malware_scan_status text NOT NULL DEFAULT 'pending' CHECK (malware_scan_status IN ('pending','clean','rejected','failed')),
+    consent_receipt_id uuid REFERENCES user_consents(id) ON DELETE SET NULL,
+    expires_at timestamptz NOT NULL,
+    deleted_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Consent-aware product analytics and funnels. Raw events are short-lived.
+CREATE TABLE analytics_event_definitions (
+    name varchar(128) NOT NULL,
+    schema_version integer NOT NULL CHECK (schema_version > 0),
+    purpose varchar(64) NOT NULL,
+    property_allowlist jsonb NOT NULL,
+    active boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (name, schema_version)
+);
+
+CREATE TABLE analytics_events (
+    id uuid PRIMARY KEY,
+    event_id uuid NOT NULL UNIQUE,
+    definition_name varchar(128) NOT NULL,
+    definition_version integer NOT NULL,
+    consent_receipt_id uuid NOT NULL REFERENCES user_consents(id),
+    user_pseudonym bytea,
+    device_pseudonym bytea,
+    session_id uuid,
+    properties jsonb NOT NULL DEFAULT '{}'::jsonb,
+    occurred_at timestamptz NOT NULL,
+    received_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NOT NULL,
+    FOREIGN KEY (definition_name, definition_version)
+      REFERENCES analytics_event_definitions(name, schema_version)
+);
+CREATE INDEX analytics_events_name_time_idx ON analytics_events(definition_name, occurred_at);
+
+CREATE TABLE funnel_definitions (
+    id uuid PRIMARY KEY,
+    key varchar(128) NOT NULL UNIQUE,
+    name text NOT NULL,
+    purpose varchar(64) NOT NULL,
+    conversion_window interval NOT NULL,
+    minimum_cohort_size integer NOT NULL DEFAULT 20 CHECK (minimum_cohort_size >= 10),
+    status text NOT NULL DEFAULT 'active' CHECK (status IN ('draft','active','archived')),
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE funnel_steps (
+    funnel_id uuid NOT NULL REFERENCES funnel_definitions(id) ON DELETE CASCADE,
+    position smallint NOT NULL CHECK (position > 0),
+    event_name varchar(128) NOT NULL,
+    event_schema_version integer NOT NULL,
+    PRIMARY KEY (funnel_id, position),
+    FOREIGN KEY (event_name, event_schema_version)
+      REFERENCES analytics_event_definitions(name, schema_version)
+);
+
+CREATE TABLE funnel_daily_aggregates (
+    funnel_id uuid NOT NULL REFERENCES funnel_definitions(id) ON DELETE CASCADE,
+    bucket_date date NOT NULL,
+    dimension_hash bytea NOT NULL,
+    step_counts bigint[] NOT NULL,
+    eligible_cohort_size bigint NOT NULL CHECK (eligible_cohort_size >= 0),
+    suppressed boolean NOT NULL DEFAULT true,
+    computed_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (funnel_id, bucket_date, dimension_hash)
+);
+
+CREATE TABLE product_metric_daily (
+    metric_key varchar(128) NOT NULL,
+    bucket_date date NOT NULL,
+    dimension_hash bytea NOT NULL,
+    value_numeric numeric NOT NULL,
+    cohort_size bigint NOT NULL CHECK (cohort_size >= 0),
+    suppressed boolean NOT NULL DEFAULT true,
+    computed_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (metric_key, bucket_date, dimension_hash)
+);
+
+-- Signed remote configuration, feature flags, experiments, and deterministic assignment.
+CREATE TABLE remote_config_namespaces (
+    id uuid PRIMARY KEY,
+    key varchar(128) NOT NULL UNIQUE,
+    owner_team varchar(128) NOT NULL,
+    schema_json jsonb NOT NULL,
+    sensitive_keys text[] NOT NULL DEFAULT ARRAY[]::text[],
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE remote_config_releases (
+    id uuid PRIMARY KEY,
+    environment text NOT NULL CHECK (environment IN ('development','testing','staging','production')),
+    version bigint NOT NULL CHECK (version > 0),
+    status text NOT NULL CHECK (status IN ('draft','approved','published','superseded','rolled_back')),
+    reason text NOT NULL,
+    content_hash bytea NOT NULL,
+    signature bytea,
+    created_by uuid REFERENCES users(id),
+    approved_by uuid REFERENCES users(id),
+    published_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (environment, version)
+);
+
+CREATE TABLE remote_config_entries (
+    release_id uuid NOT NULL REFERENCES remote_config_releases(id) ON DELETE CASCADE,
+    namespace_id uuid NOT NULL REFERENCES remote_config_namespaces(id),
+    key varchar(128) NOT NULL,
+    value jsonb NOT NULL,
+    target_rule jsonb NOT NULL DEFAULT '{}'::jsonb,
+    sensitivity text NOT NULL CHECK (sensitivity IN ('public','internal')),
+    PRIMARY KEY (release_id, namespace_id, key)
+);
+COMMENT ON TABLE remote_config_entries IS
+'Runtime behavior values only. Credentials, private keys, VPN profiles, and provider secrets are forbidden.';
+
+CREATE TABLE feature_flags (
+    id uuid PRIMARY KEY,
+    key varchar(128) NOT NULL UNIQUE,
+    owner_team varchar(128) NOT NULL,
+    risk_class text NOT NULL DEFAULT 'normal' CHECK (risk_class IN ('normal','high','security','privacy','billing')),
+    status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','archived')),
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE feature_flag_versions (
+    id uuid PRIMARY KEY,
+    feature_flag_id uuid NOT NULL REFERENCES feature_flags(id) ON DELETE CASCADE,
+    version bigint NOT NULL CHECK (version > 0),
+    enabled boolean NOT NULL,
+    default_variant varchar(64) NOT NULL,
+    rollout_percent numeric(5,2) NOT NULL CHECK (rollout_percent >= 0 AND rollout_percent <= 100),
+    audience_rule jsonb NOT NULL DEFAULT '{}'::jsonb,
+    experiment_key varchar(128),
+    created_by uuid REFERENCES users(id),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (feature_flag_id, version)
+);
+
+CREATE TABLE feature_assignments (
+    id uuid PRIMARY KEY,
+    feature_flag_version_id uuid NOT NULL REFERENCES feature_flag_versions(id) ON DELETE CASCADE,
+    subject_hash bytea NOT NULL,
+    variant varchar(64) NOT NULL,
+    assigned_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz,
+    UNIQUE (feature_flag_version_id, subject_hash)
+);
+
+-- Privacy-minimized application/VPN-core logs, monitoring, alerting, and delivery.
+CREATE TABLE structured_logs (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    stream text NOT NULL CHECK (stream IN ('application','vpn_core','security')),
+    level text NOT NULL CHECK (level IN ('debug','info','warning','error','critical')),
+    event_code varchar(128) NOT NULL,
+    request_id uuid,
+    user_pseudonym bytea,
+    device_pseudonym bytea,
+    fields_redacted jsonb NOT NULL DEFAULT '{}'::jsonb,
+    redaction_version varchar(32) NOT NULL,
+    occurred_at timestamptz NOT NULL,
+    expires_at timestamptz NOT NULL
+);
+CREATE INDEX structured_logs_stream_time_idx ON structured_logs(stream, occurred_at DESC);
+COMMENT ON TABLE structured_logs IS
+'Never stores VPN destinations, DNS queries, payload content, raw credentials, full IP addresses, or access/refresh tokens.';
+
+CREATE TABLE monitor_resources (
+    id uuid PRIMARY KEY,
+    kind text NOT NULL CHECK (kind IN ('vpn_server','api','database','queue','worker')),
+    external_reference varchar(255) NOT NULL,
+    display_name text NOT NULL,
+    environment text NOT NULL CHECK (environment IN ('development','testing','staging','production')),
+    status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','maintenance','retired')),
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (kind, external_reference, environment)
+);
+
+CREATE TABLE metric_samples (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    resource_id uuid NOT NULL REFERENCES monitor_resources(id) ON DELETE CASCADE,
+    metric_key varchar(128) NOT NULL,
+    value numeric NOT NULL,
+    unit varchar(32) NOT NULL,
+    sampled_at timestamptz NOT NULL,
+    expires_at timestamptz NOT NULL
+);
+CREATE INDEX metric_samples_recent_idx ON metric_samples(resource_id, metric_key, sampled_at DESC);
+
+CREATE TABLE alert_rules (
+    id uuid PRIMARY KEY,
+    key varchar(128) NOT NULL UNIQUE,
+    resource_kind varchar(32) NOT NULL,
+    metric_key varchar(128) NOT NULL,
+    comparator text NOT NULL CHECK (comparator IN ('gt','gte','lt','lte','eq','rate_gt','absent')),
+    threshold numeric,
+    window_seconds integer NOT NULL CHECK (window_seconds > 0),
+    severity text NOT NULL CHECK (severity IN ('info','warning','high','critical')),
+    destinations text[] NOT NULL DEFAULT ARRAY['admin_panel']::text[],
+    enabled boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE alert_incidents (
+    id uuid PRIMARY KEY,
+    rule_id uuid NOT NULL REFERENCES alert_rules(id),
+    resource_id uuid REFERENCES monitor_resources(id) ON DELETE SET NULL,
+    deduplication_key varchar(255) NOT NULL,
+    status text NOT NULL CHECK (status IN ('open','acknowledged','mitigated','resolved')),
+    severity text NOT NULL CHECK (severity IN ('info','warning','high','critical')),
+    summary text NOT NULL,
+    opened_at timestamptz NOT NULL,
+    acknowledged_by uuid REFERENCES users(id),
+    acknowledged_at timestamptz,
+    resolved_at timestamptz,
+    UNIQUE (deduplication_key, opened_at)
+);
+CREATE INDEX alert_incidents_active_idx ON alert_incidents(severity, opened_at DESC)
+  WHERE status <> 'resolved';
+
+CREATE TABLE alert_deliveries (
+    id uuid PRIMARY KEY,
+    incident_id uuid NOT NULL REFERENCES alert_incidents(id) ON DELETE CASCADE,
+    channel text NOT NULL CHECK (channel IN ('admin_panel','telegram','email')),
+    destination_reference text NOT NULL,
+    status text NOT NULL CHECK (status IN ('queued','sent','delivered','failed','suppressed')),
+    attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    last_error_code varchar(64),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Support, knowledge base, remote diagnostics, and attachments.
+CREATE TABLE knowledge_base_articles (
+    id uuid PRIMARY KEY,
+    slug varchar(255) NOT NULL,
+    locale varchar(16) NOT NULL,
+    title text NOT NULL,
+    summary text NOT NULL,
+    content_markdown text NOT NULL,
+    version bigint NOT NULL CHECK (version > 0),
+    status text NOT NULL CHECK (status IN ('draft','review','published','archived')),
+    owner_user_id uuid REFERENCES users(id),
+    published_at timestamptz,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (slug, locale, version)
+);
+
+CREATE TABLE support_tickets (
+    id uuid PRIMARY KEY,
+    public_code varchar(32) NOT NULL UNIQUE,
+    client_ticket_id uuid NOT NULL,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category text NOT NULL CHECK (category IN ('connection','billing','account','security','feedback','other')),
+    priority text NOT NULL DEFAULT 'normal' CHECK (priority IN ('normal','high','urgent')),
+    status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','waiting_support','waiting_user','resolved','closed')),
+    subject varchar(200) NOT NULL,
+    assigned_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    closed_at timestamptz,
+    UNIQUE (user_id, client_ticket_id)
+);
+CREATE INDEX support_tickets_queue_idx ON support_tickets(status, priority, updated_at);
+
+CREATE TABLE support_messages (
+    id uuid PRIMARY KEY,
+    ticket_id uuid NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+    client_message_id uuid,
+    author_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    author_type text NOT NULL CHECK (author_type IN ('user','agent','system','bot')),
+    body_ciphertext bytea NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (ticket_id, client_message_id)
+);
+
+CREATE TABLE support_attachments (
+    id uuid PRIMARY KEY,
+    message_id uuid NOT NULL REFERENCES support_messages(id) ON DELETE CASCADE,
+    object_reference text NOT NULL UNIQUE,
+    media_type varchar(128) NOT NULL,
+    size_bytes bigint NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 52428800),
+    sha256 char(64) NOT NULL CHECK (sha256 ~ '^[a-f0-9]{64}$'),
+    malware_scan_status text NOT NULL DEFAULT 'pending' CHECK (malware_scan_status IN ('pending','clean','rejected','failed')),
+    expires_at timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE diagnostic_reports (
+    id uuid PRIMARY KEY,
+    client_report_id uuid NOT NULL,
+    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    device_id uuid REFERENCES devices(id) ON DELETE SET NULL,
+    bug_report_id uuid REFERENCES bug_reports(id) ON DELETE SET NULL,
+    support_ticket_id uuid REFERENCES support_tickets(id) ON DELETE SET NULL,
+    consent_receipt_id uuid NOT NULL REFERENCES user_consents(id),
+    redaction_version varchar(32) NOT NULL,
+    network_type varchar(16),
+    app_version varchar(32),
+    os_version varchar(32),
+    started_at timestamptz NOT NULL,
+    completed_at timestamptz NOT NULL,
+    expires_at timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (user_id, client_report_id)
+);
+
+CREATE TABLE diagnostic_test_results (
+    id uuid PRIMARY KEY,
+    diagnostic_report_id uuid NOT NULL REFERENCES diagnostic_reports(id) ON DELETE CASCADE,
+    kind text NOT NULL CHECK (kind IN ('network','dns_resolver','server_ping','packet_loss','vpn_state','device_integrity')),
+    outcome text NOT NULL CHECK (outcome IN ('passed','warning','failed','unavailable')),
+    server_id uuid REFERENCES vpn_servers(id) ON DELETE SET NULL,
+    latency_ms integer CHECK (latency_ms IS NULL OR latency_ms >= 0),
+    packet_loss_ratio numeric(5,4) CHECK (packet_loss_ratio IS NULL OR packet_loss_ratio BETWEEN 0 AND 1),
+    result_code varchar(64),
+    details_redacted jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+
+-- Backup, restore, and disaster recovery in a separate failure domain.
+CREATE TABLE backup_jobs (
+    id uuid PRIMARY KEY,
+    scope text NOT NULL CHECK (scope IN ('database','user_data','configurations','server_settings','full')),
+    status text NOT NULL CHECK (status IN ('queued','running','verifying','completed','failed','expired')),
+    retention_class text NOT NULL CHECK (retention_class IN ('daily','weekly','monthly','legal_hold')),
+    encryption_key_version varchar(64) NOT NULL,
+    requested_by uuid REFERENCES users(id),
+    started_at timestamptz,
+    completed_at timestamptz,
+    expires_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE backup_artifacts (
+    id uuid PRIMARY KEY,
+    backup_job_id uuid NOT NULL REFERENCES backup_jobs(id) ON DELETE CASCADE,
+    object_reference text NOT NULL UNIQUE,
+    failure_domain varchar(128) NOT NULL,
+    sha256 char(64) NOT NULL CHECK (sha256 ~ '^[a-f0-9]{64}$'),
+    size_bytes bigint NOT NULL CHECK (size_bytes > 0),
+    verification_status text NOT NULL CHECK (verification_status IN ('pending','verified','failed')),
+    verified_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE restore_jobs (
+    id uuid PRIMARY KEY,
+    backup_artifact_id uuid NOT NULL REFERENCES backup_artifacts(id),
+    target_environment text NOT NULL CHECK (target_environment IN ('isolated_test','staging','production')),
+    status text NOT NULL CHECK (status IN ('queued','running','verifying','completed','failed','rolled_back')),
+    approved_by uuid REFERENCES users(id),
+    started_at timestamptz,
+    completed_at timestamptz,
+    verification_report jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE disaster_recovery_plans (
+    id uuid PRIMARY KEY,
+    key varchar(128) NOT NULL UNIQUE,
+    owner_team varchar(128) NOT NULL,
+    rpo_minutes integer NOT NULL CHECK (rpo_minutes >= 0),
+    rto_minutes integer NOT NULL CHECK (rto_minutes > 0),
+    runbook_uri text NOT NULL,
+    version varchar(32) NOT NULL,
+    reviewed_at timestamptz NOT NULL,
+    next_review_at timestamptz NOT NULL
+);
+
+CREATE TABLE disaster_recovery_exercises (
+    id uuid PRIMARY KEY,
+    plan_id uuid NOT NULL REFERENCES disaster_recovery_plans(id),
+    restore_job_id uuid REFERENCES restore_jobs(id),
+    status text NOT NULL CHECK (status IN ('scheduled','running','passed','failed','cancelled')),
+    scheduled_at timestamptz NOT NULL,
+    started_at timestamptz,
+    completed_at timestamptz,
+    achieved_rpo_minutes integer,
+    achieved_rto_minutes integer,
+    findings jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- SOC case management and proportionate anti-abuse controls.
+CREATE TABLE soc_cases (
+    id uuid PRIMARY KEY,
+    public_code varchar(32) NOT NULL UNIQUE,
+    category text NOT NULL CHECK (category IN ('login_abuse','token_abuse','api_abuse','suspicious_device','account_sharing','traffic_abuse')),
+    severity text NOT NULL CHECK (severity IN ('critical','high','medium','low')),
+    status text NOT NULL CHECK (status IN ('open','investigating','contained','monitoring','closed')),
+    subject_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    subject_pseudonym bytea,
+    assigned_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    opened_at timestamptz NOT NULL DEFAULT now(),
+    closed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX soc_cases_queue_idx ON soc_cases(status, severity, opened_at);
+
+CREATE TABLE soc_case_events (
+    id uuid PRIMARY KEY,
+    case_id uuid NOT NULL REFERENCES soc_cases(id) ON DELETE CASCADE,
+    actor_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    kind varchar(128) NOT NULL,
+    evidence_reference text,
+    details_redacted jsonb NOT NULL DEFAULT '{}'::jsonb,
+    occurred_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE abuse_signals (
+    id uuid PRIMARY KEY,
+    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    device_id uuid REFERENCES devices(id) ON DELETE SET NULL,
+    service_id uuid REFERENCES services(id) ON DELETE SET NULL,
+    signal_type text NOT NULL CHECK (signal_type IN ('account_sharing','device_limit','automation','traffic_anomaly','token_reuse','credential_stuffing')),
+    score numeric(5,4) NOT NULL CHECK (score BETWEEN 0 AND 1),
+    model_or_rule_version varchar(64) NOT NULL,
+    evidence_redacted jsonb NOT NULL DEFAULT '{}'::jsonb,
+    occurred_at timestamptz NOT NULL,
+    expires_at timestamptz NOT NULL
+);
+CREATE INDEX abuse_signals_subject_idx ON abuse_signals(user_id, occurred_at DESC);
+
+CREATE TABLE abuse_actions (
+    id uuid PRIMARY KEY,
+    case_id uuid NOT NULL REFERENCES soc_cases(id),
+    action text NOT NULL CHECK (action IN ('challenge','rate_limit','revoke_session','restrict_device','suspend_service','block_account')),
+    status text NOT NULL CHECK (status IN ('proposed','approved','active','expired','reversed','rejected')),
+    reason text NOT NULL,
+    proposed_by uuid REFERENCES users(id),
+    approved_by uuid REFERENCES users(id),
+    starts_at timestamptz,
+    expires_at timestamptz,
+    appeal_allowed boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CHECK (action NOT IN ('suspend_service','block_account') OR approved_by IS NOT NULL)
+);
+
+CREATE TABLE abuse_appeals (
+    id uuid PRIMARY KEY,
+    abuse_action_id uuid NOT NULL REFERENCES abuse_actions(id),
+    user_id uuid NOT NULL REFERENCES users(id),
+    statement_ciphertext bytea NOT NULL,
+    status text NOT NULL CHECK (status IN ('submitted','reviewing','accepted','rejected')),
+    reviewed_by uuid REFERENCES users(id),
+    submitted_at timestamptz NOT NULL DEFAULT now(),
+    reviewed_at timestamptz
+);
+
+-- Product feedback, privacy, localization, accessibility, documentation, and intelligence.
+CREATE TABLE user_feedback (
+    id uuid PRIMARY KEY,
+    client_feedback_id uuid NOT NULL,
+    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    category text NOT NULL CHECK (category IN ('bug','suggestion','complaint','praise','feature_request')),
+    body_ciphertext bytea NOT NULL,
+    rating smallint CHECK (rating IS NULL OR rating BETWEEN 1 AND 5),
+    contact_allowed boolean NOT NULL DEFAULT false,
+    status text NOT NULL DEFAULT 'new' CHECK (status IN ('new','reviewing','planned','declined','completed','closed')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (user_id, client_feedback_id)
+);
+
+CREATE TABLE privacy_requests (
+    id uuid PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES users(id),
+    kind text NOT NULL CHECK (kind IN ('access','export','correction','deletion','restriction','objection')),
+    status text NOT NULL CHECK (status IN ('submitted','identity_verification','processing','completed','rejected','cancelled')),
+    identity_verified_at timestamptz,
+    legal_hold_reason_ciphertext bytea,
+    export_object_reference text,
+    export_expires_at timestamptz,
+    submitted_at timestamptz NOT NULL DEFAULT now(),
+    due_at timestamptz NOT NULL,
+    completed_at timestamptz
+);
+CREATE INDEX privacy_requests_queue_idx ON privacy_requests(status, due_at);
+
+CREATE TABLE privacy_request_events (
+    id uuid PRIMARY KEY,
+    privacy_request_id uuid NOT NULL REFERENCES privacy_requests(id) ON DELETE CASCADE,
+    actor_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    from_status text,
+    to_status text NOT NULL,
+    reason_code varchar(64),
+    occurred_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE data_retention_policies (
+    id uuid PRIMARY KEY,
+    data_class varchar(128) NOT NULL,
+    purpose varchar(128) NOT NULL,
+    retention interval NOT NULL,
+    legal_basis varchar(128) NOT NULL,
+    deletion_method varchar(128) NOT NULL,
+    policy_version varchar(32) NOT NULL,
+    effective_at timestamptz NOT NULL,
+    UNIQUE (data_class, policy_version)
+);
+
+CREATE TABLE accessibility_preferences (
+    user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    use_system_font_scale boolean NOT NULL DEFAULT true,
+    high_contrast boolean NOT NULL DEFAULT false,
+    reduce_motion boolean NOT NULL DEFAULT false,
+    screen_reader_optimized boolean NOT NULL DEFAULT false,
+    haptics_enabled boolean NOT NULL DEFAULT true,
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE accessibility_audits (
+    id uuid PRIMARY KEY,
+    release_id uuid NOT NULL REFERENCES app_releases(id) ON DELETE CASCADE,
+    platform text NOT NULL CHECK (platform IN ('android','web')),
+    standard varchar(64) NOT NULL,
+    status text NOT NULL CHECK (status IN ('passed','failed','warning')),
+    report_uri text NOT NULL,
+    report_sha256 char(64) NOT NULL CHECK (report_sha256 ~ '^[a-f0-9]{64}$'),
+    audited_at timestamptz NOT NULL
+);
+
+CREATE TABLE localization_bundles (
+    id uuid PRIMARY KEY,
+    locale varchar(16) NOT NULL CHECK (locale IN ('fa-IR','en-US','ar','tr-TR','de-DE')),
+    version bigint NOT NULL CHECK (version > 0),
+    status text NOT NULL CHECK (status IN ('draft','review','published','archived')),
+    messages jsonb NOT NULL,
+    checksum bytea NOT NULL,
+    signature bytea,
+    translator_user_id uuid REFERENCES users(id),
+    reviewer_user_id uuid REFERENCES users(id),
+    published_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (locale, version)
+);
+
+CREATE TABLE documentation_artifacts (
+    id uuid PRIMARY KEY,
+    key varchar(128) NOT NULL,
+    kind text NOT NULL CHECK (kind IN ('architecture','api','database','deployment','security','developer_guide','runbook')),
+    version varchar(64) NOT NULL,
+    owner_team varchar(128) NOT NULL,
+    source_uri text NOT NULL,
+    checksum bytea NOT NULL,
+    status text NOT NULL CHECK (status IN ('draft','review','published','superseded')),
+    reviewed_at timestamptz,
+    next_review_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (key, version)
+);
+
+CREATE TABLE product_intelligence_models (
+    id uuid PRIMARY KEY,
+    key varchar(128) NOT NULL,
+    version varchar(64) NOT NULL,
+    purpose text NOT NULL CHECK (purpose IN ('server_ranking','churn_risk','issue_clustering','campaign_recommendation')),
+    status text NOT NULL CHECK (status IN ('validation','active','paused','retired')),
+    artifact_reference text NOT NULL,
+    artifact_sha256 char(64) NOT NULL CHECK (artifact_sha256 ~ '^[a-f0-9]{64}$'),
+    feature_manifest jsonb NOT NULL,
+    evaluation_metrics jsonb NOT NULL,
+    approved_by uuid REFERENCES users(id),
+    approved_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (key, version)
+);
+
+CREATE TABLE product_intelligence_recommendations (
+    id uuid PRIMARY KEY,
+    model_id uuid NOT NULL REFERENCES product_intelligence_models(id),
+    kind text NOT NULL CHECK (kind IN ('server_quality','churn_risk','recurring_issue','campaign_opportunity')),
+    subject_scope text NOT NULL CHECK (subject_scope IN ('aggregate','server','campaign','pseudonymous_user')),
+    subject_reference_hash bytea,
+    confidence numeric(5,4) NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+    evidence_window tstzrange NOT NULL,
+    explanation text NOT NULL,
+    recommendation jsonb NOT NULL,
+    status text NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed','accepted','rejected','expired')),
+    expires_at timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE product_intelligence_decisions (
+    id uuid PRIMARY KEY,
+    recommendation_id uuid NOT NULL REFERENCES product_intelligence_recommendations(id) ON DELETE CASCADE,
+    actor_user_id uuid NOT NULL REFERENCES users(id),
+    decision text NOT NULL CHECK (decision IN ('accepted','rejected','deferred')),
+    reason text NOT NULL,
+    decided_at timestamptz NOT NULL DEFAULT now()
+);
+
+COMMIT;
