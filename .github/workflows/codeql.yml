@@ -73,6 +73,8 @@ jobs:
           gradle --no-daemon --stacktrace
           :core:billing:assembleDebug
           :core:control-api:assembleDebug
+          :core:observability:assembleDebug
+          :core:play-billing:assembleDebug
           :core:subscription:assembleDebug
           :core:vpn-api:assembleDebug
           :app:assembleDebug

@@ -23,12 +23,16 @@ Ganj VPN مجاز است چون VPN کارکرد اصلی آن است، ولی �
 VPN subscription یک Digital Service است. بنابراین:
 
 - Play flavor از Google Play Billing و server-side verification استفاده می‌کند؛
+- Play Billing Library روی `9.1.0` پین شده و ارتقا فقط همراه Release Notes review و تست Sandbox انجام می‌شود؛
 - Wallet/Telegram/Gateway فقط در صورتی داخل Play build نمایش داده می‌شود که برنامه/منطقه مجوز آن را بدهد؛
 - Direct APK flavor می‌تواند روش‌های فعلی را داشته باشد؛
 - Entitlement backend واحد است ولی `purchase_channel` و policy جدا هستند؛
 - لینک خارجی پرداخت در Play build بدون eligibility ممنوع است.
+- `PENDING` هیچ Entitlement فعال نمی‌کند؛ Purchase Token به Backend می‌رود و وضعیت از Android Publisher API دوباره خوانده می‌شود؛
+- RTDN فقط trigger همگام‌سازی است و به‌تنهایی منبع حقیقت خرید نیست؛
+- خرید اولیه، Token جدید، تغییر Plan و ثبت‌نام مجدد پس از Grant در Backend acknowledge می‌شوند؛ Renewal با همان Token دوباره acknowledge نمی‌شود.
 
-مرجع: [Google Play Billing](https://developer.android.com/distribute/play-billing/)
+مراجع: [Google Play Billing integration](https://developer.android.com/google/play/billing/integrate)، [Play Billing release notes](https://developer.android.com/google/play/billing/release-notes)، [Android Publisher subscriptions v2](https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2)
 
 ## Permission Budget
 

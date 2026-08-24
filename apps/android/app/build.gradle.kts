@@ -3,6 +3,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val controlApiBaseUrl = providers.gradleProperty("GANJ_CONTROL_API_BASE_URL").orElse("").get()
+val escapedControlApiBaseUrl = controlApiBaseUrl
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+
 android {
     namespace = "com.ganj.vpn"
     compileSdk = 36
@@ -11,8 +16,9 @@ android {
         applicationId = "com.ganj.vpn"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+        buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -43,7 +49,9 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:subscription"))
+    implementation(project(":core:billing"))
+    implementation(project(":core:control-api"))
+    implementation(project(":core:play-billing"))
     implementation(project(":core:vpn-api"))
 
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
@@ -51,6 +59,7 @@ dependencies {
     androidTestImplementation(composeBom)
 
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel:2.10.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")

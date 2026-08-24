@@ -5,11 +5,13 @@ on:
     paths:
       - "apps/android/**"
       - ".github/workflows/android-ci.yml"
+      - ".github/scripts/android-product-guard.sh"
   push:
     branches: [main]
     paths:
       - "apps/android/**"
       - ".github/workflows/android-ci.yml"
+      - ".github/scripts/android-product-guard.sh"
   workflow_dispatch:
 
 permissions:
@@ -56,6 +58,11 @@ jobs:
           gradle-version: "9.4.1"
           cache-provider: basic
           cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Enforce subscription-only production surface
+        working-directory: .
+        shell: bash
+        run: bash .github/scripts/android-product-guard.sh
 
       - name: Run unit tests, Android lint and debug build
         working-directory: apps/android

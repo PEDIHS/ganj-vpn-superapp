@@ -466,6 +466,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderResponse'
         '400': { $ref: '#/components/responses/BadRequest' }
+  /billing/play/rtdn:
+    post:
+      summary: Receive an authenticated Google Play real-time developer notification
+      description: >-
+        Internal Google Pub/Sub push endpoint. A notification is only a reconciliation
+        signal; the authoritative subscription state is fetched again from Android
+        Publisher subscriptions v2 before any entitlement change.
+      tags: [Store]
+      operationId: receiveGooglePlayRtdn
+      security:
+        - googlePubSubOidc: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GooglePubSubPush'
+      responses:
+        '200':
+          description: Notification accepted or safely deduplicated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookAcceptedResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503':
+          description: Publisher reconciliation is temporarily unavailable; Pub/Sub may retry.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /wallet:
     get:
       summary: Get wallet balance
@@ -1103,6 +1134,12 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    googlePubSubOidc:
+      type: openIdConnect
+      openIdConnectUrl: https://accounts.google.com/.well-known/openid-configuration
+      description: >-
+        Google-signed Pub/Sub push identity restricted to the configured service account,
+        issuer, audience and endpoint. It is not an end-user bearer session.
   parameters:
     DeviceId:
       name: device_id
@@ -1413,6 +1450,35 @@ components:
             channel: { type: string }
             total: { $ref: '#/components/schemas/Money' }
             entitlement_service_id: { type: [string, 'null'], format: uuid }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    GooglePubSubPush:
+      type: object
+      required: [message, subscription]
+      additionalProperties: false
+      properties:
+        subscription: { type: string, minLength: 1, maxLength: 512 }
+        message:
+          type: object
+          required: [data, messageId, publishTime]
+          additionalProperties: false
+          properties:
+            data: { type: string, contentEncoding: base64 }
+            messageId: { type: string, minLength: 1, maxLength: 256 }
+            publishTime: { type: string, format: date-time }
+            attributes:
+              type: object
+              additionalProperties: { type: string, maxLength: 1024 }
+    WebhookAcceptedResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [accepted, replayed]
+          properties:
+            accepted: { type: boolean, const: true }
+            replayed: { type: boolean }
         meta: { $ref: '#/components/schemas/Meta' }
         error: { type: 'null' }
     WalletResponse:

@@ -127,22 +127,22 @@ function match(pathname, pattern) {
   return params;
 }
 
-function requireOwnedService(repository, userId, serviceId) {
+async function requireOwnedService(repository, userId, serviceId) {
   requireUuid(serviceId, 'service_id');
-  const service = repository.findOwnedService(userId, serviceId);
+  const service = await repository.findOwnedService(userId, serviceId);
   if (!service) throw new ApiError(404, 'service_not_found', 'Service was not found.');
   return service;
 }
 
-function requireOwnedOrder(repository, userId, orderId) {
+async function requireOwnedOrder(repository, userId, orderId) {
   requireUuid(orderId, 'order_id');
-  const order = repository.findOwnedOrder(userId, orderId);
+  const order = await repository.findOwnedOrder(userId, orderId);
   if (!order) throw new ApiError(404, 'order_not_found', 'Order was not found.');
   return order;
 }
 
-function assertIdempotency(repository, { scope, userId, key, fingerprint }) {
-  const existing = repository.findIdempotency(scope, userId, key);
+async function assertIdempotency(repository, { scope, userId, key, fingerprint }) {
+  const existing = await repository.findIdempotency(scope, userId, key);
   if (!existing) return null;
   if (existing.fingerprint !== fingerprint) {
     throw new ApiError(409, 'idempotency_conflict', 'Idempotency-Key was already used with a different request.');
@@ -156,8 +156,8 @@ function allowedProtocolsForTier(tier) {
   return ['vless'];
 }
 
-function fulfillOrder(repository, order, plan, now) {
-  let service = order.serviceId ? repository.findOwnedService(order.userId, order.serviceId) : null;
+async function fulfillOrder(repository, order, plan, now) {
+  let service = order.serviceId ? await repository.findOwnedService(order.userId, order.serviceId) : null;
   if (order.serviceId && !service) {
     throw new ApiError(409, 'renewal_target_unavailable', 'The renewal target is no longer available.');
   }
@@ -165,7 +165,7 @@ function fulfillOrder(repository, order, plan, now) {
   if (service) {
     const currentExpiry = service.expires_at ? Date.parse(service.expires_at) : now.getTime();
     const startsAt = Math.max(now.getTime(), Number.isFinite(currentExpiry) ? currentExpiry : now.getTime());
-    service = repository.saveService({
+    service = await repository.saveService({
       ...service,
       planId: plan.id,
       name: plan.name,
@@ -178,7 +178,7 @@ function fulfillOrder(repository, order, plan, now) {
       allowed_protocols: allowedProtocolsForTier(plan.tier),
     });
   } else {
-    service = repository.createService({
+    service = await repository.createService({
       userId: order.userId,
       planId: plan.id,
       name: plan.name,
@@ -201,15 +201,21 @@ function fulfillOrder(repository, order, plan, now) {
   });
 }
 
-export function createApplication({ repository, auth, purchaseVerifier, clock = () => new Date() }) {
+export function createApplication({ repository, auth, telegramAuth, purchaseVerifier, playNotifications, clock = () => new Date() }) {
   assertPort('repository', repository, [
     'transaction',
     'listPlans', 'findPlan', 'listServices', 'findOwnedService', 'saveService', 'createService',
     'listServers', 'findServer', 'createOrder', 'findOwnedOrder', 'saveOrder',
     'findIdempotency', 'saveIdempotency', 'findPurchaseTokenOwner', 'bindPurchaseToken',
+    'reserveConnectionProfile', 'findOrderByPurchaseTokenDigest', 'recordWebhookEvent', 'completeWebhookEvent',
   ]);
   assertPort('auth', auth, ['authenticate', 'verifyDeviceProof', 'sealConnectionProfile']);
-  assertPort('purchase verifier', purchaseVerifier, ['verifyPlayPurchase']);
+  assertPort('Telegram auth', telegramAuth, ['exchangeAuthorizationCode']);
+  assertPort('purchase verifier', purchaseVerifier, [
+    'verifyPlayPurchase', 'getPlaySubscriptionState', 'acknowledgePlayPurchase',
+    'cancelPlaySubscription', 'revokePlaySubscription',
+  ]);
+  assertPort('Play notifications', playNotifications, ['verifyAndDecode']);
 
   return async function handle(request) {
     const requestIdHeader = request.headers.get('x-request-id');
@@ -227,7 +233,77 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
         if (!channel || !CHANNELS.has(channel) || channel === 'wallet') {
           throw new ApiError(400, 'invalid_channel', 'channel must be play or direct.');
         }
-        return { status: 200, body: success(repository.listPlans(channel).map(asPlan), requestId, clock) };
+        return { status: 200, body: success((await repository.listPlans(channel)).map(asPlan), requestId, clock) };
+      }
+
+      if (request.method === 'POST' && pathname === '/v1/auth/telegram/exchange') {
+        const body = await parseBody(request);
+        rejectUnknown(body, ['code', 'state', 'code_verifier']);
+        const result = await telegramAuth.exchangeAuthorizationCode({
+          code: requireString(body.code, 'code', { min: 8, max: 2048 }),
+          state: requireString(body.state, 'state', { min: 32, max: 512 }),
+          codeVerifier: requireString(body.code_verifier, 'code_verifier', { min: 43, max: 128 }),
+        });
+        return { status: 200, body: success(result, requestId, clock) };
+      }
+
+      if (request.method === 'POST' && pathname === '/v1/billing/play/rtdn') {
+        const body = await parseBody(request);
+        const notification = await playNotifications.verifyAndDecode({ request, body });
+        const event = await repository.transaction(() => repository.recordWebhookEvent({
+          provider: 'google-play-rtdn',
+          eventId: notification.eventId,
+          payloadDigest: notification.payloadDigest,
+          eventType: notification.eventType,
+          receivedAt: notification.receivedAt,
+        }));
+        if (event.replay && ['processed', 'ignored'].includes(event.status)) {
+          return { status: 200, body: success({ accepted: true, replayed: true }, requestId, clock) };
+        }
+        const tokenDigest = digest(notification.purchaseToken);
+        const relatedOrder = await repository.findOrderByPurchaseTokenDigest(tokenDigest);
+        if (!relatedOrder) {
+          await repository.completeWebhookEvent({ provider: 'google-play-rtdn', eventId: notification.eventId, status: 'ignored' });
+          return { status: 200, body: success({ accepted: true, replayed: false }, requestId, clock) };
+        }
+        const relatedPlan = await repository.findPlan(relatedOrder.planId);
+        if (!relatedPlan || relatedPlan.play_product_id !== notification.productId) {
+          await repository.completeWebhookEvent({ provider: 'google-play-rtdn', eventId: notification.eventId, status: 'ignored' });
+          return { status: 200, body: success({ accepted: true, replayed: false }, requestId, clock) };
+        }
+        let publisherState;
+        try {
+          publisherState = await purchaseVerifier.getPlaySubscriptionState({
+            purchaseToken: notification.purchaseToken,
+            productId: relatedPlan.play_product_id,
+          });
+        } catch {
+          await repository.completeWebhookEvent({ provider: 'google-play-rtdn', eventId: notification.eventId, status: 'failed' });
+          throw new ApiError(503, 'play_reconciliation_unavailable', 'Google Play state could not be reconciled.', { retryable: true });
+        }
+        await repository.transaction(async () => {
+          const currentOrder = await repository.findOrderByPurchaseTokenDigest(tokenDigest);
+          if (!currentOrder?.entitlementServiceId) {
+            await repository.completeWebhookEvent({ provider: 'google-play-rtdn', eventId: notification.eventId, status: 'ignored' });
+            return;
+          }
+          const currentService = await repository.findOwnedService(currentOrder.userId, currentOrder.entitlementServiceId);
+          if (!currentService) {
+            await repository.completeWebhookEvent({ provider: 'google-play-rtdn', eventId: notification.eventId, status: 'ignored' });
+            return;
+          }
+          let status = currentService.status;
+          if (publisherState.entitled) status = 'active';
+          else if (publisherState.state === 'SUBSCRIPTION_STATE_EXPIRED') status = 'expired';
+          else if (publisherState.state !== 'SUBSCRIPTION_STATE_PENDING') status = 'disabled';
+          await repository.saveService({
+            ...currentService,
+            status,
+            expires_at: publisherState.expiresAt ?? currentService.expires_at,
+          });
+          await repository.completeWebhookEvent({ provider: 'google-play-rtdn', eventId: notification.eventId, status: 'processed' });
+        });
+        return { status: 200, body: success({ accepted: true, replayed: false }, requestId, clock) };
       }
 
       const principal = await auth.authenticate(request);
@@ -235,24 +311,24 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
       requireUuid(principal.deviceId, 'authenticated device id');
 
       if (request.method === 'GET' && pathname === '/v1/services') {
-        return { status: 200, body: success(repository.listServices(principal.userId).map(asService), requestId, clock) };
+        return { status: 200, body: success((await repository.listServices(principal.userId)).map(asService), requestId, clock) };
       }
 
       let params = match(pathname, '/v1/services/:serviceId');
       if (request.method === 'GET' && params) {
-        return { status: 200, body: success(asService(requireOwnedService(repository, principal.userId, params.serviceId)), requestId, clock) };
+        return { status: 200, body: success(asService(await requireOwnedService(repository, principal.userId, params.serviceId)), requestId, clock) };
       }
 
       if (request.method === 'GET' && pathname === '/v1/servers') {
         const now = clock();
-        const entitlements = repository.listServices(principal.userId).filter((service) => isUsable(service, now));
+        const entitlements = (await repository.listServices(principal.userId)).filter((service) => isUsable(service, now));
         const tier = url.searchParams.get('tier');
         const country = url.searchParams.get('country');
         const protocol = url.searchParams.get('protocol');
         if (tier && !(tier in TIER_RANK)) throw new ApiError(400, 'invalid_tier', 'tier is invalid.');
         if (country && !/^[A-Z]{2}$/.test(country)) throw new ApiError(400, 'invalid_country', 'country must be ISO 3166-1 alpha-2 uppercase.');
         if (protocol && !SERVER_PROTOCOLS.has(protocol)) throw new ApiError(400, 'invalid_protocol', 'protocol is invalid.');
-        const visible = repository.listServers().filter((server) => {
+        const visible = (await repository.listServers()).filter((server) => {
           if (server.status !== 'active') return false;
           if (tier && server.tier !== tier) return false;
           if (country && server.country_code !== country) return false;
@@ -277,7 +353,7 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
         if (deviceId !== principal.deviceId) {
           throw new ApiError(403, 'device_mismatch', 'Profile can only be issued to the authenticated device.');
         }
-        const service = requireOwnedService(repository, principal.userId, params.serviceId);
+        const service = await requireOwnedService(repository, principal.userId, params.serviceId);
         const now = clock();
         if (service.status !== 'active') throw new ApiError(403, 'service_inactive', 'Service is not active.');
         if (service.expires_at && Date.parse(service.expires_at) <= now.getTime()) {
@@ -286,7 +362,7 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
         if (service.traffic_limit_bytes !== null && service.traffic_used_bytes >= service.traffic_limit_bytes) {
           throw new ApiError(403, 'traffic_exhausted', 'Service traffic allowance is exhausted.');
         }
-        const server = repository.findServer(serverId);
+        const server = await repository.findServer(serverId);
         if (!server || server.status !== 'active') throw new ApiError(403, 'server_unavailable', 'Server is unavailable.');
         if (TIER_RANK[server.tier] > TIER_RANK[service.tier]) throw new ApiError(403, 'tier_not_entitled', 'Service tier cannot use this server.');
         if (service.country_code && service.country_code !== server.country_code) throw new ApiError(403, 'country_not_entitled', 'Service cannot use this country.');
@@ -307,15 +383,16 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
             port: server.connection.port,
             protocol,
             credential: server.connection.credential,
+            profile_id: profileId,
             service_id: service.id,
             server_id: server.id,
             device_id: deviceId,
             expires_at: expiresAt,
           },
         });
-        await repository.transaction(() => {
-          const current = requireOwnedService(repository, principal.userId, service.id);
-          const currentServer = repository.findServer(serverId);
+        await repository.transaction(async () => {
+          const current = await requireOwnedService(repository, principal.userId, service.id);
+          const currentServer = await repository.findServer(serverId);
           const entitlementChanged = current.status !== 'active'
             || current.expires_at && Date.parse(current.expires_at) <= clock().getTime()
             || current.traffic_limit_bytes !== null && current.traffic_used_bytes >= current.traffic_limit_bytes
@@ -331,7 +408,17 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
           if (!alreadyBound && current.deviceIds.length >= current.device_limit) {
             throw new ApiError(403, 'device_limit_reached', 'Service device limit has been reached.');
           }
-          if (!alreadyBound) repository.saveService({ ...current, deviceIds: [...current.deviceIds, deviceId] });
+          if (!alreadyBound) await repository.saveService({ ...current, deviceIds: [...current.deviceIds, deviceId] });
+          const reserved = await repository.reserveConnectionProfile({
+            profileId,
+            userId: principal.userId,
+            serviceId: service.id,
+            deviceId,
+            serverId,
+            clientNonceDigest: digest(clientNonce),
+            expiresAt,
+          });
+          if (!reserved) throw new ApiError(409, 'profile_nonce_replayed', 'Client nonce was already used for profile issuance.');
         });
         return {
           status: 201,
@@ -356,13 +443,13 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
         if (!CHANNELS.has(channel)) throw new ApiError(400, 'invalid_channel', 'channel is invalid.');
         const serviceId = body.service_id === undefined || body.service_id === null ? null : requireUuid(body.service_id, 'service_id');
         const fingerprint = digest({ planId, channel, serviceId });
-        const order = await repository.transaction(() => {
-          const replay = assertIdempotency(repository, { scope: 'order:create', userId: principal.userId, key: idempotencyKey, fingerprint });
+        const order = await repository.transaction(async () => {
+          const replay = await assertIdempotency(repository, { scope: 'order:create', userId: principal.userId, key: idempotencyKey, fingerprint });
           if (replay) return requireOwnedOrder(repository, principal.userId, replay.resourceId);
-          const plan = repository.findPlan(planId);
+          const plan = await repository.findPlan(planId);
           if (!plan || !plan.active || !plan.channels.includes(channel)) throw new ApiError(400, 'plan_unavailable', 'Plan is not available for this channel.');
-          if (serviceId) requireOwnedService(repository, principal.userId, serviceId);
-          const created = repository.createOrder({
+          if (serviceId) await requireOwnedService(repository, principal.userId, serviceId);
+          const created = await repository.createOrder({
             userId: principal.userId,
             planId,
             serviceId,
@@ -372,7 +459,7 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
             entitlementServiceId: null,
             createdAt: clock().toISOString(),
           });
-          repository.saveIdempotency('order:create', principal.userId, idempotencyKey, { fingerprint, resourceId: created.id });
+          await repository.saveIdempotency('order:create', principal.userId, idempotencyKey, { fingerprint, resourceId: created.id });
           return created;
         });
         return { status: 201, body: success(asOrder(order), requestId, clock) };
@@ -380,7 +467,7 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
 
       params = match(pathname, '/v1/orders/:orderId');
       if (request.method === 'GET' && params) {
-        return { status: 200, body: success(asOrder(requireOwnedOrder(repository, principal.userId, params.orderId)), requestId, clock) };
+        return { status: 200, body: success(asOrder(await requireOwnedOrder(repository, principal.userId, params.orderId)), requestId, clock) };
       }
 
       if (request.method === 'POST' && pathname === '/v1/billing/play/verify') {
@@ -391,20 +478,17 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
         const productId = requireString(body.product_id, 'product_id', { min: 1, max: 255 });
         const purchaseToken = requireString(body.purchase_token, 'purchase_token', { min: 16, max: 4096 });
         const fingerprint = digest({ orderId, productId, purchaseTokenDigest: digest(purchaseToken) });
-        const replay = assertIdempotency(repository, { scope: 'play:verify', userId: principal.userId, key: idempotencyKey, fingerprint });
-        if (replay) {
-          return { status: 200, body: success(asOrder(requireOwnedOrder(repository, principal.userId, replay.resourceId)), requestId, clock) };
-        }
-        let order = requireOwnedOrder(repository, principal.userId, orderId);
+        await assertIdempotency(repository, { scope: 'play:verify', userId: principal.userId, key: idempotencyKey, fingerprint });
+        let order = await requireOwnedOrder(repository, principal.userId, orderId);
         if (order.channel !== 'play') throw new ApiError(409, 'wrong_payment_channel', 'Order is not a Google Play order.');
         if (!['pending', 'authorized', 'paid', 'fulfilled'].includes(order.status)) {
           throw new ApiError(409, 'order_not_verifiable', 'Order state does not allow purchase verification.');
         }
-        const plan = repository.findPlan(order.planId);
+        const plan = await repository.findPlan(order.planId);
         if (!plan || plan.play_product_id !== productId) throw new ApiError(400, 'product_mismatch', 'Product does not match the order plan.');
         const tokenDigest = digest(purchaseToken);
-        let verification = null;
-        if (order.status !== 'fulfilled') {
+        let verification;
+        try {
           verification = await purchaseVerifier.verifyPlayPurchase({
             packageName: 'com.ganj.vpn',
             productId,
@@ -412,35 +496,47 @@ export function createApplication({ repository, auth, purchaseVerifier, clock = 
             orderId: order.id,
             userId: principal.userId,
           });
-          if (!verification?.valid
-            || verification.productId && verification.productId !== productId
-            || typeof verification.externalTransactionId !== 'string'
-            || verification.externalTransactionId.length === 0) {
-            throw new ApiError(400, 'purchase_not_verified', 'Google Play purchase could not be verified.');
-          }
+        } catch {
+          throw new ApiError(503, 'play_verification_unavailable', 'Google Play purchase verification is temporarily unavailable.', { retryable: true });
         }
-        order = await repository.transaction(() => {
-          const concurrentReplay = assertIdempotency(repository, { scope: 'play:verify', userId: principal.userId, key: idempotencyKey, fingerprint });
+        if (!verification?.valid
+          || verification.productId && verification.productId !== productId
+          || typeof verification.externalTransactionId !== 'string'
+          || verification.externalTransactionId.length === 0) {
+          throw new ApiError(400, 'purchase_not_verified', 'Google Play purchase could not be verified.');
+        }
+        order = await repository.transaction(async () => {
+          const concurrentReplay = await assertIdempotency(repository, { scope: 'play:verify', userId: principal.userId, key: idempotencyKey, fingerprint });
           if (concurrentReplay) return requireOwnedOrder(repository, principal.userId, concurrentReplay.resourceId);
-          let current = requireOwnedOrder(repository, principal.userId, orderId);
+          let current = await requireOwnedOrder(repository, principal.userId, orderId);
           if (current.status === 'fulfilled') {
             if (current.purchaseTokenDigest !== tokenDigest) throw new ApiError(409, 'order_already_fulfilled', 'Order is already fulfilled by another purchase.');
           } else {
             if (!['pending', 'authorized', 'paid'].includes(current.status)) {
               throw new ApiError(409, 'order_not_verifiable', 'Order state changed during purchase verification.');
             }
-            const tokenOwner = repository.findPurchaseTokenOwner(tokenDigest);
+            const tokenOwner = await repository.findPurchaseTokenOwner(tokenDigest);
             if (tokenOwner && tokenOwner !== current.id) throw new ApiError(409, 'purchase_token_reused', 'Purchase token was already used for another order.');
-            repository.bindPurchaseToken(tokenDigest, current.id);
-            current = fulfillOrder(repository, {
+            await repository.bindPurchaseToken(tokenDigest, current.id);
+            current = await fulfillOrder(repository, {
               ...current,
               externalTransactionId: verification.externalTransactionId,
               purchaseTokenDigest: tokenDigest,
             }, plan, clock());
           }
-          repository.saveIdempotency('play:verify', principal.userId, idempotencyKey, { fingerprint, resourceId: current.id });
+          await repository.saveIdempotency('play:verify', principal.userId, idempotencyKey, { fingerprint, resourceId: current.id });
           return current;
         });
+        if (verification.requiresAcknowledgement) {
+          try {
+            await purchaseVerifier.acknowledgePlayPurchase({ purchaseToken, productId });
+          } catch {
+            throw new ApiError(503, 'play_acknowledgement_pending', 'Entitlement was granted but Google Play acknowledgement must be retried.', {
+              retryable: true,
+              details: { order_id: order.id },
+            });
+          }
+        }
         return { status: 200, body: success(asOrder(order), requestId, clock) };
       }
 

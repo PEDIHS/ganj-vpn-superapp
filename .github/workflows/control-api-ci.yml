@@ -20,9 +20,26 @@ concurrency:
 
 jobs:
   test:
-    name: Node checks and policy tests
+    name: Node, PostgreSQL and policy tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ganj_control_test
+          POSTGRES_USER: ganj_test
+          POSTGRES_PASSWORD: testtest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ganj_test -d ganj_control_test"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://ganj_test:testtest@127.0.0.1:5432/ganj_control_test
     defaults:
       run:
         working-directory: services/control-api
@@ -37,11 +54,19 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install production dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
       - name: Syntax check
         run: npm run check
 
       - name: Unit and integration tests
         run: npm test
+
+      - name: PostgreSQL migration and transaction integration
+        run: npm run test:postgres
+        env:
+          TEST_DATABASE_URL: postgres://ganj_test:testtest@127.0.0.1:5432/ganj_control_test
 
       - name: Coverage gates
         run: npm run test:coverage

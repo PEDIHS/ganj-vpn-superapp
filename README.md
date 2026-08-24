@@ -2,9 +2,9 @@
 
 مخزن مرجع محصول جدید **Ganj VPN**؛ یک کلاینت VPN اختصاصی Android به‌همراه API، پنل مدیریت، فروش اشتراک، همگام‌سازی Telegram Bot و زیرساخت مارکتینگ.
 
-> وضعیت فعلی: **Phase 1–2 — Android, Subscription & Control API Foundations**
+> وضعیت فعلی: **Parallel Increment — Android Foundations، Commerce و Enterprise؛ VPN Runtime هنوز تکمیل نشده**
 > تاریخ مبنا: 2026-08-24  
-> این مخزن شامل Vertical Slice تست‌شده است؛ Adapterهای Production و Secretها عمداً خارج مخزن می‌مانند.
+> این مخزن شامل Vertical Slice تست‌شده و Adapterهای fail-closed است؛ Secret، حساب Provider و Config واقعی عمداً خارج مخزن می‌مانند.
 
 ## تصمیم‌های قطعی فاز صفر
 
@@ -34,6 +34,7 @@
 12. [Observability، Bug Tracking و پشتیبانی](docs/11-observability-and-support-runbook.fa.md)
 13. [Release، Update و Supply Chain](docs/12-release-and-update-runbook.fa.md)
 14. [Incident Response و Disaster Recovery](docs/13-incident-response-runbook.fa.md)
+15. [Observability اندروید با حفظ حریم خصوصی](docs/14-observability-privacy.fa.md)
 
 فایل‌های ماشینی:
 
@@ -46,6 +47,8 @@
 - [`services/control-api`](services/control-api/README.md): Catalog، My Services، Checkout، Play verification و صدور Profile رمز‌شده
 - `apps/android/core/control-api`: کلاینت HTTPS و Vault یک‌بارمصرف envelope
 - `apps/android/core/billing`: state machine خرید/بازیابی/Refund با verification سروری
+- `apps/android/core/play-billing`: Google Play Billing adapter، restore/pending و Proof Vault امن
+- `apps/android/core/observability`: Bug report، Analytics consent، Redaction و Log allowlist
 - `apps/android/core/subscription`: سیاست Entitlement و state فروشگاه/اتصال
 
 ## ساختار هدف مخزن
