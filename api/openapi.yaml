@@ -1,0 +1,807 @@
+openapi: 3.1.0
+info:
+  title: Ganj VPN Control API
+  version: 0.1.0
+  summary: Versioned contract for Ganj VPN mobile, Telegram, and admin clients.
+  description: >-
+    Phase 0 baseline. Connection profiles are device-bound encrypted envelopes;
+    raw VPN credentials are never returned from list endpoints.
+  contact:
+    name: Ganj VPN Engineering
+servers:
+  - url: https://api.example.invalid/v1
+    description: Placeholder; production host is configured outside source control.
+security:
+  - bearerAuth: []
+tags:
+  - name: Bootstrap
+  - name: Auth
+  - name: Account
+  - name: Services
+  - name: Servers
+  - name: Connections
+  - name: Store
+  - name: Wallet
+  - name: Notifications
+paths:
+  /app/bootstrap:
+    get:
+      tags: [Bootstrap]
+      operationId: getBootstrap
+      security: []
+      responses:
+        '200':
+          description: Public app bootstrap and signed compatibility policy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapResponse'
+  /auth/guest:
+    post:
+      tags: [Auth]
+      operationId: createGuestSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device]
+              properties:
+                device:
+                  $ref: '#/components/schemas/DeviceRegistration'
+      responses:
+        '201':
+          description: Guest user and device session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/telegram/start:
+    post:
+      tags: [Auth]
+      operationId: startTelegramOidc
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code_challenge, redirect_uri, device]
+              properties:
+                code_challenge:
+                  type: string
+                  minLength: 43
+                  maxLength: 128
+                redirect_uri:
+                  type: string
+                  format: uri
+                device:
+                  $ref: '#/components/schemas/DeviceRegistration'
+      responses:
+        '200':
+          description: OIDC authorization URL and anti-CSRF state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramStartResponse'
+  /auth/telegram/exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeTelegramCode
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, state, code_verifier]
+              properties:
+                code: { type: string, minLength: 8 }
+                state: { type: string, minLength: 32 }
+                code_verifier: { type: string, minLength: 43, maxLength: 128 }
+      responses:
+        '200':
+          description: Telegram-linked session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token, device_proof]
+              properties:
+                refresh_token: { type: string, minLength: 32 }
+                device_proof: { type: string, minLength: 32 }
+      responses:
+        '200':
+          description: Rotated access and refresh tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutSession
+      responses:
+        '204': { description: Current session revoked. }
+  /me:
+    get:
+      tags: [Account]
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current account summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+  /me/devices:
+    get:
+      tags: [Account]
+      operationId: listDevices
+      responses:
+        '200':
+          description: User devices.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceListResponse'
+  /me/devices/{device_id}:
+    delete:
+      tags: [Account]
+      operationId: revokeDevice
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '204': { description: Device and sessions revoked. }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /services:
+    get:
+      tags: [Services]
+      operationId: listServices
+      responses:
+        '200':
+          description: Services owned by the current user; no raw configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceListResponse'
+  /services/{service_id}:
+    get:
+      tags: [Services]
+      operationId: getService
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Service details and entitlement.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '404': { $ref: '#/components/responses/NotFound' }
+  /services/{service_id}/connection-profile:
+    post:
+      tags: [Services]
+      operationId: createConnectionProfile
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, server_id, client_nonce, device_proof]
+              properties:
+                device_id: { type: string, format: uuid }
+                server_id: { type: string, format: uuid }
+                client_nonce: { type: string, minLength: 32 }
+                device_proof: { type: string, minLength: 32 }
+      responses:
+        '201':
+          description: Short-lived, device-bound encrypted connection profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionProfileResponse'
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /servers:
+    get:
+      tags: [Servers]
+      operationId: listServers
+      parameters:
+        - name: tier
+          in: query
+          schema: { type: string, enum: [free, premium, vip] }
+        - name: country
+          in: query
+          schema: { type: string, pattern: '^[A-Z]{2}$' }
+        - name: protocol
+          in: query
+          schema: { $ref: '#/components/schemas/Protocol' }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Entitlement-filtered server catalog.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerListResponse'
+  /servers/recommend:
+    post:
+      tags: [Servers]
+      operationId: recommendServers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [service_id, network_type]
+              properties:
+                service_id: { type: string, format: uuid }
+                network_type: { type: string, enum: [wifi, cellular, ethernet, unknown] }
+                recent_results:
+                  type: array
+                  maxItems: 20
+                  items:
+                    $ref: '#/components/schemas/ProbeResult'
+      responses:
+        '200':
+          description: Ordered candidates and scoring hints.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerRecommendationResponse'
+  /connections/start:
+    post:
+      tags: [Connections]
+      operationId: startConnectionSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [service_id, server_id, protocol, started_at]
+              properties:
+                service_id: { type: string, format: uuid }
+                server_id: { type: string, format: uuid }
+                protocol: { $ref: '#/components/schemas/Protocol' }
+                started_at: { type: string, format: date-time }
+                app_version: { type: string }
+      responses:
+        '201':
+          description: Privacy-minimized connection session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionSessionResponse'
+  /connections/{connection_id}/end:
+    post:
+      tags: [Connections]
+      operationId: endConnectionSession
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ended_at, bytes_up, bytes_down]
+              properties:
+                ended_at: { type: string, format: date-time }
+                bytes_up: { type: integer, minimum: 0 }
+                bytes_down: { type: integer, minimum: 0 }
+                error_code: { type: [string, 'null'], maxLength: 64 }
+      responses:
+        '204': { description: Session finalized. }
+  /store/plans:
+    get:
+      tags: [Store]
+      operationId: listPlans
+      security: []
+      parameters:
+        - name: channel
+          in: query
+          required: true
+          schema: { type: string, enum: [play, direct] }
+      responses:
+        '200':
+          description: Channel-compliant plans and prices.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanListResponse'
+  /orders:
+    post:
+      tags: [Store]
+      operationId: createOrder
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan_id, channel]
+              properties:
+                plan_id: { type: string, format: uuid }
+                channel: { type: string, enum: [play, direct, wallet] }
+                service_id: { type: [string, 'null'], format: uuid }
+      responses:
+        '201':
+          description: Pending or completed order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /billing/play/verify:
+    post:
+      tags: [Store]
+      operationId: verifyPlayPurchase
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_id, product_id, purchase_token]
+              properties:
+                order_id: { type: string, format: uuid }
+                product_id: { type: string }
+                purchase_token: { type: string, minLength: 16 }
+      responses:
+        '200':
+          description: Server-verified purchase and entitlement state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+  /wallet:
+    get:
+      tags: [Wallet]
+      operationId: getWallet
+      responses:
+        '200':
+          description: Derived wallet balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+  /wallet/transactions:
+    get:
+      tags: [Wallet]
+      operationId: listWalletTransactions
+      parameters:
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Cursor-paginated wallet ledger view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletTransactionListResponse'
+  /notifications:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      parameters:
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: User notifications.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+  /devices/{device_id}/push-token:
+    put:
+      tags: [Notifications]
+      operationId: upsertPushToken
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, token]
+              properties:
+                provider: { type: string, enum: [fcm, apns] }
+                token: { type: string, minLength: 16 }
+      responses:
+        '204': { description: Push token encrypted and registered. }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DeviceId:
+      name: device_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ServiceId:
+      name: service_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ConnectionId:
+      name: connection_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 16, maxLength: 255 }
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+    Unauthorized:
+      description: Missing, invalid, expired, or reused session.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+    Forbidden:
+      description: Entitlement or policy rejected the operation.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+    NotFound:
+      description: Resource was not found or is not owned by the current user.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+    Conflict:
+      description: Idempotency or state conflict.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+  schemas:
+    Meta:
+      type: object
+      required: [request_id, server_time]
+      properties:
+        request_id: { type: string, format: uuid }
+        server_time: { type: string, format: date-time }
+        next_cursor: { type: [string, 'null'] }
+        has_more: { type: boolean, default: false }
+    Error:
+      type: object
+      required: [code, message, retryable]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        retryable: { type: boolean }
+        details: { type: object, additionalProperties: true }
+    ErrorResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { $ref: '#/components/schemas/Error' }
+    DeviceRegistration:
+      type: object
+      required: [platform, public_key, app_version, os_version]
+      properties:
+        platform: { type: string, enum: [android, ios] }
+        public_key: { type: string, contentEncoding: base64 }
+        key_attestation: { type: [object, 'null'], additionalProperties: true }
+        app_version: { type: string }
+        os_version: { type: string }
+        locale: { type: string, default: fa-IR }
+    AuthTokens:
+      type: object
+      required: [access_token, access_expires_in, refresh_token, refresh_expires_in]
+      properties:
+        access_token: { type: string }
+        access_expires_in: { type: integer, example: 600 }
+        refresh_token: { type: string }
+        refresh_expires_in: { type: integer, example: 2592000 }
+    AuthResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [user, device_id, tokens]
+          properties:
+            user: { $ref: '#/components/schemas/User' }
+            device_id: { type: string, format: uuid }
+            tokens: { $ref: '#/components/schemas/AuthTokens' }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    TelegramStartResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [authorization_url, state, expires_at]
+          properties:
+            authorization_url: { type: string, format: uri }
+            state: { type: string }
+            expires_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    User:
+      type: object
+      required: [id, status, display_name, locale, telegram_linked]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [active, blocked] }
+        display_name: { type: [string, 'null'] }
+        locale: { type: string }
+        telegram_linked: { type: boolean }
+        telegram_username: { type: [string, 'null'] }
+    UserResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { $ref: '#/components/schemas/User' }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    Device:
+      type: object
+      required: [id, platform, status, current]
+      properties:
+        id: { type: string, format: uuid }
+        platform: { type: string }
+        name: { type: [string, 'null'] }
+        app_version: { type: [string, 'null'] }
+        status: { type: string, enum: [active, revoked] }
+        current: { type: boolean }
+        last_seen_at: { type: [string, 'null'], format: date-time }
+    DeviceListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Device' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    Service:
+      type: object
+      required: [id, name, status, tier, traffic_used_bytes, device_limit]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        status: { type: string, enum: [pending, active, disabled, expired, revoked] }
+        tier: { type: string, enum: [free, premium, vip] }
+        country_code: { type: [string, 'null'] }
+        traffic_limit_bytes: { type: [integer, 'null'], minimum: 0 }
+        traffic_used_bytes: { type: integer, minimum: 0 }
+        expires_at: { type: [string, 'null'], format: date-time }
+        device_limit: { type: integer, minimum: 1 }
+        allowed_protocols:
+          type: array
+          items: { $ref: '#/components/schemas/Protocol' }
+    ServiceResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { $ref: '#/components/schemas/Service' }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    ServiceListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Service' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    Protocol:
+      type: string
+      enum: [vless, vmess, trojan, shadowsocks, wireguard]
+    Server:
+      type: object
+      required: [id, code, name, country_code, tier, status, load_ratio, protocols]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+        country_code: { type: string, pattern: '^[A-Z]{2}$' }
+        city: { type: [string, 'null'] }
+        tier: { type: string, enum: [free, premium, vip] }
+        status: { type: string, enum: [active, busy, maintenance] }
+        load_ratio: { type: number, minimum: 0, maximum: 1 }
+        latency_hint_ms: { type: [integer, 'null'], minimum: 0 }
+        favorite: { type: boolean, default: false }
+        protocols:
+          type: array
+          items: { $ref: '#/components/schemas/Protocol' }
+    ServerListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Server' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    ProbeResult:
+      type: object
+      required: [server_id, success, measured_at]
+      properties:
+        server_id: { type: string, format: uuid }
+        success: { type: boolean }
+        latency_ms: { type: [integer, 'null'], minimum: 0 }
+        jitter_ms: { type: [integer, 'null'], minimum: 0 }
+        packet_success: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        measured_at: { type: string, format: date-time }
+    ServerRecommendationResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [server, score, reason, probe_required]
+            properties:
+              server: { $ref: '#/components/schemas/Server' }
+              score: { type: number, minimum: 0, maximum: 1 }
+              reason: { type: string }
+              probe_required: { type: boolean }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    ConnectionProfileResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [profile_id, server_id, algorithm, key_version, nonce, ciphertext, expires_at]
+          properties:
+            profile_id: { type: string, format: uuid }
+            server_id: { type: string, format: uuid }
+            algorithm: { type: string, example: X25519+HKDF-SHA256+AES-256-GCM }
+            key_version: { type: string }
+            nonce: { type: string, contentEncoding: base64 }
+            ciphertext: { type: string, contentEncoding: base64 }
+            expires_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    ConnectionSessionResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    Plan:
+      type: object
+      required: [id, code, name, tier, device_limit, price]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+        tier: { type: string, enum: [free, premium, vip] }
+        duration_days: { type: [integer, 'null'] }
+        traffic_limit_bytes: { type: [integer, 'null'] }
+        device_limit: { type: integer, minimum: 1 }
+        features: { type: array, items: { type: string } }
+        price: { $ref: '#/components/schemas/Money' }
+    PlanListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Plan' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    Money:
+      type: object
+      required: [amount_minor, currency]
+      properties:
+        amount_minor: { type: integer }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+    OrderResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [id, status, channel, total]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [pending, authorized, paid, fulfilled, cancelled, refunded, failed] }
+            channel: { type: string }
+            total: { $ref: '#/components/schemas/Money' }
+            entitlement_service_id: { type: [string, 'null'], format: uuid }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    WalletResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [balance]
+          properties:
+            balance: { $ref: '#/components/schemas/Money' }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    WalletTransactionListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, kind, amount, created_at]
+            properties:
+              id: { type: string, format: uuid }
+              kind: { type: string }
+              amount: { $ref: '#/components/schemas/Money' }
+              description: { type: [string, 'null'] }
+              created_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    NotificationListResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, kind, title, body, read, created_at]
+            properties:
+              id: { type: string, format: uuid }
+              kind: { type: string }
+              title: { type: string }
+              body: { type: string }
+              read: { type: boolean }
+              action: { type: [object, 'null'], additionalProperties: true }
+              created_at: { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+    BootstrapResponse:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data:
+          type: object
+          required: [minimum_supported_version, recommended_version, maintenance, feature_flags]
+          properties:
+            minimum_supported_version: { type: string }
+            recommended_version: { type: string }
+            maintenance: { type: boolean }
+            maintenance_message: { type: [string, 'null'] }
+            feature_flags: { type: object, additionalProperties: { type: boolean } }
+            policy_signature: { type: string }
+        meta: { $ref: '#/components/schemas/Meta' }
+        error: { type: 'null' }
+

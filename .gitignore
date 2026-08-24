@@ -1,0 +1,47 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+google-services.json
+GoogleService-Info.plist
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+secrets.properties
+local.properties
+
+# Sensitive imports and runtime data
+*.apk
+*.aab
+*.zip
+*.sql.gz
+*.log
+error_log
+storage/
+receipts/
+runtime/
+
+# Android/Gradle
+.gradle/
+**/build/
+.idea/
+*.iml
+captures/
+.cxx/
+
+# JS
+node_modules/
+dist/
+.vite/
+
+# PHP
+vendor/
+.phpunit.result.cache
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+
