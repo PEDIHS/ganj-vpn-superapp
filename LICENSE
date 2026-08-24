@@ -1,0 +1,10 @@
+Copyright (c) 2026 Ganj VPN. All rights reserved.
+
+This repository and its original source code, documentation, designs, and assets
+are proprietary. No permission is granted to use, copy, modify, distribute,
+sublicense, or create derivative works without prior written authorization from
+Ganj VPN.
+
+Third-party components remain governed by their respective licenses. In
+particular, an eventual Xray-core integration must retain the notices and source
+obligations required by the Mozilla Public License 2.0.
