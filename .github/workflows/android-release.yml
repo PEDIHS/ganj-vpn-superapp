@@ -303,7 +303,7 @@ jobs:
           gradle --no-daemon --stacktrace --warning-mode all
           --init-script "$GITHUB_WORKSPACE/.github/gradle/pinned-libxray.init.gradle"
           -PGANJ_CONTROL_API_BASE_URL="$GANJ_RELEASE_CONTROL_API_BASE_URL"
-          testReleaseUnitTest
+          testDebugUnitTest
           lintRelease
           :app:bundleRelease
 

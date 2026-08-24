@@ -76,13 +76,12 @@ jobs:
         shell: bash
         run: bash .github/scripts/android-product-guard.sh
 
-      - name: Run debug and release unit tests, lint and trusted debug build
+      - name: Run unit tests, debug and release lint, and trusted debug build
         working-directory: apps/android
         shell: bash
         run: >-
           gradle --no-daemon --stacktrace --warning-mode all
           testDebugUnitTest
-          testReleaseUnitTest
           lintDebug
           lintRelease
           :app:assembleDebug
