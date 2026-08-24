@@ -69,7 +69,13 @@ jobs:
       - name: Build analyzed Android sources
         working-directory: apps/android
         shell: bash
-        run: gradle --no-daemon --stacktrace :core:vpn-api:assembleDebug :app:assembleDebug
+        run: >-
+          gradle --no-daemon --stacktrace
+          :core:billing:assembleDebug
+          :core:control-api:assembleDebug
+          :core:subscription:assembleDebug
+          :core:vpn-api:assembleDebug
+          :app:assembleDebug
 
       - name: Analyze source
         uses: github/codeql-action/analyze@v4
