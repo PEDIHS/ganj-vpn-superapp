@@ -48,7 +48,7 @@ jobs:
 
       - name: Validate JSON design tokens
         shell: bash
-        run: jq --exit-status empty design/tokens.json
+        run: jq empty design/tokens.json
 
       - name: Lint OpenAPI contract
         shell: bash
