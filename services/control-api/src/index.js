@@ -14,7 +14,8 @@ server.listen(port, host, () => {
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
-    server.close((error) => {
+    server.close(async (error) => {
+      await runtime.close?.();
       process.exitCode = error ? 1 : 0;
     });
   });

@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createApplication } from '../src/application.js';
 import { createDeviceProof, createTestAuthAdapter } from '../src/adapters/test-auth.js';
 import { createTestPurchaseVerifier } from '../src/adapters/test-purchase-verifier.js';
+import { createTestTelegramAuthAdapter } from '../src/adapters/test-telegram-auth.js';
 import { createHttpServer } from '../src/http.js';
 import { createRuntime } from '../src/runtime.js';
 import { FIXTURES, InMemoryRepository, createSeed } from '../src/repository.js';
@@ -25,11 +26,13 @@ const TOKENS = Object.freeze({
   [PURCHASE_PROOFS.vip]: 'ganj.vip.90d',
 });
 
-function setup() {
+function setup({ purchaseVerifier: purchaseOverride, playNotifications: notificationsOverride } = {}) {
   const repository = new InMemoryRepository(createSeed(NOW));
   const auth = createTestAuthAdapter({ deviceSecrets: SECRETS });
-  const purchaseVerifier = createTestPurchaseVerifier({ approvedTokens: TOKENS });
-  const app = createApplication({ repository, auth, purchaseVerifier, clock: () => new Date(NOW) });
+  const purchaseVerifier = purchaseOverride ?? createTestPurchaseVerifier({ approvedTokens: TOKENS });
+  const telegramAuth = createTestTelegramAuthAdapter();
+  const playNotifications = notificationsOverride ?? { kind: 'test-only', async verifyAndDecode() { throw new Error('not configured'); } };
+  const app = createApplication({ repository, auth, purchaseVerifier, telegramAuth, playNotifications, clock: () => new Date(NOW) });
   return { app, repository };
 }
 
@@ -114,6 +117,22 @@ test('health, request correlation and validation failures use safe envelopes', a
   assert.equal(route.body.error.code, 'route_not_found');
 });
 
+test('Telegram exchange is public, PKCE-shaped, and one-time through its boundary', async () => {
+  const { app } = setup();
+  const body = {
+    code: 'test-telegram-code',
+    state: 's'.repeat(32),
+    code_verifier: 'v'.repeat(43),
+  };
+  const exchanged = await request(app, 'POST', '/v1/auth/telegram/exchange', { body, authenticate: false });
+  assert.equal(exchanged.status, 200);
+  assert.equal(exchanged.body.data.user.telegram_linked, true);
+  assert.equal(exchanged.body.data.device_id, FIXTURES.devices.primary);
+  const replay = await request(app, 'POST', '/v1/auth/telegram/exchange', { body, authenticate: false });
+  assert.equal(replay.status, 400);
+  assert.equal(replay.body.error.code, 'invalid_login_state');
+});
+
 test('protected routes fail closed without an authenticated principal', async () => {
   const { app } = setup();
   const response = await request(app, 'GET', '/v1/services', { authenticate: false });
@@ -187,6 +206,26 @@ test('manual configuration fields are explicitly rejected', async () => {
   assert.equal(response.status, 400);
   assert.equal(response.body.error.code, 'unsupported_fields');
   assert.deepEqual(response.body.error.details.fields, ['config']);
+});
+
+test('connection profile nonce is replay-safe and grant is consumable only once', async () => {
+  const { app, repository } = setup();
+  const body = profileBody();
+  const first = await request(app, 'POST', `/v1/services/${FIXTURES.services.premium}/connection-profile`, { body });
+  assert.equal(first.status, 201);
+  const replay = await request(app, 'POST', `/v1/services/${FIXTURES.services.premium}/connection-profile`, { body });
+  assert.equal(replay.status, 409);
+  assert.equal(replay.body.error.code, 'profile_nonce_replayed');
+  assert.equal(repository.consumeConnectionProfile({
+    profileId: first.body.data.profile_id,
+    deviceId: FIXTURES.devices.primary,
+    now: NOW,
+  }), true);
+  assert.equal(repository.consumeConnectionProfile({
+    profileId: first.body.data.profile_id,
+    deviceId: FIXTURES.devices.primary,
+    now: NOW,
+  }), false);
 });
 
 test('expired, exhausted and higher-tier entitlements cannot issue profiles', async () => {
@@ -405,6 +444,128 @@ test('Play verification fulfills a new entitlement only after server-side verifi
   assert.deepEqual(replay.body.data, verified.body.data);
 });
 
+test('PENDING Play purchase never creates an entitlement', async () => {
+  const pendingVerifier = {
+    async verifyPlayPurchase() {
+      return {
+        valid: false,
+        entitled: false,
+        state: 'SUBSCRIPTION_STATE_PENDING',
+        productId: 'ganj.premium.30d',
+        externalTransactionId: null,
+        requiresAcknowledgement: false,
+      };
+    },
+    async getPlaySubscriptionState() { return this.verifyPlayPurchase(); },
+    async acknowledgePlayPurchase() {},
+    async cancelPlaySubscription() {},
+    async revokePlaySubscription() {},
+  };
+  const { app } = setup({ purchaseVerifier: pendingVerifier });
+  const before = await request(app, 'GET', '/v1/services');
+  const created = await createOrder(app);
+  const verified = await request(app, 'POST', '/v1/billing/play/verify', {
+    idempotencyKey: 'pending-play-verify-key-001',
+    body: {
+      order_id: created.body.data.id,
+      product_id: 'ganj.premium.30d',
+      purchase_token: 'pending-play-token-00000001',
+    },
+  });
+  assert.equal(verified.status, 400);
+  assert.equal(verified.body.error.code, 'purchase_not_verified');
+  const after = await request(app, 'GET', '/v1/services');
+  assert.equal(after.body.data.length, before.body.data.length);
+});
+
+test('new-token acknowledgement occurs after grant and is retryable with the same idempotency key', async () => {
+  let repository;
+  let orderId;
+  let acknowledgementCalls = 0;
+  const purchaseToken = 'aaaaaaaaaaaaaaaa';
+  const productId = 'ganj.premium.30d';
+  const base = createTestPurchaseVerifier({ approvedTokens: { [purchaseToken]: productId } });
+  const verifier = {
+    ...base,
+    async verifyPlayPurchase(input) {
+      return { ...await base.verifyPlayPurchase(input), requiresAcknowledgement: true };
+    },
+    async acknowledgePlayPurchase() {
+      acknowledgementCalls += 1;
+      const stored = repository.findOwnedOrder(FIXTURES.users.primary, orderId);
+      assert.equal(stored.status, 'fulfilled');
+      if (acknowledgementCalls === 1) throw new Error('transient Google failure');
+    },
+  };
+  const context = setup({ purchaseVerifier: verifier });
+  repository = context.repository;
+  const created = await createOrder(context.app);
+  orderId = created.body.data.id;
+  const input = {
+    idempotencyKey: 'ack-after-grant-key-00001',
+    body: {
+      order_id: orderId,
+      product_id: 'ganj.premium.30d',
+      purchase_token: purchaseToken,
+    },
+  };
+  const first = await request(context.app, 'POST', '/v1/billing/play/verify', input);
+  assert.equal(first.status, 503);
+  assert.equal(first.body.error.code, 'play_acknowledgement_pending');
+  const serviceCount = (await request(context.app, 'GET', '/v1/services')).body.data.length;
+  const retry = await request(context.app, 'POST', '/v1/billing/play/verify', input);
+  assert.equal(retry.status, 200);
+  assert.equal(acknowledgementCalls, 2);
+  assert.equal((await request(context.app, 'GET', '/v1/services')).body.data.length, serviceCount);
+});
+
+test('signed RTDN is only a signal; authoritative Publisher state is re-queried idempotently', async () => {
+  const token = 'rtdn-approved-token-00000001';
+  const base = createTestPurchaseVerifier({ approvedTokens: { [token]: 'ganj.premium.30d' } });
+  let stateQueries = 0;
+  const verifier = {
+    ...base,
+    async getPlaySubscriptionState() {
+      stateQueries += 1;
+      return {
+        valid: false,
+        entitled: false,
+        state: 'SUBSCRIPTION_STATE_EXPIRED',
+        productId: 'ganj.premium.30d',
+        expiresAt: '2026-08-23T12:00:00Z',
+      };
+    },
+  };
+  const notifications = {
+    async verifyAndDecode() {
+      return {
+        eventId: 'rtdn-event-1',
+        eventType: 'subscription:13',
+        purchaseToken: token,
+        productId: 'ganj.premium.30d',
+        payloadDigest: 'a'.repeat(64),
+        receivedAt: NOW,
+      };
+    },
+  };
+  const { app, repository } = setup({ purchaseVerifier: verifier, playNotifications: notifications });
+  const created = await createOrder(app);
+  const granted = await request(app, 'POST', '/v1/billing/play/verify', {
+    idempotencyKey: 'eeeeeeeeeeeeeeee',
+    body: { order_id: created.body.data.id, product_id: 'ganj.premium.30d', purchase_token: token },
+  });
+  assert.equal(granted.status, 200);
+  const callback = await request(app, 'POST', '/v1/billing/play/rtdn', { body: { signed: 'envelope' }, authenticate: false });
+  assert.equal(callback.status, 200);
+  assert.equal(stateQueries, 1);
+  const service = repository.findOwnedService(FIXTURES.users.primary, granted.body.data.entitlement_service_id);
+  assert.equal(service.status, 'expired');
+  const replay = await request(app, 'POST', '/v1/billing/play/rtdn', { body: { signed: 'envelope' }, authenticate: false });
+  assert.equal(replay.status, 200);
+  assert.equal(replay.body.data.replayed, true);
+  assert.equal(stateQueries, 1);
+});
+
 test('unverified or mismatched purchases never grant entitlement', async () => {
   const { app } = setup();
   const created = await createOrder(app);
@@ -532,7 +693,15 @@ test('application rejects incomplete ports and masks unexpected adapter failures
       verifyDeviceProof() {},
       sealConnectionProfile() {},
     },
-    purchaseVerifier: { verifyPlayPurchase() {} },
+    purchaseVerifier: {
+      verifyPlayPurchase() {},
+      getPlaySubscriptionState() {},
+      acknowledgePlayPurchase() {},
+      cancelPlaySubscription() {},
+      revokePlaySubscription() {},
+    },
+    telegramAuth: { exchangeAuthorizationCode() {} },
+    playNotifications: { verifyAndDecode() {} },
     clock: () => new Date(NOW),
   });
   const response = await request(app, 'GET', '/v1/services');

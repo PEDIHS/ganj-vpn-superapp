@@ -45,7 +45,7 @@ export function createHttpServer(handle, { logger = console } = {}) {
       });
       outgoing.writeHead(500, { ...SECURITY_HEADERS, 'content-length': Buffer.byteLength(body) });
       outgoing.end(body);
-      logger.error?.({ event: 'http_boundary_error', message: error instanceof Error ? error.message : 'unknown' });
+      logger.error?.({ event: 'http_boundary_error' });
     }
   });
 }

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { ApiError } from './errors.js';
 
 export const FIXTURES = Object.freeze({
   users: {
@@ -104,12 +105,15 @@ export function createSeed(now = new Date()) {
 
 export class InMemoryRepository {
   constructor(seed = createSeed()) {
+    this.kind = 'test-only';
     this.plans = new Map(seed.plans.map((item) => [item.id, copy(item)]));
     this.services = new Map(seed.services.map((item) => [item.id, copy(item)]));
     this.servers = new Map(seed.servers.map((item) => [item.id, copy(item)]));
     this.orders = new Map();
     this.idempotency = new Map();
     this.purchaseTokens = new Map();
+    this.profileGrants = new Map();
+    this.webhookEvents = new Map();
     this.transactionTail = Promise.resolve();
   }
 
@@ -123,6 +127,8 @@ export class InMemoryRepository {
       orders: new Map([...this.orders].map(([key, value]) => [key, copy(value)])),
       idempotency: new Map([...this.idempotency].map(([key, value]) => [key, copy(value)])),
       purchaseTokens: new Map(this.purchaseTokens),
+      profileGrants: new Map([...this.profileGrants].map(([key, value]) => [key, copy(value)])),
+      webhookEvents: new Map([...this.webhookEvents].map(([key, value]) => [key, copy(value)])),
     };
     try {
       return await work();
@@ -131,6 +137,8 @@ export class InMemoryRepository {
       this.orders = snapshot.orders;
       this.idempotency = snapshot.idempotency;
       this.purchaseTokens = snapshot.purchaseTokens;
+      this.profileGrants = snapshot.profileGrants;
+      this.webhookEvents = snapshot.webhookEvents;
       throw error;
     } finally {
       release();
@@ -190,4 +198,41 @@ export class InMemoryRepository {
 
   findPurchaseTokenOwner(digest) { return this.purchaseTokens.get(digest) ?? null; }
   bindPurchaseToken(digest, orderId) { this.purchaseTokens.set(digest, orderId); }
+
+  reserveConnectionProfile(value) {
+    const nonceKey = `${value.deviceId}:${value.clientNonceDigest}`;
+    if ([...this.profileGrants.values()].some((grant) => grant.nonceKey === nonceKey)) return false;
+    this.profileGrants.set(value.profileId, { ...copy(value), nonceKey, consumedAt: null });
+    return true;
+  }
+
+  consumeConnectionProfile({ profileId, deviceId, now = new Date() }) {
+    const grant = this.profileGrants.get(profileId);
+    if (!grant || grant.deviceId !== deviceId || grant.consumedAt || Date.parse(grant.expiresAt) <= now.getTime()) return false;
+    this.profileGrants.set(profileId, { ...grant, consumedAt: now.toISOString() });
+    return true;
+  }
+
+  findOrderByPurchaseTokenDigest(tokenDigest) {
+    return copy([...this.orders.values()].find((item) => item.purchaseTokenDigest === tokenDigest) ?? null);
+  }
+
+  recordWebhookEvent({ provider, eventId, payloadDigest, eventType, receivedAt }) {
+    const key = `${provider}:${eventId}`;
+    const existing = this.webhookEvents.get(key);
+    if (existing) {
+      if (existing.payloadDigest !== payloadDigest) {
+        throw new ApiError(409, 'webhook_replay_conflict', 'Webhook event ID was reused with different content.');
+      }
+      return { replay: true, status: existing.status };
+    }
+    this.webhookEvents.set(key, { payloadDigest, eventType, receivedAt, status: 'received' });
+    return { replay: false, status: 'received' };
+  }
+
+  completeWebhookEvent({ provider, eventId, status }) {
+    const key = `${provider}:${eventId}`;
+    const existing = this.webhookEvents.get(key);
+    if (existing) this.webhookEvents.set(key, { ...existing, status });
+  }
 }

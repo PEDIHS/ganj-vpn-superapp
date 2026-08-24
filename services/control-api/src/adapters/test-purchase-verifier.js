@@ -5,8 +5,22 @@ export function createTestPurchaseVerifier({ approvedTokens }) {
     async verifyPlayPurchase({ productId, purchaseToken }) {
       const approvedProduct = approvals.get(purchaseToken);
       return approvedProduct === productId
-        ? { valid: true, externalTransactionId: `test:${purchaseToken}`, purchasedAt: new Date().toISOString() }
+        ? {
+          valid: true,
+          entitled: true,
+          state: 'SUBSCRIPTION_STATE_ACTIVE',
+          productId,
+          expiresAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+          externalTransactionId: `test:${purchaseToken}`,
+          requiresAcknowledgement: false,
+        }
         : { valid: false, reason: 'not_approved' };
     },
+    async getPlaySubscriptionState({ productId, purchaseToken }) {
+      return this.verifyPlayPurchase({ productId, purchaseToken });
+    },
+    async acknowledgePlayPurchase() {},
+    async cancelPlaySubscription() {},
+    async revokePlaySubscription() {},
   };
 }
