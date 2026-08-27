@@ -82,7 +82,7 @@ test('JWKS verifier validates asymmetric signature and registered claims with ca
 
 test('JWKS auth binds JWT session, device proof, and X25519 encrypted profile', async () => {
   const issuerKeys = rsaFixture();
-  const signingKeys = generateKeyPairSync('ed25519');
+  const signingKeys = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   const encryptionKeys = generateKeyPairSync('x25519');
   const verifier = new JwksJwtVerifier({
     jwksUri: 'https://issuer.test/jwks',
@@ -91,6 +91,7 @@ test('JWKS auth binds JWT session, device proof, and X25519 encrypted profile', 
     clock: () => new Date(NOW),
     fetchImpl: async () => new Response(JSON.stringify({ keys: [issuerKeys.jwk] }), { status: 200 }),
   });
+  const usedProofNonces = new Set();
   const principalValidator = {
     async validatePrincipal({ jti }) {
       if (jti !== 'active-jti') return null;
@@ -99,6 +100,12 @@ test('JWKS auth binds JWT session, device proof, and X25519 encrypted profile', 
         encryptionPublicJwk: encryptionKeys.publicKey.export({ format: 'jwk' }),
         keyVersion: 'device-key-v3',
       };
+    },
+    async consumeDeviceProofNonce({ deviceId, keyVersion, nonceDigest }) {
+      const key = `${deviceId}:${keyVersion}:${nonceDigest}`;
+      if (usedProofNonces.has(key)) return false;
+      usedProofNonces.add(key);
+      return true;
     },
   };
   const adapter = new JwksAuthAdapter({ verifier, principalValidator, clock: () => new Date(NOW) });
@@ -112,10 +119,50 @@ test('JWKS auth binds JWT session, device proof, and X25519 encrypted profile', 
   }));
   assert.equal(principal.deviceId, FIXTURES.devices.primary);
 
-  const proofPayload = { serviceId: 'service', deviceId: principal.deviceId, nonce: 'nonce' };
-  const proof = signRaw(null, Buffer.from(JSON.stringify(canonical(proofPayload))), signingKeys.privateKey).toString('base64url');
-  assert.equal(await adapter.verifyDeviceProof({ principal, payload: proofPayload, proof }), true);
-  assert.equal(await adapter.verifyDeviceProof({ principal, payload: { ...proofPayload, nonce: 'changed' }, proof }), false);
+  const method = 'POST';
+  const pathAndQuery = '/v1/services/40000000-0000-4000-8000-000000000001/connection-profile';
+  const unsignedBody = {
+    client_nonce: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+    device_id: principal.deviceId,
+    server_id: FIXTURES.servers.premium,
+  };
+  const proofTimestamp = Math.floor(NOW.getTime() / 1_000);
+  const proofNonce = 'AAAAAAAAAAAAAAAAAAAAAA';
+  const proofBodyHash = createHash('sha256')
+    .update(JSON.stringify(canonical(unsignedBody)))
+    .digest('base64url');
+  const proofCanonical = [
+    'GANJ-DEVICE-PROOF-V1',
+    method,
+    pathAndQuery,
+    proofBodyHash,
+    String(proofTimestamp),
+    proofNonce,
+    principal.deviceKeyVersion,
+  ].join('\n');
+  const proofSignature = signRaw(
+    'sha256',
+    Buffer.from(proofCanonical, 'ascii'),
+    { key: signingKeys.privateKey, dsaEncoding: 'ieee-p1363' },
+  ).toString('base64url');
+  const proof = [
+    'gdp1',
+    proofTimestamp,
+    proofNonce,
+    proofBodyHash,
+    principal.deviceKeyVersion,
+    proofSignature,
+  ].join('.');
+  const proofInput = { principal, method, pathAndQuery, unsignedBody, proof };
+  assert.equal(await adapter.verifyDeviceProof(proofInput), true);
+  assert.equal(await adapter.verifyDeviceProof(proofInput), false);
+  assert.equal(
+    await adapter.verifyDeviceProof({
+      ...proofInput,
+      unsignedBody: { ...unsignedBody, client_nonce: 'changed' },
+    }),
+    false,
+  );
 
   const associatedData = { profileId: 'profile-1', deviceId: principal.deviceId, expiresAt: '2026-08-24T12:05:00Z' };
   const plaintext = { endpoint: 'vpn.internal', credential: 'sensitive', grant_id: 'profile-1' };

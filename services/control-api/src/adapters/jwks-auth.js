@@ -6,9 +6,9 @@ import {
   generateKeyPairSync,
   hkdfSync,
   randomBytes,
-  verify as verifySignature,
 } from 'node:crypto';
 import { ApiError } from '../errors.js';
+import { DeviceProofVerifier } from '../security/device-proof.js';
 import { JwksJwtVerifier } from '../security/jwt.js';
 import { createPrincipalValidator } from './postgres.js';
 
@@ -18,13 +18,6 @@ function canonical(value) {
     return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]));
   }
   return value;
-}
-
-function proofAlgorithm(publicKey) {
-  if (publicKey.asymmetricKeyType === 'ed25519') return { algorithm: null, key: publicKey };
-  if (publicKey.asymmetricKeyType === 'ec') return { algorithm: 'sha256', key: { key: publicKey, dsaEncoding: 'ieee-p1363' } };
-  if (publicKey.asymmetricKeyType === 'rsa') return { algorithm: 'RSA-SHA256', key: publicKey };
-  throw new Error('Device signing key type is unsupported.');
 }
 
 export class JwksAuthAdapter {
@@ -39,6 +32,10 @@ export class JwksAuthAdapter {
     this.deviceClaim = deviceClaim;
     this.requiredTokenUse = requiredTokenUse;
     this.clock = clock;
+    this.deviceProofVerifier = new DeviceProofVerifier({
+      nonceStore: principalValidator,
+      clock,
+    });
   }
 
   async authenticate(request) {
@@ -75,20 +72,20 @@ export class JwksAuthAdapter {
     }
   }
 
-  async verifyDeviceProof({ principal, payload, proof }) {
-    try {
-      if (typeof proof !== 'string' || !/^[A-Za-z0-9_-]+$/.test(proof)) return false;
-      const publicKey = createPublicKey({ key: principal.signingPublicJwk, format: 'jwk' });
-      const options = proofAlgorithm(publicKey);
-      return verifySignature(
-        options.algorithm,
-        Buffer.from(JSON.stringify(canonical(payload))),
-        options.key,
-        Buffer.from(proof, 'base64url'),
-      );
-    } catch {
-      return false;
-    }
+  async verifyDeviceProof({
+    principal,
+    method,
+    pathAndQuery,
+    unsignedBody,
+    proof,
+  }) {
+    return this.deviceProofVerifier.verify({
+      principal,
+      method,
+      pathAndQuery,
+      unsignedBody,
+      proof,
+    });
   }
 
   async sealConnectionProfile({ principal, plaintext, associatedData }) {
