@@ -461,7 +461,19 @@ export function createApplication({ repository, auth, telegramAuth, purchaseVeri
         const connection = trustedConnection(server, service);
         const protocol = connection.protocol;
         const proofPayload = { serviceId: service.id, deviceId, serverId, clientNonce };
-        if (!await auth.verifyDeviceProof({ principal, payload: proofPayload, proof })) {
+        const unsignedBody = {
+          client_nonce: clientNonce,
+          device_id: deviceId,
+          server_id: serverId,
+        };
+        if (!await auth.verifyDeviceProof({
+          principal,
+          payload: proofPayload,
+          method: request.method,
+          pathAndQuery: `${url.pathname}${url.search}`,
+          unsignedBody,
+          proof,
+        })) {
           throw new ApiError(403, 'invalid_device_proof', 'Device proof is invalid.');
         }
         const profileId = randomUUID();
