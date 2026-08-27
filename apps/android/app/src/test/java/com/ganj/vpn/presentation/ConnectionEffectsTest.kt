@@ -77,12 +77,17 @@ class ConnectionEffectsTest {
         tokenFactory = { "00000000000000000000000000000001" },
     )
 
-    private fun lease() = ConnectionProfileLease(
-        profileId = PROFILE_ID,
-        serverId = SERVER_ID,
-        expiresAt = EXPIRES_AT,
-        vaultHandle = "profile-vault-handle",
-    )
+    private fun lease(): ConnectionProfileLease {
+        val constructor = ConnectionProfileLease::class.java.declaredConstructors
+            .single { it.parameterTypes.size == 4 }
+            .apply { isAccessible = true }
+        return constructor.newInstance(
+            PROFILE_ID,
+            SERVER_ID,
+            EXPIRES_AT,
+            "profile-vault-handle",
+        ) as ConnectionProfileLease
+    }
 
     private fun binding() = ProfileProvisioningBinding(
         profileId = PROFILE_ID,
