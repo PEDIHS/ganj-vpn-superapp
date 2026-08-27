@@ -772,6 +772,28 @@ export async function createPrincipalValidator({ environment = process.env } = {
         keyVersion: row.key_version,
       };
     },
+    async consumeDeviceProofNonce({
+      userId,
+      deviceId,
+      keyVersion,
+      nonceDigest,
+      expiresAt,
+    }) {
+      if (!(expiresAt instanceof Date) || !Number.isFinite(expiresAt.getTime())) return false;
+      const result = await pool.query(
+        `INSERT INTO control_device_proof_nonces (
+           user_id, device_id, key_version, nonce_digest, expires_at
+         )
+         SELECT d.user_id, d.id, d.key_version, $4, $5
+           FROM control_devices d
+          WHERE d.user_id = $1 AND d.id = $2 AND d.key_version = $3
+            AND d.status = 'active' AND $5 > now()
+         ON CONFLICT DO NOTHING
+         RETURNING nonce_digest`,
+        [userId, deviceId, keyVersion, nonceDigest, expiresAt],
+      );
+      return result.rowCount === 1;
+    },
     async close() { await pool.end(); },
   };
 }
