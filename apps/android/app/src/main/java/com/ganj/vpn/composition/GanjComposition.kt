@@ -247,12 +247,17 @@ object GanjCompositionFactory {
     }
 
     /** No user identifier or checkout operation is created until both session values are injected. */
-    fun failClosed(application: Application, endpoint: String): GanjComposition = create(
+    fun failClosed(
+        application: Application,
+        endpoint: String,
+        cryptoProvider: Gvp1CryptoProvider = UnavailableGvp1CryptoProvider,
+    ): GanjComposition = create(
         application = application,
         endpoint = endpoint,
         tokenProvider = InMemorySessionTokenProvider(),
         currentUser = CurrentUserIdProvider { null },
         connectionContext = ConnectionProfileContextProvider { null },
+        cryptoProvider = cryptoProvider,
     )
 
     private fun String.isValidControlApiEndpoint(): Boolean = runCatching {
