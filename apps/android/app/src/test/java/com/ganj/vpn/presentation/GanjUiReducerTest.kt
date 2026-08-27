@@ -79,18 +79,18 @@ class GanjUiReducerTest {
         val requested = reducer.reduce(state, GanjUiEvent.ConnectionRequested(ACTIVE_ID))
         val stale = reducer.reduce(
             requested,
-            GanjUiEvent.ConnectionProfileReady("different", "profile-stale", "2026-08-25T00:00:00Z"),
+            GanjUiEvent.ConnectionProfileReady("different", "profile-stale", "2026-08-25T00:00:00Z", ConnectionSafeAction.StartTunnel(CONNECTION_HANDLE)),
         )
         val ready = reducer.reduce(
             stale,
-            GanjUiEvent.ConnectionProfileReady(ACTIVE_ID, "profile-1", "2026-08-25T00:00:00Z"),
+            GanjUiEvent.ConnectionProfileReady(ACTIVE_ID, "profile-1", "2026-08-25T00:00:00Z", ConnectionSafeAction.StartTunnel(CONNECTION_HANDLE)),
         )
         val denied = reducer.reduce(state, GanjUiEvent.ConnectionRequested(EXPIRED_ID))
 
         assertEquals(ConnectionUiState.Requesting(ACTIVE_ID), requested.connection)
         assertEquals(requested.connection, stale.connection)
         assertEquals(
-            ConnectionUiState.ProfileReady(ACTIVE_ID, "profile-1", "2026-08-25T00:00:00Z"),
+            ConnectionUiState.ProfileReady(ACTIVE_ID, "profile-1", "2026-08-25T00:00:00Z", ConnectionSafeAction.StartTunnel(CONNECTION_HANDLE)),
             ready.connection,
         )
         assertTrue(denied.connection is ConnectionUiState.Failed)
@@ -139,5 +139,6 @@ class GanjUiReducerTest {
         const val ACTIVE_ID = "20000000-0000-4000-8000-000000000001"
         const val EXPIRED_ID = "20000000-0000-4000-8000-000000000002"
         val ACTION_HANDLE = CheckoutActionHandle("gp_action_00000000000000000000000000000001")
+        val CONNECTION_HANDLE = ConnectionActionHandle("vpn_action_00000000000000000000000000000001")
     }
 }

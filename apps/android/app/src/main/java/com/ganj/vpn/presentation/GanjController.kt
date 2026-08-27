@@ -13,6 +13,7 @@ import com.ganj.vpn.core.controlapi.CheckoutCommand
 import com.ganj.vpn.core.controlapi.ConnectionProfileCommand
 import com.ganj.vpn.core.controlapi.ControlApiRepository
 import com.ganj.vpn.core.controlapi.OrderStatus
+import com.ganj.vpn.core.controlapi.ProfileProvisioningBinding
 import com.ganj.vpn.core.controlapi.PurchaseChannel
 import com.ganj.vpn.core.playbilling.PlayPurchaseEvent
 import java.util.UUID
@@ -102,7 +103,9 @@ class GanjController(
     private val repository: ControlApiRepository,
     private val billing: CheckoutBillingCoordinator,
     private val checkoutSession: AuthenticatedCheckoutSession,
+    private val currentUser: CurrentUserIdProvider,
     private val connectionContext: ConnectionProfileContextProvider,
+    private val connectionActions: ConnectionActionVault,
     private val mapper: GanjPresentationMapper = GanjPresentationMapper(),
     private val reducer: GanjUiReducer = GanjUiReducer(),
     private val ids: StableIdGenerator = StableIdGenerator { UUID.randomUUID().toString() },
@@ -225,6 +228,8 @@ class GanjController(
                     UiFailure(UiFailureKind.CONFIGURATION, "connection.context_unavailable", true),
                 ),
             )
+        val userId = currentUser.currentUserId()?.takeIf(String::isNotBlank)
+            ?: return reducer.reduce(working, GanjUiEvent.ConnectionAuthenticationRequired)
         return when (
             val profile = repository.prepareConnection(
                 ConnectionProfileCommand(
@@ -244,16 +249,56 @@ class GanjController(
                     GanjUiEvent.ConnectionRejected(entitlementId, mapper.apiFailure(profile.error)),
                 )
             }
-            is ApiResult.Success -> reducer.reduce(
-                working,
-                GanjUiEvent.ConnectionProfileReady(
-                    entitlementId = entitlementId,
+            is ApiResult.Success -> {
+                val binding = ProfileProvisioningBinding(
                     profileId = profile.value.profileId,
+                    userId = userId,
+                    serviceId = service.entitlementId,
+                    deviceId = context.deviceId,
+                    serverId = profile.value.serverId,
                     expiresAt = profile.value.expiresAt,
+                )
+                val handle = connectionActions.store(profile.value, binding)
+                reducer.reduce(
+                    working,
+                    GanjUiEvent.ConnectionProfileReady(
+                        entitlementId = entitlementId,
+                        profileId = profile.value.profileId,
+                        expiresAt = profile.value.expiresAt,
+                        action = ConnectionSafeAction.StartTunnel(handle),
+                    ),
+                )
+            }
+        }
+    }
+
+    fun onConnectionEffectResult(
+        state: GanjUiState,
+        entitlementId: String,
+        result: ConnectionEffectResult,
+    ): GanjUiState = when (result) {
+        is ConnectionEffectResult.Connected -> reducer.reduce(
+            state,
+            GanjUiEvent.ConnectionEstablished(entitlementId, result.profileId, result.serverId),
+        )
+        is ConnectionEffectResult.Failed -> reducer.reduce(
+            state,
+            GanjUiEvent.ConnectionRejected(entitlementId, result.failure),
+        )
+    }
+
+    fun onDisconnectResult(state: GanjUiState, result: Result<Unit>): GanjUiState =
+        if (result.isSuccess) {
+            reducer.reduce(state, GanjUiEvent.ClearConnection)
+        } else {
+            reducer.reduce(
+                state,
+                GanjUiEvent.ConnectionRejected(
+                    state.selectedEntitlementId,
+                    UiFailure(UiFailureKind.SERVER, "connection.disconnect_failed", retryable = true),
                 ),
             )
         }
-    }
 
     private fun activateVerifiedOrder(
         state: GanjUiState,

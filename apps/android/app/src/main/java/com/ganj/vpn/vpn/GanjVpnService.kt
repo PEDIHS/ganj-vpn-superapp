@@ -46,10 +46,13 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         if (intent.action == ACTION_LOCAL_BIND) localBinder else super.onBind(intent)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_DISCONNECT) {
-            engine.disconnect()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+        when (intent?.action) {
+            ACTION_PREPARE -> startForeground(NOTIFICATION_ID, connectionNotification())
+            ACTION_DISCONNECT -> {
+                engine.disconnect()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
         }
         return START_NOT_STICKY
     }
@@ -162,7 +165,8 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
     companion object {
         const val ACTION_LOCAL_BIND = "com.ganj.vpn.action.BIND_LOCAL_TUNNEL"
-        private const val ACTION_DISCONNECT = "com.ganj.vpn.action.DISCONNECT"
+        const val ACTION_PREPARE = "com.ganj.vpn.action.PREPARE_TUNNEL"
+        const val ACTION_DISCONNECT = "com.ganj.vpn.action.DISCONNECT"
         private const val NOTIFICATION_CHANNEL_ID = "ganj_vpn_connection"
         private const val NOTIFICATION_ID = 4201
         private const val IPV4_CLIENT_ADDRESS = "10.111.222.2"

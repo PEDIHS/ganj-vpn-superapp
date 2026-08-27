@@ -204,11 +204,17 @@ class GanjControllerTest {
         checkoutSession: AuthenticatedCheckoutSession = AuthenticatedCheckoutSession { true },
         connectionContext: ConnectionProfileContextProvider = ConnectionProfileContextProvider { null },
         ids: StableIdGenerator = StableIdGenerator { IDEMPOTENCY_KEY },
+        currentUser: CurrentUserIdProvider = CurrentUserIdProvider { USER_ID },
+        connectionActions: ConnectionActionVault = InMemoryConnectionActionVault(
+            tokenFactory = { "00000000000000000000000000000002" },
+        ),
     ) = GanjController(
         repository = repository,
         billing = billing,
         checkoutSession = checkoutSession,
+        currentUser = currentUser,
         connectionContext = connectionContext,
+        connectionActions = connectionActions,
         ids = ids,
     )
 
@@ -311,6 +317,7 @@ class GanjControllerTest {
     private companion object {
         const val PLAN_ID = "10000000-0000-4000-8000-000000000001"
         const val SERVICE_ID = "20000000-0000-4000-8000-000000000001"
+        const val USER_ID = "10000000-0000-4000-8000-000000000099"
         const val DEVICE_ID = "30000000-0000-4000-8000-000000000001"
         const val SERVER_ID = "40000000-0000-4000-8000-000000000001"
         const val IDEMPOTENCY_KEY = "50000000-0000-4000-8000-000000000001"
