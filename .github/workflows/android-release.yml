@@ -15,6 +15,27 @@ on:
         options:
           - candidate
           - production
+      publish_to_play:
+        description: Upload the approved signed AAB to Google Play
+        required: true
+        default: false
+        type: boolean
+      play_track:
+        description: Google Play test track; alpha is the closed-beta track
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - alpha
+      play_status:
+        description: Keep the Play edit as draft or release it to configured testers
+        required: true
+        default: draft
+        type: choice
+        options:
+          - draft
+          - completed
 
 permissions:
   contents: read
@@ -590,3 +611,153 @@ jobs:
           path: ${{ runner.temp }}/release-output/**
           if-no-files-found: error
           retention-days: 30
+
+
+  publish:
+    name: Publish approved AAB to Google Play test track
+    if: ${{ inputs.publish_to_play }}
+    needs: [preflight, sign]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ${{ format('android-play-{0}', inputs.stage) }}
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check out release policy scripts
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download the signed and attested release
+        uses: actions/download-artifact@v7
+        with:
+          name: ganj-vpn-android-${{ needs.preflight.outputs.version }}-${{ inputs.stage }}-${{ github.sha }}
+          path: ${{ runner.temp }}/play-release
+
+      - name: Validate immutable Play upload input
+        id: input
+        shell: bash
+        env:
+          PLAY_TRACK: ${{ inputs.play_track }}
+          PLAY_STATUS: ${{ inputs.play_status }}
+        run: |
+          set -Eeuo pipefail
+          case "$PLAY_TRACK" in
+            internal|alpha) ;;
+            *) printf '%s\n' 'Only internal and closed-beta tracks are allowed by this workflow.' >&2; exit 1 ;;
+          esac
+          case "$PLAY_STATUS" in
+            draft|completed) ;;
+            *) printf '%s\n' 'Unsupported Google Play release status.' >&2; exit 1 ;;
+          esac
+          release_dir="$RUNNER_TEMP/play-release"
+          mapfile -t aabs < <(find "$release_dir" -maxdepth 1 -type f -name 'ganj-vpn-*-signed.aab' -print)
+          if [[ "${#aabs[@]}" -ne 1 ]]; then
+            printf '%s\n' 'Expected exactly one signed AAB.' >&2
+            exit 1
+          fi
+          aab="${aabs[0]}"
+          checksum="$aab.sha256"
+          evidence="$release_dir/release-evidence.json"
+          mapping="$release_dir/mapping.txt"
+          test -s "$checksum"
+          test -s "$evidence"
+          test -s "$mapping"
+          (
+            cd "$release_dir"
+            sha256sum -c "$(basename "$checksum")"
+          )
+          expected_sha="$(jq -er '.artifactSha256' "$evidence")"
+          actual_sha="$(sha256sum "$aab" | cut -d ' ' -f 1)"
+          if [[ "$expected_sha" != "$actual_sha" ]]; then
+            printf '%s\n' 'Release evidence does not match the signed AAB.' >&2
+            exit 1
+          fi
+          if [[ "$(jq -er '.commitSha' "$evidence")" != "$GITHUB_SHA" ]]; then
+            printf '%s\n' 'Release evidence commit does not match the selected tag.' >&2
+            exit 1
+          fi
+          bash .github/scripts/android-artifact-guard.sh "$aab"
+          printf 'aab=%s\n' "$aab" >> "$GITHUB_OUTPUT"
+          printf 'mapping=%s\n' "$mapping" >> "$GITHUB_OUTPUT"
+          printf 'evidence=%s\n' "$evidence" >> "$GITHUB_OUTPUT"
+
+      - name: Fail closed when Google Play credential is absent
+        shell: bash
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -Eeuo pipefail
+          : "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:?Missing protected Google Play service account JSON}"
+          jq -e '
+            .type == "service_account" and
+            (.client_email | type == "string") and
+            (.private_key | type == "string") and
+            (.private_key_id | type == "string")
+          ' <<< "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" >/dev/null
+
+      - name: Upload to approved Google Play test track
+        id: play
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.ganj.vpn
+          releaseFiles: ${{ steps.input.outputs.aab }}
+          mappingFile: ${{ steps.input.outputs.mapping }}
+          tracks: ${{ inputs.play_track }}
+          status: ${{ inputs.play_status }}
+          changesNotSentForReview: true
+
+      - name: Record Play publication evidence
+        if: success()
+        shell: bash
+        env:
+          PLAY_EDIT_ID: ${{ steps.play.outputs.editId }}
+          PLAY_TRACK: ${{ inputs.play_track }}
+          PLAY_STATUS: ${{ inputs.play_status }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/play-release/play-publication-evidence.json"
+          jq -n \
+            --arg schema_version "1" \
+            --arg package_name "com.ganj.vpn" \
+            --arg version "$RELEASE_VERSION" \
+            --arg commit_sha "$GITHUB_SHA" \
+            --arg track "$PLAY_TRACK" \
+            --arg status "$PLAY_STATUS" \
+            --arg edit_id "$PLAY_EDIT_ID" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg published_at_utc "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            '{
+              schemaVersion: ($schema_version | tonumber),
+              packageName: $package_name,
+              versionName: $version,
+              commitSha: $commit_sha,
+              track: $track,
+              status: $status,
+              editId: $edit_id,
+              workflowRunId: $run_id,
+              workflowRunAttempt: $run_attempt,
+              publishedAtUtc: $published_at_utc
+            }' > "$evidence"
+          jq -e '
+            .schemaVersion == 1 and
+            .packageName == "com.ganj.vpn" and
+            (.track == "internal" or .track == "alpha") and
+            (.status == "draft" or .status == "completed")
+          ' "$evidence" >/dev/null
+
+      - name: Upload Play publication evidence
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ganj-vpn-play-publication-${{ needs.preflight.outputs.version }}-${{ inputs.play_track }}-${{ github.sha }}
+          path: ${{ runner.temp }}/play-release/play-publication-evidence.json
+          if-no-files-found: error
+          retention-days: 90
