@@ -27,9 +27,13 @@ class Gvp1DecryptorTest {
             shared,
             0,
         )
-        val key = referenceHkdf(shared, "ganj-vpn-profile-v1".toByteArray(StandardCharsets.US_ASCII))
         val nonce = ByteArray(12) { (it + 9).toByte() }
         val associatedData = "{\"deviceId\":\"test\"}".toByteArray(StandardCharsets.US_ASCII)
+        val key = referenceHkdf(
+            shared,
+            java.security.MessageDigest.getInstance("SHA-256").digest(associatedData),
+            "ganj-vpn-profile-v1".toByteArray(StandardCharsets.US_ASCII),
+        )
         val plaintext = "{\"schema_version\":1}".toByteArray(StandardCharsets.UTF_8)
         val sealed = Cipher.getInstance("AES/GCM/NoPadding").run {
             init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
@@ -79,10 +83,9 @@ class Gvp1DecryptorTest {
         tag.fill(0)
     }
 
-    private fun referenceHkdf(input: ByteArray, info: ByteArray): ByteArray {
-        val zeroSalt = ByteArray(32)
+    private fun referenceHkdf(input: ByteArray, salt: ByteArray, info: ByteArray): ByteArray {
         val extract = Mac.getInstance("HmacSHA256").run {
-            init(SecretKeySpec(zeroSalt, "HmacSHA256"))
+            init(SecretKeySpec(salt, "HmacSHA256"))
             doFinal(input)
         }
         return try {
@@ -91,7 +94,7 @@ class Gvp1DecryptorTest {
                 doFinal(info + byteArrayOf(1)).copyOf(32)
             }
         } finally {
-            zeroSalt.fill(0)
+            salt.fill(0)
             extract.fill(0)
         }
     }
