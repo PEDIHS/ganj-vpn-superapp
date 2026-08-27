@@ -99,6 +99,12 @@ sealed interface ConnectionUiState {
         val entitlementId: String,
         val profileId: String,
         val expiresAt: String,
+        val action: ConnectionSafeAction,
+    ) : ConnectionUiState
+    data class Connected(
+        val entitlementId: String,
+        val profileId: String,
+        val serverId: String,
     ) : ConnectionUiState
     data object AuthRequired : ConnectionUiState
     data class Failed(val entitlementId: String?, val failure: UiFailure) : ConnectionUiState

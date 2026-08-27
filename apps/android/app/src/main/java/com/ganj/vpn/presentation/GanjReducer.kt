@@ -22,6 +22,12 @@ sealed interface GanjUiEvent {
         val entitlementId: String,
         val profileId: String,
         val expiresAt: String,
+        val action: ConnectionSafeAction,
+    ) : GanjUiEvent
+    data class ConnectionEstablished(
+        val entitlementId: String,
+        val profileId: String,
+        val serverId: String,
     ) : GanjUiEvent
     data class ConnectionRejected(val entitlementId: String?, val failure: UiFailure) : GanjUiEvent
     data object ConnectionAuthenticationRequired : GanjUiEvent
@@ -108,6 +114,19 @@ class GanjUiReducer {
                         entitlementId = event.entitlementId,
                         profileId = event.profileId,
                         expiresAt = event.expiresAt,
+                        action = event.action,
+                    ),
+                )
+            } else state
+        }
+        is GanjUiEvent.ConnectionEstablished -> {
+            val ready = state.connection as? ConnectionUiState.ProfileReady
+            if (ready?.entitlementId == event.entitlementId && ready.profileId == event.profileId) {
+                state.copy(
+                    connection = ConnectionUiState.Connected(
+                        event.entitlementId,
+                        event.profileId,
+                        event.serverId,
                     ),
                 )
             } else state

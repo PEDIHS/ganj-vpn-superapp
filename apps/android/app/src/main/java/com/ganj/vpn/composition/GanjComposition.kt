@@ -13,10 +13,17 @@ import com.ganj.vpn.core.controlapi.CatalogProduct
 import com.ganj.vpn.core.controlapi.CheckoutCommand
 import com.ganj.vpn.core.controlapi.CheckoutOrder
 import com.ganj.vpn.core.controlapi.ConnectionProfileCommand
+import com.ganj.vpn.core.controlapi.ConnectionProfileBroker
 import com.ganj.vpn.core.controlapi.ConnectionProfileLease
+import com.ganj.vpn.core.controlapi.ControlApiComponents
 import com.ganj.vpn.core.controlapi.ControlApiRepository
 import com.ganj.vpn.core.controlapi.ControlApiRepositoryFactory
+import com.ganj.vpn.core.controlapi.Gvp1CryptoProvider
+import com.ganj.vpn.core.controlapi.ProfileProvisioningBinding
+import com.ganj.vpn.core.controlapi.ProfileProvisioningError
+import com.ganj.vpn.core.controlapi.ProfileProvisioningResult
 import com.ganj.vpn.core.controlapi.PurchaseChannel
+import com.ganj.vpn.core.controlapi.UnavailableGvp1CryptoProvider
 import com.ganj.vpn.core.controlapi.UserService
 import com.ganj.vpn.core.playbilling.GooglePlayBillingAdapter
 import com.ganj.vpn.core.playbilling.PlayBillingLifecycleBridge
@@ -34,6 +41,10 @@ import com.ganj.vpn.presentation.AuthenticatedCheckoutSession
 import com.ganj.vpn.presentation.CheckoutActionHandle
 import com.ganj.vpn.presentation.CheckoutActionVault
 import com.ganj.vpn.presentation.CheckoutEffectResult
+import com.ganj.vpn.presentation.ConnectionActionHandle
+import com.ganj.vpn.presentation.ConnectionActionVault
+import com.ganj.vpn.presentation.ConnectionEffectExecutor
+import com.ganj.vpn.presentation.ConnectionEffectResult
 import com.ganj.vpn.presentation.ConnectionProfileContextProvider
 import com.ganj.vpn.presentation.CoreBillingCheckoutCoordinator
 import com.ganj.vpn.presentation.CurrentUserIdProvider
@@ -42,7 +53,10 @@ import com.ganj.vpn.presentation.GanjPresentationMapper
 import com.ganj.vpn.presentation.GanjUiReducer
 import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.GooglePlayCheckoutEffectExecutor
+import com.ganj.vpn.presentation.InMemoryConnectionActionVault
 import com.ganj.vpn.presentation.StableIdGenerator
+import com.ganj.vpn.presentation.TunnelConnector
+import com.ganj.vpn.vpn.AndroidVpnTunnelClient
 import java.io.Closeable
 import java.net.URI
 import java.util.UUID
@@ -58,6 +72,8 @@ class GanjComposition internal constructor(
     private val purchaseEvents: PlayPurchaseEventRelay,
     private val checkoutEffects: GooglePlayCheckoutEffectExecutor,
     private val actionVault: CheckoutActionVault,
+    private val connectionEffects: ConnectionEffectExecutor,
+    private val connectionActions: ConnectionActionVault,
 ) : Closeable {
     @Volatile
     private var retainedUiState: GanjUiState = GanjUiState()
@@ -87,9 +103,15 @@ class GanjComposition internal constructor(
     fun observePlayPurchases(observer: (PlayPurchaseEvent) -> Unit): Closeable =
         purchaseEvents.observe(observer)
 
+    suspend fun launchVpnConnection(handle: ConnectionActionHandle): ConnectionEffectResult =
+        connectionEffects.execute(handle)
+
+    suspend fun disconnectVpn(): Result<Unit> = connectionEffects.disconnect()
+
     override fun close() {
         purchaseEvents.close()
         actionVault.clear()
+        connectionActions.clear()
         playLifecycle.close()
     }
 }
@@ -150,21 +172,32 @@ object GanjCompositionFactory {
         enterpriseRepository: EnterpriseExperienceRepository = FailClosedEnterpriseRepository(),
         enterpriseDeviceContext: EnterpriseDeviceContextProvider = EnterpriseDeviceContextProvider { null },
         diagnosticCollector: PrivacySafeDiagnosticCollector = PrivacySafeDiagnosticCollector { emptyList() },
+        cryptoProvider: Gvp1CryptoProvider = UnavailableGvp1CryptoProvider,
+        tunnelConnector: TunnelConnector = AndroidVpnTunnelClient(application),
         ids: StableIdGenerator = StableIdGenerator { UUID.randomUUID().toString() },
     ): GanjComposition {
         val mapper = GanjPresentationMapper()
         val reducer = GanjUiReducer()
         val enterpriseReducer = EnterpriseReducer()
         val actionVault = OneTimeCheckoutActionVault()
+        val connectionActions = InMemoryConnectionActionVault()
         val purchaseEvents = PlayPurchaseEventRelay()
         val playAdapter = GooglePlayBillingAdapter.Factory(application).create(purchaseEvents)
         val playLifecycle = PlayBillingLifecycleBridge(application, playAdapter).also { it.start() }
         val billingGateways = GooglePlayOnlyBillingGatewayRegistry(playAdapter)
-        val repository = if (endpoint.isValidControlApiEndpoint()) {
-            ControlApiRepositoryFactory.create(endpoint, tokenProvider)
+        val api = if (endpoint.isValidControlApiEndpoint()) {
+            ControlApiRepositoryFactory.createComponents(
+                baseUrl = endpoint,
+                tokenProvider = tokenProvider,
+                cryptoProvider = cryptoProvider,
+            )
         } else {
-            UnavailableControlApiRepository("control_api_endpoint_not_configured")
+            ControlApiComponents(
+                repository = UnavailableControlApiRepository("control_api_endpoint_not_configured"),
+                profileBroker = UnavailableConnectionProfileBroker,
+            )
         }
+        val repository = api.repository
         val billing = CoreBillingCheckoutCoordinator(
             gateways = billingGateways,
             currentUser = currentUser,
@@ -185,7 +218,9 @@ object GanjCompositionFactory {
                 repository = repository,
                 billing = billing,
                 checkoutSession = checkoutSession,
+                currentUser = currentUser,
                 connectionContext = connectionContext,
+                connectionActions = connectionActions,
                 mapper = mapper,
                 reducer = reducer,
                 ids = ids,
@@ -206,6 +241,8 @@ object GanjCompositionFactory {
             purchaseEvents = purchaseEvents,
             checkoutEffects = GooglePlayCheckoutEffectExecutor(actionVault, mapper),
             actionVault = actionVault,
+            connectionEffects = ConnectionEffectExecutor(connectionActions, api.profileBroker, tunnelConnector),
+            connectionActions = connectionActions,
         )
     }
 
@@ -241,4 +278,13 @@ private class UnavailableControlApiRepository(
     override fun prepareConnection(command: ConnectionProfileCommand): ApiResult<ConnectionProfileLease> = failure()
 
     private fun failure(): ApiResult.Failure = ApiResult.Failure(ApiError.Protocol(null, reason))
+}
+
+
+private object UnavailableConnectionProfileBroker : ConnectionProfileBroker {
+    override fun provision(
+        lease: ConnectionProfileLease,
+        binding: ProfileProvisioningBinding,
+    ): ProfileProvisioningResult =
+        ProfileProvisioningResult.Failure(ProfileProvisioningError.CRYPTO_UNAVAILABLE)
 }

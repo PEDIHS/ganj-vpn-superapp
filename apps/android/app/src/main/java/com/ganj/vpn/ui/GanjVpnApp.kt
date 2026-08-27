@@ -62,6 +62,9 @@ import com.ganj.vpn.presentation.CheckoutActionHandle
 import com.ganj.vpn.presentation.CheckoutEffectResult
 import com.ganj.vpn.presentation.CheckoutSafeAction
 import com.ganj.vpn.presentation.CheckoutUiState
+import com.ganj.vpn.presentation.ConnectionActionHandle
+import com.ganj.vpn.presentation.ConnectionEffectResult
+import com.ganj.vpn.presentation.ConnectionSafeAction
 import com.ganj.vpn.presentation.ConnectionUiState
 import com.ganj.vpn.presentation.ContentState
 import com.ganj.vpn.presentation.GanjUiEvent
@@ -104,6 +107,7 @@ private enum class AppTab(val title: String) {
 fun GanjVpnApp(
     composition: GanjComposition,
     onLaunchGooglePlay: suspend (CheckoutActionHandle) -> CheckoutEffectResult,
+    onLaunchVpn: suspend (ConnectionActionHandle) -> ConnectionEffectResult,
 ) {
     MaterialTheme(colorScheme = GanjDarkScheme) {
         val controller = remember(composition) { composition.controller }
@@ -189,6 +193,13 @@ fun GanjVpnApp(
             }
         }
 
+        fun disconnectTunnel() {
+            connectionJob?.cancel()
+            connectionJob = scope.launch {
+                commit(controller.onDisconnectResult(state, composition.disconnectVpn()))
+            }
+        }
+
         LaunchedEffect(composition) {
             refresh()
             refreshEnterprise()
@@ -208,6 +219,15 @@ fun GanjVpnApp(
             val planId = pendingCheckout?.planId ?: return@LaunchedEffect
             val result = onLaunchGooglePlay(handle)
             commit(controller.onCheckoutEffectResult(state, planId, result))
+        }
+
+        val readyConnection = state.connection as? ConnectionUiState.ProfileReady
+        val tunnelAction = readyConnection?.action as? ConnectionSafeAction.StartTunnel
+        LaunchedEffect(tunnelAction?.handle) {
+            val handle = tunnelAction?.handle ?: return@LaunchedEffect
+            val entitlementId = readyConnection?.entitlementId ?: return@LaunchedEffect
+            val result = onLaunchVpn(handle)
+            commit(controller.onConnectionEffectResult(state, entitlementId, result))
         }
 
         when (val availability = enterpriseState.availability) {
@@ -247,7 +267,7 @@ fun GanjVpnApp(
                 AppTab.CONNECT -> ConnectionDashboard(
                     state = state,
                     onConnect = ::requestProfile,
-                    onClear = { commit(reducer.reduce(state, GanjUiEvent.ClearConnection)) },
+                    onClear = ::disconnectTunnel,
                     onOpenServices = { selectedTab = AppTab.ACCOUNT },
                     onRetry = ::refresh,
                     modifier = Modifier.padding(padding),
@@ -297,14 +317,14 @@ private fun HomeScreen(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val ready = state.connection is ConnectionUiState.ProfileReady
+    val ready = state.connection is ConnectionUiState.Connected
     Page(modifier) {
         AppHeader("Ganj VPN", "Your privacy dashboard", onRefresh)
         Spacer(Modifier.height(24.dp))
         GlassCard(accent = if (ready) Emerald else IosBlue) {
             Text("Connection profile", color = Muted, fontSize = 12.sp)
             Text(
-                if (ready) "Ready for VPN core" else "Choose an active service",
+                if (ready) "VPN connected" else "Choose an active service",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (ready) Emerald else Color.White,
@@ -387,11 +407,11 @@ private fun ConnectionDashboard(
     modifier: Modifier = Modifier,
 ) {
     val connection = state.connection
-    val ready = connection is ConnectionUiState.ProfileReady
-    val requesting = connection is ConnectionUiState.Requesting
+    val connected = connection is ConnectionUiState.Connected
+    val requesting = connection is ConnectionUiState.Requesting || connection is ConnectionUiState.ProfileReady
     val connectionColor by animateColorAsState(
         targetValue = when {
-            ready -> Emerald
+            connected -> Emerald
             requesting -> Gold
             else -> IosBlue
         },
@@ -432,7 +452,7 @@ private fun ConnectionDashboard(
             Spacer(Modifier.height(46.dp))
             Text(
                 text = when {
-                    ready -> "Profile verified"
+                    connected -> "Connected securely"
                     requesting -> "Preparing securely"
                     else -> "Ready to connect"
                 },
@@ -456,13 +476,13 @@ private fun ConnectionDashboard(
                     )
                     .clickable(
                         enabled = service?.isActive == true && !requesting,
-                        onClick = { service?.entitlementId?.let { if (ready) onClear() else onConnect(it) } },
+                        onClick = { service?.entitlementId?.let { if (connected) onClear() else onConnect(it) } },
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(if (requesting) "…" else if (ready) "OK" else "GO", fontSize = 34.sp, fontWeight = FontWeight.Bold)
-                    Text(if (ready) "Clear prepared profile" else "Use selected service", fontSize = 11.sp)
+                    Text(if (requesting) "…" else if (connected) "ON" else "GO", fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                    Text(if (connected) "Disconnect securely" else "Use selected service", fontSize = 11.sp)
                 }
             }
             if (service == null) {
@@ -481,7 +501,7 @@ private fun ConnectionDashboard(
             GlassCard(accent = connectionColor) {
                 Text("Device-bound", fontWeight = FontWeight.Bold)
                 Text(
-                    if (ready) "A short-lived encrypted profile is held outside presentation state."
+                    if (connected) "The verified device profile is active only inside the VPN runtime."
                     else "The app sends only your selected service identity into the connection flow.",
                     color = Muted,
                     fontSize = 12.sp,
@@ -1017,6 +1037,15 @@ private fun failureMessage(failure: UiFailure): String = when (failure.messageKe
     "server.unavailable" -> "The service is temporarily unavailable."
     "connection.context_unavailable" -> "Secure device context is not ready yet."
     "connection.service_inactive" -> "Choose an active service."
+    "connection.permission_denied" -> "Android VPN permission is required to connect."
+    "connection.action_expired", "connection.profile_consumed", "connection.profile_expired" ->
+        "The secure connection request expired. Try again."
+    "connection.device_crypto_unavailable" -> "Secure device keys are not ready on this device."
+    "connection.profile_authentication_failed", "connection.profile_rejected" ->
+        "The encrypted server profile could not be verified."
+    "connection.protocol_unsupported" -> "This server protocol is not supported on this version."
+    "connection.tunnel_start_failed" -> "The VPN tunnel could not start. Try another network."
+    "connection.disconnect_failed" -> "The VPN could not disconnect cleanly. Try again."
     "billing.provider_unavailable" -> "This payment method is not available yet."
     else -> "The request could not be completed safely."
 }
