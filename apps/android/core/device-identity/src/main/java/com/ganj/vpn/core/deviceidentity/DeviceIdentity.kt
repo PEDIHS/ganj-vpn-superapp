@@ -84,6 +84,18 @@ data class SignedDeviceProof(
         require(signature.matches(Regex("^[A-Za-z0-9_-]{80,128}$")))
     }
 
+    /** Opaque transport value; the signed body hash is computed before adding device_proof. */
+    fun compactValue(): String = listOf(
+        "gdp1",
+        timestampEpochSeconds.toString(),
+        nonce,
+        bodySha256,
+        keyVersion,
+        signature,
+    ).joinToString(".")
+
+    override fun toString(): String = "SignedDeviceProof([REDACTED])"
+
     private companion object {
         val KEY_VERSION = Regex("^v[1-9][0-9]{0,8}$")
     }
