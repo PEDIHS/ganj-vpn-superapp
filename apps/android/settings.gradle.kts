@@ -18,6 +18,7 @@ rootProject.name = "GanjVpnAndroid"
 include(":app")
 include(":core:billing")
 include(":core:control-api")
+include(":core:device-identity")
 include(":core:observability")
 include(":core:play-billing")
 include(":core:subscription")
