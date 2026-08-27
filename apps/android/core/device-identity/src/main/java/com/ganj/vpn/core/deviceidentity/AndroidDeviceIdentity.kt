@@ -330,12 +330,13 @@ internal object Gvp1Decryptor {
         }
         val sharedSecret = ByteArray(32)
         val contentKey = ByteArray(32)
+        val salt = MessageDigest.getInstance("SHA-256").digest(request.associatedData)
         val sealedPayload = ByteArray(request.encryptedPayload.size + TAG_BYTES)
         return try {
             val privateKey = X25519PrivateKeyParameters(recipientPrivateKey, 0)
             val publicKey = X25519PublicKeyParameters(request.ephemeralPublicKey, 0)
             privateKey.generateSecret(publicKey, sharedSecret, 0)
-            HkdfSha256.derive(sharedSecret, HKDF_INFO, contentKey)
+            HkdfSha256.derive(sharedSecret, salt, HKDF_INFO, contentKey)
             request.encryptedPayload.copyInto(sealedPayload)
             request.authenticationTag.copyInto(sealedPayload, request.encryptedPayload.size)
             val cipher = Cipher.getInstance(AES_GCM)
@@ -357,6 +358,7 @@ internal object Gvp1Decryptor {
         } finally {
             sharedSecret.fill(0)
             contentKey.fill(0)
+            salt.fill(0)
             sealedPayload.fill(0)
         }
     }
@@ -365,9 +367,9 @@ internal object Gvp1Decryptor {
 internal object HkdfSha256 {
     private const val HASH_BYTES = 32
 
-    fun derive(inputKeyMaterial: ByteArray, info: ByteArray, output: ByteArray) {
+    fun derive(inputKeyMaterial: ByteArray, salt: ByteArray, info: ByteArray, output: ByteArray) {
         require(output.size in 1..HASH_BYTES)
-        val salt = ByteArray(HASH_BYTES)
+        require(salt.isNotEmpty())
         val pseudoRandomKey = hmac(salt, inputKeyMaterial)
         val blockInput = ByteArray(info.size + 1)
         val block: ByteArray
@@ -378,7 +380,6 @@ internal object HkdfSha256 {
             block.copyInto(output, endIndex = output.size)
             block.fill(0)
         } finally {
-            salt.fill(0)
             pseudoRandomKey.fill(0)
             blockInput.fill(0)
         }
