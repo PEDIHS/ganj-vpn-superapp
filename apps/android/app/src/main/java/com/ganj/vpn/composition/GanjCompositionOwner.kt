@@ -3,6 +3,7 @@ package com.ganj.vpn.composition
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.ganj.vpn.core.deviceidentity.AndroidDeviceIdentity
 
 class GanjCompositionOwner internal constructor(
     val composition: GanjComposition,
@@ -18,8 +19,13 @@ class GanjCompositionOwner internal constructor(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(GanjCompositionOwner::class.java))
+            val deviceIdentity = AndroidDeviceIdentity.create(application)
             return GanjCompositionOwner(
-                GanjCompositionFactory.failClosed(application, endpoint),
+                GanjCompositionFactory.failClosed(
+                    application = application,
+                    endpoint = endpoint,
+                    cryptoProvider = deviceIdentity,
+                ),
             ) as T
         }
     }
