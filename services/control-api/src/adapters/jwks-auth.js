@@ -62,6 +62,10 @@ export class JwksAuthAdapter {
         subject: claims.sub,
         authMethod: 'asymmetric-jwt',
         tokenId: claims.jti,
+        scopes: [
+          ...(typeof claims.scope === 'string' ? claims.scope.split(' ') : []),
+          ...(Array.isArray(claims.scp) ? claims.scp.filter((item) => typeof item === 'string') : []),
+        ].filter(Boolean),
         signingPublicJwk: validated.signingPublicJwk,
         encryptionPublicJwk: validated.encryptionPublicJwk,
         deviceKeyVersion: validated.keyVersion,

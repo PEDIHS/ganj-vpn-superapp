@@ -24,8 +24,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,6 +51,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ganj.vpn.composition.GanjComposition
+import com.ganj.vpn.enterprise.BugCategory
+import com.ganj.vpn.enterprise.BugReportInput
+import com.ganj.vpn.enterprise.BugReportUiState
+import com.ganj.vpn.enterprise.DiagnosticUiState
+import com.ganj.vpn.enterprise.EnterpriseEvent
+import com.ganj.vpn.enterprise.EnterpriseUiState
+import com.ganj.vpn.enterprise.ProductAvailabilityUiState
 import com.ganj.vpn.presentation.CheckoutActionHandle
 import com.ganj.vpn.presentation.CheckoutEffectResult
 import com.ganj.vpn.presentation.CheckoutSafeAction
@@ -99,16 +108,58 @@ fun GanjVpnApp(
     MaterialTheme(colorScheme = GanjDarkScheme) {
         val controller = remember(composition) { composition.controller }
         val reducer = remember(composition) { composition.reducer }
+        val enterpriseController = remember(composition) { composition.enterpriseController }
+        val enterpriseReducer = remember(composition) { composition.enterpriseReducer }
         val scope = rememberCoroutineScope()
         var selectedTab by remember { mutableStateOf(AppTab.CONNECT) }
         var state by remember(composition) { mutableStateOf(composition.restoreUiState()) }
         var refreshJob by remember { mutableStateOf<Job?>(null) }
         var checkoutJob by remember { mutableStateOf<Job?>(null) }
         var connectionJob by remember { mutableStateOf<Job?>(null) }
+        var enterpriseJob by remember { mutableStateOf<Job?>(null) }
+        var enterpriseState by remember(composition) {
+            mutableStateOf(composition.restoreEnterpriseState())
+        }
 
         fun commit(next: GanjUiState) {
             composition.retainUiState(next)
             state = next
+        }
+
+        fun commitEnterprise(next: EnterpriseUiState) {
+            composition.retainEnterpriseState(next)
+            enterpriseState = next
+        }
+
+        fun refreshEnterprise() {
+            enterpriseJob?.cancel()
+            commitEnterprise(enterpriseReducer.reduce(enterpriseState, EnterpriseEvent.RefreshRequested))
+            val loadingState = enterpriseState
+            enterpriseJob = scope.launch {
+                commitEnterprise(withContext(Dispatchers.IO) { enterpriseController.refresh(loadingState) })
+            }
+        }
+
+        fun submitBug(input: BugReportInput) {
+            enterpriseJob?.cancel()
+            commitEnterprise(enterpriseReducer.reduce(enterpriseState, EnterpriseEvent.BugSubmissionStarted))
+            val submittingState = enterpriseState
+            enterpriseJob = scope.launch {
+                commitEnterprise(withContext(Dispatchers.IO) { enterpriseController.submitBug(submittingState, input) })
+            }
+        }
+
+        fun submitDiagnostics(explicitConsent: Boolean) {
+            enterpriseJob?.cancel()
+            commitEnterprise(enterpriseReducer.reduce(enterpriseState, EnterpriseEvent.DiagnosticStarted))
+            val runningState = enterpriseState
+            enterpriseJob = scope.launch {
+                commitEnterprise(
+                    withContext(Dispatchers.IO) {
+                        enterpriseController.submitDiagnostics(runningState, explicitConsent)
+                    },
+                )
+            }
         }
 
         fun refresh() {
@@ -138,7 +189,10 @@ fun GanjVpnApp(
             }
         }
 
-        LaunchedEffect(composition) { refresh() }
+        LaunchedEffect(composition) {
+            refresh()
+            refreshEnterprise()
+        }
 
         DisposableEffect(composition) {
             val registration = composition.observePlayPurchases { event ->
@@ -156,7 +210,18 @@ fun GanjVpnApp(
             commit(controller.onCheckoutEffectResult(state, planId, result))
         }
 
-        Scaffold(
+        when (val availability = enterpriseState.availability) {
+            is ProductAvailabilityUiState.ForcedUpdate -> ProductGateScreen(
+                title = "Security update required",
+                message = "Install version ${availability.latestVersion} to continue safely.",
+                onRetry = ::refreshEnterprise,
+            )
+            is ProductAvailabilityUiState.Maintenance -> ProductGateScreen(
+                title = "Scheduled maintenance",
+                message = availability.message ?: "Ganj VPN is temporarily unavailable.",
+                onRetry = ::refreshEnterprise,
+            )
+            else -> Scaffold(
             containerColor = DeepNavy,
             bottomBar = { GanjBottomBar(selected = selectedTab, onSelected = { selectedTab = it }) },
         ) { padding ->
@@ -196,6 +261,7 @@ fun GanjVpnApp(
                 )
                 AppTab.ACCOUNT -> MyServicesScreen(
                     state = state,
+                    enterpriseState = enterpriseState,
                     onSelectService = { commit(reducer.reduce(state, GanjUiEvent.SelectService(it))) },
                     onConnect = {
                         state.selectedEntitlementId?.let(::requestProfile)
@@ -203,9 +269,21 @@ fun GanjVpnApp(
                     },
                     onBuy = { selectedTab = AppTab.STORE },
                     onRetry = ::refresh,
+                    onEnterpriseRefresh = ::refreshEnterprise,
+                    onSubmitBug = ::submitBug,
+                    onSubmitDiagnostics = ::submitDiagnostics,
+                    onClearBug = {
+                        commitEnterprise(enterpriseReducer.reduce(enterpriseState, EnterpriseEvent.ClearBugResult))
+                    },
+                    onClearDiagnostic = {
+                        commitEnterprise(
+                            enterpriseReducer.reduce(enterpriseState, EnterpriseEvent.ClearDiagnosticResult),
+                        )
+                    },
                     modifier = Modifier.padding(padding),
                 )
             }
+        }
         }
     }
 }
@@ -512,10 +590,16 @@ private fun CheckoutStatus(checkout: CheckoutUiState, onRetry: () -> Unit) {
 @Composable
 private fun MyServicesScreen(
     state: GanjUiState,
+    enterpriseState: EnterpriseUiState,
     onSelectService: (String) -> Unit,
     onConnect: () -> Unit,
     onBuy: () -> Unit,
     onRetry: () -> Unit,
+    onEnterpriseRefresh: () -> Unit,
+    onSubmitBug: (BugReportInput) -> Unit,
+    onSubmitDiagnostics: (Boolean) -> Unit,
+    onClearBug: () -> Unit,
+    onClearDiagnostic: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Page(modifier) {
@@ -537,6 +621,196 @@ private fun MyServicesScreen(
             }
         }
         Button(onClick = onBuy, modifier = Modifier.fillMaxWidth()) { Text("Buy another subscription") }
+        Spacer(Modifier.height(24.dp))
+        EnterpriseStatusCard(enterpriseState.availability, onEnterpriseRefresh)
+        if (enterpriseState.features.bugReportsEnabled) {
+            Spacer(Modifier.height(14.dp))
+            BugReportPanel(enterpriseState.bugReport, onSubmitBug, onClearBug)
+        }
+        if (enterpriseState.features.diagnosticsEnabled) {
+            Spacer(Modifier.height(14.dp))
+            DiagnosticPanel(enterpriseState.diagnostic, onSubmitDiagnostics, onClearDiagnostic)
+        }
+    }
+}
+
+@Composable
+private fun ProductGateScreen(
+    title: String,
+    message: String,
+    onRetry: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DeepNavy)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        GlassCard(accent = Gold) {
+            Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Text(message, color = Muted, textAlign = TextAlign.Center)
+            Text(
+                "Connections and purchases are paused until the signed product policy allows them.",
+                color = Muted,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+            )
+            Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text("Check again") }
+        }
+    }
+}
+
+@Composable
+private fun EnterpriseStatusCard(
+    availability: ProductAvailabilityUiState,
+    onRefresh: () -> Unit,
+) {
+    val accent = when (availability) {
+        ProductAvailabilityUiState.Available -> Emerald
+        ProductAvailabilityUiState.Loading -> IosBlue
+        is ProductAvailabilityUiState.OptionalUpdate -> Gold
+        else -> Danger
+    }
+    GlassCard(accent = accent) {
+        Text("Product status", fontWeight = FontWeight.Bold)
+        Text(
+            when (availability) {
+                ProductAvailabilityUiState.Loading -> "Checking signed runtime policy…"
+                ProductAvailabilityUiState.Available -> "Operational"
+                is ProductAvailabilityUiState.OptionalUpdate ->
+                    "Version ${availability.latestVersion} is available."
+                is ProductAvailabilityUiState.ForcedUpdate -> "A security update is required."
+                is ProductAvailabilityUiState.Maintenance -> availability.message ?: "Maintenance in progress."
+                ProductAvailabilityUiState.AuthRequired -> "Sign in to resolve device policy."
+                is ProductAvailabilityUiState.Failed -> "Runtime policy is unavailable; optional features are off."
+            },
+            color = Muted,
+            fontSize = 12.sp,
+        )
+        OutlinedButton(onClick = onRefresh) { Text("Refresh product status") }
+    }
+}
+
+@Composable
+private fun BugReportPanel(
+    status: BugReportUiState,
+    onSubmit: (BugReportInput) -> Unit,
+    onClear: () -> Unit,
+) {
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf(BugCategory.CONNECTION) }
+    var consent by remember { mutableStateOf(false) }
+    val submitting = status == BugReportUiState.Submitting
+
+    GlassCard(accent = IosBlue) {
+        Text("Report a problem", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(
+            "Do not paste VPN configurations, credentials, links, or private message content.",
+            color = Muted,
+            fontSize = 11.sp,
+        )
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it.take(200) },
+            enabled = !submitting,
+            label = { Text("Short title") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = description,
+            onValueChange = { description = it.take(12_000) },
+            enabled = !submitting,
+            label = { Text("What happened?") },
+            minLines = 3,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text("Category", color = Muted, fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(BugCategory.CONNECTION, BugCategory.PURCHASE, BugCategory.ACCOUNT).forEach { option ->
+                OutlinedButton(
+                    onClick = { category = option },
+                    enabled = !submitting,
+                ) { Text(if (category == option) "✓ ${option.name}" else option.name, fontSize = 10.sp) }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !submitting)
+            Text(
+                "I approve sending coarse device, network type, connection state and error code.",
+                color = Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        when (status) {
+            BugReportUiState.Idle -> Button(
+                onClick = {
+                    onSubmit(BugReportInput(title, description, category, consent))
+                },
+                enabled = title.trim().length >= 3 && description.trim().length >= 3 && consent,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Send privacy-safe report") }
+            BugReportUiState.Submitting -> LoadingCard("Submitting report")
+            BugReportUiState.AuthRequired -> AuthCard(onClear)
+            is BugReportUiState.Submitted -> {
+                Text("Report ${status.publicCode} submitted", color = Emerald, fontWeight = FontWeight.Bold)
+                Text("Status: ${status.status.name}", color = Muted, fontSize = 12.sp)
+                OutlinedButton(onClick = onClear) { Text("Report another issue") }
+            }
+            is BugReportUiState.Failed -> {
+                Text(enterpriseMessage(status.messageKey), color = Danger, fontWeight = FontWeight.Bold)
+                OutlinedButton(onClick = onClear) { Text(if (status.retryable) "Try again" else "Edit report") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticPanel(
+    status: DiagnosticUiState,
+    onSubmit: (Boolean) -> Unit,
+    onClear: () -> Unit,
+) {
+    var consent by remember { mutableStateOf(false) }
+    val busy = status == DiagnosticUiState.Running || status == DiagnosticUiState.Uploading
+    GlassCard(accent = Emerald) {
+        Text("Privacy-safe diagnostics", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(
+            "Tests only result classes, latency, packet loss, VPN state and device integrity. " +
+                "No hostname, destination, IP address, DNS query, payload, credential or configuration is collected.",
+            color = Muted,
+            fontSize = 11.sp,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
+            Text(
+                "I approve running and uploading this minimized diagnostic report.",
+                color = Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        when (status) {
+            DiagnosticUiState.Idle -> Button(
+                onClick = { onSubmit(consent) },
+                enabled = consent,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Run diagnostics") }
+            DiagnosticUiState.Running -> LoadingCard("Running allowlisted tests")
+            DiagnosticUiState.Uploading -> LoadingCard("Uploading redacted results")
+            DiagnosticUiState.AuthRequired -> AuthCard(onClear)
+            is DiagnosticUiState.Submitted -> {
+                Text("Diagnostic report submitted", color = Emerald, fontWeight = FontWeight.Bold)
+                Text("Redaction policy: ${status.redactionVersion}", color = Muted, fontSize = 12.sp)
+                OutlinedButton(onClick = onClear) { Text("Done") }
+            }
+            is DiagnosticUiState.Failed -> {
+                Text(enterpriseMessage(status.messageKey), color = Danger, fontWeight = FontWeight.Bold)
+                OutlinedButton(onClick = onClear) { Text(if (status.retryable) "Retry" else "Review consent") }
+            }
+        }
     }
 }
 
@@ -745,4 +1019,18 @@ private fun failureMessage(failure: UiFailure): String = when (failure.messageKe
     "connection.service_inactive" -> "Choose an active service."
     "billing.provider_unavailable" -> "This payment method is not available yet."
     else -> "The request could not be completed safely."
+}
+
+private fun enterpriseMessage(messageKey: String): String = when (messageKey) {
+    "privacy.consent_required" -> "Review and approve the privacy summary first."
+    "bug_report.invalid_or_sensitive" -> "Remove configuration, credential, or invalid content."
+    "bug_report.disabled" -> "Bug reporting is temporarily unavailable."
+    "diagnostic.disabled" -> "Diagnostics are temporarily unavailable."
+    "diagnostic.context_unavailable" -> "Device context is not ready. Try again later."
+    "diagnostic.collection_failed" -> "The diagnostic checks could not complete safely."
+    "diagnostic.invalid" -> "The diagnostic result did not pass local validation."
+    "network.unavailable" -> "Check your internet connection."
+    "request.rate_limited" -> "Too many attempts. Please wait and retry."
+    "server.unavailable" -> "The service is temporarily unavailable."
+    else -> "This enterprise feature is unavailable right now."
 }

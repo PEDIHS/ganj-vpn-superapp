@@ -17,6 +17,22 @@ test('PostgreSQL migration encodes ownership, replay, and no-raw-secret invarian
   assert.doesNotMatch(sql, /server_credential\s+text/i);
 });
 
+test('enterprise migration encodes consent, targeting, ownership, replay, retention, and append-only audit invariants', async () => {
+  const sql = await readFile(new URL('../migrations/003_enterprise_control_plane.sql', import.meta.url), 'utf8');
+  for (const table of [
+    'control_consent_receipts', 'control_remote_config_releases', 'control_remote_config_entries',
+    'control_feature_flag_versions', 'control_analytics_batches', 'control_analytics_events',
+    'control_bug_reports', 'control_support_tickets', 'control_diagnostic_reports', 'control_admin_audit_log',
+  ]) assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+  assert.match(sql, /PRIMARY KEY\(user_id, batch_id\)/);
+  assert.match(sql, /UNIQUE\(user_id, client_report_id\)/);
+  assert.match(sql, /FOREIGN KEY\(device_id, user_id\) REFERENCES control_devices\(id, user_id\)/);
+  assert.match(sql, /control_remote_config_one_published_idx/);
+  assert.match(sql, /control_reject_audit_mutation/);
+  assert.match(sql, /BEFORE UPDATE OR DELETE ON control_admin_audit_log/);
+  assert.doesNotMatch(sql, /(?:vpn_config|server_credential|purchase_token)\s+(?:text|jsonb)/i);
+});
+
 test('repository transaction commits, rolls back, releases, and supports nesting', async () => {
   const statements = [];
   let releases = 0;

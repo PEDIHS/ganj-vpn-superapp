@@ -318,6 +318,7 @@ internal class ControlApiClient(
 
     private companion object {
         val ALLOWED_ENVELOPE_ALGORITHMS = setOf(
+            "X25519+HKDF-SHA256+AES-256-GCM/GVP1",
             "X25519+HKDF-SHA256+AES-256-GCM",
             "X25519+HKDF-SHA256+CHACHA20-POLY1305",
         )

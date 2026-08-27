@@ -81,6 +81,55 @@ function order(row) {
   };
 }
 
+function consent(row) {
+  return {
+    id: row.id, userId: row.user_id, purpose: row.purpose, status: row.status,
+    policyVersion: row.policy_version,
+    grantedAt: row.granted_at?.toISOString?.() ?? row.granted_at,
+    revokedAt: row.revoked_at?.toISOString?.() ?? row.revoked_at ?? null,
+  };
+}
+
+function configRelease(row, entries = []) {
+  return {
+    id: row.id, environment: row.environment, version: number(row.version), status: row.status,
+    reason: row.reason, createdBy: row.created_by, publishedBy: row.published_by,
+    contentDigest: row.content_digest,
+    createdAt: row.created_at?.toISOString?.() ?? row.created_at,
+    publishedAt: row.published_at?.toISOString?.() ?? row.published_at ?? null,
+    entries,
+  };
+}
+
+function featureFlag(row) {
+  return {
+    id: row.id, flagKey: row.flag_key, version: number(row.version), enabled: row.enabled,
+    defaultVariant: row.default_variant, rolloutBasisPoints: row.rollout_basis_points,
+    audience: row.audience ?? {}, experimentKey: row.experiment_key, reason: row.reason,
+    createdBy: row.created_by, createdAt: row.created_at?.toISOString?.() ?? row.created_at,
+  };
+}
+
+function bugReport(row) {
+  return {
+    id: row.id, userId: row.user_id, clientReportId: row.client_report_id, payloadDigest: row.payload_digest,
+    publicCode: row.public_code, title: row.title, description: row.description, category: row.category,
+    severity: row.severity, status: row.status, deviceId: row.device_id,
+    occurredAt: row.occurred_at?.toISOString?.() ?? row.occurred_at, context: row.context,
+    createdAt: row.created_at?.toISOString?.() ?? row.created_at,
+    updatedAt: row.updated_at?.toISOString?.() ?? row.updated_at,
+  };
+}
+
+function supportTicket(row) {
+  return {
+    id: row.id, userId: row.user_id, clientTicketId: row.client_ticket_id, payloadDigest: row.payload_digest,
+    publicCode: row.public_code, category: row.category, priority: row.priority, subject: row.subject, body: row.body, status: row.status,
+    createdAt: row.created_at?.toISOString?.() ?? row.created_at,
+    updatedAt: row.updated_at?.toISOString?.() ?? row.updated_at,
+  };
+}
+
 async function loadFactory(specifier, exportName, environment) {
   if (!specifier) throw new Error(`${exportName} module is required.`);
   const target = specifier.startsWith('.') || specifier.startsWith('/')
@@ -356,6 +405,287 @@ export class PostgresRepository {
         WHERE provider = $1 AND event_id = $2`,
       [provider, eventId, status],
     );
+  }
+
+  async ownsDevice(userId, deviceId) {
+    const result = await this.database().query(
+      "SELECT 1 FROM control_devices WHERE user_id = $1 AND id = $2 AND status = 'active'",
+      [userId, deviceId],
+    );
+    return result.rowCount === 1;
+  }
+
+  async findConsent(userId, receiptId, purpose) {
+    const result = await this.database().query(
+      'SELECT * FROM control_consent_receipts WHERE user_id = $1 AND id = $2 AND purpose = $3',
+      [userId, receiptId, purpose],
+    );
+    return result.rowCount === 1 ? consent(result.rows[0]) : null;
+  }
+
+  async saveConsent(value) {
+    if (value.status === 'revoked') {
+      await this.database().query(
+        `UPDATE control_consent_receipts SET status = 'revoked', revoked_at = $3
+          WHERE user_id = $1 AND purpose = $2 AND status = 'granted'`,
+        [value.userId, value.purpose, value.revokedAt],
+      );
+    }
+    const result = await this.database().query(
+      `INSERT INTO control_consent_receipts
+       (id, user_id, purpose, status, policy_version, granted_at, revoked_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [value.id ?? randomUUID(), value.userId, value.purpose, value.status, value.policyVersion, value.grantedAt, value.revokedAt],
+    );
+    return consent(result.rows[0]);
+  }
+
+  async listConsents(userId) {
+    const result = await this.database().query(
+      `SELECT DISTINCT ON (purpose) * FROM control_consent_receipts
+        WHERE user_id = $1 ORDER BY purpose, created_at DESC`,
+      [userId],
+    );
+    return result.rows.map(consent);
+  }
+
+  async getPublishedRuntimeConfiguration(environment) {
+    const releaseResult = await this.database().query(
+      `SELECT * FROM control_remote_config_releases
+        WHERE environment = $1 AND status = 'published' LIMIT 1`,
+      [environment],
+    );
+    if (releaseResult.rowCount === 0) return { release: null };
+    const entryResult = await this.database().query(
+      'SELECT config_key, config_value, sensitivity, target FROM control_remote_config_entries WHERE release_id = $1 ORDER BY config_key',
+      [releaseResult.rows[0].id],
+    );
+    const entries = entryResult.rows.map((row) => ({ key: row.config_key, value: row.config_value, sensitivity: row.sensitivity, target: row.target ?? {} }));
+    return { release: configRelease(releaseResult.rows[0], entries) };
+  }
+
+  async createRemoteConfigRelease(value) {
+    const result = await this.database().query(
+      `INSERT INTO control_remote_config_releases
+       (id, environment, version, reason, created_by, content_digest, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [value.id ?? randomUUID(), value.environment, value.version, value.reason, value.createdBy, value.contentDigest, value.createdAt],
+    ).catch((error) => {
+      if (error.code === '23505') throw new ApiError(409, 'config_version_exists', 'Remote configuration version already exists.');
+      throw error;
+    });
+    for (const entry of value.entries) {
+      await this.database().query(
+        `INSERT INTO control_remote_config_entries
+         (release_id, config_key, config_value, sensitivity, target) VALUES ($1, $2, $3, $4, $5)`,
+        [
+          result.rows[0].id,
+          entry.key,
+          JSON.stringify(entry.value),
+          entry.sensitivity,
+          JSON.stringify(entry.target),
+        ],
+      );
+    }
+    return configRelease(result.rows[0], value.entries);
+  }
+
+  async publishRemoteConfigRelease({ releaseId, publisher, publishedAt }) {
+    await this.advisoryLock('remote-config-release', releaseId);
+    const current = await this.database().query(
+      'SELECT * FROM control_remote_config_releases WHERE id = $1 FOR UPDATE', [releaseId],
+    );
+    if (current.rowCount === 0) return null;
+    const release = current.rows[0];
+    if (release.status !== 'draft') throw new ApiError(409, 'config_not_publishable', 'Only a draft release can be published.');
+    if (release.environment === 'production' && release.created_by === publisher) {
+      throw new ApiError(409, 'dual_control_required', 'A different administrator must publish a production release.');
+    }
+    await this.database().query(
+      "UPDATE control_remote_config_releases SET status = 'retired' WHERE environment = $1 AND status = 'published'",
+      [release.environment],
+    );
+    const result = await this.database().query(
+      `UPDATE control_remote_config_releases SET status = 'published', published_by = $2, published_at = $3
+        WHERE id = $1 RETURNING *`,
+      [releaseId, publisher, publishedAt],
+    );
+    const entries = await this.database().query(
+      'SELECT config_key, config_value, sensitivity, target FROM control_remote_config_entries WHERE release_id = $1 ORDER BY config_key',
+      [releaseId],
+    );
+    return configRelease(result.rows[0], entries.rows.map((row) => ({ key: row.config_key, value: row.config_value, sensitivity: row.sensitivity, target: row.target ?? {} })));
+  }
+
+  async upsertFeatureFlag(value) {
+    await this.advisoryLock('feature-flag', value.flagKey);
+    const versionResult = await this.database().query(
+      'SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM control_feature_flag_versions WHERE flag_key = $1',
+      [value.flagKey],
+    );
+    const result = await this.database().query(
+      `INSERT INTO control_feature_flag_versions
+       (id, flag_key, version, enabled, default_variant, rollout_basis_points, audience, experiment_key, reason, created_by, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [value.id ?? randomUUID(), value.flagKey, number(versionResult.rows[0].next_version), value.enabled,
+        value.defaultVariant, value.rolloutBasisPoints, value.audience, value.experimentKey, value.reason, value.createdBy, value.createdAt],
+    );
+    return featureFlag(result.rows[0]);
+  }
+
+  async listCurrentFeatureFlags() {
+    const result = await this.database().query(
+      'SELECT DISTINCT ON (flag_key) * FROM control_feature_flag_versions ORDER BY flag_key, version DESC',
+    );
+    return result.rows.map(featureFlag);
+  }
+
+  async ingestAnalyticsBatch(value) {
+    await this.advisoryLock('analytics-batch', `${value.userId}:${value.batchId}`);
+    const consentResult = await this.database().query(
+      `SELECT status, revoked_at FROM control_consent_receipts
+        WHERE id = $1 AND user_id = $2 AND purpose = 'product_analytics' FOR SHARE`,
+      [value.consentReceiptId, value.userId],
+    );
+    if (consentResult.rowCount !== 1 || consentResult.rows[0].status !== 'granted' || consentResult.rows[0].revoked_at) {
+      throw new ApiError(403, 'analytics_consent_required', 'A current analytics consent receipt is required.');
+    }
+    const existing = await this.database().query(
+      'SELECT payload_digest, event_count FROM control_analytics_batches WHERE user_id = $1 AND batch_id = $2',
+      [value.userId, value.batchId],
+    );
+    if (existing.rowCount === 1) {
+      if (existing.rows[0].payload_digest !== value.payloadDigest) throw new ApiError(409, 'analytics_batch_conflict', 'Batch ID was already used with different content.');
+      return { replay: true, acceptedCount: 0, duplicateCount: number(existing.rows[0].event_count) };
+    }
+    await this.database().query(
+      `INSERT INTO control_analytics_batches
+       (user_id, batch_id, consent_receipt_id, payload_digest, event_count, received_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [value.userId, value.batchId, value.consentReceiptId, value.payloadDigest, value.events.length, value.receivedAt],
+    );
+    let acceptedCount = 0;
+    for (const event of value.events) {
+      const result = await this.database().query(
+        `INSERT INTO control_analytics_events
+         (user_id, event_id, batch_id, event_name, occurred_at, schema_version, session_id, properties, received_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (user_id, event_id) DO NOTHING`,
+        [value.userId, event.event_id, value.batchId, event.name, event.occurred_at, event.schema_version,
+          event.session_id, event.properties, value.receivedAt],
+      );
+      acceptedCount += result.rowCount;
+    }
+    return { replay: false, acceptedCount, duplicateCount: value.events.length - acceptedCount };
+  }
+
+  async createBugReport(value) {
+    await this.advisoryLock('bug-report', `${value.userId}:${value.clientReportId}`);
+    const existing = await this.database().query(
+      'SELECT * FROM control_bug_reports WHERE user_id = $1 AND client_report_id = $2',
+      [value.userId, value.clientReportId],
+    );
+    if (existing.rowCount === 1) {
+      if (existing.rows[0].payload_digest !== value.payloadDigest) throw new ApiError(409, 'bug_report_conflict', 'Client report ID was reused with different content.');
+      return { replay: true, report: bugReport(existing.rows[0]) };
+    }
+    const result = await this.database().query(
+      `INSERT INTO control_bug_reports
+       (id, user_id, client_report_id, payload_digest, public_code, title, description, category, severity, status,
+        device_id, occurred_at, context, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [value.id ?? randomUUID(), value.userId, value.clientReportId, value.payloadDigest, value.publicCode,
+        value.title, value.description, value.category, value.severity, value.status, value.deviceId,
+        value.occurredAt, value.context, value.createdAt, value.updatedAt],
+    );
+    return { replay: false, report: bugReport(result.rows[0]) };
+  }
+
+  async listBugReports(userId) {
+    const result = await this.database().query(
+      'SELECT * FROM control_bug_reports WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100', [userId],
+    );
+    return result.rows.map(bugReport);
+  }
+
+  async findOwnedBugReport(userId, id) {
+    const result = await this.database().query('SELECT * FROM control_bug_reports WHERE user_id = $1 AND id = $2', [userId, id]);
+    return result.rowCount === 1 ? bugReport(result.rows[0]) : null;
+  }
+
+  async createSupportTicket(value) {
+    await this.advisoryLock('support-ticket', `${value.userId}:${value.clientTicketId}`);
+    const existing = await this.database().query(
+      'SELECT * FROM control_support_tickets WHERE user_id = $1 AND client_ticket_id = $2', [value.userId, value.clientTicketId],
+    );
+    if (existing.rowCount === 1) {
+      if (existing.rows[0].payload_digest !== value.payloadDigest) throw new ApiError(409, 'support_ticket_conflict', 'Client ticket ID was reused with different content.');
+      return { replay: true, ticket: supportTicket(existing.rows[0]) };
+    }
+    const result = await this.database().query(
+      `INSERT INTO control_support_tickets
+       (id,user_id,client_ticket_id,payload_digest,public_code,category,priority,subject,body,status,created_at,updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [value.id ?? randomUUID(), value.userId, value.clientTicketId, value.payloadDigest, value.publicCode, value.category,
+        value.priority, value.subject, value.body, value.status, value.createdAt, value.updatedAt],
+    );
+    return { replay: false, ticket: supportTicket(result.rows[0]) };
+  }
+
+  async listSupportTickets(userId) {
+    const result = await this.database().query(
+      'SELECT * FROM control_support_tickets WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100', [userId],
+    );
+    return result.rows.map(supportTicket);
+  }
+
+  async findOwnedSupportTicket(userId, id) {
+    const result = await this.database().query('SELECT * FROM control_support_tickets WHERE user_id = $1 AND id = $2', [userId, id]);
+    return result.rowCount === 1 ? supportTicket(result.rows[0]) : null;
+  }
+
+  async createDiagnosticReport(value) {
+    await this.advisoryLock('diagnostic-report', `${value.userId}:${value.clientReportId}`);
+    const existing = await this.database().query(
+      'SELECT * FROM control_diagnostic_reports WHERE user_id = $1 AND client_report_id = $2', [value.userId, value.clientReportId],
+    );
+    if (existing.rowCount === 1) {
+      if (existing.rows[0].payload_digest !== value.payloadDigest) throw new ApiError(409, 'diagnostic_report_conflict', 'Client report ID was reused with different content.');
+      const row = existing.rows[0];
+      return { replay: true, report: { id: row.id, redactionVersion: row.redaction_version, expiresAt: row.expires_at?.toISOString?.() ?? row.expires_at } };
+    }
+    const result = await this.database().query(
+      `INSERT INTO control_diagnostic_reports
+       (id,user_id,client_report_id,payload_digest,device_id,bug_report_id,support_ticket_id,started_at,finished_at,tests,redaction_version,expires_at,created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [value.id ?? randomUUID(), value.userId, value.clientReportId, value.payloadDigest, value.deviceId,
+        value.bugReportId, value.supportTicketId, value.startedAt, value.finishedAt, value.tests,
+        value.redactionVersion, value.expiresAt, value.createdAt],
+    );
+    const row = result.rows[0];
+    return { replay: false, report: { id: row.id, redactionVersion: row.redaction_version, expiresAt: row.expires_at?.toISOString?.() ?? row.expires_at } };
+  }
+
+  async appendAdminAudit(value) {
+    const result = await this.database().query(
+      `INSERT INTO control_admin_audit_log
+       (id,actor_subject,action,resource_type,resource_id,reason,request_id,before_digest,after_digest,outcome,created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [value.id ?? randomUUID(), value.actorSubject, value.action, value.resourceType, value.resourceId,
+        value.reason, value.requestId, value.beforeDigest ?? null, value.afterDigest ?? null, value.outcome, value.createdAt],
+    );
+    return result.rows[0];
+  }
+
+  async listAdminAudit({ limit = 100 } = {}) {
+    const result = await this.database().query(
+      `SELECT id, actor_subject, action, resource_type, resource_id, reason, request_id, outcome, created_at
+         FROM control_admin_audit_log ORDER BY created_at DESC LIMIT $1`, [Math.min(limit, 100)],
+    );
+    return result.rows.map((row) => ({
+      id: row.id, actorSubject: row.actor_subject, action: row.action, resourceType: row.resource_type,
+      resourceId: row.resource_id, reason: row.reason, requestId: row.request_id, outcome: row.outcome,
+      createdAt: row.created_at?.toISOString?.() ?? row.created_at,
+    }));
   }
 
   async validatePrincipal({ userId, deviceId, jti, now = new Date() }) {

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "libXray": {
+    "repository": "https://github.com/XTLS/libXray.git",
+    "tag": "v26.7.28",
+    "semverMirrorTag": "v1.260728.0",
+    "commit": "80263da83e96b2972455b0a94b13ee1a10e51391",
+    "license": {
+      "spdx": "MIT",
+      "path": "LICENSE",
+      "sha256": "992cf88a505936a11bd0fff17b7842abd9411e8da41fd69f22f47ae915e9d198"
+    },
+    "sourceFiles": {
+      "go.mod": "0e72cf7d05007eea2749b33d74aa053aace0c2e23bc35baf7e1aceef3b75cae0",
+      "go.sum": "24e32c7d043e8f9624bf3169600e5cc8c2f2768aa019fd7a178606b2f2104a41",
+      "build/main.py": "f3b9dc6754c01ac1c9235366112bf708dea67a6b62b31b9a7cdde7201283b58f",
+      "build/app/android.py": "3b1653cb0569c3626d789f202cc0e6099d85f840bcc3fe7445790378c6a48beb"
+    },
+    "toolchain": {
+      "go": "1.26.3",
+      "gomobileModule": "golang.org/x/mobile",
+      "gomobileVersion": "v0.0.0-20260709172247-6129f5bee9d5",
+      "androidApi": 21,
+      "androidNdk": "29.0.14206865",
+      "linkerFlags": "-checklinkname=0 -extldflags=-Wl,-z,max-page-size=16384"
+    },
+    "xrayCore": {
+      "module": "github.com/xtls/xray-core",
+      "version": "v1.260327.1-0.20260728075948-5ca6f4b7d4dc",
+      "commit": "5ca6f4b7d4dc",
+      "licenseSpdx": "MPL-2.0",
+      "licenseSha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5"
+    },
+    "androidArtifact": {
+      "expectedAbis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "nativeLibrary": "libgojni.so",
+      "minimumPageAlignmentBytes": 16384
+    },
+    "gradleOverride": {
+      "requestedGroup": "io.github.toolshubofficial",
+      "requestedArtifact": "libxray",
+      "requestedVersion": "26.6.27",
+      "reason": "Debug may resolve the existing transitional runtimeOnly coordinate; production exclusively overrides that coordinate with the AAR rebuilt from this pinned official source."
+    }
+  }
+}

@@ -9,10 +9,20 @@ import {
   requireUuid,
   success,
 } from './errors.js';
+import { createEnterpriseRouter } from './enterprise.js';
 
 const TIER_RANK = Object.freeze({ free: 0, premium: 1, vip: 2 });
 const CHANNELS = new Set(['play', 'direct', 'wallet']);
-const SERVER_PROTOCOLS = new Set(['vless', 'vmess', 'trojan', 'shadowsocks', 'wireguard']);
+const SERVER_PROTOCOLS = new Set(['vless', 'vmess', 'trojan', 'shadowsocks']);
+const PROFILE_TRANSPORTS = new Set(['tcp', 'ws', 'grpc']);
+const PROFILE_SECURITY = new Set(['none', 'tls', 'reality']);
+const TLS_FINGERPRINTS = new Set(['chrome', 'firefox', 'safari', 'ios', 'android', 'randomized']);
+const SHADOWSOCKS_METHODS = new Set([
+  '2022-blake3-aes-128-gcm', '2022-blake3-aes-256-gcm', 'aes-128-gcm', 'aes-256-gcm',
+  'chacha20-poly1305', 'xchacha20-poly1305',
+]);
+const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const SAFE_HOST = /^(?=.{1,253}$)(?:(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)\.)*(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)$/;
 
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
@@ -88,24 +98,85 @@ function isUsable(service, now) {
   return true;
 }
 
+function trustedConnection(server, service) {
+  const value = server.connection;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Server connection material is unavailable.');
+  const allowed = new Set(['endpoint', 'port', 'protocol', 'credential', 'transport', 'security', 'flow', 'shadowsocks_method']);
+  if (Object.keys(value).some((key) => !allowed.has(key))) throw new Error('Server connection material contains unsupported fields.');
+  if (typeof value.endpoint !== 'string' || !SAFE_HOST.test(value.endpoint)
+    || !Number.isInteger(value.port) || value.port < 1 || value.port > 65_535
+    || !SERVER_PROTOCOLS.has(value.protocol) || !server.protocols.includes(value.protocol)
+    || !service.allowed_protocols.includes(value.protocol)
+    || typeof value.credential !== 'string' || value.credential.length < 8 || value.credential.length > 4096) {
+    throw new Error('Server connection material is invalid or is not entitled.');
+  }
+  if (['vless', 'vmess'].includes(value.protocol) && !CANONICAL_UUID.test(value.credential)) {
+    throw new Error('Server UUID credential is invalid.');
+  }
+  if (value.flow != null && (value.protocol !== 'vless' || value.flow !== 'xtls-rprx-vision')) {
+    throw new Error('Server flow is invalid.');
+  }
+  if (value.protocol === 'shadowsocks' && !SHADOWSOCKS_METHODS.has(value.shadowsocks_method)) {
+    throw new Error('Server Shadowsocks method is invalid.');
+  }
+
+  const transport = value.transport;
+  if (!transport || typeof transport !== 'object' || Array.isArray(transport)
+    || !PROFILE_TRANSPORTS.has(transport.type)) throw new Error('Server transport is invalid.');
+  const transportAllowed = transport.type === 'ws' ? new Set(['type', 'path', 'host'])
+    : transport.type === 'grpc' ? new Set(['type', 'service_name']) : new Set(['type']);
+  if (Object.keys(transport).some((key) => !transportAllowed.has(key))) throw new Error('Server transport contains unsupported fields.');
+  if (transport.type === 'ws' && (typeof transport.path !== 'string' || !transport.path.startsWith('/')
+    || transport.path.length > 2048 || transport.host != null && !SAFE_HOST.test(transport.host))) {
+    throw new Error('Server WebSocket transport is invalid.');
+  }
+  if (transport.type === 'grpc' && (typeof transport.service_name !== 'string'
+    || !/^[A-Za-z0-9._/-]{1,256}$/.test(transport.service_name))) throw new Error('Server gRPC transport is invalid.');
+
+  const security = value.security;
+  if (!security || typeof security !== 'object' || Array.isArray(security)
+    || !PROFILE_SECURITY.has(security.type)) throw new Error('Server transport security is invalid.');
+  const securityAllowed = security.type === 'tls' ? new Set(['type', 'server_name', 'fingerprint', 'allow_insecure'])
+    : security.type === 'reality' ? new Set(['type', 'server_name', 'fingerprint', 'public_key', 'short_id']) : new Set(['type']);
+  if (Object.keys(security).some((key) => !securityAllowed.has(key))) throw new Error('Server transport security contains unsupported fields.');
+  if (security.type !== 'none' && (!SAFE_HOST.test(security.server_name) || !TLS_FINGERPRINTS.has(security.fingerprint))) {
+    throw new Error('Server TLS identity is invalid.');
+  }
+  if (security.allow_insecure === true) throw new Error('Disabling server certificate validation is forbidden.');
+  if (security.type === 'reality' && (!/^[A-Za-z0-9_-]{43}$/.test(security.public_key)
+    || !/^(?:[a-fA-F0-9]{2}){0,8}$/.test(security.short_id))) throw new Error('Server Reality identity is invalid.');
+
+  return {
+    schema_version: 1,
+    endpoint: value.endpoint,
+    port: value.port,
+    protocol: value.protocol,
+    credential: value.credential,
+    transport,
+    security: { ...security, ...(security.allow_insecure === undefined ? {} : { allow_insecure: false }) },
+    flow: value.flow ?? null,
+    shadowsocks_method: value.shadowsocks_method ?? null,
+  };
+}
+
 function assertPort(name, value, methods) {
   if (!value || methods.some((method) => typeof value[method] !== 'function')) {
     throw new Error(`${name} adapter does not implement the required boundary.`);
   }
 }
 
-async function parseBody(request) {
+export async function parseBody(request, maximumBytes = 32_768) {
   const type = request.headers.get('content-type') ?? '';
   if (!type.toLowerCase().startsWith('application/json')) {
     throw new ApiError(400, 'invalid_content_type', 'Content-Type must be application/json.');
   }
   const declaredLength = Number(request.headers.get('content-length') ?? 0);
-  if (declaredLength > 32_768) {
-    throw new ApiError(413, 'request_too_large', 'Request body exceeds 32 KiB.');
+  if (declaredLength > maximumBytes) {
+    throw new ApiError(413, 'request_too_large', 'Request body exceeds the allowed size.');
   }
   const raw = await request.text();
-  if (Buffer.byteLength(raw, 'utf8') > 32_768) {
-    throw new ApiError(413, 'request_too_large', 'Request body exceeds 32 KiB.');
+  if (Buffer.byteLength(raw, 'utf8') > maximumBytes) {
+    throw new ApiError(413, 'request_too_large', 'Request body exceeds the allowed size.');
   }
   try {
     return requireObject(JSON.parse(raw), 'body');
@@ -201,7 +272,7 @@ async function fulfillOrder(repository, order, plan, now) {
   });
 }
 
-export function createApplication({ repository, auth, telegramAuth, purchaseVerifier, playNotifications, clock = () => new Date() }) {
+export function createApplication({ repository, auth, telegramAuth, purchaseVerifier, playNotifications, enterpriseSecurity, clock = () => new Date() }) {
   assertPort('repository', repository, [
     'transaction',
     'listPlans', 'findPlan', 'listServices', 'findOwnedService', 'saveService', 'createService',
@@ -216,6 +287,19 @@ export function createApplication({ repository, auth, telegramAuth, purchaseVeri
     'cancelPlaySubscription', 'revokePlaySubscription',
   ]);
   assertPort('Play notifications', playNotifications, ['verifyAndDecode']);
+  let enterpriseRouter = null;
+  if (enterpriseSecurity) {
+    assertPort('enterprise security', enterpriseSecurity, ['assign', 'sign']);
+    assertPort('enterprise repository', repository, [
+      'ownsDevice', 'findConsent', 'saveConsent', 'listConsents',
+      'getPublishedRuntimeConfiguration', 'createRemoteConfigRelease', 'publishRemoteConfigRelease',
+      'upsertFeatureFlag', 'listCurrentFeatureFlags', 'ingestAnalyticsBatch',
+      'createBugReport', 'listBugReports', 'findOwnedBugReport',
+      'createSupportTicket', 'listSupportTickets', 'findOwnedSupportTicket',
+      'createDiagnosticReport', 'appendAdminAudit', 'listAdminAudit',
+    ]);
+    enterpriseRouter = createEnterpriseRouter({ repository, security: enterpriseSecurity, clock, parseBody });
+  }
 
   return async function handle(request) {
     const requestIdHeader = request.headers.get('x-request-id');
@@ -310,6 +394,11 @@ export function createApplication({ repository, auth, telegramAuth, purchaseVeri
       requireUuid(principal.userId, 'authenticated user id');
       requireUuid(principal.deviceId, 'authenticated device id');
 
+      if (enterpriseRouter) {
+        const enterpriseResponse = await enterpriseRouter({ request, url, pathname, principal, requestId });
+        if (enterpriseResponse) return enterpriseResponse;
+      }
+
       if (request.method === 'GET' && pathname === '/v1/services') {
         return { status: 200, body: success((await repository.listServices(principal.userId)).map(asService), requestId, clock) };
       }
@@ -366,8 +455,11 @@ export function createApplication({ repository, auth, telegramAuth, purchaseVeri
         if (!server || server.status !== 'active') throw new ApiError(403, 'server_unavailable', 'Server is unavailable.');
         if (TIER_RANK[server.tier] > TIER_RANK[service.tier]) throw new ApiError(403, 'tier_not_entitled', 'Service tier cannot use this server.');
         if (service.country_code && service.country_code !== server.country_code) throw new ApiError(403, 'country_not_entitled', 'Service cannot use this country.');
-        const protocol = server.protocols.find((item) => service.allowed_protocols.includes(item));
-        if (!protocol) throw new ApiError(403, 'protocol_not_entitled', 'Service has no allowed protocol on this server.');
+        if (!server.protocols.some((item) => service.allowed_protocols.includes(item))) {
+          throw new ApiError(403, 'protocol_not_entitled', 'Service has no allowed protocol on this server.');
+        }
+        const connection = trustedConnection(server, service);
+        const protocol = connection.protocol;
         const proofPayload = { serviceId: service.id, deviceId, serverId, clientNonce };
         if (!await auth.verifyDeviceProof({ principal, payload: proofPayload, proof })) {
           throw new ApiError(403, 'invalid_device_proof', 'Device proof is invalid.');
@@ -379,10 +471,7 @@ export function createApplication({ repository, auth, telegramAuth, purchaseVeri
           principal,
           associatedData,
           plaintext: {
-            endpoint: server.connection.endpoint,
-            port: server.connection.port,
-            protocol,
-            credential: server.connection.credential,
+            ...connection,
             profile_id: profileId,
             service_id: service.id,
             server_id: server.id,

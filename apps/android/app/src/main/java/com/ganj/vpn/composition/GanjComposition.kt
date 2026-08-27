@@ -22,6 +22,14 @@ import com.ganj.vpn.core.playbilling.GooglePlayBillingAdapter
 import com.ganj.vpn.core.playbilling.PlayBillingLifecycleBridge
 import com.ganj.vpn.core.playbilling.PlayPurchaseEvent
 import com.ganj.vpn.core.playbilling.PlayPurchaseObserver
+import com.ganj.vpn.enterprise.EnterpriseController
+import com.ganj.vpn.enterprise.EnterpriseDeviceContextProvider
+import com.ganj.vpn.enterprise.EnterpriseExperienceRepository
+import com.ganj.vpn.enterprise.EnterpriseReducer
+import com.ganj.vpn.enterprise.EnterpriseSessionGate
+import com.ganj.vpn.enterprise.EnterpriseUiState
+import com.ganj.vpn.enterprise.FailClosedEnterpriseRepository
+import com.ganj.vpn.enterprise.PrivacySafeDiagnosticCollector
 import com.ganj.vpn.presentation.AuthenticatedCheckoutSession
 import com.ganj.vpn.presentation.CheckoutActionHandle
 import com.ganj.vpn.presentation.CheckoutActionVault
@@ -43,6 +51,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class GanjComposition internal constructor(
     val controller: GanjController,
     val reducer: GanjUiReducer,
+    val enterpriseController: EnterpriseController,
+    val enterpriseReducer: EnterpriseReducer,
     private val playAdapter: GooglePlayBillingAdapter,
     private val playLifecycle: PlayBillingLifecycleBridge,
     private val purchaseEvents: PlayPurchaseEventRelay,
@@ -52,10 +62,19 @@ class GanjComposition internal constructor(
     @Volatile
     private var retainedUiState: GanjUiState = GanjUiState()
 
+    @Volatile
+    private var retainedEnterpriseState: EnterpriseUiState = EnterpriseUiState()
+
     fun restoreUiState(): GanjUiState = retainedUiState
 
     fun retainUiState(state: GanjUiState) {
         retainedUiState = state
+    }
+
+    fun restoreEnterpriseState(): EnterpriseUiState = retainedEnterpriseState
+
+    fun retainEnterpriseState(state: EnterpriseUiState) {
+        retainedEnterpriseState = state
     }
 
     suspend fun launchGooglePlayCheckout(
@@ -128,10 +147,14 @@ object GanjCompositionFactory {
         tokenProvider: AuthTokenProvider,
         currentUser: CurrentUserIdProvider,
         connectionContext: ConnectionProfileContextProvider,
+        enterpriseRepository: EnterpriseExperienceRepository = FailClosedEnterpriseRepository(),
+        enterpriseDeviceContext: EnterpriseDeviceContextProvider = EnterpriseDeviceContextProvider { null },
+        diagnosticCollector: PrivacySafeDiagnosticCollector = PrivacySafeDiagnosticCollector { emptyList() },
         ids: StableIdGenerator = StableIdGenerator { UUID.randomUUID().toString() },
     ): GanjComposition {
         val mapper = GanjPresentationMapper()
         val reducer = GanjUiReducer()
+        val enterpriseReducer = EnterpriseReducer()
         val actionVault = OneTimeCheckoutActionVault()
         val purchaseEvents = PlayPurchaseEventRelay()
         val playAdapter = GooglePlayBillingAdapter.Factory(application).create(purchaseEvents)
@@ -153,6 +176,10 @@ object GanjCompositionFactory {
             tokenProvider.currentAccessToken() != null &&
                 !currentUser.currentUserId().isNullOrBlank()
         }
+        val enterpriseSession = EnterpriseSessionGate {
+            tokenProvider.currentAccessToken() != null &&
+                !currentUser.currentUserId().isNullOrBlank()
+        }
         return GanjComposition(
             controller = GanjController(
                 repository = repository,
@@ -164,6 +191,16 @@ object GanjCompositionFactory {
                 ids = ids,
             ),
             reducer = reducer,
+            enterpriseController = EnterpriseController(
+                repository = enterpriseRepository,
+                session = enterpriseSession,
+                deviceContext = enterpriseDeviceContext,
+                diagnostics = diagnosticCollector,
+                ids = ids,
+                nowEpochMillis = System::currentTimeMillis,
+                reducer = enterpriseReducer,
+            ),
+            enterpriseReducer = enterpriseReducer,
             playAdapter = playAdapter,
             playLifecycle = playLifecycle,
             purchaseEvents = purchaseEvents,

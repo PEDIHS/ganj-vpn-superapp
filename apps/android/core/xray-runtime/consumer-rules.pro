@@ -1,0 +1,4 @@
+-keep class libXray.LibXRay { public static *; }
+-keep class libXray.LibXray { public static *; }
+-keep class libXray.LibXRay$* { *; }
+-keep class libXray.LibXray$* { *; }

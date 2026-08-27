@@ -23,13 +23,14 @@ export function createHttpServer(handle, { logger = console } = {}) {
         duplex: hasBody ? 'half' : undefined,
       });
       const result = await handle(request);
-      const body = JSON.stringify(result.body);
+      const noBody = result.status === 204 || result.status === 304;
+      const body = noBody ? '' : JSON.stringify(result.body);
       outgoing.writeHead(result.status, {
         ...SECURITY_HEADERS,
         'content-length': Buffer.byteLength(body),
         ...(result.headers ?? {}),
       });
-      outgoing.end(body);
+      outgoing.end(noBody ? undefined : body);
       logger.info?.({
         event: 'http_request',
         method,

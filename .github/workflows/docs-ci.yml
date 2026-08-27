@@ -9,8 +9,13 @@ on:
       - "api/**"
       - "database/**"
       - "design/**"
+      - "ops/**"
+      - "third_party/**"
+      - "UPSTREAM.lock.json"
       - ".github/scripts/**"
+      - ".github/gradle/**"
       - ".github/workflows/docs-ci.yml"
+      - ".github/workflows/android-release.yml"
   push:
     branches: [main]
     paths:
@@ -20,8 +25,13 @@ on:
       - "api/**"
       - "database/**"
       - "design/**"
+      - "ops/**"
+      - "third_party/**"
+      - "UPSTREAM.lock.json"
       - ".github/scripts/**"
+      - ".github/gradle/**"
       - ".github/workflows/docs-ci.yml"
+      - ".github/workflows/android-release.yml"
   workflow_dispatch:
 
 permissions:
@@ -57,3 +67,28 @@ jobs:
       - name: Validate local Markdown links
         shell: bash
         run: python3 .github/scripts/check-doc-links.py
+
+      - name: Validate production alert policy
+        shell: bash
+        run: python3 .github/scripts/validate-alert-policy.py
+
+      - name: Validate official libXray production pin
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          jq -e '
+            .schemaVersion == 1 and
+            .libXray.repository == "https://github.com/XTLS/libXray.git" and
+            .libXray.tag == "v26.7.28" and
+            .libXray.commit == "80263da83e96b2972455b0a94b13ee1a10e51391" and
+            .libXray.toolchain.go == "1.26.3" and
+            .libXray.toolchain.androidNdk == "29.0.14206865" and
+            .libXray.license.spdx == "MIT" and
+            .libXray.xrayCore.licenseSpdx == "MPL-2.0" and
+            ([
+              .libXray.commit,
+              .libXray.license.sha256,
+              .libXray.xrayCore.licenseSha256,
+              .libXray.sourceFiles[]
+            ] | all(test("^[0-9a-f]{40}$|^[0-9a-f]{64}$")))
+          ' UPSTREAM.lock.json >/dev/null
