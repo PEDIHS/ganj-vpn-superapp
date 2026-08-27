@@ -51,6 +51,7 @@ android {
 dependencies {
     implementation(project(":core:billing"))
     implementation(project(":core:control-api"))
+    implementation(project(":core:device-identity"))
     implementation(project(":core:play-billing"))
     implementation(project(":core:vpn-api"))
     implementation(project(":core:xray-runtime"))
