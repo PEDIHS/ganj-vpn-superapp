@@ -285,14 +285,16 @@ export class FreeServerRegistryRepository {
       if (error?.code === 'free_server_registry_unavailable') return servers.filter((server) => server.tier !== 'free');
       throw error;
     }
-    return servers.filter((server) => {
+    const visible = servers.filter((server) => {
       if (server.tier !== 'free') return true;
       const control = controls.get(server.id) ?? defaultControl(server);
       return !unavailable(control);
-    }).sort((left, right) => {
-      if (left.tier !== 'free' || right.tier !== 'free') return 0;
-      return (controls.get(left.id)?.priority ?? 100) - (controls.get(right.id)?.priority ?? 100);
     });
+    const free = visible
+      .filter((server) => server.tier === 'free')
+      .sort((left, right) => (controls.get(left.id)?.priority ?? 100) - (controls.get(right.id)?.priority ?? 100));
+    const nonFree = visible.filter((server) => server.tier !== 'free');
+    return [...free, ...nonFree];
   }
 
   async findServer(id) {
