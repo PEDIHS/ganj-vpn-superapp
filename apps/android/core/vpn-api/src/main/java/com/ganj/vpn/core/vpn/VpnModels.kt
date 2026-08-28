@@ -33,6 +33,7 @@ class ConnectionRequest(val profile: ProvisionedProfile) {
 interface VpnEngine {
     fun currentState(): ConnectionState
     fun connect(request: ConnectionRequest): Result<Unit>
+    fun reconnect(request: ConnectionRequest): Result<Unit>
     fun disconnect(): Result<Unit>
 }
 
