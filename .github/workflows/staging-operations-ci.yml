@@ -1,0 +1,102 @@
+name: Staging Operations
+
+on:
+  pull_request:
+    paths:
+      - 'ops/staging/**'
+      - 'services/control-api/src/production-environment.js'
+      - 'services/control-api/src/readiness.js'
+      - 'services/control-api/src/adapters/file-server-secret.js'
+      - 'services/control-api/src/adapters/vault-server-secret.js'
+      - 'services/control-api/test/production-secrets.test.js'
+      - 'services/control-api/test/vault-server-secret.test.js'
+      - '.github/workflows/staging-operations-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/staging/**'
+      - 'services/control-api/src/production-environment.js'
+      - 'services/control-api/src/readiness.js'
+      - 'services/control-api/src/adapters/file-server-secret.js'
+      - 'services/control-api/src/adapters/vault-server-secret.js'
+      - '.github/workflows/staging-operations-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-operations-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Control API dependencies
+        working-directory: services/control-api
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Test production secret boundaries
+        working-directory: services/control-api
+        run: node --test test/production-secrets.test.js test/vault-server-secret.test.js
+
+      - name: Validate shell syntax
+        run: |
+          set -eu
+          for script in ops/staging/scripts/*.sh; do
+            echo "checking $script"
+            sh -n "$script"
+          done
+
+      - name: Render staging compose without real secrets
+        working-directory: ops/staging
+        run: |
+          set -eu
+          cp .env.example .env
+          mkdir -p secrets
+          for file in postgres-password vault-token auth-session-private.jwk telegram-oidc-client-secret assignment-key runtime-config-ed25519.pem google-play-service-account.json; do
+            : > "secrets/$file"
+            chmod 600 "secrets/$file"
+          done
+          docker compose --env-file .env -f compose.yml config --format json > /tmp/staging-compose.json
+
+      - name: Enforce topology and immutable-image policy
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const value = JSON.parse(fs.readFileSync('/tmp/staging-compose.json', 'utf8'));
+          const services = value.services ?? {};
+          for (const required of ['postgres', 'migrate', 'control-api', 'edge']) {
+            if (!services[required]) throw new Error(`missing staging service: ${required}`);
+          }
+          if (services.postgres.ports?.length) throw new Error('PostgreSQL must not publish a host port.');
+          if (services['control-api'].ports?.length) throw new Error('Control API must not publish a host port.');
+          if (!services.edge.ports?.length) throw new Error('TLS edge must publish the public ports.');
+          for (const name of ['migrate', 'control-api']) {
+            if (!/@sha256:[0-9a-f]{64}$/i.test(services[name].image ?? '')) {
+              throw new Error(`${name} must use an immutable sha256 image reference.`);
+            }
+          }
+          if (services.migrate.image !== services['control-api'].image) {
+            throw new Error('Migration and runtime must use the exact same immutable image.');
+          }
+          if (value.networks?.backend?.internal !== true) throw new Error('backend network must be internal.');
+          if (services['control-api'].read_only !== true) throw new Error('Control API filesystem must be read-only.');
+          const dropped = services['control-api'].cap_drop ?? [];
+          if (!dropped.includes('ALL')) throw new Error('Control API must drop all Linux capabilities.');
+          NODE
+
+      - name: Guard repository against staging secret persistence
+        run: |
+          set -eu
+          test "$(git ls-files 'ops/staging/secrets/*' | grep -v -E 'README\.md$|\.gitkeep$' | wc -l)" -eq 0
+          ! git grep -nEI -- '-----BEGIN .*PRIVATE KEY-----|(^|[^A-Za-z0-9])(vless|vmess|trojan|ss)://' -- ops/staging ':!ops/staging/secrets/README.md'
+          ! grep -Eq '^[[:space:]]+build:' ops/staging/compose.yml
+          grep -Eq '^CONTROL_API_IMAGE=.*@sha256:[0-9a-f]{64}$' ops/staging/.env.example
