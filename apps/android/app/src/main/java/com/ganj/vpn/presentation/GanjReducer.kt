@@ -137,20 +137,27 @@ class GanjUiReducer {
         GanjUiEvent.CheckoutAuthenticationRequired -> state.copy(checkout = CheckoutUiState.AuthRequired)
         is GanjUiEvent.ConnectionRequested -> {
             val service = state.serviceItems.firstOrNull { it.entitlementId == event.entitlementId }
-            val server = service?.let(state::compatibleServerFor)
-            if (service?.isActive == true && server != null) {
-                state.copy(
-                    selectedEntitlementId = event.entitlementId,
-                    selectedServerId = server.id,
-                    connection = ConnectionUiState.Requesting(event.entitlementId),
-                )
-            } else {
-                state.copy(
+            when {
+                service?.isActive != true -> state.copy(
                     connection = ConnectionUiState.Failed(
                         event.entitlementId,
                         UiFailure(UiFailureKind.ENTITLEMENT, "connection.service_inactive", retryable = false),
                     ),
                 )
+                state.compatibleServerFor(service) == null -> state.copy(
+                    connection = ConnectionUiState.Failed(
+                        event.entitlementId,
+                        UiFailure(UiFailureKind.ENTITLEMENT, "connection.server_unavailable", retryable = true),
+                    ),
+                )
+                else -> {
+                    val server = state.compatibleServerFor(service)!!
+                    state.copy(
+                        selectedEntitlementId = event.entitlementId,
+                        selectedServerId = server.id,
+                        connection = ConnectionUiState.Requesting(event.entitlementId),
+                    )
+                }
             }
         }
         is GanjUiEvent.ConnectionProfileReady -> {
