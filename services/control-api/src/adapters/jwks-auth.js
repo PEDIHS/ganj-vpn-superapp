@@ -57,7 +57,7 @@ export class JwksAuthAdapter {
         userId,
         deviceId,
         subject: claims.sub,
-        authMethod: 'asymmetric-jwt',
+        authMethod: claims.auth_method ?? 'asymmetric-jwt',
         tokenId: claims.jti,
         scopes: [
           ...(typeof claims.scope === 'string' ? claims.scope.split(' ') : []),
@@ -116,6 +116,15 @@ export class JwksAuthAdapter {
   async close() { await this.principalValidator.close?.(); }
 }
 
+export function authAllowedAlgorithms(environment = process.env) {
+  const algorithms = (environment.AUTH_ALLOWED_ALGORITHMS ?? 'EdDSA')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (algorithms.length === 0) throw new Error('AUTH_ALLOWED_ALGORITHMS must contain at least one algorithm.');
+  return algorithms;
+}
+
 export async function createAuthAdapter({ environment = process.env } = {}) {
   for (const required of ['AUTH_JWKS_URI', 'AUTH_ISSUER', 'AUTH_AUDIENCE', 'DATABASE_URL']) {
     if (!environment[required]) throw new Error(`${required} is required.`);
@@ -124,7 +133,7 @@ export async function createAuthAdapter({ environment = process.env } = {}) {
     jwksUri: environment.AUTH_JWKS_URI,
     issuer: environment.AUTH_ISSUER,
     audience: environment.AUTH_AUDIENCE,
-    allowedAlgorithms: (environment.AUTH_ALLOWED_ALGORITHMS ?? 'RS256').split(',').map((item) => item.trim()),
+    allowedAlgorithms: authAllowedAlgorithms(environment),
   });
   const principalValidator = await createPrincipalValidator({ environment });
   return new JwksAuthAdapter({
