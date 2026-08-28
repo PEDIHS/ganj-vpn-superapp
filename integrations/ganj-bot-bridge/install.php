@@ -69,11 +69,15 @@ $source = __DIR__;
 $rootInput = isset($options['bot-root']) ? (string)$options['bot-root'] : dirname(__DIR__);
 $resolvedRoot = realpath($rootInput);
 if ($resolvedRoot === false || !is_dir($resolvedRoot)) installerFail('Bot root does not exist.');
+if ($resolvedRoot === DIRECTORY_SEPARATOR) installerFail('The filesystem root cannot be used as the bot root.');
 $root = rtrim($resolvedRoot, DIRECTORY_SEPARATOR);
 $index = $root . '/index.php';
 $botConfig = $root . '/config.php';
 if (!is_file($index) || !is_file($botConfig)) installerFail('index.php and config.php were not found in the bot root.');
+if (is_link($index) || realpath($index) !== $index) installerFail('Bot index.php must be a regular file inside the bot root.');
 if (!is_writable($index)) installerFail('Bot index.php is not writable.');
+$indexMode = @fileperms($index);
+if (!is_int($indexMode)) installerFail('Cannot read bot index.php permissions.');
 
 $controlApi = rtrim(installerEnv('GANJ_CONTROL_API_URL'), '/');
 $url = parse_url($controlApi);
@@ -185,7 +189,9 @@ try {
 }
 
 $target = $root . '/.ganj-app-bridge';
+if (is_link($target)) installerFail('Managed bridge directory cannot be a symbolic link.');
 if (!is_dir($target) && !mkdir($target, 0700, true) && !is_dir($target)) installerFail('Cannot create bridge directory.');
+if (realpath($target) !== $target) installerFail('Managed bridge directory must be directly inside the bot root.');
 @chmod($target, 0700);
 foreach (['bootstrap.php', 'projection.php'] as $payload) {
     $destination = $target . '/' . $payload;
@@ -230,7 +236,7 @@ if (!str_contains($original, $managed)) {
     @chmod($backup, 0600);
     $temporaryIndex = $index . '.ganj-app.tmp';
     if (file_put_contents($temporaryIndex, $patched, LOCK_EX) === false) installerFail('Cannot write patched bot index.');
-    @chmod($temporaryIndex, fileperms($index) & 0777);
+    @chmod($temporaryIndex, $indexMode & 0777);
     if (!rename($temporaryIndex, $index)) installerFail('Cannot publish patched bot index.');
 }
 
