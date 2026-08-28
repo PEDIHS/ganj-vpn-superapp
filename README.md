@@ -20,21 +20,22 @@
 
 ## مستندات
 
-1. [خلاصه اجرایی](docs/00-phase-zero-executive-summary.fa.md)
-2. [ممیزی وضع موجود](docs/01-current-state-audit.fa.md)
-3. [تحلیل رقبا](docs/02-competitor-analysis.fa.md)
-4. [معماری سامانه](docs/03-architecture.fa.md)
-5. [Design System](docs/04-design-system.fa.md)
-6. [مدل داده](docs/05-database-schema.fa.md)
-7. [طراحی API](docs/06-api-documentation.fa.md)
-8. [امنیت و Threat Model](docs/07-security-threat-model.fa.md)
-9. [Roadmap توسعه](docs/08-development-roadmap.fa.md)
-10. [انتشار و انطباق Google Play](docs/09-play-release-compliance.fa.md)
-11. [پلتفرم Enterprise](docs/10-enterprise-platform.fa.md)
-12. [Observability، Bug Tracking و پشتیبانی](docs/11-observability-and-support-runbook.fa.md)
-13. [Release، Update و Supply Chain](docs/12-release-and-update-runbook.fa.md)
-14. [Incident Response و Disaster Recovery](docs/13-incident-response-runbook.fa.md)
-15. [Observability اندروید با حفظ حریم خصوصی](docs/14-observability-privacy.fa.md)
+1. [Master Project Plan — تاریخچه، وضعیت فعلی و تمام مراحل تا انتشار](docs/MASTER_PROJECT_PLAN.fa.md)
+2. [خلاصه اجرایی](docs/00-phase-zero-executive-summary.fa.md)
+3. [ممیزی وضع موجود](docs/01-current-state-audit.fa.md)
+4. [تحلیل رقبا](docs/02-competitor-analysis.fa.md)
+5. [معماری سامانه](docs/03-architecture.fa.md)
+6. [Design System](docs/04-design-system.fa.md)
+7. [مدل داده](docs/05-database-schema.fa.md)
+8. [طراحی API](docs/06-api-documentation.fa.md)
+9. [امنیت و Threat Model](docs/07-security-threat-model.fa.md)
+10. [Roadmap توسعه](docs/08-development-roadmap.fa.md)
+11. [انتشار و انطباق Google Play](docs/09-play-release-compliance.fa.md)
+12. [پلتفرم Enterprise](docs/10-enterprise-platform.fa.md)
+13. [Observability، Bug Tracking و پشتیبانی](docs/11-observability-and-support-runbook.fa.md)
+14. [Release، Update و Supply Chain](docs/12-release-and-update-runbook.fa.md)
+15. [Incident Response و Disaster Recovery](docs/13-incident-response-runbook.fa.md)
+16. [Observability اندروید با حفظ حریم خصوصی](docs/14-observability-privacy.fa.md)
 
 فایل‌های ماشینی:
 
