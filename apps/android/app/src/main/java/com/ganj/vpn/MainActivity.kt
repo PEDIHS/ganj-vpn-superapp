@@ -2,6 +2,7 @@ package com.ganj.vpn
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.net.VpnService
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
@@ -54,6 +55,13 @@ class MainActivity : ComponentActivity() {
                                     retryable = true,
                                 ),
                             )
+                        }
+                    },
+                    onLaunchTelegram = { url ->
+                        runCatching {
+                            val uri = Uri.parse(url)
+                            require(uri.scheme == "https" && uri.host == "t.me")
+                            startActivity(Intent(Intent.ACTION_VIEW, uri))
                         }
                     },
                 )
