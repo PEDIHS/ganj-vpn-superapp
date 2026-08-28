@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_telegram_title">حساب تلگرام</string>
+    <string name="auth_telegram_guest_badge">نشست مهمان</string>
+    <string name="auth_telegram_linked_badge">تلگرام متصل است</string>
+    <string name="auth_telegram_guest_body">تلگرام را متصل کنید تا سرویس‌های قبلی گنج بازیابی شوند و اشتراک‌ها بین ربات و اپ همگام بمانند.</string>
+    <string name="auth_telegram_linked_body">این نصب اتصال حساب تلگرام را با موفقیت انجام داده است. مالکیت سرویس همچنان فقط توسط سرور گنج تایید می‌شود.</string>
+    <string name="auth_telegram_connect">اتصال حساب تلگرام</string>
+    <string name="auth_telegram_logout">قطع نشست تلگرام</string>
+    <string name="auth_telegram_working">کمی صبر کنید…</string>
+    <string name="auth_telegram_error">ورود با تلگرام کامل نشد. یک ورود جدید شروع کنید و دوباره تلاش کنید.</string>
+</resources>

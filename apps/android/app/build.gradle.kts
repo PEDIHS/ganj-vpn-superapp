@@ -1,12 +1,25 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
 val controlApiBaseUrl = providers.gradleProperty("GANJ_CONTROL_API_BASE_URL").orElse("").get()
+val telegramRedirectUri = providers.gradleProperty("GANJ_TELEGRAM_REDIRECT_URI")
+    .orElse("https://auth.invalid/ganj/telegram/callback")
+    .get()
 val escapedControlApiBaseUrl = controlApiBaseUrl
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")
+val escapedTelegramRedirectUri = telegramRedirectUri
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+val telegramRedirect = URI(telegramRedirectUri)
+require(telegramRedirect.scheme == "https" && !telegramRedirect.host.isNullOrBlank()) {
+    "GANJ_TELEGRAM_REDIRECT_URI must be an absolute HTTPS URI"
+}
+val telegramRedirectPath: String = telegramRedirect.rawPath?.takeIf { it.isNotBlank() } ?: "/"
 
 android {
     namespace = "com.ganj.vpn"
@@ -19,6 +32,9 @@ android {
         versionCode = 3
         versionName = "0.3.0"
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
+        buildConfigField("String", "TELEGRAM_REDIRECT_URI", "\"$escapedTelegramRedirectUri\"")
+        manifestPlaceholders["telegramAuthHost"] = telegramRedirect.host
+        manifestPlaceholders["telegramAuthPath"] = telegramRedirectPath
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -61,6 +77,7 @@ dependencies {
     androidTestImplementation(composeBom)
 
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.10.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
