@@ -37,6 +37,54 @@ export class LegacyPostgresRepository {
     return result.rowCount === 1 ? { id: result.rows[0].id, tier: result.rows[0].tier } : null;
   }
 
+  async beginLegacySourceRun({ sourceKey, startedAt }) {
+    await this.base.advisoryLock('legacy-source-run', sourceKey);
+    const result = await this.base.database().query(
+      `INSERT INTO control_legacy_sources
+       (source_key, source_kind, last_started_at, last_error_code, updated_at)
+       VALUES ($1, 'telegram_bot', $2, NULL, now())
+       ON CONFLICT (source_key) DO UPDATE SET
+         last_started_at = EXCLUDED.last_started_at,
+         updated_at = now()
+       RETURNING checkpoint_cursor, enabled, read_owner`,
+      [sourceKey, startedAt],
+    );
+    const row = result.rows[0];
+    if (!row.enabled) throw new Error('legacy_source_disabled');
+    return { checkpointCursor: row.checkpoint_cursor, readOwner: row.read_owner };
+  }
+
+  async completeLegacySourceRun({ sourceKey, checkpointCursor, completedAt, clearError }) {
+    await this.base.database().query(
+      `UPDATE control_legacy_sources
+          SET checkpoint_cursor = $2,
+              last_completed_at = $3,
+              last_error_code = CASE WHEN $4 THEN NULL ELSE last_error_code END,
+              updated_at = now()
+        WHERE source_key = $1`,
+      [sourceKey, checkpointCursor, completedAt, clearError],
+    );
+  }
+
+  async failLegacySourceRun({ sourceKey, errorCode, completedAt }) {
+    await this.base.database().query(
+      `UPDATE control_legacy_sources
+          SET last_completed_at = $3, last_error_code = $2, updated_at = now()
+        WHERE source_key = $1`,
+      [sourceKey, errorCode, completedAt],
+    );
+  }
+
+  async recordLegacyWorkerFailure({ sourceKey, eventId, errorCode, failedAt }) {
+    if (!eventId) return;
+    await this.base.database().query(
+      `UPDATE control_legacy_reconciliation_events
+          SET processing_status = 'failed', error_code = $3, processed_at = $4
+        WHERE source_key = $1 AND event_id = $2`,
+      [sourceKey, eventId, errorCode, failedAt],
+    );
+  }
+
   async findLegacyReconciliationEvent(sourceKey, eventId) {
     await this.base.advisoryLock('legacy-event', `${sourceKey}:${eventId}`);
     const result = await this.base.database().query(
