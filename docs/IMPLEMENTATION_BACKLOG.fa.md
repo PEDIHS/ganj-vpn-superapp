@@ -1,6 +1,7 @@
 # Ganj VPN — Implementation Backlog & Acceptance Criteria
 
-> این فایل Backlog اجرایی پروژه است. اولویت‌ها بر اساس Critical Path تا نسخه قابل فروش/انتشار تنظیم شده‌اند.
+> این فایل Backlog اجرایی پروژه است. اولویت‌ها بر اساس Critical Path تا نسخه قابل فروش/انتشار تنظیم شده‌اند.  
+> **UI/UX Brand dependency:** تمام کارهای P0-10 باید مطابق [`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md) و `design/tokens.json` نسخه 0.2+ انجام شوند.
 
 ## Priority Definitions
 
@@ -181,7 +182,7 @@ Backend بتواند از secret reference امن، credential واقعی سرو
 - invalid Reality/TLS/UUID config rejected؛
 - `allow_insecure=true` rejected in production؛
 - secret resolver outage fails closed؛
-- secret access audited；
+- secret access audited؛
 - rotation does not require app update.
 
 ---
@@ -288,7 +289,7 @@ Backend بتواند از secret reference امن، credential واقعی سرو
 - device slots؛
 - concurrent policy؛
 - revoke؛
-- expiry；
+- expiry؛
 - grace؛
 - suspended؛
 - upgrade/downgrade؛
@@ -306,36 +307,149 @@ Backend بتواند از secret reference امن، credential واقعی سرو
 
 ---
 
-# EPIC P0-10 — Final Localization & Product UI
+# EPIC P0-10 — Final Localization, Visual Brand & Product UI
+
+## Goal
+
+Functional/Foundation UI فعلی به یک Android Product UI نهایی و قابل انتشار تبدیل شود که هویت رسمی Ganj VPN را از لوگوی Emerald/Gold بگیرد، بدون اینکه اپ فول سبز یا فول طلایی شود.
+
+## Canonical References
+
+- `docs/15-android-ui-ux-brand-system.fa.md`؛
+- `docs/04-design-system.fa.md`؛
+- `design/tokens.json` نسخه 0.2+؛
+- `docs/00-CURRENT_PRODUCT_SCOPE.fa.md`.
 
 ## Deliverables
 
+### Brand Foundation
+
+- حذف Blue به‌عنوان Brand Primary؛
+- حذف/جایگزینی `GanjBlue` در Final Theme؛
+- Emerald Primary tokens؛
+- Gold Premium Accent tokens؛
+- Dark graphite/green-neutral surfaces؛
+- Light warm-neutral surfaces؛
+- semantic Jade/Warning/Danger colors؛
+- Dynamic Color off by default for Brand Core؛
+- Gold usage budget و Neutral-first composition.
+
+### Theme
+
+- Dark؛
+- Light؛
+- System؛
+- edge-to-edge؛
+- system bars؛
+- predictable insets؛
+- Glass opaque fallback.
+
+### Localization
+
 - `fa` resources؛
 - `en` resources؛
-- RTL؛
+- RTL/LTR؛
 - locale-safe formatting؛
-- final Design System؛
+- Bidi isolation برای IP/UUID/protocol؛
+- no user-facing hardcoded English.
+
+### Design System
+
+- typography؛
+- spacing؛
+- radius؛
 - icons؛
+- buttons؛
+- cards؛
+- chips؛
+- bottom navigation؛
+- app bars؛
+- dialogs/sheets؛
+- loading/empty/error/offline؛
 - motion؛
+- haptics؛
+- accessibility semantics.
+
+### Logo System
+
+- full 3D Hero/Marketing mark؛
+- simplified flat product mark؛
+- Adaptive App Icon؛
+- monochrome themed icon؛
+- notification silhouette.
+
+### Screens
+
+- Splash؛
+- Onboarding/Auth؛
 - Home؛
 - Servers؛
 - Connect؛
 - Store؛
+- My Services؛
 - Account؛
-- error/empty/offline؛
-- accessibility.
+- Devices؛
+- Settings؛
+- Support/Bug/Diagnostics؛
+- Direct Wallet surfaces where flavor allows؛
+- error/empty/offline/maintenance/forced-update.
+
+### Accessibility & Adaptive
+
+- TalkBack؛
+- touch target ≥48dp؛
+- font scale تا 200%؛
+- contrast؛
+- Reduce Motion؛
+- transparency/blur fallback؛
+- compact/standard/large phone؛
+- foldable/tablet sanity.
 
 ## Acceptance Criteria
 
+### Brand
+
+- **هیچ صفحه اصلی Production آبی dominant نیست؛**
+- `#0A84FF`, `#007AFF` و default Material blue به‌عنوان Brand Primary استفاده نشده‌اند؛
+- Emerald Primary در CTA/Selection/Brand surfaces استفاده می‌شود؛
+- Gold به Premium/Signature micro-accent محدود است؛
+- app نه فول طلایی است نه فول سبز؛
+- Neutral surfaces بخش غالب composition هستند؛
+- logo usage مطابق variant/size rules است؛
+- Premium UI شبیه casino/crypto skin نیست.
+
+### Localization
+
 - no user-facing hardcoded English in production screens؛
-- RTL screenshots pass؛
-- large font no critical clipping؛
-- touch targets accessible؛
-- TalkBack labels meaningful؛
-- contrast acceptable؛
+- Persian RTL screenshots pass؛
+- English LTR screenshots pass؛
+- price/date/latency formatting locale-safe؛
+- Bidi content visually correct.
+
+### Accessibility
+
+- large font no critical clipping تا 200%؛
+- interactive touch targets ≥48dp؛
+- TalkBack labels/order meaningful؛
+- contrast WCAG AA target؛
+- Reduce Motion behavior؛
+- Glass fallback readable.
+
+### Runtime Truth
+
+- VPN/payment/auth state هرگز visually lie نمی‌کند؛
+- Connected فقط بعد از runtime success؛
+- purchase success فقط بعد از authoritative state؛
+- reconnect/failure states actionable.
+
+### Quality
+
 - dark/light complete؛
 - loading/failed states actionable؛
-- VPN/payment state never visually lies.
+- no continuous battery-heavy glow/animation؛
+- screenshots روی device واقعی review شده؛
+- small/standard/large phone sanity pass؛
+- UI tests/lint/accessibility tests green.
 
 ---
 
@@ -459,8 +573,11 @@ No unresolved Critical/High security finding without documented accepted-risk ap
 - top-up؛
 - gateway؛
 - Telegram checkout؛
-- smart banking adapter؛
-- refunds/history.
+- smart banking/receipt verification adapter؛
+- refunds/history؛
+- UI طبق Emerald/Gold/Neutral Brand، با Gold فقط برای wallet/reward micro-accent؛
+- banking/payment flow جدا از VPN Data Plane؛
+- هیچ banking permission اضافه در Play VPN build بدون Policy/Privacy approval.
 
 ## FCM & Notifications
 
@@ -528,3 +645,5 @@ No unresolved Critical/High security finding without documented accepted-risk ap
 داشته باشد.
 
 هر Epic هنگام پایان باید از `PLANNED/IN PROGRESS` به `DONE` فقط پس از merge + evidence تغییر کند.
+
+برای UI Epicها، screenshot/device evidence و Brand/Accessibility review بخشی از evidence است.
