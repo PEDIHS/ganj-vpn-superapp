@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ganj.vpn.R
 import com.ganj.vpn.enterprise.BugCategory
+import com.ganj.vpn.enterprise.BugStatus
 import com.ganj.vpn.presentation.CheckoutSafeAction
 import com.ganj.vpn.presentation.PlanUiModel
 import com.ganj.vpn.presentation.ServiceUiStatus
@@ -239,6 +240,21 @@ internal fun bugCategoryText(category: BugCategory): String = when (category) {
     BugCategory.CONNECTION -> stringResource(R.string.bug_category_connection)
     BugCategory.PURCHASE -> stringResource(R.string.bug_category_purchase)
     BugCategory.ACCOUNT -> stringResource(R.string.bug_category_account)
+    BugCategory.UI -> stringResource(R.string.bug_category_ui)
+    BugCategory.PERFORMANCE -> stringResource(R.string.bug_category_performance)
+    BugCategory.SECURITY -> stringResource(R.string.bug_category_security)
+    BugCategory.OTHER -> stringResource(R.string.bug_category_other)
+}
+
+@Composable
+internal fun bugStatusText(status: BugStatus): String = when (status) {
+    BugStatus.NEW -> stringResource(R.string.bug_status_new)
+    BugStatus.INVESTIGATING -> stringResource(R.string.bug_status_investigating)
+    BugStatus.ASSIGNED -> stringResource(R.string.bug_status_assigned)
+    BugStatus.FIXING -> stringResource(R.string.bug_status_fixing)
+    BugStatus.TESTING -> stringResource(R.string.bug_status_testing)
+    BugStatus.RELEASED -> stringResource(R.string.bug_status_released)
+    BugStatus.CLOSED -> stringResource(R.string.bug_status_closed)
 }
 
 @Composable
