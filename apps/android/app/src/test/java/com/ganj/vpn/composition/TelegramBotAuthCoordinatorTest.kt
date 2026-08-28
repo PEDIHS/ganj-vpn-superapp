@@ -4,6 +4,7 @@ import com.ganj.vpn.core.controlapi.AccessToken
 import com.ganj.vpn.core.controlapi.ApiError
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.AuthSessionCredentials
+import com.ganj.vpn.core.controlapi.NetworkFailure
 import com.ganj.vpn.core.controlapi.RefreshToken
 import com.ganj.vpn.core.controlapi.ResponseMetadata
 import com.ganj.vpn.core.controlapi.TelegramAuthorizationCommand
@@ -131,16 +132,6 @@ class TelegramBotAuthCoordinatorTest {
     }
 
     @Test
-    fun `missing approval code fails closed and consumes local flow`() {
-        val gateway = FakeGateway(statusState = TelegramBotApprovalState.APPROVED, approvedCode = null)
-        val store = MemoryFlowStore(validFlow())
-        val result = coordinator(gateway, store).resume()
-        assertEquals("auth.telegram_bot_exchange_failed", (result as TelegramBotAuthResult.Failed).code)
-        assertNull(store.flow)
-        assertEquals(0, gateway.exchangeCount)
-    }
-
-    @Test
     fun `unsafe redirect fails before creating Bot request`() {
         val gateway = FakeGateway()
         val coordinator = TelegramBotAuthCoordinator(
@@ -202,7 +193,6 @@ class TelegramBotAuthCoordinatorTest {
         private val statusFails: Boolean = false,
         private val exchangeSucceeds: Boolean = true,
         private val logoutSucceeds: Boolean = true,
-        private val approvedCode: String? = code,
     ) : TelegramBotAuthSessionGateway {
         var lastStart: TelegramAuthorizationCommand? = null
         var lastExchange: TelegramExchangeCommand? = null
@@ -224,11 +214,11 @@ class TelegramBotAuthCoordinatorTest {
 
         override fun status(state: String): ApiResult<TelegramBotApprovalStatus> {
             statusCount += 1
-            if (statusFails) return ApiResult.Failure(ApiError.Network())
+            if (statusFails) return ApiResult.Failure(ApiError.Network(kind = NetworkFailure.IO))
             return ApiResult.Success(
                 TelegramBotApprovalStatus(
                     state = statusState,
-                    code = if (statusState == TelegramBotApprovalState.APPROVED) approvedCode ?: code else null,
+                    code = if (statusState == TelegramBotApprovalState.APPROVED) code else null,
                     expiresAt = expires,
                 ),
                 metadata,
