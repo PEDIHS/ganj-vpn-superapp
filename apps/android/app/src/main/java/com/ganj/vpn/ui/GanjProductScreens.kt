@@ -16,10 +16,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ganj.vpn.R
 import com.ganj.vpn.enterprise.BugReportInput
 import com.ganj.vpn.enterprise.EnterpriseUiState
 import com.ganj.vpn.presentation.CheckoutUiState
@@ -41,7 +43,11 @@ internal fun HomeScreen(
 ) {
     val connected = state.connection is ConnectionUiState.Connected
     Page(modifier) {
-        AppHeader("Ganj VPN", "Your privacy dashboard", onRefresh)
+        AppHeader(
+            stringResource(R.string.home_title),
+            stringResource(R.string.home_subtitle),
+            onRefresh,
+        )
         Spacer(Modifier.height(14.dp))
         GanjGlassSurface(
             role = GanjGlassRole.Prominent,
@@ -49,43 +55,47 @@ internal fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                "Connection profile",
+                stringResource(R.string.home_connection_profile),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
             Text(
-                if (connected) "VPN connected" else "Choose an active service",
+                if (connected) {
+                    stringResource(R.string.home_vpn_connected)
+                } else {
+                    stringResource(R.string.home_choose_active_service)
+                },
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                state.selectedService?.displayName ?: "No active service selected",
+                state.selectedService?.displayName ?: stringResource(R.string.home_no_active_service),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Button(onClick = onOpenConnect, modifier = Modifier.fillMaxWidth()) {
-                Text("Open secure connection")
+                Text(stringResource(R.string.home_open_secure_connection))
             }
         }
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             QuickAction(
-                title = "My services",
-                subtitle = "${state.serviceItems.size} active or previous",
+                title = stringResource(R.string.home_my_services),
+                subtitle = stringResource(R.string.home_service_count, state.serviceItems.size),
                 onClick = onOpenServices,
                 modifier = Modifier.weight(1f),
             )
             QuickAction(
-                title = "Store",
-                subtitle = "Choose a subscription",
+                title = stringResource(R.string.home_store),
+                subtitle = stringResource(R.string.home_choose_subscription),
                 onClick = onOpenStore,
                 modifier = Modifier.weight(1f),
             )
         }
         Spacer(Modifier.height(10.dp))
-        Text("Subscription protected", fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.home_subscription_protected), fontWeight = FontWeight.SemiBold)
         Text(
-            "Connection access is issued only from a verified Ganj entitlement and a registered device.",
+            stringResource(R.string.home_subscription_protected_body),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -101,20 +111,32 @@ internal fun SmartRoutingScreen(
     modifier: Modifier = Modifier,
 ) {
     Page(modifier) {
-        AppHeader("Smart routing", "Only servers allowed by your service", onRetry)
+        AppHeader(
+            stringResource(R.string.servers_title),
+            stringResource(R.string.servers_subtitle),
+            onRetry,
+        )
         Spacer(Modifier.height(10.dp))
         when (val services = state.services) {
-            ContentState.Loading -> LoadingCard("Loading eligible services")
-            ContentState.Empty -> EmptyCard("No service yet", "Open Store to activate one", onRetry)
+            ContentState.Loading -> LoadingCard(stringResource(R.string.servers_loading))
+            ContentState.Empty -> EmptyCard(
+                stringResource(R.string.servers_empty_title),
+                stringResource(R.string.servers_empty_body),
+                onRetry,
+            )
             ContentState.AuthRequired -> AuthCard(onRetry)
             is ContentState.Error -> ErrorCard(services.failure, onRetry)
             is ContentState.Ready -> services.items.forEach { service ->
                 ContentCard(
-                    accent = if (service.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    accent = if (service.isActive) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
                 ) {
                     Text(service.displayName, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(
-                        "${service.countryCode ?: "Global"} • ${service.allowedProtocols.joinToString()}",
+                        "${service.countryCode ?: stringResource(R.string.common_global)} • ${service.allowedProtocols.joinToString()}",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -126,14 +148,20 @@ internal fun SmartRoutingScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(if (service.isActive) "Smart connect" else service.status.name)
+                        Text(
+                            if (service.isActive) {
+                                stringResource(R.string.servers_smart_connect)
+                            } else {
+                                serviceStatusText(service.status)
+                            },
+                        )
                     }
                 }
                 Spacer(Modifier.height(2.dp))
             }
         }
         Text(
-            "Server choice and profile issuance are revalidated by the backend for this entitlement.",
+            stringResource(R.string.servers_backend_verified),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -166,7 +194,11 @@ internal fun ConnectionDashboard(
     }
 
     Page(modifier) {
-        AppHeader("GANJ VPN", "Secure. Fast. Yours.", onRetry)
+        AppHeader(
+            stringResource(R.string.connect_title),
+            stringResource(R.string.connect_subtitle),
+            onRetry,
+        )
         Spacer(Modifier.height(22.dp))
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -183,7 +215,7 @@ internal fun ConnectionDashboard(
             )
         }
         Text(
-            text = service?.displayName ?: "No service selected",
+            text = service?.displayName ?: stringResource(R.string.connect_no_service),
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -193,7 +225,7 @@ internal fun ConnectionDashboard(
                 onClick = onOpenServices,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             ) {
-                Text("Choose my service")
+                Text(stringResource(R.string.connect_choose_service))
             }
         }
         when (connection) {
@@ -205,12 +237,12 @@ internal fun ConnectionDashboard(
         }
         Spacer(Modifier.height(12.dp))
         ContentCard(accent = MaterialTheme.colorScheme.primary) {
-            Text("Device-bound", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.connect_device_bound), fontWeight = FontWeight.Bold)
             Text(
                 if (connection is ConnectionUiState.Connected) {
-                    "The verified device profile is active only inside the VPN runtime."
+                    stringResource(R.string.connect_device_bound_active)
                 } else {
-                    "The app sends only your selected service identity into the connection flow."
+                    stringResource(R.string.connect_device_bound_idle)
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
@@ -229,11 +261,19 @@ internal fun StoreScreen(
     modifier: Modifier = Modifier,
 ) {
     Page(modifier) {
-        AppHeader("Ganj Store", "Backend-verified subscriptions", onRetry)
+        AppHeader(
+            stringResource(R.string.store_title),
+            stringResource(R.string.store_subtitle),
+            onRetry,
+        )
         Spacer(Modifier.height(10.dp))
         when (val catalog = state.catalog) {
-            ContentState.Loading -> LoadingCard("Loading plans")
-            ContentState.Empty -> EmptyCard("No plans available", "Try again in a moment", onRetry)
+            ContentState.Loading -> LoadingCard(stringResource(R.string.store_loading))
+            ContentState.Empty -> EmptyCard(
+                stringResource(R.string.store_empty_title),
+                stringResource(R.string.store_empty_body),
+                onRetry,
+            )
             ContentState.AuthRequired -> AuthCard(onRetry)
             is ContentState.Error -> ErrorCard(catalog.failure, onRetry)
             is ContentState.Ready -> catalog.items.forEach { product ->
@@ -247,7 +287,7 @@ internal fun StoreScreen(
             onRetry = { state.selectedPlan?.let(onPurchase) ?: onRetry() },
         )
         Text(
-            "Service access becomes active only after provider and backend verification.",
+            stringResource(R.string.store_verification_notice),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp,
         )
@@ -274,14 +314,15 @@ internal fun PlanCard(
             androidx.compose.foundation.layout.Column {
                 Text(product.title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    product.tier.name,
+                    tierText(product.tier),
                     color = if (premium) GanjGold else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.End) {
                 Text(formatPrice(product), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    product.durationDays?.let { "$it days" } ?: "Service plan",
+                    product.durationDays?.let { stringResource(R.string.plan_days, it) }
+                        ?: stringResource(R.string.plan_service),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                 )
@@ -296,7 +337,13 @@ internal fun PlanCard(
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ),
         ) {
-            Text(if (selected) "Continue with Google Play" else "Choose with Google Play")
+            Text(
+                if (selected) {
+                    stringResource(R.string.plan_continue_google_play)
+                } else {
+                    stringResource(R.string.plan_choose_google_play)
+                },
+            )
         }
     }
 }
@@ -310,7 +357,7 @@ internal fun CheckoutStatus(
         CheckoutUiState.Idle -> Unit
         CheckoutUiState.AuthRequired -> AuthCard(onRetry)
         is CheckoutUiState.Pending -> ContentCard(accent = GanjWarning) {
-            Text("Payment pending", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.checkout_pending_title), fontWeight = FontWeight.Bold)
             Text(
                 checkoutActionText(checkout.action),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -318,17 +365,17 @@ internal fun CheckoutStatus(
             )
         }
         is CheckoutUiState.Verified -> ContentCard(accent = MaterialTheme.colorScheme.secondary) {
-            Text("Payment verified", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.checkout_verified_title), fontWeight = FontWeight.Bold)
             Text(
-                "Waiting for the activated service to sync",
+                stringResource(R.string.checkout_verified_body),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
         }
         is CheckoutUiState.Active -> ContentCard(accent = MaterialTheme.colorScheme.primary) {
-            Text("Subscription active", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.checkout_active_title), fontWeight = FontWeight.Bold)
             Text(
-                "Your service is ready in My Services",
+                stringResource(R.string.checkout_active_body),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -353,11 +400,19 @@ internal fun MyServicesScreen(
     modifier: Modifier = Modifier,
 ) {
     Page(modifier) {
-        AppHeader("My services", "Synced from your Ganj account", onRetry)
+        AppHeader(
+            stringResource(R.string.account_title),
+            stringResource(R.string.account_subtitle),
+            onRetry,
+        )
         Spacer(Modifier.height(10.dp))
         when (val services = state.services) {
-            ContentState.Loading -> LoadingCard("Loading services")
-            ContentState.Empty -> EmptyCard("No subscription yet", "Choose a plan to get started", onBuy)
+            ContentState.Loading -> LoadingCard(stringResource(R.string.account_loading))
+            ContentState.Empty -> EmptyCard(
+                stringResource(R.string.account_empty_title),
+                stringResource(R.string.account_empty_body),
+                onBuy,
+            )
             ContentState.AuthRequired -> AuthCard(onRetry)
             is ContentState.Error -> ErrorCard(services.failure, onRetry)
             is ContentState.Ready -> services.items.forEach { service ->
@@ -370,7 +425,9 @@ internal fun MyServicesScreen(
                 Spacer(Modifier.height(4.dp))
             }
         }
-        Button(onClick = onBuy, modifier = Modifier.fillMaxWidth()) { Text("Buy another subscription") }
+        Button(onClick = onBuy, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.account_buy_another))
+        }
         Spacer(Modifier.height(14.dp))
         EnterpriseStatusCard(enterpriseState.availability, onEnterpriseRefresh)
         if (enterpriseState.features.bugReportsEnabled) {
@@ -404,14 +461,14 @@ internal fun ServiceCard(
             androidx.compose.foundation.layout.Column {
                 Text(service.displayName, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    service.status.name,
+                    serviceStatusText(service.status),
                     color = if (service.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                 )
             }
             if (selected) {
                 Text(
-                    "SELECTED",
+                    stringResource(R.string.account_selected_badge),
                     color = MaterialTheme.colorScheme.primary,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
@@ -419,7 +476,7 @@ internal fun ServiceCard(
             }
         }
         Text(
-            "${formatTraffic(service.remainingBytes)} • ${service.deviceLimit} devices allowed",
+            "${formatTraffic(service.remainingBytes)} • ${stringResource(R.string.account_devices_allowed, service.deviceLimit)}",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp,
         )
@@ -429,14 +486,20 @@ internal fun ServiceCard(
                 enabled = service.isActive,
                 modifier = Modifier.weight(1f),
             ) {
-                Text(if (selected) "Selected" else "Use plan")
+                Text(
+                    if (selected) {
+                        stringResource(R.string.common_selected)
+                    } else {
+                        stringResource(R.string.account_use_plan)
+                    },
+                )
             }
             Button(
                 onClick = onConnect,
                 enabled = service.isActive && selected,
                 modifier = Modifier.weight(1f),
             ) {
-                Text("Connect")
+                Text(stringResource(R.string.common_connect))
             }
         }
     }
