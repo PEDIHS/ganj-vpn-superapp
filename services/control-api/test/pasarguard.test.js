@@ -188,6 +188,38 @@ test('PasarGuard plain multi-protocol inventory normalizes VMess gRPC and Trojan
   ]);
 });
 
+test('PasarGuard rejects WebSocket REALITY inventory before Android profile issuance', async () => {
+  const realityWebSocket =
+    `vless://${VLESS_ID}@de1.example.com:443?type=ws&security=reality&sni=edge.example.com&fp=chrome&pbk=${'A'.repeat(43)}&sid=aabbccdd&path=%2Fws`;
+  const adapter = new PasarGuardLiveServiceAdapter({
+    fetchImpl: upstreamFetch({ subscriptionBody: `${realityWebSocket}\n` }),
+  });
+
+  await assert.rejects(
+    () => adapter.listSafeNodes({ connector: CONNECTOR, serviceUsername: 'customer_101' }),
+    (error) => error?.code === 'pasarguard_subscription_unsupported',
+  );
+});
+
+test('PasarGuard accepts standard SIP002 Shadowsocks userinfo with supported strong credential', async () => {
+  const shadowsocks = 'ss://aes-256-gcm:strong-password@ss1.example.com:443#Secure';
+  const adapter = new PasarGuardLiveServiceAdapter({
+    fetchImpl: upstreamFetch({ subscriptionBody: `${shadowsocks}\n` }),
+  });
+
+  const list = await adapter.listSafeNodes({ connector: CONNECTOR, serviceUsername: 'customer_101' });
+  assert.equal(list.nodes.length, 1);
+  assert.equal(list.nodes[0].protocol, 'shadowsocks');
+
+  const resolved = await adapter.resolveConnection({
+    connector: CONNECTOR,
+    serviceUsername: 'customer_101',
+    nodeId: list.nodes[0].id,
+  });
+  assert.equal(resolved.connection.shadowsocks_method, 'aes-256-gcm');
+  assert.equal(resolved.connection.credential, 'strong-password');
+});
+
 test('PasarGuard rejects insecure connector configuration and invalid constructor limits', async () => {
   assert.throws(
     () => new PasarGuardLiveServiceAdapter({ fetchImpl: upstreamFetch(), timeoutMs: 100 }),
