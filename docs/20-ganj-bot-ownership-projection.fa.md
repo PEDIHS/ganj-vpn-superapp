@@ -174,6 +174,42 @@ Runner فقط آمار page/count را log می‌کند:
 
 Telegram ID، external service ID، username، payload و secret نباید در log worker چاپ شوند.
 
+## تطبیق با Schema واقعی Ganj Bot 0.1.5.4
+
+بازبینی بسته عملیاتی ربات، mapping زیر را تأیید کرد. این اطلاعات فقط برای Bridge سمت Bot است و Control API همچنان نباید مستقیم به MySQL ربات متصل شود.
+
+| Contract | منبع Bot | قاعده |
+|---|---|---|
+| `external_customer_id` / `telegram_subject` | `invoice.id_user` | Telegram numeric ID به‌صورت decimal string؛ `user.username` کلید مالکیت نیست |
+| `external_service_id` | `invoice.id_invoice` | شناسه پایدار سرویس/فاکتور تجاری |
+| `external_service_username` | `invoice.username` | locator سرویس در PasarGuard/پنل؛ فقط metadata |
+| panel locator | `invoice.Service_location` | باید در Bridge به `connector_ref` غیرمحرمانه map شود؛ نام/URL/Token پنل به feed نمی‌رود |
+| نام محصول | `invoice.name_product` | فقط برای نمایش و یافتن mapping؛ کد Canonical از mapping مدیریت‌شده می‌آید |
+| حجم/مدت اولیه | `invoice.Volume` و `invoice.Service_time` | historical projection؛ وضعیت زنده از PasarGuard |
+| زمان خرید | `invoice.time_sell` | زمان ایجاد است، نه revision قابل‌اعتماد |
+| وضعیت تجاری | `invoice.Status` | با جدول mapping صریح به active/pending/disabled/expired/revoked تبدیل شود |
+
+جدول `product` دارای `code_product` است، اما `invoice` فقط `name_product` را نگه می‌دارد. Bridge باید یک mapping مدیریت‌شده و بدون حدس از ترکیب Bot/product/panel به `control_plans.code` داشته باشد. نام مشابه یا نبود mapping به conflict می‌رود.
+
+### Journal اجباری تغییرات
+
+Schema فعلی `invoice` ستون monotonic `updated_at` یا revision ندارد. تمدید/ارتقا، تغییر مالکیت و حذف می‌توانند `Volume`، `Service_time`، `name_product`، `id_user` یا `Status` را بدون تغییر `time_sell` عوض کنند. بنابراین pagination مستقیم روی `time_sell + id_invoice` برای sync افزایشی امن نیست.
+
+Bridge باید در دیتابیس ربات یک journal اختصاصی append-only (مثلاً `ganj_app_ownership_journal`) با sequence عددی monotonic ثبت کند. خرید، تمدید، ارتقا، انتقال مالکیت، disable/expire و delete باید یک row journal بسازند. الگوی event پیشنهادی:
+
+`invoice:<id_invoice>:journal:<sequence>`
+
+Cursor همان sequence است. ساخت snapshot در لحظه request یا استفاده از timestamp جاری برای event ID ممنوع است. اگر نصب ربات journal ندارد، Bridge باید fail-closed شود یا full snapshot reconciliation جدا اجرا کند؛ نباید تغییرات را با cursor ظاهراً موفق گم کند.
+
+### فیلدهای ممنوع نسخه فعلی Bot
+
+- `invoice.uuid`، `invoice.user_info` و محتوای `manualsell`؛
+- `service_other.value` و `service_other.output` چون ممکن است config، پاسخ Provider یا داده پرداخت داشته باشند؛
+- هر credential/base URL/token از `marzban_panel`؛
+- `user.token`، headerهای API و داده‌های `logs_api`.
+
+Endpoint جدید نباید از logger عمومی API فعلی که header/body را کامل ذخیره می‌کند عبور کند. احراز هویت Bridge باید قبل از routing و با logging فقط count/status انجام شود.
+
 ## پیاده‌سازی سمت Bot
 
 Endpoint PHP باید با queryهای واقعی نسخه فعلی Bot نوشته شود. نام جدول/ستون نباید در Control API hardcode شود. Bridge داخل Bot مسئول map کردن schema جاری (`service_other`/محصول/کاربر/panel binding مطابق نسخه نصب‌شده) به Contract بالا است.
