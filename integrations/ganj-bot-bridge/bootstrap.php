@@ -19,6 +19,14 @@ function ganjAppBridgeConfig(): array
     return $config = $loaded;
 }
 
+function ganjAppBridgeTruncate(string $value, int $limit): string
+{
+    if ($limit < 1 || preg_match('//u', $value) !== 1) return '';
+    if (function_exists('mb_substr')) return mb_substr($value, 0, $limit, 'UTF-8');
+    if (preg_match('/^.{0,' . $limit . '}/us', $value, $match) !== 1) return '';
+    return $match[0];
+}
+
 function ganjAppBridgeSecret(string $path): string
 {
     $real = realpath($path);
@@ -42,7 +50,8 @@ function ganjAppBridgeRequest(string $action, string $requestToken): bool
     $base = rtrim((string)($config['control_api_url'] ?? ''), '/');
     $parts = parse_url($base);
     if (!is_array($parts) || ($parts['scheme'] ?? '') !== 'https' || empty($parts['host'])
-        || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+        || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+        || !empty($parts['path'])) {
         throw new RuntimeException('Control API URL is invalid.');
     }
     if (!extension_loaded('curl')) throw new RuntimeException('PHP cURL extension is required.');
@@ -55,7 +64,7 @@ function ganjAppBridgeRequest(string $action, string $requestToken): bool
     if (!preg_match('/^[A-Za-z0-9_]{5,32}$/D', $username)) $username = null;
     $displayName = trim(strip_tags((string)($GLOBALS['first_name'] ?? '')));
     if ($displayName === '') $displayName = null;
-    if ($displayName !== null) $displayName = mb_substr($displayName, 0, 160, 'UTF-8');
+    if ($displayName !== null) $displayName = ganjAppBridgeTruncate($displayName, 160) ?: null;
 
     $payload = [
         'request_token' => $requestToken,
@@ -68,6 +77,7 @@ function ganjAppBridgeRequest(string $action, string $requestToken): bool
     $token = ganjAppBridgeSecret((string)($config['approval_token_file'] ?? ''));
 
     $handle = curl_init($base . '/v1/internal/telegram/bot/approval');
+    if ($handle === false) return false;
     curl_setopt_array($handle, [
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $encoded,
@@ -125,7 +135,11 @@ function ganjAppBridgeHandle(): bool
 
     if (!preg_match('/^ga_([ac])_([A-Za-z0-9_-]{43})$/D', $callback, $match)) return false;
     $action = $match[1] === 'a' ? 'approve' : 'cancel';
-    $ok = ganjAppBridgeRequest($action, $match[2]);
+    try {
+        $ok = ganjAppBridgeRequest($action, $match[2]);
+    } catch (Throwable $error) {
+        $ok = false;
+    }
     if (!empty($GLOBALS['callback_query_id'])) {
         telegram('answerCallbackQuery', [
             'callback_query_id' => $GLOBALS['callback_query_id'],
