@@ -13,6 +13,7 @@ import com.ganj.vpn.core.controlapi.Money
 import com.ganj.vpn.core.controlapi.OrderStatus
 import com.ganj.vpn.core.controlapi.PurchaseChannel
 import com.ganj.vpn.core.controlapi.ResponseMetadata
+import com.ganj.vpn.core.controlapi.ServerStatus
 import com.ganj.vpn.core.controlapi.ServiceStatus
 import com.ganj.vpn.core.controlapi.SubscriptionTier
 import com.ganj.vpn.core.controlapi.UserService
@@ -29,10 +30,11 @@ import org.junit.Test
 
 class GanjControllerTest {
     @Test
-    fun `refresh resolves catalog and services without mock state`() {
+    fun `refresh resolves catalog services and servers without mock state`() {
         val repository = FakeRepository(
             catalogResult = success(listOf(product())),
             servicesResult = success(listOf(service())),
+            serversResult = success(listOf(server())),
         )
         val controller = controller(repository)
 
@@ -40,9 +42,11 @@ class GanjControllerTest {
 
         assertEquals(PLAN_ID, state.selectedPlanId)
         assertEquals(SERVICE_ID, state.selectedEntitlementId)
+        assertEquals(SERVER_ID, state.selectedServerId)
         assertFalse(state.refreshInProgress)
         assertEquals(1, state.plans.size)
         assertEquals(1, state.serviceItems.size)
+        assertEquals(1, state.serverItems.size)
     }
 
     @Test
@@ -128,6 +132,7 @@ class GanjControllerTest {
     fun `fulfilled checkout becomes active only after backend service sync`() {
         val repository = FakeRepository(
             servicesResult = success(listOf(service())),
+            serversResult = success(listOf(server())),
             checkoutResult = success(order(OrderStatus.FULFILLED, SERVICE_ID)),
         )
         val billing = FakeBilling(BillingStartResult.Pending(CheckoutSafeAction.WaitForProvider))
@@ -139,24 +144,32 @@ class GanjControllerTest {
 
         assertEquals(CheckoutUiState.Active(PLAN_ID, SERVICE_ID), state.checkout)
         assertEquals(SERVICE_ID, state.selectedEntitlementId)
+        assertEquals(SERVER_ID, state.selectedServerId)
         assertEquals(0, billing.calls)
     }
 
     @Test
-    fun `connection UI supplies only entitlement and controller creates bound command`() {
+    fun `connection binds selected entitlement and server into device proof context`() {
         val repository = FakeRepository(
             profileResult = ApiResult.Failure(ApiError.Forbidden("request-403", "device_denied")),
         )
-        var contextInput: String? = null
-        val contextProvider = ConnectionProfileContextProvider { entitlementId ->
-            contextInput = entitlementId
-            ConnectionProfileContext(DEVICE_ID, SERVER_ID, NONCE, DEVICE_PROOF)
+        var contextEntitlement: String? = null
+        var contextServer: String? = null
+        val contextProvider = object : ConnectionProfileContextProvider {
+            override fun forEntitlement(entitlementId: String): ConnectionProfileContext? = null
+
+            override fun forConnection(entitlementId: String, serverId: String): ConnectionProfileContext {
+                contextEntitlement = entitlementId
+                contextServer = serverId
+                return ConnectionProfileContext(DEVICE_ID, SERVER_ID, NONCE, DEVICE_PROOF)
+            }
         }
         val controller = controller(repository, connectionContext = contextProvider)
 
         val state = controller.prepareConnection(stateWithService(), SERVICE_ID)
 
-        assertEquals(SERVICE_ID, contextInput)
+        assertEquals(SERVICE_ID, contextEntitlement)
+        assertEquals(SERVER_ID, contextServer)
         assertEquals(SERVICE_ID, repository.profileCommand?.serviceId)
         assertEquals(DEVICE_ID, repository.profileCommand?.deviceId)
         assertEquals(SERVER_ID, repository.profileCommand?.serverId)
@@ -184,6 +197,32 @@ class GanjControllerTest {
             "connection.service_inactive",
             (state.connection as ConnectionUiState.Failed).failure.messageKey,
         )
+    }
+
+    @Test
+    fun `active entitlement without compatible server fails before device proof`() {
+        var contextCalled = false
+        val repository = FakeRepository()
+        val controller = controller(
+            repository,
+            connectionContext = ConnectionProfileContextProvider {
+                contextCalled = true
+                null
+            },
+        )
+        val stateWithoutServer = stateWithService().copy(
+            servers = ContentState.Empty,
+            selectedServerId = null,
+        )
+
+        val state = controller.prepareConnection(stateWithoutServer, SERVICE_ID)
+
+        assertFalse(contextCalled)
+        assertNull(repository.profileCommand)
+        val failed = state.connection as ConnectionUiState.Failed
+        assertEquals(UiFailureKind.ENTITLEMENT, failed.failure.kind)
+        assertEquals("connection.server_unavailable", failed.failure.messageKey)
+        assertTrue(failed.failure.retryable)
     }
 
     @Test
@@ -222,15 +261,20 @@ class GanjControllerTest {
     private fun stateWithPlan() = GanjUiState(
         catalog = ContentState.Ready(listOf(planUi())),
         services = ContentState.Empty,
+        servers = ContentState.Empty,
         selectedPlanId = PLAN_ID,
     )
 
     private fun stateWithService(status: ServiceStatus = ServiceStatus.ACTIVE): GanjUiState {
-        val mapped = GanjPresentationMapper().services(success(listOf(service(status))))
+        val mapper = GanjPresentationMapper()
+        val mappedService = mapper.services(success(listOf(service(status))))
+        val mappedServer = mapper.servers(success(listOf(server())))
         return GanjUiState(
             catalog = ContentState.Empty,
-            services = mapped,
+            services = mappedService,
+            servers = mappedServer,
             selectedEntitlementId = if (status == ServiceStatus.ACTIVE) SERVICE_ID else null,
+            selectedServerId = SERVER_ID,
         )
     }
 
@@ -259,6 +303,20 @@ class GanjControllerTest {
         expiresAt = "2027-01-01T00:00:00Z",
         deviceLimit = 3,
         allowedProtocols = setOf(VpnProtocol.VLESS),
+    )
+
+    private fun server() = ManagedServer(
+        id = SERVER_ID,
+        code = "de-free-01",
+        name = "Germany 01",
+        countryCode = "DE",
+        city = "Frankfurt",
+        tier = SubscriptionTier.FREE,
+        status = ServerStatus.ACTIVE,
+        loadRatio = 0.25,
+        latencyHintMs = 42,
+        favorite = true,
+        protocols = setOf(VpnProtocol.VLESS),
     )
 
     private fun order(status: OrderStatus, entitlementId: String?) = CheckoutOrder(
