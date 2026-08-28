@@ -11,6 +11,10 @@ import com.ganj.vpn.core.controlapi.GuestSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshingAuthTokenProvider
 import com.ganj.vpn.core.controlapi.SessionCredentialVault
+import com.ganj.vpn.core.controlapi.TelegramAuthorizationCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalStatus
+import com.ganj.vpn.core.controlapi.TelegramBotAuthorization
+import com.ganj.vpn.core.controlapi.TelegramExchangeCommand
 import com.ganj.vpn.core.deviceidentity.DeviceIdentity
 import com.ganj.vpn.core.deviceidentity.DeviceProofRequest
 import com.ganj.vpn.presentation.CurrentUserIdProvider
@@ -62,6 +66,46 @@ internal class AndroidAuthSessionManager(
         current?.deviceId
     }
 
+    fun beginTelegramBot(command: TelegramAuthorizationCommand): ApiResult<TelegramBotAuthorization> = synchronized(lock) {
+        val token = validTokenLocked() ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationRequired())
+        api.beginTelegramBot(token, command)
+    }
+
+    fun telegramBotStatus(state: String): ApiResult<TelegramBotApprovalStatus> = synchronized(lock) {
+        val token = validTokenLocked() ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationRequired())
+        api.telegramBotStatus(token, state)
+    }
+
+    fun exchangeTelegramBot(command: TelegramExchangeCommand): ApiResult<AuthSessionCredentials> = synchronized(lock) {
+        val token = validTokenLocked() ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationRequired())
+        when (val result = api.exchangeTelegramBot(token, command)) {
+            is ApiResult.Failure -> result
+            is ApiResult.Success -> {
+                val persisted = persistLocked(result.value)
+                    ?: return@synchronized ApiResult.Failure(
+                        ApiError.Protocol(result.metadata.requestId, "Linked session persistence failed"),
+                    )
+                forceRefresh = false
+                ApiResult.Success(persisted, result.metadata)
+            }
+        }
+    }
+
+    fun logoutSession(): Boolean = synchronized(lock) {
+        val current = vault.restore()
+        val remote = if (current == null) {
+            true
+        } else {
+            when (val result = api.logout(current.accessToken)) {
+                is ApiResult.Success -> result.value
+                is ApiResult.Failure -> false
+            }
+        }
+        forceRefresh = false
+        vault.clear()
+        remote
+    }
+
     override fun onAuthenticationExpired(requestId: String?) {
         // Never perform I/O on the response callback. The next token read performs one serialized refresh.
         forceRefresh = true
@@ -70,6 +114,15 @@ internal class AndroidAuthSessionManager(
     fun clearLocalSession(): Result<Unit> = synchronized(lock) {
         forceRefresh = false
         vault.clear()
+    }
+
+    private fun validTokenLocked(): AccessToken? {
+        val current = vault.restore() ?: createGuestLocked() ?: return null
+        if (!forceRefresh && !expiresWithin(current.accessTokenExpiresAt, REFRESH_EARLY_MILLIS)) {
+            return current.accessToken
+        }
+        return refreshLocked(current)?.accessToken
+            ?: current.takeIf { !isExpired(it.accessTokenExpiresAt) }?.accessToken
     }
 
     private fun createGuestLocked(): AuthSessionCredentials? {
