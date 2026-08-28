@@ -1,181 +1,324 @@
 # Ganj Design System
 
+> **Canonical detailed specification:** [`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md)  
+> این فایل خلاصه اجرایی Design System است. در تعارض با نسخه‌های قدیمی، سند 15 مرجع نهایی UI/UX و Brand است.
+
 ## 1. Design Principles
 
 1. **Connection first:** مهم‌ترین Action همیشه در یک نگاه قابل تشخیص است.
 2. **Calm security:** امنیت با وضوح و ثبات منتقل می‌شود، نه هشدار و رنگ قرمز دائمی.
-3. **Progressive power:** قابلیت‌های حرفه‌ای بعد از نیاز کاربر آشکار می‌شوند.
-4. **Native behavior:** Gesture، Back، Haptic، Typography و Accessibility مطابق Platform است.
-5. **Honest premium:** Gold فقط برای Entitlement و Value واقعی است، نه تزئین همه صفحه.
+3. **Emerald identity:** سبز زمردی رنگ اصلی Brand و Action است.
+4. **Refined gold:** طلایی فقط Premium/Signature Accent است، نه رنگ غالب صفحه.
+5. **Neutral-first composition:** اکثر UI از Graphite/Warm Neutral surfaces ساخته می‌شود تا Emerald و Gold معنی داشته باشند.
+6. **Progressive power:** قابلیت‌های حرفه‌ای بعد از نیاز کاربر آشکار می‌شوند.
+7. **Native Android behavior:** Gesture، Back، Haptic، Typography و Accessibility مطابق Android است.
+8. **Honest premium:** Premium بودن از hierarchy، spacing، material و polish می‌آید؛ نه از طلایی‌کردن کل UI.
 
-## 2. Liquid Glass Usage
+## 2. Brand Color Lock
 
-طبق HIG، Liquid Glass یک لایهٔ Functional برای Navigation و Control است، نه Background تمام Cardها. در Ganj:
+لوگوی رسمی Ganj VPN از Emerald Green + Metallic Gold ساخته شده است. بنابراین:
 
-- Floating bottom bar و Connect control از Glass regular استفاده می‌کنند.
-- Sheetهای transient می‌توانند Glass داشته باشند.
-- Content cards از Surface مات و با کنتراست ثابت استفاده می‌کنند.
-- Clear glass فقط روی Hero background غنی و با Scrim کنترل‌شده مجاز است.
-- Reduce Transparency و Increase Contrast باید ظاهر جایگزین کامل داشته باشند.
+- `#0A84FF` و `#007AFF` دیگر Brand Primary نیستند؛
+- Material/iOS blue به‌عنوان رنگ اصلی ممنوع است؛
+- Emerald برای Primary CTA، selection و connection accents استفاده می‌شود؛
+- Gold برای premium badge، recommended plan، value/reward و hairline accent استفاده می‌شود؛
+- Neutral dark/light فضای غالب را تشکیل می‌دهد.
 
-مرجع: [Apple HIG — Materials](https://developer.apple.com/design/human-interface-guidelines/materials)
+### Representative Logo Palette
 
-## 3. Navigation
+Emerald:
 
-پنج Tab ثابت:
+- `#012009`
+- `#013A16`
+- `#01481D`
 
-| Tab | مسئولیت | Navigation icon |
-|---|---|---|
-| Home | داشبورد سرویس، Wallet shortcut و Banner | house |
-| Servers | Search/Filter/Favorite/Smart recommendation | globe/location |
-| Connect | کنترل اتصال و آمار زنده | power/tunnel |
-| Store | پلن‌ها، تمدید و خرید | bag |
-| Account | هویت، دستگاه‌ها، تراکنش و Settings | person |
+Gold:
 
-Connect در مرکز با اندازه و elevation بیشتر است، اما semantics آن همچنان یک Tab است و با Button لحظه‌ای اشتباه نمی‌شود.
+- `#B3710D`
+- `#CF9221`
+- `#D0B348`
+- `#F8D162`
+- `#FCF4B3`
 
-## 4. Color Tokens
+رنگ‌های Logo مستقیماً برای همه UI surfaces استفاده نمی‌شوند؛ tokenهای UI برای Contrast و Accessibility تنظیم شده‌اند.
+
+## 3. Color Tokens
 
 ### Dark
 
 | Token | Value | Use |
 |---|---|---|
-| `bg.canvas` | `#060A12` | صفحه اصلی |
-| `bg.elevated` | `#0D1424` | Surface |
-| `surface.primary` | `#111B2E` | Card |
-| `text.primary` | `#F5F7FB` | متن اصلی |
-| `text.secondary` | `#A8B3C7` | متن توضیح |
-| `brand.primary` | `#0A84FF` | CTA/Selection |
-| `state.connected` | `#30D158` | اتصال موفق |
-| `state.warning` | `#FFB340` | Load/Expiry |
-| `state.danger` | `#FF453A` | Error/Destructive |
-| `vip.start` | `#F8DF8B` | Gold gradient |
-| `vip.end` | `#B7791F` | Gold gradient |
+| `bg.canvas` | `#070A08` | صفحه اصلی |
+| `bg.elevated` | `#0B0F0C` | elevated canvas |
+| `surface.primary` | `#101712` | Card |
+| `surface.secondary` | `#151F18` | section/control surface |
+| `text.primary` | `#F4F7F3` | متن اصلی |
+| `text.secondary` | `#B3BDB5` | متن توضیح |
+| `brand.primary` | `#1DA15D` | Emerald CTA/Selection |
+| `brand.primaryBright` | `#2DC774` | active/highlight |
+| `brand.primaryDeep` | `#075C31` | container/depth |
+| `brand.gold` | `#D5A63A` | Premium accent |
+| `brand.goldBright` | `#F0CD70` | small highlight |
+| `state.connected` | `#3ACB7B` | اتصال موفق |
+| `state.info` | `#3AA58D` | Jade info |
+| `state.warning` | `#E0A33C` | warning |
+| `state.danger` | `#EA6269` | destructive/error |
 
 ### Light
 
 | Token | Value |
 |---|---|
-| `bg.canvas` | `#F6F8FC` |
-| `bg.elevated` | `#FFFFFF` |
+| `bg.canvas` | `#F7F8F4` |
+| `bg.elevated` | `#FBFCF8` |
 | `surface.primary` | `#FFFFFF` |
-| `text.primary` | `#0A1020` |
-| `text.secondary` | `#5F6B7A` |
-| `brand.primary` | `#007AFF` |
-| `state.connected` | `#248A3D` |
+| `surface.secondary` | `#F0F4EF` |
+| `text.primary` | `#121713` |
+| `text.secondary` | `#5E6961` |
+| `brand.primary` | `#08693A` |
+| `brand.primaryBright` | `#0F8B4C` |
+| `brand.primaryDeep` | `#044B2A` |
+| `brand.gold` | `#B98318` |
+| `brand.goldBright` | `#D8AA3D` |
+| `state.connected` | `#11834A` |
+| `state.info` | `#267E6D` |
+| `state.warning` | `#A86510` |
+| `state.danger` | `#C7434B` |
 
-رنگ به‌تنهایی حامل وضعیت نیست؛ Icon، Label و Shape هم تغییر می‌کنند.
+رنگ به‌تنهایی حامل وضعیت نیست؛ Icon، Label و Shape هم باید state را منتقل کنند.
 
-## 5. Typography
+## 4. Color Composition Rule
 
-- Persian: Vazirmatn variable، fallback سیستم؛
-- Latin/numeric: Roboto/System Sans در Android؛
+### Dark
+
+- 68–74% Neutral؛
+- 16–20% Emerald؛
+- 4–7% Gold؛
+- 3–6% Semantic/illustration.
+
+### Light
+
+- 74–80% Neutral؛
+- 12–17% Emerald؛
+- 3–5% Gold؛
+- 3–5% Semantic.
+
+این قانون مانع «فول طلایی» یا «فول سبز» شدن محصول می‌شود.
+
+## 5. Liquid Glass Usage
+
+Liquid Glass/Glassmorphism یک لایه Functional است، نه Background تمام Cardها.
+
+در Ganj:
+
+- Floating bottom bar می‌تواند Glass باشد؛
+- Connect floating control layer می‌تواند Glass محدود داشته باشد؛
+- Sheetهای transient می‌توانند Glass داشته باشند؛
+- Content cards عمدتاً Surface مات و با کنتراست ثابت هستند؛
+- Clear glass فقط روی Hero background غنی و با scrim کنترل‌شده مجاز است؛
+- Reduce Transparency/low-performance fallback باید opaque surface داشته باشد.
+
+Gold نباید به‌عنوان tint عمومی Glass استفاده شود. Emerald tint بسیار کم برای selected/active states مجاز است.
+
+## 6. Material 3 / M3 Expressive Policy
+
+Jetpack Compose Material 3 / Material 3 Expressive پایه رفتار Native Android است.
+
+- component behavior، motion و accessibility از Android گرفته می‌شود؛
+- palette پیش‌فرض Material استفاده نمی‌شود؛
+- Dynamic Color برای Brand Core به‌صورت پیش‌فرض خاموش است؛
+- Android 16 edge-to-edge، predictive back و system UI behavior رعایت می‌شود.
+
+## 7. Navigation
+
+پنج Tab ثابت:
+
+| Tab | مسئولیت | Visual |
+|---|---|---|
+| Home | داشبورد سرویس و وضعیت | neutral + Emerald selected |
+| Servers | Search/Filter/Favorite/Smart recommendation | globe/location |
+| Connect | کنترل اتصال و آمار زنده | center emphasis، Emerald state |
+| Store | پلن‌ها، تمدید و خرید | Gold فقط premium micro-accent |
+| Account | هویت، دستگاه‌ها، تراکنش و Settings | person |
+
+Connect در مرکز prominence بیشتری دارد ولی نباید giant Gold orb شود.
+
+## 8. Typography
+
+- Persian: Vazirmatn Variable یا Persian UI font تاییدشده با license مناسب؛
+- Latin/numeric: Roboto/System Sans؛
 - اعداد شبکه با `tabularNums`؛
-- Minimum body: 14sp؛ default body: 16sp؛
-- Dynamic font scaling تا 200% بدون clip؛
-- SF Pro و SF Symbols در Android توزیع نمی‌شوند.
+- Body پیش‌فرض 15–16sp؛
+- user-facing production text کمتر از 14sp نشود؛
+- Dynamic font scaling تا 200% بدون critical clipping.
 
 | Style | Size/Line | Weight |
 |---|---|---|
-| Display | 34/42 | 700 |
+| Hero | 36/44 | 700 |
+| Display | 32/40 | 700 |
 | Title 1 | 28/36 | 700 |
-| Title 2 | 22/28 | 650 |
-| Headline | 17/24 | 600 |
-| Body | 16/24 | 400 |
-| Callout | 15/22 | 500 |
+| Title 2 | 24/32 | 650 |
+| Headline | 20/28 | 600 |
+| Body Large | 16/25 | 450 |
+| Body | 15/23 | 400 |
+| Label | 13–14/18–20 | 550–600 |
 | Caption | 12/18 | 500 |
 
-## 6. Icon System
+## 9. Icon System
 
-- Grid: 24×24؛ optical bounding box 20×20؛
+- Grid: 24×24؛
 - Stroke: 1.8–2.0dp، round cap/join؛
-- Filled variant فقط برای Tab انتخاب‌شده و State مهم؛
+- filled variant فقط برای Selected/important state؛
 - Minimum touch target: 48dp؛
-- مجموعه اختصاصی از SVGهای هم‌خانواده؛ مخلوط‌کردن کتابخانه‌های نامرتبط ممنوع؛
-- Flag کشور دارایی تزئینی است و همیشه نام کشور کنار آن می‌آید.
+- icons عمدتاً Neutral/Emerald؛
+- Gold فقط premium/reward؛
+- Blue icon family برای Brand ممنوع؛
+- Flag کشور همیشه همراه نام کشور.
 
-## 7. Connect Control
+## 10. Logo Variants Required
+
+برای Production باید چهار variant وجود داشته باشد:
+
+1. Full 3D Emerald/Gold برای Hero/Marketing؛
+2. Simplified flat product mark؛
+3. Android Adaptive App Icon؛
+4. Monochrome/Themed + Notification silhouette.
+
+Full 3D logo نباید در 24dp UI icon استفاده شود.
+
+## 11. Connect Control
 
 ### Disconnected
 
-- Surface خنثی، حلقه آبی کم‌رنگ؛
-- Label: «اتصال»؛
-- Secondary: آخرین یا Smart Server.
+- neutral surface؛
+- Emerald ring؛
+- label «اتصال»؛
+- secondary server context.
 
 ### Connecting
 
-- Ring progress نامعین فقط در مرحله کوتاه؛
-- مراحل متنی: «بررسی شبکه»، «انتخاب بهترین سرور»، «ساخت تونل»؛
-- Cancel تا قبل از Commit اتصال فعال است.
+- Emerald staged progress؛
+- مراحل متنی «بررسی شبکه» → «انتخاب بهترین مسیر» → «ایجاد اتصال امن»؛
+- cancel تا جایی که runtime اجازه می‌دهد.
 
 ### Connected
 
-- Emerald state با Check/Tunnel icon؛
-- Haptic success یک‌بار؛
-- نمایش Server، Duration و transfer local؛
-- Disconnect یک Action واضح اما بدون قرمز هشداردهنده.
+- Emerald success state؛
+- soft glow که سریع settle می‌شود؛
+- Server، Duration و local stats در صورت policy؛
+- Disconnect واضح.
+
+### Reconnecting
+
+- Jade/Amber cue؛
+- no panic red.
 
 ### Failed
 
-- Error code فنی پنهان در Details؛
-- پیام قابل اقدام: Retry، Change server، Check time، Support؛
-- هیچ Loop بی‌نهایت بدون اطلاع کاربر وجود ندارد.
+- Danger محدود؛
+- Retry، Change Server، Diagnostics/Support.
 
-## 8. Motion
+## 12. Motion
 
-| Motion | Duration | Curve |
+| Motion | Duration | Behavior |
 |---|---:|---|
-| Micro feedback | 120–180ms | ease-out |
-| Tab/content | 220–300ms | standard |
-| Sheet | 320–420ms | spring, low bounce |
-| Connection morph | 450–700ms | staged spring |
+| press | 90–140ms | tonal/scale subtle |
+| micro feedback | 140–190ms | ease-out |
+| tab/chip | 180–240ms | smooth |
+| content | 220–320ms | fade/slide |
+| sheet | 300–420ms | spring low bounce |
+| connection morph | 450–700ms | staged |
 
-- هدف 60fps؛ روی دستگاه 120Hz هماهنگ با Frame clock.
-- Blur و shader با Performance class کاهش می‌یابد.
-- Reduce Motion: Liquid morph به fade/scale کوتاه تبدیل می‌شود.
-- Animation هیچ‌گاه شروع واقعی اتصال را معطل نمی‌کند.
+- هدف 60fps؛ 120Hz compatible؛
+- Blur و shader با performance class کاهش می‌یابد؛
+- Reduce Motion → fade/short transition؛
+- animation شروع واقعی اتصال را معطل نمی‌کند؛
+- perpetual connected pulse ممنوع.
 
-## 9. Haptics
+## 13. Haptics
 
 - selection: انتخاب سرور/فیلتر؛
-- light impact: Connect press؛
-- success: اتصال کامل؛
-- warning: تغییر شبکه یا Reconnect؛
+- light impact: Connect؛
+- success: اتصال/خرید موفق؛
+- warning: attention-worthy network state؛
 - error: Failure نهایی؛
-- در Scroll، heartbeat یا هر frame ممنوع.
+- در Scroll، heartbeat یا reconnect loop ممنوع.
 
-## 10. RTL and Localization
-
-- فارسی RTL و English LTR از روز اول؛
-- IP، UUID، protocol و speed unit داخل Bidi isolation؛
-- واحدها: `MB/s`, `ms`, `GB` با NumberFormatter؛
-- متن داخل Bitmap و Icon ممنوع؛
-- طول German/Arabic برای QA layout در نظر گرفته می‌شود.
-
-## 11. Accessibility Checklist
-
-- Contrast حداقل WCAG AA؛
-- TalkBack order مطابق hierarchy؛
-- Connect state با live region کنترل‌شده؛
-- server row description شامل Country, access tier, latency, load و favorite state؛
-- همه gestureها جایگزین Button دارند؛
-- Reduce transparency/motion و high contrast تست می‌شوند.
-
-## 12. Key Screen Specs
+## 14. Key Screen Specs
 
 ### Home
 
-Header 64dp، Service card 156dp، Quick actions 2×2، Banner aspect 16:7، safe padding 20dp.
+- service status first؛
+- quick connect؛
+- expiry؛
+- recommended server؛
+- quick actions؛
+- campaign فقط context-aware و محدود.
 
 ### Servers
 
-Sticky search، chip filters، recommended section، country groups، row حداقل 64dp. Ping هر 30–60 ثانیه فقط در foreground تازه می‌شود.
+- sticky search؛
+- chip filters؛
+- Smart recommendation؛
+- row حداقل 64–72dp؛
+- ping فقط rate-limited در foreground.
+
+### Connect
+
+- responsive hero control 176–228dp بر اساس viewport؛
+- real runtime state؛
+- no raw profile.
 
 ### Store
 
-سه Plan card قابل مقایسه؛ VIP gradient محدود؛ Terms/renewal/cancel همیشه قبل از CTA قابل مشاهده.
+- plan cards neutral؛
+- recommended plan Gold rim/badge؛
+- CTA Emerald؛
+- Terms/renewal/cancel قبل از خرید واضح.
 
 ### Account
 
-Profile header، Plan/expiry، Wallet، Devices، Transactions، Telegram status، Settings و Privacy.
+- Profile؛
+- Telegram status؛
+- Services؛
+- Devices؛
+- Transactions؛
+- Privacy؛
+- Support؛
+- Settings.
 
+## 15. RTL and Localization
+
+- فارسی RTL و English LTR؛
+- IP/UUID/protocol/speed unit داخل Bidi isolation؛
+- هیچ user-facing hardcoded English در Production؛
+- strings از resources؛
+- pricing/date/latency locale-safe.
+
+## 16. Accessibility Checklist
+
+- Touch target حداقل 48dp؛
+- Contrast WCAG AA target؛
+- TalkBack order مطابق hierarchy؛
+- Connect state با live region کنترل‌شده؛
+- همه gestureها جایگزین Button دارند؛
+- Reduce motion/transparency؛
+- font scale تا 200%؛
+- Gold-on-white text فقط با contrast معتبر.
+
+## 17. Current Migration Requirement
+
+Branch `phase-7/android-ui-accessibility-v2` در حال حاضر palette آبی دارد. قبل از Final UI merge باید:
+
+- `GanjBlue` حذف شود؛
+- Emerald/Gold/Neutral scheme وارد شود؛
+- navigation selected state Emerald شود؛
+- premium Gold محدود باشد؛
+- Light/Dark + fa/en + RTL + Accessibility review شود.
+
+## 18. منابع
+
+- Apple HIG — Design Principles / Materials / Color
+- Android Developers — Material 3 / Material 3 Expressive
+- Android Developers — Accessibility / Core App Quality
+
+جزئیات کامل و Acceptance Criteria در [`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md) ثبت شده است.
