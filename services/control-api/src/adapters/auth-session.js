@@ -525,12 +525,13 @@ export class PostgresAuthSessionStore {
   async rotateRefresh(value) {
     return this.transaction(async (client) => {
       const result = await client.query(
-        `SELECT r.*, u.status AS user_status, d.status AS device_status
+        `SELECT r.*, u.status AS user_status, d.status AS device_status, s.auth_method
            FROM control_refresh_tokens r
            JOIN control_users u ON u.id = r.user_id
            JOIN control_devices d ON d.id = r.device_id AND d.user_id = r.user_id
+           JOIN control_auth_sessions s ON s.session_id = r.session_id
           WHERE r.token_hash = $1 AND r.device_id = $2
-          FOR UPDATE OF r, u, d`,
+          FOR UPDATE OF r, u, d, s`,
         [value.tokenHash, value.deviceId],
       );
       if (result.rowCount !== 1) return { status: 'invalid' };
@@ -644,6 +645,9 @@ export class PostgresAuthSessionStore {
           'UPDATE control_refresh_tokens SET revoked_at = COALESCE(revoked_at, $2) WHERE user_id = $1',
           [currentUserId, now],
         );
+        await client.query('DELETE FROM control_refresh_tokens WHERE user_id = $1', [currentUserId]);
+        await client.query('DELETE FROM control_auth_sessions WHERE user_id = $1', [currentUserId]);
+        await client.query('DELETE FROM control_device_proof_nonces WHERE user_id = $1 AND device_id = $2', [currentUserId, deviceId]);
         await client.query('UPDATE control_devices SET user_id = $2 WHERE id = $1', [deviceId, targetUserId]);
         await client.query("UPDATE control_users SET status = 'deleted', updated_at = $2 WHERE id = $1", [currentUserId, now]);
         return { userId: targetUserId };
