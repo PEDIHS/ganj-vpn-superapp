@@ -14,6 +14,31 @@ const NON_ENTITLED_STATES = new Set([
   'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED',
 ]);
 
+/**
+ * Converts Google's authoritative SubscriptionPurchaseV2 state into the only service mutation
+ * the control plane is allowed to perform. Pending purchases (including a cancelled pending
+ * replacement/prepaid transaction) deliberately preserve the current entitlement; they never
+ * activate a service and must not revoke an entitlement that may belong to a linked purchase.
+ */
+export function classifyPlaySubscriptionLifecycle({ state, expiresAt, nowEpochMillis = Date.now() }) {
+  if (!ENTITLED_STATES.has(state) && !NON_ENTITLED_STATES.has(state)) {
+    throw new Error('Android Publisher returned an unknown subscription state.');
+  }
+  const unexpired = typeof expiresAt === 'string'
+    && Number.isFinite(Date.parse(expiresAt))
+    && Date.parse(expiresAt) > nowEpochMillis;
+  if (ENTITLED_STATES.has(state)) {
+    return { entitled: unexpired, serviceDisposition: unexpired ? 'active' : 'expired' };
+  }
+  if (state === 'SUBSCRIPTION_STATE_PENDING' || state === 'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED') {
+    return { entitled: false, serviceDisposition: 'preserve' };
+  }
+  if (state === 'SUBSCRIPTION_STATE_EXPIRED') {
+    return { entitled: false, serviceDisposition: 'expired' };
+  }
+  return { entitled: false, serviceDisposition: 'disabled' };
+}
+
 function base64url(value) { return Buffer.from(JSON.stringify(value)).toString('base64url'); }
 
 export class GoogleServiceAccountAccessTokenProvider {
@@ -123,11 +148,12 @@ export class GooglePlayPurchaseVerifier {
     const expiresAt = latestExpiry(document);
     const packageMatches = !document.packageName || document.packageName === this.packageName;
     const productMatches = products.has(productId);
-    const timeValid = expiresAt && Date.parse(expiresAt) > this.clock().getTime();
-    const entitled = packageMatches && productMatches && ENTITLED_STATES.has(state) && timeValid;
-    if (!ENTITLED_STATES.has(state) && !NON_ENTITLED_STATES.has(state)) {
-      throw new Error('Android Publisher returned an unknown subscription state.');
-    }
+    const lifecycle = classifyPlaySubscriptionLifecycle({
+      state,
+      expiresAt,
+      nowEpochMillis: this.clock().getTime(),
+    });
+    const entitled = packageMatches && productMatches && lifecycle.entitled;
     return {
       valid: entitled,
       entitled,
@@ -138,6 +164,8 @@ export class GooglePlayPurchaseVerifier {
       externalTransactionId: document.latestOrderId ?? null,
       requiresAcknowledgement: entitled && document.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_PENDING',
       linkedPurchaseToken: document.linkedPurchaseToken ?? null,
+      serviceDisposition: entitled ? lifecycle.serviceDisposition :
+        (packageMatches && productMatches ? lifecycle.serviceDisposition : 'preserve'),
     };
   }
 
