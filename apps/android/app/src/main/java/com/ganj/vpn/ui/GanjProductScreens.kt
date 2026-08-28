@@ -89,12 +89,22 @@ internal fun HomeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             state.selectedService?.let { service ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GanjInfoChip(text = tierText(service.tier))
-                    GanjInfoChip(
-                        text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
-                        accent = MaterialTheme.colorScheme.primary,
-                    )
+                if (stackActions) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GanjInfoChip(text = tierText(service.tier))
+                        GanjInfoChip(
+                            text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
+                            accent = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GanjInfoChip(text = tierText(service.tier))
+                        GanjInfoChip(
+                            text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
+                            accent = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
             Button(onClick = onOpenConnect, modifier = Modifier.fillMaxWidth()) {
@@ -335,7 +345,6 @@ internal fun ConnectionDashboard(
                 horizontalArrangement = Arrangement.Center,
             ) {
                 GanjInfoChip(text = tierText(it.tier))
-                Spacer(Modifier.height(1.dp))
             }
         }
         if (service == null) {
@@ -355,10 +364,9 @@ internal fun ConnectionDashboard(
         }
         ContentCard(accent = MaterialTheme.colorScheme.primary) {
             GanjStatusPill(
-                text = stringResource(R.string.visual_device_verified),
+                text = stringResource(R.string.connect_device_bound),
                 tone = GanjStatusTone.Positive,
             )
-            Text(stringResource(R.string.connect_device_bound), fontWeight = FontWeight.Bold)
             Text(
                 if (connection is ConnectionUiState.Connected) {
                     stringResource(R.string.connect_device_bound_active)
@@ -434,20 +442,35 @@ internal fun PlanCard(
         accent = if (premium) GanjGold else MaterialTheme.colorScheme.primary,
         modifier = Modifier.clickable { onSelect(product.id) },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            GanjStatusPill(
-                text = if (premium) stringResource(R.string.visual_signature) else tierText(product.tier),
-                tone = if (premium) GanjStatusTone.Premium else GanjStatusTone.Positive,
-            )
-            if (selected) {
+        if (stackActions) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 GanjStatusPill(
-                    text = stringResource(R.string.common_selected),
-                    tone = GanjStatusTone.Positive,
+                    text = if (premium) stringResource(R.string.visual_signature) else tierText(product.tier),
+                    tone = if (premium) GanjStatusTone.Premium else GanjStatusTone.Positive,
                 )
+                if (selected) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.common_selected),
+                        tone = GanjStatusTone.Positive,
+                    )
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GanjStatusPill(
+                    text = if (premium) stringResource(R.string.visual_signature) else tierText(product.tier),
+                    tone = if (premium) GanjStatusTone.Premium else GanjStatusTone.Positive,
+                )
+                if (selected) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.common_selected),
+                        tone = GanjStatusTone.Positive,
+                    )
+                }
             }
         }
         if (stackActions) {
@@ -459,7 +482,7 @@ internal fun PlanCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PlanIdentity(product = product, premium = premium)
+                PlanIdentity(product = product, premium = premium, modifier = Modifier.weight(1f))
                 PlanPrice(product = product, horizontalAlignment = Alignment.End)
             }
         }
@@ -489,8 +512,12 @@ internal fun PlanCard(
 }
 
 @Composable
-private fun PlanIdentity(product: PlanUiModel, premium: Boolean) {
-    Column {
+private fun PlanIdentity(
+    product: PlanUiModel,
+    premium: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
         Text(
             product.title,
             style = MaterialTheme.typography.titleLarge,
@@ -642,11 +669,7 @@ internal fun ServiceCard(
             else -> MaterialTheme.colorScheme.primary
         },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        if (stackActions) {
             ServiceIdentity(service = service)
             if (selected) {
                 GanjStatusPill(
@@ -654,29 +677,69 @@ internal fun ServiceCard(
                     tone = GanjStatusTone.Positive,
                 )
             }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GanjStatusPill(
-                text = if (service.isActive) {
-                    stringResource(R.string.visual_active_service)
-                } else {
-                    serviceStatusText(service.status)
-                },
-                tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Danger,
-            )
-            if (service.tier == UiTier.VIP) {
-                GanjStatusPill(
-                    text = stringResource(R.string.visual_signature),
-                    tone = GanjStatusTone.Premium,
-                )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ServiceIdentity(service = service, modifier = Modifier.weight(1f))
+                if (selected) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.visual_selected_service),
+                        tone = GanjStatusTone.Positive,
+                    )
+                }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GanjInfoChip(text = formatTraffic(service.remainingBytes))
-            GanjInfoChip(
-                text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
-                accent = MaterialTheme.colorScheme.primary,
-            )
+        if (stackActions) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GanjStatusPill(
+                    text = if (service.isActive) {
+                        stringResource(R.string.visual_active_service)
+                    } else {
+                        serviceStatusText(service.status)
+                    },
+                    tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Danger,
+                )
+                if (service.tier == UiTier.VIP) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.visual_signature),
+                        tone = GanjStatusTone.Premium,
+                    )
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GanjInfoChip(text = formatTraffic(service.remainingBytes))
+                GanjInfoChip(
+                    text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
+                    accent = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GanjStatusPill(
+                    text = if (service.isActive) {
+                        stringResource(R.string.visual_active_service)
+                    } else {
+                        serviceStatusText(service.status)
+                    },
+                    tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Danger,
+                )
+                if (service.tier == UiTier.VIP) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.visual_signature),
+                        tone = GanjStatusTone.Premium,
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GanjInfoChip(text = formatTraffic(service.remainingBytes))
+                GanjInfoChip(
+                    text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
+                    accent = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
         if (stackActions) {
             Column(
@@ -735,8 +798,11 @@ internal fun ServiceCard(
 }
 
 @Composable
-private fun ServiceIdentity(service: ServiceUiModel) {
-    Column(modifier = Modifier.weight(1f)) {
+private fun ServiceIdentity(
+    service: ServiceUiModel,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
         Text(
             service.displayName,
             style = MaterialTheme.typography.titleMedium,
