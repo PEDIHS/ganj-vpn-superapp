@@ -31,7 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +46,12 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -78,29 +84,19 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val DeepNavy = Color(0xFF06111F)
-private val SurfaceNavy = Color(0xFF0C1C30)
-private val IosBlue = Color(0xFF0A84FF)
-private val Emerald = Color(0xFF30D158)
-private val Gold = Color(0xFFFFC857)
-private val Danger = Color(0xFFFF5A67)
-private val Muted = Color(0xFF92A4B8)
-
-private val GanjDarkScheme = darkColorScheme(
-    primary = IosBlue,
-    secondary = Emerald,
-    background = DeepNavy,
-    surface = SurfaceNavy,
-    onBackground = Color.White,
-    onSurface = Color.White,
-)
+private val DeepNavy = Color(0xFF0A1019)
+private val IosBlue = GanjBlue
+private val Emerald = GanjGreen
+private val Gold = GanjAmber
+private val Danger = GanjRed
+private val Muted = Color(0xFF6C7583)
 
 private enum class AppTab(val title: String) {
-    HOME("Home"),
-    SERVERS("Servers"),
-    CONNECT("Connect"),
-    STORE("Store"),
-    ACCOUNT("Account"),
+    HOME("خانه"),
+    SERVERS("سرورها"),
+    CONNECT("اتصال"),
+    STORE("فروشگاه"),
+    ACCOUNT("حساب"),
 }
 
 @Composable
@@ -109,7 +105,7 @@ fun GanjVpnApp(
     onLaunchGooglePlay: suspend (CheckoutActionHandle) -> CheckoutEffectResult,
     onLaunchVpn: suspend (ConnectionActionHandle) -> ConnectionEffectResult,
 ) {
-    MaterialTheme(colorScheme = GanjDarkScheme) {
+    GanjTheme {
         val controller = remember(composition) { composition.controller }
         val reducer = remember(composition) { composition.reducer }
         val enterpriseController = remember(composition) { composition.enterpriseController }
@@ -242,7 +238,7 @@ fun GanjVpnApp(
                 onRetry = ::refreshEnterprise,
             )
             else -> Scaffold(
-            containerColor = DeepNavy,
+            containerColor = MaterialTheme.colorScheme.background,
             bottomBar = { GanjBottomBar(selected = selectedTab, onSelected = { selectedTab = it }) },
         ) { padding ->
             when (selectedTab) {
@@ -429,7 +425,7 @@ private fun ConnectionDashboard(
             .fillMaxSize()
             .background(
                 Brush.radialGradient(
-                    colors = listOf(connectionColor.copy(alpha = 0.18f), DeepNavy),
+                    colors = listOf(connectionColor.copy(alpha = 0.18f), MaterialTheme.colorScheme.background),
                     radius = 980f,
                 ),
             ),
@@ -663,7 +659,7 @@ private fun ProductGateScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DeepNavy)
+            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -920,16 +916,35 @@ private fun AppHeader(title: String, subtitle: String, onRefresh: (() -> Unit)? 
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
-            Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.semantics { heading() },
+            )
             Text(subtitle, color = Muted, fontSize = 12.sp)
         }
         Surface(
-            color = Color(0x22FFFFFF),
+            color = MaterialTheme.colorScheme.surfaceVariant,
             shape = RoundedCornerShape(999.dp),
-            modifier = if (onRefresh != null) Modifier.clickable(onClick = onRefresh) else Modifier,
+            modifier = if (onRefresh != null) {
+                Modifier
+                    .minimumInteractiveComponentSize()
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = "تازه‌سازی صفحه"
+                    }
+                    .clickable(onClick = onRefresh)
+            } else {
+                Modifier.semantics { contentDescription = "گنج" }
+            },
         ) {
-            Text(if (onRefresh != null) "REFRESH" else "GANJ", modifier = Modifier.padding(12.dp), fontSize = 10.sp)
+            Text(
+                if (onRefresh != null) "تازه‌سازی" else "گنج",
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                fontSize = 11.sp,
+            )
         }
     }
 }
@@ -943,7 +958,7 @@ private fun GlassCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
             .border(1.dp, accent.copy(alpha = 0.36f), RoundedCornerShape(24.dp))
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -960,7 +975,9 @@ private fun QuickAction(
 ) {
     Column(
         modifier = modifier
-            .background(Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+            .minimumInteractiveComponentSize()
+            .semantics(mergeDescendants = true) { role = Role.Button }
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(16.dp),
     ) {
@@ -974,7 +991,7 @@ private fun GanjBottomBar(selected: AppTab, onSelected: (AppTab) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xF20A1727))
+            .background(MaterialTheme.colorScheme.surface)
             .navigationBarsPadding()
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceAround,
@@ -989,11 +1006,16 @@ private fun GanjBottomBar(selected: AppTab, onSelected: (AppTab) -> Unit) {
                     .background(
                         color = when {
                             central -> IosBlue
-                            isSelected -> Color(0x22FFFFFF)
+                            isSelected -> MaterialTheme.colorScheme.primaryContainer
                             else -> Color.Transparent
                         },
                         shape = CircleShape,
                     )
+                    .semantics(mergeDescendants = true) {
+                        role = Role.Tab
+                        selected = isSelected
+                        contentDescription = UiAccessibilityPolicy.destinationDescription(tab.title, isSelected)
+                    }
                     .clickable { onSelected(tab) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -1001,9 +1023,23 @@ private fun GanjBottomBar(selected: AppTab, onSelected: (AppTab) -> Unit) {
                 Text(
                     text = if (central) "G" else tab.title.take(1),
                     fontWeight = FontWeight.Bold,
-                    color = if (central || isSelected) Color.White else Muted,
+                    color = when {
+                        central -> Color.White
+                        isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 )
-                if (!central) Text(tab.title, fontSize = 9.sp, color = if (isSelected) Color.White else Muted)
+                if (!central) {
+                    Text(
+                        tab.title,
+                        fontSize = 9.sp,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
             }
         }
     }
