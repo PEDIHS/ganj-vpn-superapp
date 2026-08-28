@@ -2,7 +2,7 @@
 <resources>
     <string name="visual_protected">Protected</string>
     <string name="visual_ready">Ready</string>
-    <string name="visual_verified">Verified</string>
+    <string name="visual_verified">Server-verified flow</string>
     <string name="visual_signature">Ganj Signature</string>
     <string name="visual_device_verified">Device verified</string>
     <string name="visual_selected_service">Selected service</string>
