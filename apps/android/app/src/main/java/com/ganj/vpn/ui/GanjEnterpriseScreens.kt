@@ -2,6 +2,7 @@ package com.ganj.vpn.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -118,6 +119,7 @@ internal fun BugReportPanel(
     var category by remember { mutableStateOf(BugCategory.CONNECTION) }
     var consent by remember { mutableStateOf(false) }
     val submitting = status == BugReportUiState.Submitting
+    val categories = remember { BugCategory.entries.toList() }
 
     ContentCard(accent = MaterialTheme.colorScheme.secondary) {
         Text(stringResource(R.string.bug_title), fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -146,14 +148,29 @@ internal fun BugReportPanel(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(BugCategory.CONNECTION, BugCategory.PURCHASE, BugCategory.ACCOUNT).forEach { option ->
-                val optionText = bugCategoryText(option)
-                OutlinedButton(
-                    onClick = { category = option },
-                    enabled = !submitting,
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            categories.chunked(2).forEach { rowCategories ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(if (category == option) "✓ $optionText" else optionText, fontSize = 10.sp)
+                    rowCategories.forEach { option ->
+                        val optionText = bugCategoryText(option)
+                        OutlinedButton(
+                            onClick = { category = option },
+                            enabled = !submitting,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(
+                                if (category == option) "✓ $optionText" else optionText,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                    if (rowCategories.size == 1) {
+                        Box(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -183,7 +200,7 @@ internal fun BugReportPanel(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    stringResource(R.string.bug_status, status.status.name),
+                    stringResource(R.string.bug_status, bugStatusText(status.status)),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                 )
