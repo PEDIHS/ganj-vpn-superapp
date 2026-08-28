@@ -186,6 +186,7 @@ function parseUrlNode(line) {
   const endpoint = url.hostname;
   const port = Number(url.port);
   if (!SAFE_HOST.test(endpoint) || !Number.isInteger(port) || port < 1 || port > 65_535) throw new Error('Invalid endpoint.');
+  if (url.password) throw new Error('URL node must not contain a password component.');
   const credential = decodeURIComponent(url.username);
   if (protocol === 'vless' && !UUID.test(credential)) throw new Error('Invalid VLESS UUID.');
   if (protocol === 'trojan' && (credential.length < 8 || credential.length > 4096)) throw new Error('Invalid Trojan credential.');
@@ -272,6 +273,7 @@ function parseShadowsocks(line) {
   if (url.protocol !== 'ss:') throw new Error('Invalid Shadowsocks URL.');
   const endpoint = url.hostname;
   const port = Number(url.port);
+  if (url.search) throw new Error('Shadowsocks plugins and query parameters are unsupported.');
   let method;
   let credential;
   if (url.password) {
@@ -328,6 +330,37 @@ function parseSubscription(raw) {
   }
   if (parsed.length === 0) fail('pasarguard_subscription_unsupported', 'PasarGuard subscription has no supported secure nodes.');
   return parsed;
+}
+
+/**
+ * Parses exactly one admin-supplied VPN URI into the same typed connection contract used by
+ * PasarGuard. Raw input is deliberately never included in an error, safe node, log, or response.
+ */
+export function parseSingleManagedConnection(raw) {
+  const generic = () => new ApiError(
+    400,
+    'invalid_free_config',
+    'Free server config must contain exactly one supported secure node.',
+  );
+  try {
+    if (typeof raw !== 'string' || raw.length < 8 || Buffer.byteLength(raw, 'utf8') > 16 * 1024) {
+      throw generic();
+    }
+    const decoded = decodeMaybeBase64Subscription(raw);
+    const lines = decoded.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (lines.length !== 1) throw generic();
+    const line = lines[0];
+    let node;
+    if (line.startsWith('vless://') || line.startsWith('trojan://')) node = parseUrlNode(line);
+    else if (line.startsWith('vmess://')) node = parseVmess(line);
+    else if (line.startsWith('ss://')) node = parseShadowsocks(line);
+    else throw generic();
+    if (!SUPPORTED_PROTOCOLS.has(node.connection.protocol)) throw generic();
+    return structuredClone(node.connection);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'invalid_free_config') throw error;
+    throw generic();
+  }
 }
 
 async function boundedText(response, maximumBytes) {
