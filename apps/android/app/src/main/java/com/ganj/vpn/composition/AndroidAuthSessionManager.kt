@@ -26,6 +26,7 @@ internal class AndroidAuthSessionManager(
     private val api: AuthSessionApi,
     private val vault: SessionCredentialVault,
     private val identity: DeviceIdentity,
+    private val sessionRevocationSink: SessionRevocationSink = SessionRevocationSink.NoOp,
     private val random: SecureRandom = SecureRandom(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) : RefreshingAuthTokenProvider,
@@ -85,8 +86,7 @@ internal class AndroidAuthSessionManager(
     override fun logout(): Boolean = synchronized(lock) {
         val token = vault.restore()?.accessToken
         val remote = token?.let { api.logout(it) }
-        forceRefresh = false
-        val localCleared = vault.clear().isSuccess
+        val localCleared = invalidateSessionLocked().isSuccess
         localCleared && (remote == null || remote is ApiResult.Success)
     }
 
@@ -95,8 +95,7 @@ internal class AndroidAuthSessionManager(
     }
 
     fun clearLocalSession(): Result<Unit> = synchronized(lock) {
-        forceRefresh = false
-        vault.clear()
+        invalidateSessionLocked()
     }
 
     private fun createGuestLocked(): AuthSessionCredentials? {
@@ -130,8 +129,7 @@ internal class AndroidAuthSessionManager(
 
     private fun refreshLocked(current: AuthSessionCredentials): AuthSessionCredentials? {
         if (isExpired(current.refreshTokenExpiresAt)) {
-            vault.clear()
-            forceRefresh = false
+            invalidateSessionLocked()
             return createGuestLocked()
         }
         val unsignedBody = AuthSessionProofContract.refreshUnsignedBody(
@@ -159,13 +157,11 @@ internal class AndroidAuthSessionManager(
             is ApiResult.Failure -> when (result.error) {
                 is ApiError.AuthenticationExpired -> {
                     val expired = result.error as ApiError.AuthenticationExpired
-                    vault.clear()
-                    forceRefresh = false
+                    invalidateSessionLocked()
                     if (expired.code == "refresh_token_reuse_detected") null else createGuestLocked()
                 }
                 is ApiError.Forbidden -> {
-                    vault.clear()
-                    forceRefresh = false
+                    invalidateSessionLocked()
                     null
                 }
                 else -> null
@@ -173,9 +169,16 @@ internal class AndroidAuthSessionManager(
         }
     }
 
+    private fun invalidateSessionLocked(): Result<Unit> {
+        forceRefresh = false
+        val cleared = vault.clear()
+        runCatching { sessionRevocationSink.onSessionInvalidated() }
+        return cleared
+    }
+
     private fun persistLocked(value: AuthSessionCredentials): AuthSessionCredentials? {
         if (vault.save(value).isFailure) {
-            vault.clear()
+            invalidateSessionLocked()
             return null
         }
         return value
