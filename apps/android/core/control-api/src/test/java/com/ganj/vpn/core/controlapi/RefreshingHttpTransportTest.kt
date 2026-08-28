@@ -6,7 +6,7 @@ import org.junit.Test
 
 class RefreshingHttpTransportTest {
     @Test
-    fun `401 refreshes once and replays the same request with the rotated access token`() {
+    fun `401 refreshes once replays the same request and zeroizes caller body`() {
         val delegate = FakeTransport().apply {
             enqueue(401, errorEnvelope("TOKEN_EXPIRED"), mapOf("X-Request-Id" to REQUEST_ID))
             enqueue(200, successEnvelope("[]"))
@@ -36,7 +36,7 @@ class RefreshingHttpTransportTest {
         assertEquals(2, delegate.requests.size)
         assertEquals(provider.rotated.authorizationValue(), delegate.requests[1].headers["Authorization"])
         assertEquals(String(delegate.requests[0].body!!), String(delegate.requests[1].body!!))
-        assertEquals("{\"plan_id\":\"$PLAN_ID\"}", String(originalBody))
+        assertTrue("caller plaintext body must be zeroized after transport", originalBody.all { it == 0.toByte() })
     }
 
     @Test
