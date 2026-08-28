@@ -168,7 +168,7 @@ class XrayRuntimeTest {
             )
 
             val config = XrayConfigCompiler().compile(profile, 42).consume()
-            assertTrue(config.contains("\\\"method\\\":\\\"$method\\\""))
+            assertTrue(config.contains("\"method\":\"$method\""))
             profile.close()
         }
     }
