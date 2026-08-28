@@ -30,5 +30,13 @@
     <string name="vpn_notification_channel_description">Shows the active Ganj VPN connection</string>
     <string name="vpn_notification_title">Ganj VPN is connected</string>
     <string name="vpn_notification_message">Your network traffic is protected</string>
+    <string name="vpn_notification_connecting_title">Ganj VPN is connecting</string>
+    <string name="vpn_notification_connecting_message">Preparing the protected network tunnel</string>
+    <string name="vpn_notification_connected_title">Ganj VPN is connected</string>
+    <string name="vpn_notification_connected_message">Your network traffic is protected</string>
+    <string name="vpn_notification_reconnecting_title">Restoring Ganj VPN</string>
+    <string name="vpn_notification_reconnecting_message">Traffic remains inside the protected tunnel while connection is restored</string>
+    <string name="vpn_notification_blocked_title">VPN connection is unavailable</string>
+    <string name="vpn_notification_blocked_message">Kill Switch is keeping traffic blocked. Change network or disconnect to use the internet.</string>
     <string name="vpn_disconnect_action">Disconnect</string>
 </resources>
