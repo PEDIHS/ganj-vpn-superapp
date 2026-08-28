@@ -104,9 +104,12 @@ class ProvisionedProfile(
         private val ALLOWED_SS_METHODS = setOf(
             "2022-blake3-aes-128-gcm",
             "2022-blake3-aes-256-gcm",
+            "2022-blake3-chacha20-poly1305",
             "aes-128-gcm",
             "aes-256-gcm",
+            "chacha20-ietf-poly1305",
             "chacha20-poly1305",
+            "xchacha20-ietf-poly1305",
             "xchacha20-poly1305",
         )
         private val ALLOWED_VLESS_FLOWS = setOf("xtls-rprx-vision")
