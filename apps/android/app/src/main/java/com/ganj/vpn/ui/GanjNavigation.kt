@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,14 +24,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ganj.vpn.R
+import kotlin.math.roundToInt
 
 internal enum class GanjDestination(@StringRes val labelRes: Int) {
     Home(R.string.nav_home),
@@ -46,6 +50,7 @@ internal fun GanjLiquidBottomNavigation(
     onDestinationSelected: (GanjDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val fontScale = LocalDensity.current.fontScale
     GanjGlassSurface(
         role = GanjGlassRole.Regular,
         accent = MaterialTheme.colorScheme.primary,
@@ -56,63 +61,77 @@ internal fun GanjLiquidBottomNavigation(
         shapeRadius = 30.dp,
         padding = PaddingValues(horizontal = 8.dp, vertical = 7.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            GanjDestination.entries.forEach { destination ->
-                val isSelected = destination == selectedDestination
-                val label = stringResource(destination.labelRes)
-                val description = UiAccessibilityPolicy.destinationDescription(
-                    label = label,
-                    selected = isSelected,
-                    selectedSuffix = stringResource(R.string.a11y_selected),
-                )
-                val container = when {
-                    isSelected && destination == GanjDestination.Connect -> MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                    isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                    else -> Color.Transparent
-                }
-                val tint = if (isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val availableWidthDp = maxWidth.value.roundToInt()
+            val showAllLabels = GanjResponsivePolicy.shouldShowAllNavigationLabels(
+                widthDp = availableWidthDp,
+                fontScale = fontScale,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                GanjDestination.entries.forEach { destination ->
+                    val isSelected = destination == selectedDestination
+                    val label = stringResource(destination.labelRes)
+                    val description = UiAccessibilityPolicy.destinationDescription(
+                        label = label,
+                        selected = isSelected,
+                        selectedSuffix = stringResource(R.string.a11y_selected),
+                    )
+                    val container = when {
+                        isSelected && destination == GanjDestination.Connect ->
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                        else -> Color.Transparent
+                    }
+                    val tint = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    val showLabel = showAllLabels || isSelected
 
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 58.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(container)
-                        .semantics {
-                            selected = isSelected
-                            contentDescription = description
-                        }
-                        .clickable(
-                            role = Role.Tab,
-                            onClick = { onDestinationSelected(destination) },
-                        )
-                        .padding(horizontal = 3.dp, vertical = 7.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 58.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(container)
+                            .semantics {
+                                selected = isSelected
+                                contentDescription = description
+                            }
+                            .clickable(
+                                role = Role.Tab,
+                                onClick = { onDestinationSelected(destination) },
+                            )
+                            .padding(horizontal = 3.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        GanjNavigationIcon(
-                            destination = destination,
-                            tint = tint,
-                            modifier = Modifier.size(if (destination == GanjDestination.Connect) 22.dp else 20.dp),
-                        )
-                        Spacer(Modifier.height(3.dp))
-                        Text(
-                            text = label,
-                            color = tint,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1,
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            GanjNavigationIcon(
+                                destination = destination,
+                                tint = tint,
+                                modifier = Modifier.size(
+                                    if (destination == GanjDestination.Connect) 22.dp else 20.dp,
+                                ),
+                            )
+                            if (showLabel) {
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    text = label,
+                                    color = tint,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                     }
                 }
             }
