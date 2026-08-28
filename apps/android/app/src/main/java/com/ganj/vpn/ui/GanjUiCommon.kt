@@ -18,13 +18,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ganj.vpn.R
+import com.ganj.vpn.enterprise.BugCategory
 import com.ganj.vpn.presentation.CheckoutSafeAction
 import com.ganj.vpn.presentation.PlanUiModel
+import com.ganj.vpn.presentation.ServiceUiStatus
 import com.ganj.vpn.presentation.UiFailure
+import com.ganj.vpn.presentation.UiTier
 
 @Composable
 internal fun Page(
@@ -77,7 +82,7 @@ internal fun AppHeader(
                 ),
             ) {
                 Text(
-                    text = "REFRESH",
+                    text = stringResource(R.string.common_refresh),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -137,7 +142,7 @@ internal fun QuickAction(
 internal fun LoadingCard(text: String) = ContentCard(accent = MaterialTheme.colorScheme.secondary) {
     Text(text, fontWeight = FontWeight.SemiBold)
     Text(
-        "Please wait…",
+        stringResource(R.string.common_wait),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall,
     )
@@ -155,18 +160,18 @@ internal fun EmptyCard(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall,
     )
-    OutlinedButton(onClick = onAction) { Text("Refresh") }
+    OutlinedButton(onClick = onAction) { Text(stringResource(R.string.common_refresh)) }
 }
 
 @Composable
 internal fun AuthCard(onRetry: () -> Unit) = ContentCard(accent = GanjWarning) {
-    Text("Sign in required", fontWeight = FontWeight.Bold)
+    Text(stringResource(R.string.auth_required_title), fontWeight = FontWeight.Bold)
     Text(
-        "Connect your Telegram account, then refresh this page.",
+        stringResource(R.string.auth_required_body),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall,
     )
-    OutlinedButton(onClick = onRetry) { Text("Refresh session") }
+    OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.auth_refresh_session)) }
 }
 
 @Composable
@@ -181,65 +186,95 @@ internal fun ErrorCard(
     )
     failure.requestId?.let {
         Text(
-            "Request • ${it.take(8)}",
+            stringResource(R.string.common_request_code, it.take(8)),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 10.sp,
         )
     }
-    if (failure.retryable) OutlinedButton(onClick = onRetry) { Text("Try again") }
+    if (failure.retryable) {
+        OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.common_retry)) }
+    }
 }
 
+@Composable
 internal fun formatPrice(product: PlanUiModel): String = if (product.amountMinor == 0L) {
-    "Free"
+    stringResource(R.string.plan_free)
 } else {
     val major = product.amountMinor / 100
     val minor = product.amountMinor % 100
     "$major.${minor.toString().padStart(2, '0')} ${product.currency}"
 }
 
+@Composable
 internal fun formatTraffic(bytes: Long?): String = when {
-    bytes == null -> "Unlimited traffic"
-    bytes >= 1_000_000_000 -> "${bytes / 1_000_000_000} GB left"
-    else -> "${bytes / 1_000_000} MB left"
+    bytes == null -> stringResource(R.string.traffic_unlimited)
+    bytes >= 1_000_000_000 -> stringResource(R.string.traffic_gb_left, bytes / 1_000_000_000)
+    else -> stringResource(R.string.traffic_mb_left, bytes / 1_000_000)
 }
 
+@Composable
 internal fun checkoutActionText(action: CheckoutSafeAction?): String = when (action) {
-    is CheckoutSafeAction.LaunchGooglePlay -> "Opening the secure Google Play checkout."
-    CheckoutSafeAction.WaitForProvider, null -> "Waiting for Play and backend confirmation."
+    is CheckoutSafeAction.LaunchGooglePlay -> stringResource(R.string.checkout_opening_play)
+    CheckoutSafeAction.WaitForProvider, null -> stringResource(R.string.checkout_waiting_provider)
 }
 
+@Composable
+internal fun serviceStatusText(status: ServiceUiStatus): String = when (status) {
+    ServiceUiStatus.PENDING -> stringResource(R.string.service_status_pending)
+    ServiceUiStatus.ACTIVE -> stringResource(R.string.service_status_active)
+    ServiceUiStatus.DISABLED -> stringResource(R.string.service_status_disabled)
+    ServiceUiStatus.EXPIRED -> stringResource(R.string.service_status_expired)
+    ServiceUiStatus.REVOKED -> stringResource(R.string.service_status_revoked)
+}
+
+@Composable
+internal fun tierText(tier: UiTier): String = when (tier) {
+    UiTier.FREE -> stringResource(R.string.tier_free)
+    UiTier.PREMIUM -> stringResource(R.string.tier_premium)
+    UiTier.VIP -> stringResource(R.string.tier_vip)
+}
+
+@Composable
+internal fun bugCategoryText(category: BugCategory): String = when (category) {
+    BugCategory.CONNECTION -> stringResource(R.string.bug_category_connection)
+    BugCategory.PURCHASE -> stringResource(R.string.bug_category_purchase)
+    BugCategory.ACCOUNT -> stringResource(R.string.bug_category_account)
+}
+
+@Composable
 internal fun failureMessage(failure: UiFailure): String = when (failure.messageKey) {
-    "auth.required" -> "Sign in to continue."
-    "entitlement.denied" -> "This action is not included in your service."
-    "request.conflict" -> "This request is already being processed."
-    "request.rate_limited" -> "Too many attempts. Please wait and retry."
-    "network.unavailable" -> "Check your internet connection."
-    "server.unavailable" -> "The service is temporarily unavailable."
-    "connection.context_unavailable" -> "Secure device context is not ready yet."
-    "connection.service_inactive" -> "Choose an active service."
-    "connection.permission_denied" -> "Android VPN permission is required to connect."
+    "auth.required" -> stringResource(R.string.failure_auth_required)
+    "entitlement.denied" -> stringResource(R.string.failure_entitlement_denied)
+    "request.conflict" -> stringResource(R.string.failure_request_conflict)
+    "request.rate_limited" -> stringResource(R.string.failure_rate_limited)
+    "network.unavailable" -> stringResource(R.string.failure_network_unavailable)
+    "server.unavailable" -> stringResource(R.string.failure_server_unavailable)
+    "connection.context_unavailable" -> stringResource(R.string.failure_connection_context)
+    "connection.service_inactive" -> stringResource(R.string.failure_service_inactive)
+    "connection.permission_denied" -> stringResource(R.string.failure_vpn_permission)
     "connection.action_expired", "connection.profile_consumed", "connection.profile_expired" ->
-        "The secure connection request expired. Try again."
-    "connection.device_crypto_unavailable" -> "Secure device keys are not ready on this device."
+        stringResource(R.string.failure_connection_expired)
+    "connection.device_crypto_unavailable" -> stringResource(R.string.failure_device_crypto)
     "connection.profile_authentication_failed", "connection.profile_rejected" ->
-        "The encrypted server profile could not be verified."
-    "connection.protocol_unsupported" -> "This server protocol is not supported on this version."
-    "connection.tunnel_start_failed" -> "The VPN tunnel could not start. Try another network."
-    "connection.disconnect_failed" -> "The VPN could not disconnect cleanly. Try again."
-    "billing.provider_unavailable" -> "This payment method is not available yet."
-    else -> "The request could not be completed safely."
+        stringResource(R.string.failure_profile_auth)
+    "connection.protocol_unsupported" -> stringResource(R.string.failure_protocol_unsupported)
+    "connection.tunnel_start_failed" -> stringResource(R.string.failure_tunnel_start)
+    "connection.disconnect_failed" -> stringResource(R.string.failure_disconnect)
+    "billing.provider_unavailable" -> stringResource(R.string.failure_billing_provider)
+    else -> stringResource(R.string.failure_generic)
 }
 
+@Composable
 internal fun enterpriseMessage(messageKey: String): String = when (messageKey) {
-    "privacy.consent_required" -> "Review and approve the privacy summary first."
-    "bug_report.invalid_or_sensitive" -> "Remove configuration, credential, or invalid content."
-    "bug_report.disabled" -> "Bug reporting is temporarily unavailable."
-    "diagnostic.disabled" -> "Diagnostics are temporarily unavailable."
-    "diagnostic.context_unavailable" -> "Device context is not ready. Try again later."
-    "diagnostic.collection_failed" -> "The diagnostic checks could not complete safely."
-    "diagnostic.invalid" -> "The diagnostic result did not pass local validation."
-    "network.unavailable" -> "Check your internet connection."
-    "request.rate_limited" -> "Too many attempts. Please wait and retry."
-    "server.unavailable" -> "The service is temporarily unavailable."
-    else -> "This enterprise feature is unavailable right now."
+    "privacy.consent_required" -> stringResource(R.string.enterprise_failure_consent)
+    "bug_report.invalid_or_sensitive" -> stringResource(R.string.enterprise_failure_bug_sensitive)
+    "bug_report.disabled" -> stringResource(R.string.enterprise_failure_bug_disabled)
+    "diagnostic.disabled" -> stringResource(R.string.enterprise_failure_diagnostic_disabled)
+    "diagnostic.context_unavailable" -> stringResource(R.string.enterprise_failure_context)
+    "diagnostic.collection_failed" -> stringResource(R.string.enterprise_failure_collection)
+    "diagnostic.invalid" -> stringResource(R.string.enterprise_failure_invalid)
+    "network.unavailable" -> stringResource(R.string.failure_network_unavailable)
+    "request.rate_limited" -> stringResource(R.string.failure_rate_limited)
+    "server.unavailable" -> stringResource(R.string.failure_server_unavailable)
+    else -> stringResource(R.string.enterprise_failure_generic)
 }
