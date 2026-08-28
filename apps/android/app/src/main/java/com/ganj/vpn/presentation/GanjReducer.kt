@@ -4,8 +4,10 @@ sealed interface GanjUiEvent {
     data object RefreshRequested : GanjUiEvent
     data class CatalogResolved(val content: ContentState<PlanUiModel>) : GanjUiEvent
     data class ServicesResolved(val content: ContentState<ServiceUiModel>) : GanjUiEvent
+    data class ServersResolved(val content: ContentState<ServerUiModel>) : GanjUiEvent
     data class SelectPlan(val planId: String) : GanjUiEvent
     data class SelectService(val entitlementId: String) : GanjUiEvent
+    data class SelectServer(val serverId: String) : GanjUiEvent
     data class CheckoutRequested(val planId: String) : GanjUiEvent
     data class CheckoutPending(
         val planId: String,
@@ -39,26 +41,69 @@ class GanjUiReducer {
         GanjUiEvent.RefreshRequested -> state.copy(
             catalog = ContentState.Loading,
             services = ContentState.Loading,
+            servers = ContentState.Loading,
             refreshInProgress = true,
         )
         is GanjUiEvent.CatalogResolved -> {
             val selected = state.selectedPlanId?.takeIf { id ->
                 (event.content as? ContentState.Ready<PlanUiModel>)?.items?.any { it.id == id } == true
             } ?: (event.content as? ContentState.Ready<PlanUiModel>)?.items?.firstOrNull()?.id
-            state.copy(catalog = event.content, selectedPlanId = selected, refreshInProgress = false)
+            state.copy(catalog = event.content, selectedPlanId = selected)
         }
         is GanjUiEvent.ServicesResolved -> {
             val selected = state.selectedEntitlementId?.takeIf { id ->
                 (event.content as? ContentState.Ready<ServiceUiModel>)?.items?.any { it.entitlementId == id && it.isActive } == true
             } ?: (event.content as? ContentState.Ready<ServiceUiModel>)?.items?.firstOrNull { it.isActive }?.entitlementId
-            state.copy(services = event.content, selectedEntitlementId = selected, refreshInProgress = false)
+            state.copy(services = event.content, selectedEntitlementId = selected)
+        }
+        is GanjUiEvent.ServersResolved -> {
+            val ready = (event.content as? ContentState.Ready<ServerUiModel>)?.items.orEmpty()
+            val selectedServerId = state.selectedServerId?.takeIf { id ->
+                ready.any { it.id == id && it.isSelectable }
+            } ?: ready
+                .asSequence()
+                .filter(ServerUiModel::isSelectable)
+                .sortedWith(
+                    compareByDescending<ServerUiModel> { it.favorite }
+                        .thenBy { it.latencyHintMs ?: Int.MAX_VALUE }
+                        .thenBy { it.loadRatio },
+                )
+                .firstOrNull()
+                ?.id
+            val withServers = state.copy(
+                servers = event.content,
+                selectedServerId = selectedServerId,
+                refreshInProgress = false,
+            )
+            val server = withServers.selectedServer
+            val service = server?.let(withServers::compatibleServiceFor)
+            if (service != null) withServers.copy(selectedEntitlementId = service.entitlementId) else withServers
         }
         is GanjUiEvent.SelectPlan -> if (state.plans.any { it.id == event.planId }) {
             state.copy(selectedPlanId = event.planId)
         } else state
-        is GanjUiEvent.SelectService -> if (state.serviceItems.any { it.entitlementId == event.entitlementId && it.isActive }) {
-            state.copy(selectedEntitlementId = event.entitlementId, connection = ConnectionUiState.Idle)
-        } else state
+        is GanjUiEvent.SelectService -> {
+            val service = state.serviceItems.firstOrNull { it.entitlementId == event.entitlementId && it.isActive }
+            if (service != null) {
+                val server = state.compatibleServerFor(service)
+                state.copy(
+                    selectedEntitlementId = event.entitlementId,
+                    selectedServerId = server?.id ?: state.selectedServerId,
+                    connection = ConnectionUiState.Idle,
+                )
+            } else state
+        }
+        is GanjUiEvent.SelectServer -> {
+            val server = state.serverItems.firstOrNull { it.id == event.serverId && it.isSelectable }
+            val service = server?.let(state::compatibleServiceFor)
+            if (server != null && service != null) {
+                state.copy(
+                    selectedServerId = server.id,
+                    selectedEntitlementId = service.entitlementId,
+                    connection = ConnectionUiState.Idle,
+                )
+            } else state
+        }
         is GanjUiEvent.CheckoutRequested -> if (state.plans.any { it.id == event.planId }) {
             state.copy(
                 selectedPlanId = event.planId,
@@ -92,9 +137,11 @@ class GanjUiReducer {
         GanjUiEvent.CheckoutAuthenticationRequired -> state.copy(checkout = CheckoutUiState.AuthRequired)
         is GanjUiEvent.ConnectionRequested -> {
             val service = state.serviceItems.firstOrNull { it.entitlementId == event.entitlementId }
-            if (service?.isActive == true) {
+            val server = service?.let(state::compatibleServerFor)
+            if (service?.isActive == true && server != null) {
                 state.copy(
                     selectedEntitlementId = event.entitlementId,
+                    selectedServerId = server.id,
                     connection = ConnectionUiState.Requesting(event.entitlementId),
                 )
             } else {
