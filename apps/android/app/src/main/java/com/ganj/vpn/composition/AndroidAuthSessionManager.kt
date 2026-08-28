@@ -5,12 +5,12 @@ import com.ganj.vpn.core.controlapi.ApiError
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.AuthSessionApi
 import com.ganj.vpn.core.controlapi.AuthSessionCredentials
-import com.ganj.vpn.core.controlapi.AuthSessionProofPayload
-import com.ganj.vpn.core.controlapi.AuthSessionVault
+import com.ganj.vpn.core.controlapi.AuthSessionProofContract
 import com.ganj.vpn.core.controlapi.AuthenticationEventSink
 import com.ganj.vpn.core.controlapi.GuestSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshingAuthTokenProvider
+import com.ganj.vpn.core.controlapi.SessionCredentialVault
 import com.ganj.vpn.core.deviceidentity.DeviceIdentity
 import com.ganj.vpn.core.deviceidentity.DeviceProofRequest
 import com.ganj.vpn.presentation.CurrentUserIdProvider
@@ -28,7 +28,7 @@ import java.util.TimeZone
  */
 internal class AndroidAuthSessionManager(
     private val api: AuthSessionApi,
-    private val vault: AuthSessionVault,
+    private val vault: SessionCredentialVault,
     private val identity: DeviceIdentity,
     private val random: SecureRandom = SecureRandom(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
@@ -74,14 +74,14 @@ internal class AndroidAuthSessionManager(
 
     private fun createGuestLocked(): AuthSessionCredentials? {
         val publicIdentity = identity.publicIdentity().getOrNull() ?: return null
-        val unsignedBody = AuthSessionProofPayload.guest(
+        val unsignedBody = AuthSessionProofContract.guestUnsignedBody(
             deviceId = publicIdentity.installationId,
             keyVersion = publicIdentity.keyVersion,
             signingPublicKeySpki = publicIdentity.signingPublicKeySpki,
             encryptionPublicKeyRaw = publicIdentity.encryptionPublicKeyRaw,
         )
         val compactProof = try {
-            signProof(AuthSessionProofPayload.GUEST_PATH, unsignedBody)
+            signProof(AuthSessionProofContract.GUEST_PATH, unsignedBody)
         } finally {
             unsignedBody.fill(0)
         } ?: return null
@@ -107,12 +107,12 @@ internal class AndroidAuthSessionManager(
             forceRefresh = false
             return createGuestLocked()
         }
-        val unsignedBody = AuthSessionProofPayload.refresh(
+        val unsignedBody = AuthSessionProofContract.refreshUnsignedBody(
             deviceId = current.deviceId,
             refreshToken = current.refreshToken,
         )
         val compactProof = try {
-            signProof(AuthSessionProofPayload.REFRESH_PATH, unsignedBody)
+            signProof(AuthSessionProofContract.REFRESH_PATH, unsignedBody)
         } finally {
             unsignedBody.fill(0)
         } ?: return null
@@ -131,13 +131,16 @@ internal class AndroidAuthSessionManager(
             }
             is ApiResult.Failure -> {
                 when (result.error) {
-                    is ApiError.AuthenticationExpired,
-                    is ApiError.Forbidden,
-                    -> {
-                        // The server no longer trusts this session family. Do not keep serving it.
+                    is ApiError.AuthenticationExpired -> {
+                        val expired = result.error as ApiError.AuthenticationExpired
                         vault.clear()
                         forceRefresh = false
-                        createGuestLocked()
+                        if (expired.code == "refresh_token_reuse_detected") null else createGuestLocked()
+                    }
+                    is ApiError.Forbidden -> {
+                        vault.clear()
+                        forceRefresh = false
+                        null
                     }
                     else -> null
                 }
@@ -146,7 +149,10 @@ internal class AndroidAuthSessionManager(
     }
 
     private fun persistLocked(value: AuthSessionCredentials): AuthSessionCredentials? {
-        if (vault.save(value).isFailure) return null
+        if (vault.save(value).isFailure) {
+            vault.clear()
+            return null
+        }
         return value
     }
 
