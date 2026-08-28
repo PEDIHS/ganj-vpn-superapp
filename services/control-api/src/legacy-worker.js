@@ -96,14 +96,17 @@ export class LegacyReconciliationWorker {
       }
     }
 
-    // Advance the checkpoint only after the entire page has been attempted. Individual failures are
-    // durable in the event/failure ledger and can be replayed independently without duplicating grants.
+    // Never skip a failed record by moving the page cursor. On the next run the same page is read;
+    // already-applied records become harmless idempotent replays and the failed item is retried.
+    const checkpointCursor = summary.failed === 0 ? (page.nextCursor ?? cursor) : cursor;
     await this.repository.completeLegacySourceRun({
       sourceKey: this.sourceKey,
-      checkpointCursor: page.nextCursor ?? cursor,
+      checkpointCursor,
       completedAt: this.now().toISOString(),
       clearError: summary.failed === 0,
     });
+    summary.nextCursor = checkpointCursor;
+    if (summary.failed > 0) summary.hasMore = true;
     return summary;
   }
 
