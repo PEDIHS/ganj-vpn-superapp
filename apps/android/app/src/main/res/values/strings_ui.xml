@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_refresh">Refresh</string>
+    <string name="common_retry">Try again</string>
+    <string name="common_wait">Please wait…</string>
+    <string name="common_done">Done</string>
+    <string name="common_selected">Selected</string>
+    <string name="common_connect">Connect</string>
+    <string name="common_global">Global</string>
+    <string name="common_request_code">Request • %1$s</string>
+
+    <string name="home_title">Ganj VPN</string>
+    <string name="home_subtitle">Your privacy dashboard</string>
+    <string name="home_connection_profile">Connection profile</string>
+    <string name="home_vpn_connected">VPN connected</string>
+    <string name="home_choose_active_service">Choose an active service</string>
+    <string name="home_no_active_service">No active service selected</string>
+    <string name="home_open_secure_connection">Open secure connection</string>
+    <string name="home_my_services">My services</string>
+    <string name="home_service_count">%1$d active or previous</string>
+    <string name="home_store">Store</string>
+    <string name="home_choose_subscription">Choose a subscription</string>
+    <string name="home_subscription_protected">Subscription protected</string>
+    <string name="home_subscription_protected_body">Connection access is issued only from a verified Ganj entitlement and a registered device.</string>
+
+    <string name="servers_title">Smart routing</string>
+    <string name="servers_subtitle">Only servers allowed by your service</string>
+    <string name="servers_loading">Loading eligible services</string>
+    <string name="servers_empty_title">No service yet</string>
+    <string name="servers_empty_body">Open Store to activate one</string>
+    <string name="servers_smart_connect">Smart connect</string>
+    <string name="servers_backend_verified">Server choice and profile issuance are revalidated by the backend for this entitlement.</string>
+
+    <string name="connect_title">GANJ VPN</string>
+    <string name="connect_subtitle">Secure. Fast. Yours.</string>
+    <string name="connect_no_service">No service selected</string>
+    <string name="connect_choose_service">Choose my service</string>
+    <string name="connect_device_bound">Device-bound</string>
+    <string name="connect_device_bound_active">The verified device profile is active only inside the VPN runtime.</string>
+    <string name="connect_device_bound_idle">The app sends only your selected service identity into the connection flow.</string>
+
+    <string name="store_title">Ganj Store</string>
+    <string name="store_subtitle">Backend-verified subscriptions</string>
+    <string name="store_loading">Loading plans</string>
+    <string name="store_empty_title">No plans available</string>
+    <string name="store_empty_body">Try again in a moment</string>
+    <string name="store_verification_notice">Service access becomes active only after provider and backend verification.</string>
+    <string name="plan_days">%1$d days</string>
+    <string name="plan_service">Service plan</string>
+    <string name="plan_free">Free</string>
+    <string name="plan_continue_google_play">Continue with Google Play</string>
+    <string name="plan_choose_google_play">Choose with Google Play</string>
+    <string name="checkout_pending_title">Payment pending</string>
+    <string name="checkout_opening_play">Opening the secure Google Play checkout.</string>
+    <string name="checkout_waiting_provider">Waiting for Play and backend confirmation.</string>
+    <string name="checkout_verified_title">Payment verified</string>
+    <string name="checkout_verified_body">Waiting for the activated service to sync</string>
+    <string name="checkout_active_title">Subscription active</string>
+    <string name="checkout_active_body">Your service is ready in My Services</string>
+
+    <string name="account_title">My services</string>
+    <string name="account_subtitle">Synced from your Ganj account</string>
+    <string name="account_loading">Loading services</string>
+    <string name="account_empty_title">No subscription yet</string>
+    <string name="account_empty_body">Choose a plan to get started</string>
+    <string name="account_buy_another">Buy another subscription</string>
+    <string name="account_selected_badge">SELECTED</string>
+    <string name="account_use_plan">Use plan</string>
+    <string name="account_devices_allowed">%1$d devices allowed</string>
+    <string name="traffic_unlimited">Unlimited traffic</string>
+    <string name="traffic_gb_left">%1$d GB left</string>
+    <string name="traffic_mb_left">%1$d MB left</string>
+
+    <string name="tier_free">Free</string>
+    <string name="tier_premium">Premium</string>
+    <string name="tier_vip">VIP</string>
+    <string name="service_status_pending">Pending</string>
+    <string name="service_status_active">Active</string>
+    <string name="service_status_disabled">Disabled</string>
+    <string name="service_status_expired">Expired</string>
+    <string name="service_status_revoked">Revoked</string>
+
+    <string name="auth_required_title">Sign in required</string>
+    <string name="auth_required_body">Connect your Telegram account, then refresh this page.</string>
+    <string name="auth_refresh_session">Refresh session</string>
+
+    <string name="gate_security_update_title">Security update required</string>
+    <string name="gate_security_update_body">Install version %1$s to continue safely.</string>
+    <string name="gate_maintenance_title">Scheduled maintenance</string>
+    <string name="gate_maintenance_default">Ganj VPN is temporarily unavailable.</string>
+    <string name="gate_policy_paused">Connections and purchases are paused until the signed product policy allows them.</string>
+    <string name="gate_check_again">Check again</string>
+
+    <string name="enterprise_product_status">Product status</string>
+    <string name="enterprise_policy_checking">Checking signed runtime policy…</string>
+    <string name="enterprise_operational">Operational</string>
+    <string name="enterprise_optional_update">Version %1$s is available.</string>
+    <string name="enterprise_security_update_required">A security update is required.</string>
+    <string name="enterprise_maintenance">Maintenance in progress.</string>
+    <string name="enterprise_sign_in_policy">Sign in to resolve device policy.</string>
+    <string name="enterprise_policy_unavailable">Runtime policy is unavailable; optional features are off.</string>
+    <string name="enterprise_refresh_status">Refresh product status</string>
+
+    <string name="bug_title">Report a problem</string>
+    <string name="bug_privacy_warning">Do not paste VPN configurations, credentials, links, or private message content.</string>
+    <string name="bug_short_title">Short title</string>
+    <string name="bug_what_happened">What happened?</string>
+    <string name="bug_category">Category</string>
+    <string name="bug_category_connection">Connection</string>
+    <string name="bug_category_purchase">Purchase</string>
+    <string name="bug_category_account">Account</string>
+    <string name="bug_diagnostics_consent">I approve sending coarse device, network type, connection state and error code.</string>
+    <string name="bug_send">Send privacy-safe report</string>
+    <string name="bug_submitting">Submitting report</string>
+    <string name="bug_submitted">Report %1$s submitted</string>
+    <string name="bug_status">Status: %1$s</string>
+    <string name="bug_another">Report another issue</string>
+    <string name="bug_edit">Edit report</string>
+
+    <string name="diagnostic_title">Privacy-safe diagnostics</string>
+    <string name="diagnostic_privacy_body">Tests only result classes, latency, packet loss, VPN state and device integrity. No hostname, destination, IP address, DNS query, payload, credential or configuration is collected.</string>
+    <string name="diagnostic_consent">I approve running and uploading this minimized diagnostic report.</string>
+    <string name="diagnostic_run">Run diagnostics</string>
+    <string name="diagnostic_running">Running allowlisted tests</string>
+    <string name="diagnostic_uploading">Uploading redacted results</string>
+    <string name="diagnostic_submitted">Diagnostic report submitted</string>
+    <string name="diagnostic_redaction_policy">Redaction policy: %1$s</string>
+    <string name="diagnostic_review_consent">Review consent</string>
+
+    <string name="failure_auth_required">Sign in to continue.</string>
+    <string name="failure_entitlement_denied">This action is not included in your service.</string>
+    <string name="failure_request_conflict">This request is already being processed.</string>
+    <string name="failure_rate_limited">Too many attempts. Please wait and retry.</string>
+    <string name="failure_network_unavailable">Check your internet connection.</string>
+    <string name="failure_server_unavailable">The service is temporarily unavailable.</string>
+    <string name="failure_connection_context">Secure device context is not ready yet.</string>
+    <string name="failure_service_inactive">Choose an active service.</string>
+    <string name="failure_vpn_permission">Android VPN permission is required to connect.</string>
+    <string name="failure_connection_expired">The secure connection request expired. Try again.</string>
+    <string name="failure_device_crypto">Secure device keys are not ready on this device.</string>
+    <string name="failure_profile_auth">The encrypted server profile could not be verified.</string>
+    <string name="failure_protocol_unsupported">This server protocol is not supported on this version.</string>
+    <string name="failure_tunnel_start">The VPN tunnel could not start. Try another network.</string>
+    <string name="failure_disconnect">The VPN could not disconnect cleanly. Try again.</string>
+    <string name="failure_billing_provider">This payment method is not available yet.</string>
+    <string name="failure_generic">The request could not be completed safely.</string>
+
+    <string name="enterprise_failure_consent">Review and approve the privacy summary first.</string>
+    <string name="enterprise_failure_bug_sensitive">Remove configuration, credential, or invalid content.</string>
+    <string name="enterprise_failure_bug_disabled">Bug reporting is temporarily unavailable.</string>
+    <string name="enterprise_failure_diagnostic_disabled">Diagnostics are temporarily unavailable.</string>
+    <string name="enterprise_failure_context">Device context is not ready. Try again later.</string>
+    <string name="enterprise_failure_collection">The diagnostic checks could not complete safely.</string>
+    <string name="enterprise_failure_invalid">The diagnostic result did not pass local validation.</string>
+    <string name="enterprise_failure_generic">This enterprise feature is unavailable right now.</string>
+</resources>
