@@ -5,6 +5,11 @@ import java.util.UUID
 interface ControlApiRepository {
     fun catalog(channel: PurchaseChannel): ApiResult<List<CatalogProduct>>
     fun myServices(): ApiResult<List<UserService>>
+    fun servers(
+        tier: SubscriptionTier? = null,
+        countryCode: String? = null,
+        protocol: VpnProtocol? = null,
+    ): ApiResult<List<ManagedServer>>
     fun checkout(command: CheckoutCommand): ApiResult<CheckoutOrder>
     fun prepareConnection(command: ConnectionProfileCommand): ApiResult<ConnectionProfileLease>
 }
@@ -34,8 +39,13 @@ object ControlApiRepositoryFactory {
             tokenProvider = tokenProvider,
             authenticationEvents = authenticationEvents,
         )
+        val serverCatalog = ServerCatalogClient(
+            transport = transport,
+            tokenProvider = tokenProvider,
+            authenticationEvents = authenticationEvents,
+        )
         return ControlApiComponents(
-            repository = DefaultControlApiRepository(client, vault),
+            repository = DefaultControlApiRepository(client, serverCatalog, vault),
             profileBroker = OneTimeConnectionProfileBroker(vault, cryptoProvider),
         )
     }
@@ -55,11 +65,18 @@ data class ControlApiComponents(
 
 internal class DefaultControlApiRepository(
     private val client: ControlApiClient,
+    private val serverCatalog: ServerCatalogClient,
     private val envelopeVault: ConnectionEnvelopeVault,
 ) : ControlApiRepository {
     override fun catalog(channel: PurchaseChannel): ApiResult<List<CatalogProduct>> = client.getCatalog(channel)
 
     override fun myServices(): ApiResult<List<UserService>> = client.getMyServices()
+
+    override fun servers(
+        tier: SubscriptionTier?,
+        countryCode: String?,
+        protocol: VpnProtocol?,
+    ): ApiResult<List<ManagedServer>> = serverCatalog.getServers(tier, countryCode, protocol)
 
     override fun checkout(command: CheckoutCommand): ApiResult<CheckoutOrder> = client.createCheckout(command)
 
