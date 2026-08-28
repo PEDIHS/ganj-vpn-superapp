@@ -89,6 +89,9 @@ test('Postgres Telegram approval store validates its pool and covers direct pers
   });
   assert.equal(await store.cancel({ requestDigest: 'rd', now: NOW }), true);
   assert.equal(await store.markConsumed({ stateDigest: 'sd', userId: USER_ID, deviceId: DEVICE_ID, now: NOW }), true);
+  assert.equal(await store.restoreApproved({
+    stateDigest: 'sd', userId: USER_ID, deviceId: DEVICE_ID, consumedAt: NOW,
+  }), true);
 
   const pending = await store.findStatus({ stateDigest: 's1', userId: USER_ID, deviceId: DEVICE_ID, now: NOW });
   assert.equal(pending.status, 'pending');
@@ -155,7 +158,6 @@ test('account-link preparation allows free-only guest merge but rejects missing 
         if (sql.includes('FROM control_devices')) return dbResult(deviceRows);
         if (sql.includes('FROM control_users WHERE telegram_subject')) return dbResult(targetRows);
         if (sql.includes('AS has_paid_holdings')) return dbResult([{ has_paid_holdings: paid }]);
-        if (sql.includes('DELETE FROM control_services')) return dbResult();
         throw new Error(`Unexpected SQL: ${sql}`);
       },
     });
@@ -176,7 +178,7 @@ test('account-link preparation allows free-only guest merge but rejects missing 
     paid: false,
   });
   assert.equal(freeOnly.value, 'ready');
-  assert.ok(freeOnly.fake.clientQueries.some(({ sql }) => sql.includes('DELETE FROM control_services')));
+  assert.equal(freeOnly.fake.clientQueries.some(({ sql }) => sql.includes('DELETE FROM control_services')), false);
 });
 
 test('account-link preparation rolls back on unexpected database failure', async () => {
@@ -198,7 +200,7 @@ test('account-link preparation rolls back on unexpected database failure', async
 
 test('adapter constructor and runtime factory reject unsafe deployment configuration', async () => {
   const completeStore = {
-    create() {}, approve() {}, cancel() {}, findStatus() {}, loadForExchange() {}, prepareAccountLink() {}, markConsumed() {}, close() {},
+    create() {}, approve() {}, cancel() {}, findStatus() {}, loadForExchange() {}, prepareAccountLink() {}, markConsumed() {}, restoreApproved() {}, close() {},
   };
   const broker = { linkAndIssueSession() {}, close() {} };
   const base = {
