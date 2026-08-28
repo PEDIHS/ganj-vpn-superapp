@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>Ganj VPN · Control Plane</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+  <div class="app-shell">
+    <aside class="sidebar glass">
+      <div class="brand">
+        <div class="brand-mark">G</div>
+        <div><strong>Ganj VPN</strong><span>Control Plane</span></div>
+      </div>
+      <nav class="nav" aria-label="منوی مدیریت">
+        <button class="nav-item active" data-view="servers"><span>◈</span> سرورها</button>
+        <button class="nav-item" data-view="pasarguard" disabled><span>⌁</span> PasarGuard <small>بعدی</small></button>
+        <button class="nav-item" data-view="bot-sync" disabled><span>⇄</span> Bot Sync <small>بعدی</small></button>
+        <button class="nav-item" data-view="accounts" disabled><span>◎</span> حساب‌ها <small>بعدی</small></button>
+      </nav>
+      <div class="security-note"><span class="dot"></span><div><b>Secret-safe</b><small>کانفیگ خام در این پنل نمایش داده نمی‌شود.</small></div></div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div><p class="eyebrow">OPERATOR CONSOLE</p><h1>Server Registry</h1><p>مدیریت Free / Premium / VIP از یک Control Plane مشترک</p></div>
+        <div class="top-actions"><button id="refreshButton" class="button secondary">↻ بروزرسانی</button><button id="openCreateButton" class="button primary">＋ سرور جدید</button></div>
+      </header>
+
+      <section class="metrics" aria-label="خلاصه وضعیت">
+        <article class="metric glass"><span>کل سرورها</span><strong id="metricTotal">—</strong><small>Registry</small></article>
+        <article class="metric glass"><span>فعال</span><strong id="metricActive">—</strong><small>Online</small></article>
+        <article class="metric glass"><span>Free</span><strong id="metricFree">—</strong><small>Guest access</small></article>
+        <article class="metric glass"><span>نیازمند توجه</span><strong id="metricAttention">—</strong><small>Maintenance / Disabled</small></article>
+      </section>
+
+      <section class="toolbar glass">
+        <label class="search"><span>⌕</span><input id="searchInput" type="search" autocomplete="off" placeholder="جستجو بر اساس نام، کشور یا کد سرور"></label>
+        <div class="filters" role="group" aria-label="فیلتر پلن">
+          <button class="chip active" data-tier="all">همه</button><button class="chip" data-tier="free">Free</button><button class="chip" data-tier="premium">Premium</button><button class="chip" data-tier="vip">VIP</button>
+        </div>
+      </section>
+
+      <section id="statusBanner" class="status-banner hidden" role="status"></section>
+      <section id="serverGrid" class="server-grid" aria-live="polite"></section>
+      <section id="emptyState" class="empty glass hidden"><div>◇</div><h2>سروری پیدا نشد</h2><p>فیلترها را تغییر بده یا یک سرور جدید ثبت کن.</p></section>
+    </main>
+  </div>
+
+  <dialog id="sessionDialog" class="modal glass">
+    <form method="dialog" id="sessionForm">
+      <div class="modal-head"><div><p class="eyebrow">ADMIN SESSION</p><h2>اتصال نشست مدیریت</h2></div></div>
+      <p class="modal-copy">Access Token فقط در حافظه همین صفحه نگه داشته می‌شود و در LocalStorage/SessionStorage ذخیره نمی‌شود.</p>
+      <label>Access Token<input id="tokenInput" type="password" autocomplete="off" spellcheck="false" minlength="16" required></label>
+      <div class="modal-actions"><button class="button primary" value="default">اتصال امن</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="serverDialog" class="modal glass">
+    <form method="dialog" id="serverForm">
+      <div class="modal-head"><div><p class="eyebrow">SERVER REGISTRY</p><h2 id="serverDialogTitle">سرور جدید</h2></div><button value="cancel" class="icon-button" aria-label="بستن">×</button></div>
+      <input id="serverId" type="hidden">
+      <div class="form-grid">
+        <label>کد سرور<input id="serverCode" required minlength="3" maxlength="64" placeholder="de-premium-01"></label>
+        <label>نام نمایشی<input id="serverName" required minlength="2" maxlength="120" placeholder="Germany Premium 01"></label>
+        <label>کشور<input id="serverCountry" required maxlength="2" pattern="[A-Z]{2}" placeholder="DE"></label>
+        <label>شهر<input id="serverCity" maxlength="120" placeholder="Frankfurt"></label>
+        <label>Tier<select id="serverTier"><option value="free">Free</option><option value="premium">Premium</option><option value="vip">VIP</option></select></label>
+        <label>وضعیت<select id="serverStatus"><option value="maintenance">Maintenance</option><option value="active">Active</option><option value="busy">Busy</option><option value="disabled">Disabled</option></select></label>
+        <label>Load Ratio<input id="serverLoad" type="number" min="0" max="1" step="0.01" value="0"></label>
+        <label>Latency Hint (ms)<input id="serverLatency" type="number" min="0" max="60000" step="1"></label>
+      </div>
+      <fieldset><legend>Protocol capability</legend><div class="protocols"><label><input type="checkbox" name="protocol" value="vless" checked>VLESS</label><label><input type="checkbox" name="protocol" value="vmess">VMess</label><label><input type="checkbox" name="protocol" value="trojan">Trojan</label><label><input type="checkbox" name="protocol" value="shadowsocks">Shadowsocks</label></div></fieldset>
+      <label id="secretReferenceField">Secret Store Reference<input id="serverSecretReference" autocomplete="off" spellcheck="false" placeholder="vault:ganj/servers/de-premium-01"><small>فقط reference؛ کانفیگ، UUID، password یا subscription URL وارد نکن.</small></label>
+      <div class="modal-actions"><button value="cancel" class="button secondary">انصراف</button><button id="saveServerButton" value="default" class="button primary">ذخیره</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
