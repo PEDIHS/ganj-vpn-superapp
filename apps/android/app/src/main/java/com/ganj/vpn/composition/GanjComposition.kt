@@ -101,13 +101,13 @@ class GanjComposition internal constructor(
 
     fun hasPendingTelegramLogin(): Boolean = telegramAuth?.hasPendingFlow() == true
 
-    fun beginTelegramLogin(): TelegramBotAuthResult =
+    internal fun beginTelegramLogin(): TelegramBotAuthResult =
         telegramAuth?.begin() ?: TelegramBotAuthResult.Failed("auth.unavailable")
 
-    fun resumeTelegramLogin(): TelegramBotAuthResult =
+    internal fun resumeTelegramLogin(): TelegramBotAuthResult =
         telegramAuth?.resume() ?: TelegramBotAuthResult.Failed("auth.unavailable")
 
-    fun logoutTelegram(): TelegramBotAuthResult =
+    internal fun logoutTelegram(): TelegramBotAuthResult =
         telegramAuth?.logout() ?: TelegramBotAuthResult.LoggedOut
 
     suspend fun launchGooglePlayCheckout(
@@ -180,7 +180,7 @@ class PlayPurchaseEventRelay : PlayPurchaseObserver, Closeable {
 }
 
 object GanjCompositionFactory {
-    fun create(
+    internal fun create(
         application: Application,
         endpoint: String,
         tokenProvider: AuthTokenProvider,
