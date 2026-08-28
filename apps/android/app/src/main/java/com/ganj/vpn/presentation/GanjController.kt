@@ -34,7 +34,10 @@ data class ConnectionProfileContext(
 )
 
 fun interface ConnectionProfileContextProvider {
-    fun forConnection(entitlementId: String, serverId: String): ConnectionProfileContext?
+    fun forEntitlement(entitlementId: String): ConnectionProfileContext?
+
+    fun forConnection(entitlementId: String, serverId: String): ConnectionProfileContext? =
+        forEntitlement(entitlementId)?.takeIf { it.serverId == serverId }
 }
 
 fun interface AuthenticatedCheckoutSession {
@@ -112,8 +115,8 @@ class GanjController(
 ) {
     fun refresh(state: GanjUiState): GanjUiState {
         var next = reducer.reduce(state, GanjUiEvent.CatalogResolved(mapper.catalog(repository.catalog(PurchaseChannel.PLAY))))
-        // Services are intentionally resolved before servers. For a fresh guest this allows the
-        // server-side FreeAccessRepository to create the idempotent free entitlement first.
+        // Services intentionally resolve before servers. For a fresh guest this lets the server-side
+        // free-access decorator create the idempotent Free entitlement before catalog filtering.
         next = reducer.reduce(next, GanjUiEvent.ServicesResolved(mapper.services(repository.myServices())))
         next = reducer.reduce(next, GanjUiEvent.ServersResolved(mapper.servers(repository.servers())))
         return next
