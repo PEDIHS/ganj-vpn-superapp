@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { failure, rejectUnknown, requireString, success } from './errors.js';
+import { ApiError, failure, rejectUnknown, requireString, success } from './errors.js';
 import { parseBody } from './application.js';
 
 function optionalString(value, name, maximum) {
@@ -24,7 +24,8 @@ export function createTelegramBotApprovalApplication({
     const url = new URL(request.url);
     const { pathname } = url;
     const botRoute = pathname.startsWith('/v1/auth/telegram/bot/')
-      || pathname === '/v1/internal/telegram/bot/approval';
+      || pathname === '/v1/internal/telegram/bot/approval'
+      || (request.method === 'POST' && pathname === '/v1/orders');
     if (!botRoute) return baseApplication(request);
 
     const requestIdHeader = request.headers.get('x-request-id');
@@ -45,6 +46,13 @@ export function createTelegramBotApprovalApplication({
       }
 
       const principal = await auth.authenticate(request);
+
+      if (request.method === 'POST' && pathname === '/v1/orders') {
+        if (principal.authMethod !== 'telegram') {
+          throw new ApiError(401, 'telegram_link_required', 'Telegram account link is required for paid ownership operations.');
+        }
+        return baseApplication(request);
+      }
 
       if (request.method === 'POST' && pathname === '/v1/auth/telegram/bot/start') {
         const body = await parseBody(request, 8_192);
