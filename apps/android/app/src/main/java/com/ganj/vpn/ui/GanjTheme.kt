@@ -145,10 +145,12 @@ internal val LocalGanjGlassPalette = staticCompositionLocalOf { GanjDarkGlass }
 @Composable
 internal fun GanjTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    visualEffectsPolicy: GanjVisualEffectsPolicy = currentGanjVisualEffectsPolicy(),
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
         LocalGanjGlassPalette provides if (darkTheme) GanjDarkGlass else GanjLightGlass,
+        LocalGanjVisualEffectsPolicy provides visualEffectsPolicy,
     ) {
         MaterialTheme(
             colorScheme = if (darkTheme) GanjDarkColors else GanjLightColors,
