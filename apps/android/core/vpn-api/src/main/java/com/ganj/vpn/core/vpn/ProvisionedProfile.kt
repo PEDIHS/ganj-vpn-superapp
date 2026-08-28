@@ -165,8 +165,11 @@ private fun validateProtocolCompatibility(
     security: ProvisionedSecurity,
     flow: String?,
 ) {
-    require(security !is ProvisionedSecurity.Reality || protocol == VpnProtocol.VLESS) {
-        "REALITY is supported only for VLESS"
+    if (security is ProvisionedSecurity.Reality) {
+        require(protocol == VpnProtocol.VLESS) { "REALITY is supported only for VLESS" }
+        require(
+            transport == ProvisionedTransport.Tcp || transport is ProvisionedTransport.Grpc,
+        ) { "REALITY requires TCP or gRPC transport" }
     }
     require(protocol != VpnProtocol.TROJAN || security is ProvisionedSecurity.Tls) {
         "Trojan requires authenticated TLS"
