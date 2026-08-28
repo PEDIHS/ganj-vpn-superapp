@@ -9,21 +9,41 @@
 اجباری:
 
 1. `README.md` را بخوان؛
-2. `PROJECT_BIBLE.fa.md` را بخوان؛
-3. `DELIVERY_LEDGER.fa.md` را بخوان؛
-4. `IMPLEMENTATION_BACKLOG.fa.md` را بخوان؛
-5. `RELEASE_READINESS_MATRIX.fa.md` را بخوان؛
-6. `main` latest commit را بررسی کن؛
-7. Branchهای مرتبط با task را جست‌وجو کن؛
-8. PRهای باز و merged مشابه را بررسی کن؛
-9. فایل‌های implementation واقعی را بخوان؛
-10. تست‌های همان module را قبل از طراحی تغییر بخوان.
+2. `00-CURRENT_PRODUCT_SCOPE.fa.md` را بخوان؛
+3. اگر Task به Android UI/UX/Brand مربوط است، **حتماً** `15-android-ui-ux-brand-system.fa.md` را بخوان؛
+4. `PROJECT_BIBLE.fa.md` را بخوان؛
+5. `DELIVERY_LEDGER.fa.md` را بخوان؛
+6. `IMPLEMENTATION_BACKLOG.fa.md` را بخوان؛
+7. `RELEASE_READINESS_MATRIX.fa.md` را بخوان؛
+8. `main` latest commit را بررسی کن؛
+9. Branchهای مرتبط با task را جست‌وجو کن؛
+10. PRهای باز و merged مشابه را بررسی کن؛
+11. فایل‌های implementation واقعی را بخوان؛
+12. تست‌های همان module را قبل از طراحی تغییر بخوان.
 
-هیچ Feature را فقط از روی مستندات دوباره نساز؛ GitHub code source of truth است.
+هیچ Feature را فقط از روی مستندات دوباره نساز؛ GitHub code source of truth است. برای Requirement فعلی Scope Lock و برای Visual Brand سند 15 مرجع قطعی‌اند.
 
 ---
 
 # 2. Product Invariants که نباید شکسته شوند
+
+## Current Platform Scope
+
+- Client اجرایی فعلی Android-only است؛
+- iOS/Desktop فقط Post-MVP؛
+- Apple HIG inspiration به معنی iOS clone یا ایجاد iOS workstream فعلی نیست.
+
+## Visual Brand
+
+- Primary Brand/Action = Emerald Green؛
+- Premium/Signature Accent = Refined Gold؛
+- غالب screen composition = Neutral Dark / Warm Light؛
+- Blue به‌عنوان Brand Primary ممنوع؛
+- `#0A84FF`, `#007AFF`, Material default blue و `GanjBlue` نباید Design Primary نهایی باشند؛
+- Gold نباید تمام App را پر کند؛
+- Liquid Glass محدود و functional است؛
+- Dynamic Color برای Brand Core در MVP پیش‌فرض خاموش؛
+- UI branchهای قدیمی با Blue قبل از merge باید migration شوند.
 
 ## VPN Config
 
@@ -84,6 +104,8 @@ docs/<scope>
 
 از `main` پایدار base بگیر مگر task صریحاً ادامه Branch در حال توسعه باشد.
 
+برای UI اگر `phase-7/android-ui-accessibility-v2` یا successor آن وجود دارد، ابتدا compare کن؛ Feature را از صفر duplicate نکن.
+
 ---
 
 # 4. PR Contract
@@ -106,6 +128,19 @@ docs/<scope>
 - crypto؛
 - privacy؛
 - abuse/replay impact.
+
+## UI/UX — اگر relevant
+
+- Screen/Componentهای تغییرکرده؛
+- Design tokenهای استفاده‌شده؛
+- Emerald/Gold/Neutral brand compliance؛
+- Dark/Light/System؛
+- fa/en؛
+- RTL/LTR؛
+- font scale؛
+- TalkBack؛
+- screenshot/device evidence؛
+- motion/performance impact.
 
 ## Data/Migration
 
@@ -152,7 +187,21 @@ docs/<scope>
 - lifecycle cancellation safe؛
 - VPN connected state tied to runtime؛
 - localization via resources؛
-- accessibility semantics.
+- accessibility semantics؛
+- Material 3 behavior without default blue branding؛
+- `design/tokens.json` + `15-android-ui-ux-brand-system.fa.md` for final visual choices؛
+- user-facing hardcoded English ممنوع در production screens.
+
+## Android UI Brand Migration
+
+- `GanjBlue` باید از Final Theme حذف شود؛
+- `GanjEmerald`, Gold و neutral semantic tokens استفاده شوند؛
+- Gold فقط premium micro-accent؛
+- Neutral surfaces غالب؛
+- Dynamic Color نباید Brand را override کند؛
+- Glass layer باید fallback داشته باشد؛
+- 48dp touch target minimum؛
+- Light/Dark هر دو مستقل design شوند.
 
 ## Admin
 
@@ -220,6 +269,22 @@ docs/<scope>
 - IPv6؛
 - no log secret.
 
+## Android UI
+
+- Dark/Light/System؛
+- fa-IR RTL؛
+- en LTR؛
+- font scale 100/130/160/200%؛
+- TalkBack؛
+- contrast؛
+- touch target؛
+- Reduce Motion؛
+- Glass opaque fallback؛
+- small/standard/large phone؛
+- all VPN states؛
+- all core purchase states؛
+- screenshot review confirming no dominant blue brand surface.
+
 ## Admin
 
 - auth؛
@@ -242,7 +307,8 @@ docs/<scope>
 - mock test pass؛
 - workflow تعریف شده؛
 - Docker compose وجود دارد؛
-- API endpoint وجود دارد.
+- API endpoint وجود دارد؛
+- UI screenshot زیبا است.
 
 برای Production claim معمولاً لازم است:
 
@@ -252,7 +318,8 @@ docs/<scope>
 - E2E؛
 - monitoring؛
 - rollback؛
-- security/compliance evidence.
+- security/compliance evidence؛
+- در UI: device/accessibility/localization evidence.
 
 ---
 
@@ -267,7 +334,7 @@ docs/<scope>
 5. staging deployment؛
 6. real VPN E2E/resilience؛
 7. Play Billing E2E؛
-8. UI localization/finalization؛
+8. UI localization/finalization طبق سند 15؛
 9. Admin minimum؛
 10. beta/release gates.
 
@@ -289,6 +356,7 @@ Files changed:
 Tests run:
 CI status:
 Security notes:
+UI/Brand notes:
 Migration notes:
 External dependencies:
 Known blockers:
@@ -313,7 +381,11 @@ Do not change:
 - تبدیل server-side permission به client-only check؛
 - log کردن payload محرمانه برای debug؛
 - حذف تست امنیتی برای سبز شدن build؛
-- overwrite کردن branch کاری دیگر بدون compare.
+- overwrite کردن branch کاری دیگر بدون compare؛
+- برگرداندن Blue به‌عنوان Brand Primary؛
+- طلایی/سبز کردن کل UI برای «لوکس» نشان دادن؛
+- کپی مستقیم iOS/Nord/Proton؛
+- فعال‌کردن Dynamic Color به‌گونه‌ای که Brand Ganj override شود.
 
 ---
 
@@ -327,7 +399,8 @@ Contribution خوب:
 - امنیت را کاهش نمی‌دهد؛
 - tests اضافه/تقویت می‌کند؛
 - docs را sync می‌کند؛
+- در UI، Brand Lock و Accessibility را رعایت می‌کند؛
 - Remaining Boundary را صادقانه ثبت می‌کند؛
 - کار Agent بعدی را آسان‌تر می‌کند.
 
-هدف سرعت خام نیست؛ هدف **parallel delivery بدون ایجاد technical/security debt پنهان** است.
+هدف سرعت خام نیست؛ هدف **parallel delivery بدون ایجاد technical/security/design debt پنهان** است.
