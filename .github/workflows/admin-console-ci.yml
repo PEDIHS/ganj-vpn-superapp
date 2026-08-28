@@ -1,0 +1,90 @@
+name: Admin Control Plane CI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/admin-console/**'
+      - 'services/control-api/src/admin-control-plane.js'
+      - 'services/control-api/src/admin-control-plane-repository.js'
+      - 'services/control-api/src/admin-aware-application.js'
+      - 'services/control-api/src/runtime.js'
+      - 'services/control-api/src/index.js'
+      - 'services/control-api/test/admin-control-plane.test.js'
+      - 'services/control-api/migrations/020_admin_server_registry.sql'
+      - 'services/control-api/ADMIN_CONTROL_PLANE_V1.md'
+      - '.github/workflows/admin-console-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/admin-console/**'
+      - 'services/control-api/src/admin-control-plane.js'
+      - 'services/control-api/src/admin-control-plane-repository.js'
+      - 'services/control-api/src/admin-aware-application.js'
+      - 'services/control-api/src/runtime.js'
+      - 'services/control-api/src/index.js'
+      - 'services/control-api/test/admin-control-plane.test.js'
+      - 'services/control-api/migrations/020_admin_server_registry.sql'
+      - 'services/control-api/ADMIN_CONTROL_PLANE_V1.md'
+      - '.github/workflows/admin-console-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: admin-control-plane-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Console and API contract tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: services/control-api/package-lock.json
+
+      - name: Install Control API production dependencies
+        working-directory: services/control-api
+        run: npm ci --omit=dev
+
+      - name: Syntax-check Admin Console
+        run: npm --prefix apps/admin-console run check
+
+      - name: Test Admin Console client safety
+        run: npm --prefix apps/admin-console test
+
+      - name: Syntax-check Admin Control Plane backend
+        run: |
+          node --check services/control-api/src/admin-control-plane.js
+          node --check services/control-api/src/admin-control-plane-repository.js
+          node --check services/control-api/src/admin-aware-application.js
+          node --check services/control-api/src/runtime.js
+          node --check services/control-api/src/index.js
+
+      - name: Run Admin Control Plane API tests
+        run: node --test services/control-api/test/admin-control-plane.test.js
+
+      - name: Reject persistent browser credential storage
+        shell: bash
+        run: |
+          if grep -RInE '\b(localStorage|sessionStorage)\b' apps/admin-console/src apps/admin-console/index.html; then
+            echo 'Persistent browser credential storage is forbidden in Admin Console runtime.' >&2
+            exit 1
+          fi
+
+      - name: Reject reusable VPN material in Admin UI implementation
+        shell: bash
+        run: |
+          if grep -RInE '(vless|vmess|trojan|ss)://' apps/admin-console/src apps/admin-console/index.html; then
+            echo 'Reusable VPN URIs are forbidden in Admin Console runtime.' >&2
+            exit 1
+          fi
