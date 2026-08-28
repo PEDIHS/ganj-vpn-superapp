@@ -11,17 +11,19 @@
 1. `README.md` را بخوان؛
 2. `00-CURRENT_PRODUCT_SCOPE.fa.md` را بخوان؛
 3. اگر Task به Android UI/UX/Brand مربوط است، **حتماً** `15-android-ui-ux-brand-system.fa.md` را بخوان؛
-4. `PROJECT_BIBLE.fa.md` را بخوان؛
-5. `DELIVERY_LEDGER.fa.md` را بخوان؛
-6. `IMPLEMENTATION_BACKLOG.fa.md` را بخوان؛
-7. `RELEASE_READINESS_MATRIX.fa.md` را بخوان؛
-8. `main` latest commit را بررسی کن؛
-9. Branchهای مرتبط با task را جست‌وجو کن؛
-10. PRهای باز و merged مشابه را بررسی کن؛
-11. فایل‌های implementation واقعی را بخوان؛
-12. تست‌های همان module را قبل از طراحی تغییر بخوان.
+4. برای **هر تغییر UI**، **حتماً** `16-liquid-glass-first-design-standard.fa.md` را بخوان؛
+5. `04-design-system.fa.md` و `design/tokens.json` را برای UI بررسی کن؛
+6. `PROJECT_BIBLE.fa.md` را بخوان؛
+7. `DELIVERY_LEDGER.fa.md` را بخوان؛
+8. `IMPLEMENTATION_BACKLOG.fa.md` را بخوان؛
+9. `RELEASE_READINESS_MATRIX.fa.md` را بخوان؛
+10. `main` latest commit را بررسی کن؛
+11. Branchهای مرتبط با task را جست‌وجو کن؛
+12. PRهای باز و merged مشابه را بررسی کن؛
+13. فایل‌های implementation واقعی را بخوان؛
+14. تست‌های همان module را قبل از طراحی تغییر بخوان.
 
-هیچ Feature را فقط از روی مستندات دوباره نساز؛ GitHub code source of truth است. برای Requirement فعلی Scope Lock و برای Visual Brand سند 15 مرجع قطعی‌اند.
+هیچ Feature را فقط از روی مستندات دوباره نساز؛ GitHub code source of truth است. برای Requirement فعلی Scope Lock، برای Visual Brand سند 15 و برای Material/Depth/Motion/Liquid Glass سند 16 مرجع قطعی‌اند.
 
 ---
 
@@ -41,9 +43,23 @@
 - Blue به‌عنوان Brand Primary ممنوع؛
 - `#0A84FF`, `#007AFF`, Material default blue و `GanjBlue` نباید Design Primary نهایی باشند؛
 - Gold نباید تمام App را پر کند؛
-- Liquid Glass محدود و functional است؛
 - Dynamic Color برای Brand Core در MVP پیش‌فرض خاموش؛
 - UI branchهای قدیمی با Blue قبل از merge باید migration شوند.
+
+## **Liquid Glass — Non-negotiable**
+
+- **کل اپلیکیشن Liquid Glass-first است؛**
+- این Requirement فقط به Bottom Navigation یا چند Card محدود نیست؛
+- تمام Screenها باید Material hierarchy، layered depth، edge-to-edge composition و fluid motion یکپارچه داشته باشند؛
+- Bottom Navigation باید semantic Glass باشد؛
+- Search/Filters/Floating Controls/Sheets باید Glass role مناسب داشته باشند؛
+- Connect باید Signature Liquid state machine باشد؛
+- Content rows/cards به‌طور پیش‌فرض Glass نیستند؛
+- **Blur Everywhere ممنوع است؛**
+- **Nested Glass به‌صورت عمومی ممنوع است؛**
+- raw alpha/blur در Screen layer برای ساخت effect ممنوع؛ از Design Tokens/Glass components استفاده شود؛
+- Reduce Transparency، High Contrast، Reduce Motion و low-performance fallback الزامی؛
+- UI Final باید Liquid Glass Maturity Level 3 طبق سند 16 باشد.
 
 ## VPN Config
 
@@ -133,14 +149,17 @@ docs/<scope>
 
 - Screen/Componentهای تغییرکرده؛
 - Design tokenهای استفاده‌شده؛
+- Liquid Glass roleهای استفاده‌شده؛
+- Nested Glass check؛
 - Emerald/Gold/Neutral brand compliance؛
 - Dark/Light/System؛
 - fa/en؛
 - RTL/LTR؛
 - font scale؛
 - TalkBack؛
+- Reduce Transparency/Motion؛
 - screenshot/device evidence؛
-- motion/performance impact.
+- frame/jank/performance impact.
 
 ## Data/Migration
 
@@ -189,19 +208,25 @@ docs/<scope>
 - localization via resources؛
 - accessibility semantics؛
 - Material 3 behavior without default blue branding؛
-- `design/tokens.json` + `15-android-ui-ux-brand-system.fa.md` for final visual choices؛
+- `design/tokens.json` + اسناد 15/16 برای visual choices؛
 - user-facing hardcoded English ممنوع در production screens.
 
-## Android UI Brand Migration
+## Android UI Brand / Liquid Migration
 
 - `GanjBlue` باید از Final Theme حذف شود؛
 - `GanjEmerald`, Gold و neutral semantic tokens استفاده شوند؛
+- semantic `GlassRole` component system ساخته شود؛
+- feature developer نباید arbitrary blur/alpha hardcode کند؛
+- Bottom Navigation باید `Glass.Regular` یا equivalent tokenized material باشد؛
+- Sheet shell باید `Glass.Dense` یا fallback معادل باشد؛
+- Prominent Glass فقط برای Primary momentهای محدود؛
 - Gold فقط premium micro-accent؛
 - Neutral surfaces غالب؛
 - Dynamic Color نباید Brand را override کند؛
-- Glass layer باید fallback داشته باشد؛
+- Glass layer باید opaque fallback داشته باشد؛
 - 48dp touch target minimum؛
-- Light/Dark هر دو مستقل design شوند.
+- Light/Dark هر دو مستقل design شوند؛
+- low-end/battery-saver performance fallback باید وجود داشته باشد.
 
 ## Admin
 
@@ -271,6 +296,9 @@ docs/<scope>
 
 ## Android UI
 
+- Liquid Glass Level 3 screen review؛
+- semantic Glass roles؛
+- no nested Glass؛
 - Dark/Light/System؛
 - fa-IR RTL؛
 - en LTR؛
@@ -279,11 +307,14 @@ docs/<scope>
 - contrast؛
 - touch target؛
 - Reduce Motion؛
-- Glass opaque fallback؛
+- Reduce Transparency / OpaqueFallback؛
+- High Contrast؛
 - small/standard/large phone؛
+- low-end performance fallback؛
 - all VPN states؛
 - all core purchase states؛
-- screenshot review confirming no dominant blue brand surface.
+- screenshot review confirming no dominant blue brand surface؛
+- frame/jank evidence for scrolling, sheets and Connect morph.
 
 ## Admin
 
@@ -308,7 +339,8 @@ docs/<scope>
 - workflow تعریف شده؛
 - Docker compose وجود دارد؛
 - API endpoint وجود دارد؛
-- UI screenshot زیبا است.
+- UI screenshot زیبا است؛
+- چند Glass Card اضافه شده است.
 
 برای Production claim معمولاً لازم است:
 
@@ -319,7 +351,7 @@ docs/<scope>
 - monitoring؛
 - rollback؛
 - security/compliance evidence؛
-- در UI: device/accessibility/localization evidence.
+- در UI: Liquid Level 3 + device/accessibility/localization/performance evidence.
 
 ---
 
@@ -334,7 +366,7 @@ docs/<scope>
 5. staging deployment؛
 6. real VPN E2E/resilience؛
 7. Play Billing E2E؛
-8. UI localization/finalization طبق سند 15؛
+8. UI localization/finalization طبق اسناد 15/16؛
 9. Admin minimum؛
 10. beta/release gates.
 
@@ -356,7 +388,7 @@ Files changed:
 Tests run:
 CI status:
 Security notes:
-UI/Brand notes:
+UI/Brand/Liquid notes:
 Migration notes:
 External dependencies:
 Known blockers:
@@ -385,7 +417,10 @@ Do not change:
 - برگرداندن Blue به‌عنوان Brand Primary؛
 - طلایی/سبز کردن کل UI برای «لوکس» نشان دادن؛
 - کپی مستقیم iOS/Nord/Proton؛
-- فعال‌کردن Dynamic Color به‌گونه‌ای که Brand Ganj override شود.
+- فعال‌کردن Dynamic Color به‌گونه‌ای که Brand Ganj override شود؛
+- تفسیر Liquid Glass به‌عنوان Blur Everywhere؛
+- ساخت Nested Glass بدون design exception؛
+- حذف fallback شفافیت/Performance برای حفظ ظاهر Screenshot.
 
 ---
 
@@ -399,7 +434,7 @@ Contribution خوب:
 - امنیت را کاهش نمی‌دهد؛
 - tests اضافه/تقویت می‌کند؛
 - docs را sync می‌کند؛
-- در UI، Brand Lock و Accessibility را رعایت می‌کند؛
+- در UI، Brand Lock + Liquid Glass Standard + Accessibility را رعایت می‌کند؛
 - Remaining Boundary را صادقانه ثبت می‌کند؛
 - کار Agent بعدی را آسان‌تر می‌کند.
 
