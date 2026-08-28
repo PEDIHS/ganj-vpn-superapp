@@ -3,6 +3,7 @@ import { createTelegramBotApprovalAdapter } from './adapters/telegram-bot-approv
 import { createHttpServer } from './http.js';
 import { createPasarGuardPaidApplication, createPasarGuardPaidRuntime } from './pasarguard-paid-routes.js';
 import { createRuntime } from './runtime.js';
+import { createSafeApplicationBoundary } from './safe-application-boundary.js';
 import { createTelegramBotApprovalApplication } from './telegram-bot-routes.js';
 
 const runtime = await createRuntime(process.env);
@@ -27,13 +28,14 @@ const paidApplication = paidRuntime
   })
   : baseApplication;
 
-const application = telegramBotApproval
+const routedApplication = telegramBotApproval
   ? createTelegramBotApprovalApplication({
     baseApplication: paidApplication,
     auth: runtime.auth,
     telegramBotApproval,
   })
   : paidApplication;
+const application = createSafeApplicationBoundary(routedApplication);
 
 const port = Number(process.env.PORT ?? 8080);
 const host = process.env.HOST ?? '127.0.0.1';
