@@ -7,6 +7,7 @@ import com.ganj.vpn.core.controlapi.AndroidKeystoreSessionVault
 import com.ganj.vpn.core.controlapi.AuthSessionApiFactory
 import com.ganj.vpn.core.deviceidentity.AndroidDeviceIdentity
 import com.ganj.vpn.presentation.ConnectionProfileContextProvider
+import com.ganj.vpn.vpn.AndroidVpnSessionRevocationSink
 import java.net.URI
 
 class GanjCompositionOwner internal constructor(
@@ -42,6 +43,7 @@ class GanjCompositionOwner internal constructor(
                 api = AuthSessionApiFactory.create(endpoint),
                 vault = AndroidKeystoreSessionVault(application),
                 identity = deviceIdentity,
+                sessionRevocationSink = AndroidVpnSessionRevocationSink(application),
             )
             val composition = GanjCompositionFactory.create(
                 application = application,
