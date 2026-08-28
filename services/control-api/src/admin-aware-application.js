@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createApplication, parseBody } from './application.js';
 import { createAdminControlPlaneRouter } from './admin-control-plane.js';
-import { failure } from './errors.js';
+import { ApiError, failure } from './errors.js';
 
 /**
  * Keeps the user-facing Control API unchanged while mounting the operator-only control plane under
@@ -27,7 +27,7 @@ export function createAdminAwareApplication(runtime, { clock = () => new Date() 
         principal,
         requestId,
       });
-      return response ?? failure(new Error('Admin route was not found.'), requestId, clock);
+      return response ?? failure(new ApiError(404, 'route_not_found', 'Route was not found.'), requestId, clock);
     } catch (error) {
       return failure(error, requestId, clock);
     }
