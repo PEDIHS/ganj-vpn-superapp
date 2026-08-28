@@ -1,0 +1,42 @@
+name: Design Handoff Export
+
+on:
+  push:
+    branches:
+      - chatgpt/design-export-20260829
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Remove generated and sensitive local files
+        shell: bash
+        run: |
+          rm -rf .git .gradle .idea node_modules || true
+          find . -type d \( -name build -o -name node_modules -o -name .gradle -o -name .idea \) -prune -exec rm -rf {} + || true
+          find . -type f \( -name 'local.properties' -o -name '.env' -o -name '.env.*' -o -name '*.jks' -o -name '*.keystore' \) -delete || true
+
+      - name: Create ZIP
+        shell: bash
+        run: |
+          cd ..
+          zip -r ganj-vpn-superapp-design-handoff.zip ganj-vpn-superapp \
+            -x 'ganj-vpn-superapp/.git/*' \
+               'ganj-vpn-superapp/**/build/*' \
+               'ganj-vpn-superapp/**/.gradle/*' \
+               'ganj-vpn-superapp/**/node_modules/*'
+
+      - name: Upload design handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: ganj-vpn-superapp-design-handoff
+          path: ../ganj-vpn-superapp-design-handoff.zip
+          if-no-files-found: error
+          retention-days: 7
