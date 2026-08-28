@@ -23,8 +23,14 @@ object ControlApiRepositoryFactory {
         cryptoProvider: Gvp1CryptoProvider = UnavailableGvp1CryptoProvider,
     ): ControlApiComponents {
         val vault = InMemoryConnectionEnvelopeVault()
+        val rawTransport = UrlConnectionTransport(baseUrl)
+        val transport = RefreshingHttpTransport(
+            delegate = rawTransport,
+            tokenProvider = tokenProvider,
+            authenticationEvents = authenticationEvents,
+        )
         val client = ControlApiClient(
-            transport = UrlConnectionTransport(baseUrl),
+            transport = transport,
             tokenProvider = tokenProvider,
             authenticationEvents = authenticationEvents,
         )
