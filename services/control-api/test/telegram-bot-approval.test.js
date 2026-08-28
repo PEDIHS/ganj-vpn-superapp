@@ -60,6 +60,13 @@ function memoryStore(clock) {
       row.consumedAt = now;
       return true;
     },
+    async restoreApproved({ stateDigest, userId, deviceId, consumedAt }) {
+      const row = rows.get(stateDigest);
+      if (!row || row.userId !== userId || row.deviceId !== deviceId || !row.consumedAt
+        || row.cancelledAt || row.expiresAt <= consumedAt) return false;
+      row.consumedAt = null;
+      return true;
+    },
     async close() {},
   };
 }
@@ -82,7 +89,7 @@ function mapped(row, now) {
   };
 }
 
-function fixture() {
+function fixture({ brokerFailure = null } = {}) {
   let now = new Date('2026-08-28T09:45:00.000Z');
   const clock = () => new Date(now);
   const store = memoryStore(clock);
@@ -92,6 +99,7 @@ function fixture() {
     accountBroker: {
       async linkAndIssueSession(value) {
         brokerCalls.push(value);
+        if (brokerFailure) throw brokerFailure;
         return { user_id: USER_ID, device_id: value.deviceId, access_token: 'server-issued-token' };
       },
       async close() {},
@@ -153,6 +161,30 @@ test('Bot Approval completes one-shot PKCE exchange and only backend broker issu
     () => adapter.exchangeAuthorizationCode({ principal, code: approved.code, state: started.state, codeVerifier: VERIFIER }),
     (error) => error?.code === 'invalid_telegram_bot_exchange' || error?.code === 'telegram_bot_exchange_replayed',
   );
+});
+
+test('transient account broker failure restores approved exchange for a safe retry', async () => {
+  const { adapter } = fixture({ brokerFailure: new Error('broker unavailable') });
+  const started = await adapter.start({ principal, codeChallenge: CHALLENGE, redirectUri: REDIRECT_URI });
+  const requestToken = tokenFrom(started.approval_url);
+  await adapter.decide({
+    authorization: `Bearer ${INTERNAL_TOKEN}`,
+    requestToken,
+    action: 'approve',
+    telegramUserId: '123456789',
+  });
+  const approved = await adapter.status({ principal, state: started.state });
+
+  await assert.rejects(
+    () => adapter.exchangeAuthorizationCode({
+      principal,
+      code: approved.code,
+      state: started.state,
+      codeVerifier: VERIFIER,
+    }),
+    /broker unavailable/,
+  );
+  assert.equal((await adapter.status({ principal, state: started.state })).status, 'approved');
 });
 
 test('approval decision requires internal bot bearer and rejects conflicting Telegram identity', async () => {
