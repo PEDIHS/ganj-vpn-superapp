@@ -49,12 +49,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: services/control-api/package-lock.json
 
       - name: Install Control API production dependencies
         working-directory: services/control-api
-        run: npm ci --omit=dev
+        run: npm install --omit=dev --ignore-scripts --no-audit --no-fund
 
       - name: Syntax-check Admin Console
         run: npm --prefix apps/admin-console run check
