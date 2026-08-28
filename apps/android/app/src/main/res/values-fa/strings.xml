@@ -28,7 +28,13 @@
     <string name="vpn_session_name">اتصال امن گنج VPN</string>
     <string name="vpn_notification_channel">اتصال VPN</string>
     <string name="vpn_notification_channel_description">وضعیت اتصال فعال گنج VPN را نمایش می‌دهد</string>
-    <string name="vpn_notification_title">گنج VPN متصل است</string>
-    <string name="vpn_notification_message">ترافیک شبکه شما محافظت می‌شود</string>
+    <string name="vpn_notification_connecting_title">گنج VPN در حال اتصال است</string>
+    <string name="vpn_notification_connecting_message">تونل امن شبکه در حال آماده‌سازی است</string>
+    <string name="vpn_notification_connected_title">گنج VPN متصل است</string>
+    <string name="vpn_notification_connected_message">ترافیک شبکه شما محافظت می‌شود</string>
+    <string name="vpn_notification_reconnecting_title">در حال بازیابی گنج VPN</string>
+    <string name="vpn_notification_reconnecting_message">تا بازیابی اتصال، ترافیک داخل تونل امن باقی می‌ماند</string>
+    <string name="vpn_notification_blocked_title">اتصال VPN در دسترس نیست</string>
+    <string name="vpn_notification_blocked_message">Kill Switch ترافیک را مسدود نگه داشته است. شبکه را عوض کنید یا VPN را قطع کنید.</string>
     <string name="vpn_disconnect_action">قطع اتصال</string>
 </resources>
