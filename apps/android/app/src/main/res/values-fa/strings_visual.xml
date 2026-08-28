@@ -2,7 +2,7 @@
 <resources>
     <string name="visual_protected">محافظت‌شده</string>
     <string name="visual_ready">آماده</string>
-    <string name="visual_verified">تاییدشده</string>
+    <string name="visual_verified">فرایند تاییدشده توسط سرور</string>
     <string name="visual_signature">Ganj Signature</string>
     <string name="visual_device_verified">دستگاه تاییدشده</string>
     <string name="visual_selected_service">سرویس انتخاب‌شده</string>
