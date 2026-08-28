@@ -53,17 +53,20 @@ internal fun GanjLiquidCanvas(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
+    val effects = LocalGanjVisualEffectsPolicy.current
+    val primaryAlpha = if (effects.ambientBackgroundEffects) 0.14f else 0.055f
+    val tertiaryAlpha = if (effects.ambientBackgroundEffects) 0.035f else 0f
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(
                 Brush.radialGradient(
                     colors = listOf(
-                        colors.primary.copy(alpha = 0.14f),
-                        colors.tertiary.copy(alpha = 0.035f),
+                        colors.primary.copy(alpha = primaryAlpha),
+                        colors.tertiary.copy(alpha = tertiaryAlpha),
                         colors.background,
                     ),
-                    radius = 1150f,
+                    radius = if (effects.ambientBackgroundEffects) 1150f else 760f,
                 ),
             ),
         content = content,
@@ -81,24 +84,35 @@ internal fun GanjGlassSurface(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val glass = LocalGanjGlassPalette.current
+    val effects = LocalGanjVisualEffectsPolicy.current
+    val effectiveRole = if (effects.reduceTransparency && role != GanjGlassRole.OpaqueFallback) {
+        GanjGlassRole.OpaqueFallback
+    } else {
+        role
+    }
     val shape = RoundedCornerShape(shapeRadius)
-    val base = when (role) {
+    val base = when (effectiveRole) {
         GanjGlassRole.Clear -> MaterialTheme.colorScheme.surface.copy(alpha = 0.38f)
         GanjGlassRole.Regular -> MaterialTheme.colorScheme.surface.copy(alpha = 0.58f)
         GanjGlassRole.Dense -> MaterialTheme.colorScheme.surface.copy(alpha = 0.76f)
         GanjGlassRole.Prominent -> MaterialTheme.colorScheme.surface.copy(alpha = 0.70f)
         GanjGlassRole.OpaqueFallback -> glass.opaqueFallback.copy(alpha = 0.98f)
     }
-    val accentStrength = when (role) {
+    val accentStrength = when (effectiveRole) {
         GanjGlassRole.Clear -> 0.035f
         GanjGlassRole.Regular -> 0.055f
         GanjGlassRole.Dense -> 0.065f
         GanjGlassRole.Prominent -> 0.11f
         GanjGlassRole.OpaqueFallback -> 0.02f
     }
-    val border = when (role) {
+    val border = when (effectiveRole) {
         GanjGlassRole.Prominent -> glass.borderStrong
         else -> glass.borderSoft
+    }
+    val highlightAlpha = when {
+        effects.reduceTransparency -> 0.025f
+        effectiveRole == GanjGlassRole.Clear -> 0.10f
+        else -> 0.07f
     }
 
     Column(
@@ -107,13 +121,13 @@ internal fun GanjGlassSurface(
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        glass.highlight.copy(alpha = if (role == GanjGlassRole.Clear) 0.10f else 0.07f),
+                        glass.highlight.copy(alpha = highlightAlpha),
                         base,
                         accent.copy(alpha = accentStrength),
                     ),
                 ),
             )
-            .border(1.dp, border.copy(alpha = 0.72f), shape)
+            .border(1.dp, border.copy(alpha = if (effects.reduceTransparency) 0.46f else 0.72f), shape)
             .padding(padding),
         verticalArrangement = verticalArrangement,
         content = content,
@@ -131,14 +145,20 @@ internal fun GanjLiquidAction(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val effects = LocalGanjVisualEffectsPolicy.current
     val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.975f else 1f,
+        targetValue = if (!effects.reduceMotion && pressed) 0.975f else 1f,
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
         label = "ganjLiquidPressScale",
     )
     val shape = RoundedCornerShape(shapeRadius)
     val glass = LocalGanjGlassPalette.current
     val effectiveAccent = if (enabled) accent else MaterialTheme.colorScheme.outline
+    val strongAlpha = when (effects.tier) {
+        GanjEffectsTier.Full -> 0.94f
+        GanjEffectsTier.Balanced -> 0.90f
+        GanjEffectsTier.Reduced -> 0.86f
+    }
 
     Box(
         modifier = modifier
@@ -148,14 +168,14 @@ internal fun GanjLiquidAction(
             .background(
                 Brush.linearGradient(
                     listOf(
-                        effectiveAccent.copy(alpha = if (enabled) 0.94f else 0.34f),
-                        effectiveAccent.copy(alpha = if (enabled) 0.72f else 0.24f),
+                        effectiveAccent.copy(alpha = if (enabled) strongAlpha else 0.34f),
+                        effectiveAccent.copy(alpha = if (enabled) strongAlpha - 0.22f else 0.24f),
                     ),
                 ),
             )
             .border(
                 width = 1.dp,
-                color = glass.highlight.copy(alpha = if (enabled) 0.22f else 0.08f),
+                color = glass.highlight.copy(alpha = if (enabled && !effects.reduceTransparency) 0.22f else 0.08f),
                 shape = shape,
             )
             .clickable(

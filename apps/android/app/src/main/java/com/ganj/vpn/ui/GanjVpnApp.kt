@@ -1,5 +1,6 @@
 package com.ganj.vpn.ui
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -11,7 +12,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.res.stringResource
+import com.ganj.vpn.R
 import com.ganj.vpn.composition.GanjComposition
 import com.ganj.vpn.enterprise.BugReportInput
 import com.ganj.vpn.enterprise.EnterpriseEvent
@@ -185,14 +187,14 @@ fun GanjVpnApp(
     GanjLiquidCanvas {
         when (val availability = enterpriseState.availability) {
             is ProductAvailabilityUiState.ForcedUpdate -> ProductGateScreen(
-                title = "Security update required",
-                message = "Install version ${availability.latestVersion} to continue safely.",
+                title = stringResource(R.string.gate_security_update_title),
+                message = stringResource(R.string.gate_security_update_body, availability.latestVersion),
                 onRetry = ::refreshEnterprise,
             )
 
             is ProductAvailabilityUiState.Maintenance -> ProductGateScreen(
-                title = "Scheduled maintenance",
-                message = availability.message ?: "Ganj VPN is temporarily unavailable.",
+                title = stringResource(R.string.gate_maintenance_title),
+                message = availability.message ?: stringResource(R.string.gate_maintenance_default),
                 onRetry = ::refreshEnterprise,
             )
 

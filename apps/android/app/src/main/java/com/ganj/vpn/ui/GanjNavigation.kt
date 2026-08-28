@@ -5,12 +5,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -69,11 +73,16 @@ internal fun GanjLiquidBottomNavigation(
                     isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                     else -> Color.Transparent
                 }
+                val tint = if (isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = UiAccessibilityPolicy.MinimumTouchTargetDp.dp)
+                        .heightIn(min = 58.dp)
                         .clip(RoundedCornerShape(20.dp))
                         .background(container)
                         .semantics {
@@ -84,16 +93,27 @@ internal fun GanjLiquidBottomNavigation(
                             role = Role.Tab,
                             onClick = { onDestinationSelected(destination) },
                         )
-                        .padding(horizontal = 4.dp, vertical = 12.dp),
+                        .padding(horizontal = 3.dp, vertical = 7.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = label,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 1,
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        GanjNavigationIcon(
+                            destination = destination,
+                            tint = tint,
+                            modifier = Modifier.size(if (destination == GanjDestination.Connect) 22.dp else 20.dp),
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            text = label,
+                            color = tint,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         }

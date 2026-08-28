@@ -46,6 +46,7 @@ internal fun GanjLiquidConnectControl(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val effects = LocalGanjVisualEffectsPolicy.current
     val accentTarget = when (state) {
         GanjConnectionVisualState.Disconnected -> MaterialTheme.colorScheme.primary
         GanjConnectionVisualState.Connecting -> MaterialTheme.colorScheme.secondary
@@ -54,15 +55,18 @@ internal fun GanjLiquidConnectControl(
         GanjConnectionVisualState.Failed -> MaterialTheme.colorScheme.error
         GanjConnectionVisualState.Unavailable -> MaterialTheme.colorScheme.outline
     }
-    val accent by animateColorAsState(accentTarget, label = "ganjConnectionAccent")
-    val scale by animateFloatAsState(
-        targetValue = when (state) {
-            GanjConnectionVisualState.Connecting, GanjConnectionVisualState.Reconnecting -> 0.985f
-            else -> 1f
-        },
+    val animatedAccent by animateColorAsState(accentTarget, label = "ganjConnectionAccent")
+    val accent = if (effects.reduceMotion) accentTarget else animatedAccent
+    val scaleTarget = when (state) {
+        GanjConnectionVisualState.Connecting, GanjConnectionVisualState.Reconnecting -> 0.985f
+        else -> 1f
+    }
+    val animatedScale by animateFloatAsState(
+        targetValue = if (effects.reduceMotion) 1f else scaleTarget,
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 320f),
         label = "ganjConnectionStateScale",
     )
+    val scale = if (effects.reduceMotion) 1f else animatedScale
 
     val status = when (state) {
         GanjConnectionVisualState.Disconnected -> stringResource(R.string.connection_disconnected)
@@ -91,6 +95,11 @@ internal fun GanjLiquidConnectControl(
         GanjConnectionVisualState.Unavailable -> MaterialTheme.colorScheme.onSurface
         else -> MaterialTheme.colorScheme.onPrimary
     }
+    val haloAlpha = when (effects.tier) {
+        GanjEffectsTier.Full -> 0.18f
+        GanjEffectsTier.Balanced -> 0.11f
+        GanjEffectsTier.Reduced -> 0.055f
+    }
 
     Box(
         modifier = modifier
@@ -109,12 +118,16 @@ internal fun GanjLiquidConnectControl(
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            accent.copy(alpha = 0.18f),
+                            accent.copy(alpha = haloAlpha),
                             Color.Transparent,
                         ),
                     ),
                 )
-                .border(1.dp, accent.copy(alpha = 0.22f), CircleShape),
+                .border(
+                    1.dp,
+                    accent.copy(alpha = if (effects.reduceTransparency) 0.12f else 0.22f),
+                    CircleShape,
+                ),
         )
         GanjLiquidAction(
             onClick = onClick,
