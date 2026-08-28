@@ -1,9 +1,9 @@
-import { createApplication } from './application.js';
+import { createAdminAwareApplication } from './admin-aware-application.js';
 import { createHttpServer } from './http.js';
 import { createRuntime } from './runtime.js';
 
 const runtime = await createRuntime(process.env);
-const application = createApplication(runtime);
+const application = createAdminAwareApplication(runtime);
 const port = Number(process.env.PORT ?? 8080);
 const host = process.env.HOST ?? '127.0.0.1';
 const server = createHttpServer(application);
