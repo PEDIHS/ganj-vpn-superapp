@@ -14,6 +14,9 @@ internal class AndroidConnectionProfileContextProvider(
     private val random: SecureRandom = SecureRandom(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) : ConnectionProfileContextProvider {
+    /** Legacy one-argument requests are deliberately fail-closed because a server must be explicit. */
+    override fun forEntitlement(entitlementId: String): ConnectionProfileContext? = null
+
     override fun forConnection(entitlementId: String, serverId: String): ConnectionProfileContext? {
         val deviceId = session.currentDeviceId() ?: return null
         val clientNonce = randomHex(32)
