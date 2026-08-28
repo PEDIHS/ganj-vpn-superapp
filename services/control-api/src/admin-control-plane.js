@@ -5,6 +5,7 @@ const ADMIN_SCOPE = 'admin:control-plane';
 const TIERS = new Set(['free', 'premium', 'vip']);
 const STATUSES = new Set(['active', 'busy', 'maintenance', 'disabled']);
 const PROTOCOLS = new Set(['vless', 'vmess', 'trojan', 'shadowsocks']);
+const SECRET_REFERENCE = /^(?:vault:[A-Za-z0-9][A-Za-z0-9._/-]{2,240}|file:[A-Za-z0-9][A-Za-z0-9._/-]{2,200})$/;
 
 function match(pathname, pattern) {
   const actual = pathname.split('/').filter(Boolean);
@@ -72,11 +73,17 @@ function requireLatency(value) {
 }
 
 function requireSecretReference(value) {
-  if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{2,255}$/.test(value)) {
-    throw new ApiError(400, 'invalid_secret_reference', 'secret_reference must be an opaque secret-store reference.');
-  }
-  if (/^(?:vless|vmess|trojan|ss):\/\//i.test(value) || /[?&](?:uuid|password|token|secret)=/i.test(value)) {
-    throw new ApiError(400, 'raw_secret_forbidden', 'Raw VPN credentials or subscription material are forbidden.');
+  if (
+    typeof value !== 'string' ||
+    !SECRET_REFERENCE.test(value) ||
+    value.includes('..') ||
+    value.includes('//')
+  ) {
+    throw new ApiError(
+      400,
+      'invalid_secret_reference',
+      'secret_reference must use an approved vault: or file: locator.',
+    );
   }
   return value;
 }
