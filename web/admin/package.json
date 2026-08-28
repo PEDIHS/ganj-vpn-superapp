@@ -1,0 +1,17 @@
+{
+  "name": "@ganj-vpn/admin-console",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "check": "node --check src/*.js && node --check test/*.test.js && node --check tools/*.mjs",
+    "lint": "npm run check && node tools/lint.mjs",
+    "start": "node src/index.js",
+    "test": "node --test --test-reporter=spec test/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude='test/**' --test-coverage-lines=75 --test-coverage-functions=75 --test-coverage-branches=70 test/*.test.js"
+  }
+}
