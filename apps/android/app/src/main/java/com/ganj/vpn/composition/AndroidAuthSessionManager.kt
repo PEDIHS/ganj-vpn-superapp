@@ -11,6 +11,9 @@ import com.ganj.vpn.core.controlapi.GuestSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshingAuthTokenProvider
 import com.ganj.vpn.core.controlapi.SessionCredentialVault
+import com.ganj.vpn.core.controlapi.TelegramAuthorization
+import com.ganj.vpn.core.controlapi.TelegramAuthorizationCommand
+import com.ganj.vpn.core.controlapi.TelegramExchangeCommand
 import com.ganj.vpn.core.deviceidentity.DeviceIdentity
 import com.ganj.vpn.core.deviceidentity.DeviceProofRequest
 import com.ganj.vpn.presentation.CurrentUserIdProvider
@@ -19,13 +22,6 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
-/**
- * Device-bound Android authentication lifecycle.
- *
- * Network-backed bootstrap/refresh calls are deliberately serialized under one lock so a rotating
- * refresh token can never be consumed concurrently by two app requests. The durable vault is
- * committed before a new access token is exposed to the rest of the app.
- */
 internal class AndroidAuthSessionManager(
     private val api: AuthSessionApi,
     private val vault: SessionCredentialVault,
@@ -35,14 +31,11 @@ internal class AndroidAuthSessionManager(
 ) : RefreshingAuthTokenProvider, AuthenticationEventSink, CurrentUserIdProvider {
     private val lock = Any()
 
-    @Volatile
-    private var forceRefresh = false
+    @Volatile private var forceRefresh = false
 
     override fun currentAccessToken(): AccessToken? = synchronized(lock) {
         val current = vault.restore() ?: return@synchronized createGuestLocked()?.accessToken
-        if (!forceRefresh && !expiresWithin(current.accessTokenExpiresAt, REFRESH_EARLY_MILLIS)) {
-            return@synchronized current.accessToken
-        }
+        if (!forceRefresh && !expiresWithin(current.accessTokenExpiresAt, REFRESH_EARLY_MILLIS)) return@synchronized current.accessToken
         val refreshed = refreshLocked(current)
         refreshed?.accessToken ?: current.takeIf { !isExpired(it.accessTokenExpiresAt) }?.accessToken
     }
@@ -52,157 +45,74 @@ internal class AndroidAuthSessionManager(
         refreshLocked(current)?.accessToken
     }
 
-    override fun currentUserId(): String? = synchronized(lock) {
-        val current = vault.restore() ?: createGuestLocked()
-        current?.userId
+    override fun currentUserId(): String? = synchronized(lock) { (vault.restore() ?: createGuestLocked())?.userId }
+    fun currentDeviceId(): String? = synchronized(lock) { (vault.restore() ?: createGuestLocked())?.deviceId }
+
+    fun beginTelegram(command: TelegramAuthorizationCommand): ApiResult<TelegramAuthorization> = synchronized(lock) {
+        val token = currentAccessToken() ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationExpired(null, "auth_required"))
+        api.beginTelegram(token, command)
     }
 
-    fun currentDeviceId(): String? = synchronized(lock) {
-        val current = vault.restore() ?: createGuestLocked()
-        current?.deviceId
+    fun exchangeTelegram(command: TelegramExchangeCommand): ApiResult<AuthSessionCredentials> = synchronized(lock) {
+        when (val result = api.exchangeTelegram(command)) {
+            is ApiResult.Success -> if (persistLocked(result.value) != null) result else ApiResult.Failure(ApiError.Protocol(null, "session_persistence_failed"))
+            is ApiResult.Failure -> result
+        }
     }
 
-    override fun onAuthenticationExpired(requestId: String?) {
-        // Never perform I/O on the response callback. The next token read performs one serialized refresh.
-        forceRefresh = true
-    }
-
-    fun clearLocalSession(): Result<Unit> = synchronized(lock) {
+    fun logout(): Boolean = synchronized(lock) {
+        val token = vault.restore()?.accessToken
+        val remote = token?.let { api.logout(it) }
         forceRefresh = false
-        vault.clear()
+        val localCleared = vault.clear().isSuccess
+        localCleared && (remote == null || remote is ApiResult.Success)
     }
+
+    override fun onAuthenticationExpired(requestId: String?) { forceRefresh = true }
+    fun clearLocalSession(): Result<Unit> = synchronized(lock) { forceRefresh = false; vault.clear() }
 
     private fun createGuestLocked(): AuthSessionCredentials? {
         val publicIdentity = identity.publicIdentity().getOrNull() ?: return null
-        val unsignedBody = AuthSessionProofContract.guestUnsignedBody(
-            deviceId = publicIdentity.installationId,
-            keyVersion = publicIdentity.keyVersion,
-            signingPublicKeySpki = publicIdentity.signingPublicKeySpki,
-            encryptionPublicKeyRaw = publicIdentity.encryptionPublicKeyRaw,
-        )
-        val compactProof = try {
-            signProof(AuthSessionProofContract.GUEST_PATH, unsignedBody)
-        } finally {
-            unsignedBody.fill(0)
-        } ?: return null
-        return when (
-            val result = api.createGuest(
-                GuestSessionCommand(
-                    deviceId = publicIdentity.installationId,
-                    keyVersion = publicIdentity.keyVersion,
-                    signingPublicKeySpki = publicIdentity.signingPublicKeySpki,
-                    encryptionPublicKeyRaw = publicIdentity.encryptionPublicKeyRaw,
-                    deviceProof = compactProof,
-                ),
-            )
-        ) {
+        val unsignedBody = AuthSessionProofContract.guestUnsignedBody(publicIdentity.installationId, publicIdentity.keyVersion, publicIdentity.signingPublicKeySpki, publicIdentity.encryptionPublicKeyRaw)
+        val compactProof = try { signProof(AuthSessionProofContract.GUEST_PATH, unsignedBody) } finally { unsignedBody.fill(0) } ?: return null
+        return when (val result = api.createGuest(GuestSessionCommand(publicIdentity.installationId, publicIdentity.keyVersion, publicIdentity.signingPublicKeySpki, publicIdentity.encryptionPublicKeyRaw, compactProof))) {
             is ApiResult.Failure -> null
             is ApiResult.Success -> persistLocked(result.value)
         }
     }
 
     private fun refreshLocked(current: AuthSessionCredentials): AuthSessionCredentials? {
-        if (isExpired(current.refreshTokenExpiresAt)) {
-            vault.clear()
-            forceRefresh = false
-            return createGuestLocked()
-        }
-        val unsignedBody = AuthSessionProofContract.refreshUnsignedBody(
-            deviceId = current.deviceId,
-            refreshToken = current.refreshToken,
-        )
-        val compactProof = try {
-            signProof(AuthSessionProofContract.REFRESH_PATH, unsignedBody)
-        } finally {
-            unsignedBody.fill(0)
-        } ?: return null
-        return when (
-            val result = api.refresh(
-                RefreshSessionCommand(
-                    refreshToken = current.refreshToken,
-                    deviceId = current.deviceId,
-                    deviceProof = compactProof,
-                ),
-            )
-        ) {
-            is ApiResult.Success -> {
-                forceRefresh = false
-                persistLocked(result.value)
-            }
-            is ApiResult.Failure -> {
-                when (result.error) {
-                    is ApiError.AuthenticationExpired -> {
-                        val expired = result.error as ApiError.AuthenticationExpired
-                        vault.clear()
-                        forceRefresh = false
-                        if (expired.code == "refresh_token_reuse_detected") null else createGuestLocked()
-                    }
-                    is ApiError.Forbidden -> {
-                        vault.clear()
-                        forceRefresh = false
-                        null
-                    }
-                    else -> null
-                }
+        if (isExpired(current.refreshTokenExpiresAt)) { vault.clear(); forceRefresh = false; return createGuestLocked() }
+        val unsignedBody = AuthSessionProofContract.refreshUnsignedBody(current.deviceId, current.refreshToken)
+        val compactProof = try { signProof(AuthSessionProofContract.REFRESH_PATH, unsignedBody) } finally { unsignedBody.fill(0) } ?: return null
+        return when (val result = api.refresh(RefreshSessionCommand(current.refreshToken, current.deviceId, compactProof))) {
+            is ApiResult.Success -> { forceRefresh = false; persistLocked(result.value) }
+            is ApiResult.Failure -> when (result.error) {
+                is ApiError.AuthenticationExpired -> { val expired = result.error as ApiError.AuthenticationExpired; vault.clear(); forceRefresh = false; if (expired.code == "refresh_token_reuse_detected") null else createGuestLocked() }
+                is ApiError.Forbidden -> { vault.clear(); forceRefresh = false; null }
+                else -> null
             }
         }
     }
 
     private fun persistLocked(value: AuthSessionCredentials): AuthSessionCredentials? {
-        if (vault.save(value).isFailure) {
-            vault.clear()
-            return null
-        }
+        if (vault.save(value).isFailure) { vault.clear(); return null }
         return value
     }
 
     private fun signProof(path: String, unsignedBody: ByteArray): String? {
-        val nonceBytes = ByteArray(24)
-        random.nextBytes(nonceBytes)
-        val nonce = try {
-            buildString(nonceBytes.size * 2) {
-                nonceBytes.forEach { byte ->
-                    val value = byte.toInt() and 0xff
-                    append(HEX[value ushr 4])
-                    append(HEX[value and 0x0f])
-                }
-            }
-        } finally {
-            nonceBytes.fill(0)
-        }
-        val proofRequest = DeviceProofRequest.create(
-            method = "POST",
-            pathAndQuery = path,
-            body = unsignedBody,
-            timestampEpochSeconds = nowMillis() / 1_000L,
-            nonce = nonce,
-        )
-        return identity.sign(proofRequest).getOrNull()?.compactValue()
+        val nonceBytes = ByteArray(24); random.nextBytes(nonceBytes)
+        val nonce = try { buildString(nonceBytes.size * 2) { nonceBytes.forEach { byte -> val value = byte.toInt() and 0xff; append(HEX[value ushr 4]); append(HEX[value and 0x0f]) } } } finally { nonceBytes.fill(0) }
+        return identity.sign(DeviceProofRequest.create("POST", path, unsignedBody, nowMillis() / 1_000L, nonce)).getOrNull()?.compactValue()
     }
 
-    private fun expiresWithin(timestamp: String, windowMillis: Long): Boolean {
-        val expiry = parseUtcMillis(timestamp) ?: return true
-        return expiry <= nowMillis() + windowMillis
-    }
-
-    private fun isExpired(timestamp: String): Boolean {
-        val expiry = parseUtcMillis(timestamp) ?: return true
-        return expiry <= nowMillis()
-    }
-
+    private fun expiresWithin(timestamp: String, windowMillis: Long): Boolean = (parseUtcMillis(timestamp) ?: return true) <= nowMillis() + windowMillis
+    private fun isExpired(timestamp: String): Boolean = (parseUtcMillis(timestamp) ?: return true) <= nowMillis()
     private fun parseUtcMillis(value: String): Long? = runCatching {
-        val withoutZulu = value.removeSuffix("Z")
-        val seconds = withoutZulu.substringBefore('.')
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
-            isLenient = false
-            timeZone = TimeZone.getTimeZone("UTC")
-        }.parse(seconds)?.time
+        val seconds = value.removeSuffix("Z").substringBefore('.')
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply { isLenient = false; timeZone = TimeZone.getTimeZone("UTC") }.parse(seconds)?.time
     }.getOrNull()
-
     override fun toString(): String = "AndroidAuthSessionManager([REDACTED])"
 
-    private companion object {
-        const val REFRESH_EARLY_MILLIS = 120_000L
-        const val HEX = "0123456789abcdef"
-    }
+    private companion object { const val REFRESH_EARLY_MILLIS = 120_000L; const val HEX = "0123456789abcdef" }
 }
