@@ -1,5 +1,4 @@
-import { readFile } from 'node:fs/promises';
-import { stat } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 
 const MAXIMUM_RESPONSE_BYTES = 512 * 1024;
 const DEFAULT_TIMEOUT_MS = 4_000;
@@ -17,8 +16,8 @@ function safeEndpoint(value) {
 
 async function readSecretFile(path) {
   if (typeof path !== 'string' || path.length < 1) throw new Error('GANJ_BOT_PROJECTION_TOKEN_FILE is required.');
-  const info = await stat(path);
-  if (!info.isFile() || info.isSymbolicLink?.() || (info.mode & 0o077) !== 0) {
+  const info = await lstat(path);
+  if (!info.isFile() || info.isSymbolicLink() || (info.mode & 0o077) !== 0) {
     throw new Error('Ganj Bot projection token file must be a private regular file.');
   }
   const value = (await readFile(path, 'utf8')).trim();
