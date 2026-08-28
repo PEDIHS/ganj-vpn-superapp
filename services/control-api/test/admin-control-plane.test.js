@@ -68,13 +68,13 @@ test('admin can create a maintenance server using only an opaque secret-store re
       load_ratio: 0,
       latency_hint_ms: null,
       protocols: ['vless'],
-      secret_reference: 'vault:ganj/servers/tr-free-02',
+      secret_reference: 'vault:kv/data/ganj/servers/tr-free-02',
     },
   });
   assert.equal(created.status, 201);
   assert.equal(created.body.data.code, 'tr-free-02');
   assert.equal(created.body.data.secret_configured, true);
-  assert.equal(JSON.stringify(created.body).includes('vault:ganj/servers/tr-free-02'), false);
+  assert.equal(JSON.stringify(created.body).includes('vault:kv/data/ganj/servers/tr-free-02'), false);
 
   const stored = await runtime.repository.findServer(created.body.data.id);
   assert.equal(stored.code, 'tr-free-02');
@@ -106,6 +106,15 @@ test('server create and patch reject unsafe or unsupported operator input', asyn
     },
   });
   assert.equal(raw.status, 400);
+
+  const externalUrl = await request(app, 'POST', '/v1/admin/control-plane/servers', {
+    body: {
+      code: 'bad-locator-02', name: 'Bad Locator', country_code: 'NL', tier: 'free',
+      protocols: ['vless'], secret_reference: 'https://secrets.example.test/server',
+    },
+  });
+  assert.equal(externalUrl.status, 400);
+  assert.equal(externalUrl.body.error.code, 'invalid_secret_reference');
 
   const unknown = await request(app, 'PATCH', `/v1/admin/control-plane/servers/${FIXTURES.servers.free}`, {
     body: { endpoint: 'attacker.example', credential: 'do-not-accept' },
