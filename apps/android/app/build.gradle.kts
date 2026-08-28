@@ -75,6 +75,7 @@ dependencies {
     androidTestImplementation(composeBom)
 
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.10.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
