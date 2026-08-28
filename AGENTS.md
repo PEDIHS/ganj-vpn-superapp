@@ -9,7 +9,8 @@ These instructions apply to every AI agent, automated coding agent, and develope
 3. `docs/PROJECT_BIBLE.fa.md`
 4. `docs/AI_ENGINEERING_HANDOFF.fa.md`
 5. **`docs/17-repository-branch-pr-governance.fa.md`**
-6. The implementation and tests for the affected module.
+6. **`docs/18-shared-account-pasarguard-free-access.fa.md`**
+7. The implementation and tests for the affected module.
 
 For Android UI work, also read:
 
@@ -40,6 +41,12 @@ The complete binding policy and checklists are in `docs/17-repository-branch-pr-
 
 - No manual VPN URI/QR/file/clipboard/subscription-URL import in production.
 - No production secrets, tokens, private keys, raw VPN profiles, or purchase tokens in repository/logs/UI state.
+- Android must never connect directly to the Ganj Bot database or PasarGuard Admin API.
+- Bot-originated ownership/order data and PasarGuard live runtime data must follow the source-of-truth matrix in document 18.
+- PasarGuard subscription URLs and raw config credentials are backend-only upstream material; Client receives safe node metadata and sealed short-lived device-bound profiles only.
+- Free Tier must not require visible Login. Use silent Guest Device Identity and server-side abuse/quota/profile controls.
+- Primary Telegram UX is Bot Approval with device/request binding; OIDC is fallback. Do not implement Telegram phone-number/OTP/MTProto login for MVP.
+- Admin Web and Telegram admin controls for Free servers must write to one shared Control Plane registry, never separate catalogs.
 - Do not weaken fail-closed behavior to make tests pass.
 - Do not claim tests, deployment, provider verification, or production readiness without actual evidence.
 - Do not modify already-merged database migrations; add a new migration.
