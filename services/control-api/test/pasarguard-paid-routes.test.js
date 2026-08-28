@@ -5,6 +5,7 @@ import {
   PasarGuardConnectorRegistry,
   stableVirtualServerId,
 } from '../src/pasarguard-paid-routes.js';
+import { createSafeApplicationBoundary } from '../src/safe-application-boundary.js';
 
 const USER_ID = '10000000-0000-4000-8000-000000000001';
 const DEVICE_ID = '20000000-0000-4000-8000-000000000001';
@@ -173,7 +174,7 @@ function setup({ liveStatus = 'active', used = 200, limit = 2000, rotateNode = f
       city: 'Frankfurt',
     },
   }));
-  const app = createPasarGuardPaidApplication({
+  const paidApplication = createPasarGuardPaidApplication({
     baseApplication: async () => ({ status: 404, body: { error: { code: 'base' } } }),
     repository: repo,
     auth,
@@ -181,6 +182,9 @@ function setup({ liveStatus = 'active', used = 200, limit = 2000, rotateNode = f
     connectorRegistry,
     liveAdapter,
     internalToken: BOT_TOKEN,
+    clock: () => new Date('2026-08-28T10:00:00.000Z'),
+  });
+  const app = createSafeApplicationBoundary(paidApplication, {
     clock: () => new Date('2026-08-28T10:00:00.000Z'),
   });
   return { app, reservations, upserts, proofCalls, liveCalls };
@@ -268,6 +272,7 @@ test('disabled or exhausted PasarGuard service cannot advertise nodes or issue a
     },
   });
   assert.equal(response.status, 403);
+  assert.equal(response.body.error.code, 'upstream_service_inactive');
   assert.equal(exhausted.reservations.length, 0);
 });
 
