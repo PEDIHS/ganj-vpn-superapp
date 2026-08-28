@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -58,16 +57,16 @@ internal fun GanjLiquidBottomNavigation(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             GanjDestination.entries.forEach { destination ->
-                val selected = destination == selectedDestination
+                val isSelected = destination == selectedDestination
                 val label = stringResource(destination.labelRes)
                 val description = UiAccessibilityPolicy.destinationDescription(
                     label = label,
-                    selected = selected,
+                    selected = isSelected,
                     selectedSuffix = stringResource(R.string.a11y_selected),
                 )
                 val container = when {
-                    selected && destination == GanjDestination.Connect -> MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                    selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                    isSelected && destination == GanjDestination.Connect -> MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                    isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                     else -> Color.Transparent
                 }
 
@@ -78,7 +77,7 @@ internal fun GanjLiquidBottomNavigation(
                         .clip(RoundedCornerShape(20.dp))
                         .background(container)
                         .semantics {
-                            this.selected = selected
+                            selected = isSelected
                             contentDescription = description
                         }
                         .clickable(
@@ -90,9 +89,9 @@ internal fun GanjLiquidBottomNavigation(
                 ) {
                     Text(
                         text = label,
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         maxLines = 1,
                     )
                 }
