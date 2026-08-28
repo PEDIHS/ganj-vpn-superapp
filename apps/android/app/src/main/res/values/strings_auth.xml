@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_telegram_title">Telegram account</string>
+    <string name="auth_telegram_guest_badge">Guest session</string>
+    <string name="auth_telegram_linked_badge">Telegram linked</string>
+    <string name="auth_telegram_guest_body">Connect Telegram to recover existing Ganj services and keep subscriptions synchronized across the bot and app.</string>
+    <string name="auth_telegram_linked_body">This installation completed a Telegram account link. Service ownership is still verified by the Ganj backend.</string>
+    <string name="auth_telegram_connect">Connect Telegram</string>
+    <string name="auth_telegram_logout">Disconnect Telegram session</string>
+    <string name="auth_telegram_working">Please wait…</string>
+    <string name="auth_telegram_error">Telegram sign-in could not be completed. Start a fresh sign-in and try again.</string>
+</resources>
