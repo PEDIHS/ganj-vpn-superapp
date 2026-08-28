@@ -144,19 +144,22 @@ class GanjUiReducer {
                         UiFailure(UiFailureKind.ENTITLEMENT, "connection.service_inactive", retryable = false),
                     ),
                 )
-                state.compatibleServerFor(service) == null -> state.copy(
-                    connection = ConnectionUiState.Failed(
-                        event.entitlementId,
-                        UiFailure(UiFailureKind.ENTITLEMENT, "connection.server_unavailable", retryable = true),
-                    ),
-                )
                 else -> {
-                    val server = state.compatibleServerFor(service)!!
-                    state.copy(
-                        selectedEntitlementId = event.entitlementId,
-                        selectedServerId = server.id,
-                        connection = ConnectionUiState.Requesting(event.entitlementId),
-                    )
+                    val server = state.compatibleServerFor(service)
+                    if (server == null) {
+                        state.copy(
+                            connection = ConnectionUiState.Failed(
+                                event.entitlementId,
+                                UiFailure(UiFailureKind.SERVER, "server.unavailable", retryable = true),
+                            ),
+                        )
+                    } else {
+                        state.copy(
+                            selectedEntitlementId = event.entitlementId,
+                            selectedServerId = server.id,
+                            connection = ConnectionUiState.Requesting(event.entitlementId),
+                        )
+                    }
                 }
             }
         }
