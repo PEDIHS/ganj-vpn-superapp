@@ -8,6 +8,7 @@ import { FIXTURES, InMemoryRepository, createSeed } from './repository.js';
 import { createTestEnterpriseSecurity } from './enterprise.js';
 import { withFreeAccess } from './free-access.js';
 import { withFreePolicy } from './free-policy.js';
+import { withFreeServerRegistry } from './free-server-registry.js';
 
 async function importFactory(specifier, exportName, environment) {
   if (!specifier) throw new Error(`${exportName} adapter module is required.`);
@@ -30,7 +31,7 @@ export async function createRuntime(environment = process.env) {
     const primarySecret = environment.CONTROL_API_TEST_DEVICE_SECRET ?? 'local-device-secret-change-me';
     const secondSecret = environment.CONTROL_API_TEST_SECOND_DEVICE_SECRET ?? 'local-second-device-secret-change-me';
     const purchaseToken = environment.CONTROL_API_TEST_PURCHASE_TOKEN ?? 'aaaaaaaaaaaaaaaa';
-    const repository = withFreePolicy(withFreeAccess(new InMemoryRepository(createSeed())));
+    const repository = withFreeServerRegistry(withFreePolicy(withFreeAccess(new InMemoryRepository(createSeed()))));
     return {
       repository,
       auth: createTestAuthAdapter({
@@ -64,7 +65,7 @@ export async function createRuntime(environment = process.env) {
     || telegramAuth?.kind === 'test-only' || playNotifications?.kind === 'test-only' || enterpriseSecurity?.kind === 'test-only') {
     throw new Error('Test adapters cannot be loaded in production mode.');
   }
-  const managedRepository = withFreePolicy(withFreeAccess(repository));
+  const managedRepository = withFreeServerRegistry(withFreePolicy(withFreeAccess(repository)));
   return {
     repository: managedRepository,
     auth,

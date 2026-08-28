@@ -1,5 +1,6 @@
 import { createApplication } from './application.js';
 import { createTelegramBotApprovalAdapter } from './adapters/telegram-bot-approval.js';
+import { createFreeAdminApplication } from './free-admin-routes.js';
 import { createHttpServer } from './http.js';
 import { createPasarGuardPaidApplication, createPasarGuardPaidRuntime } from './pasarguard-paid-routes.js';
 import { createRuntime } from './runtime.js';
@@ -28,13 +29,19 @@ const paidApplication = paidRuntime
   })
   : baseApplication;
 
-const routedApplication = telegramBotApproval
+const telegramApplication = telegramBotApproval
   ? createTelegramBotApprovalApplication({
     baseApplication: paidApplication,
     auth: runtime.auth,
     telegramBotApproval,
   })
   : paidApplication;
+
+const routedApplication = createFreeAdminApplication({
+  baseApplication: telegramApplication,
+  repository: runtime.repository,
+  auth: runtime.auth,
+});
 const application = createSafeApplicationBoundary(routedApplication);
 
 const port = Number(process.env.PORT ?? 8080);
@@ -49,6 +56,7 @@ server.listen(port, host, () => {
     adapter_mode: adapterMode,
     telegram_login_primary: telegramBotApproval ? 'bot-approval' : 'test-adapter',
     paid_runtime: paidRuntime ? 'pasarguard-live' : 'test-adapter',
+    free_admin: 'control-api',
   });
 });
 
