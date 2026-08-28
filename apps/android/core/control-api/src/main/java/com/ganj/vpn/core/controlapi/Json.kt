@@ -214,6 +214,7 @@ internal fun JsonValue.asString(): String =
 
 internal object JsonEncoder {
     fun objectValue(vararg fields: Pair<String, Any?>): String = fields.joinToString(
+        separator = ",",
         prefix = "{",
         postfix = "}",
     ) { (key, value) -> "${quote(key)}:${encode(value)}" }

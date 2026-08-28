@@ -18,12 +18,19 @@ object ControlApiRepositoryFactory {
     fun createComponents(
         baseUrl: String,
         tokenProvider: AuthTokenProvider,
-        authenticationEvents: AuthenticationEventSink = AuthenticationEventSink.NONE,
+        authenticationEvents: AuthenticationEventSink =
+            (tokenProvider as? AuthenticationEventSink) ?: AuthenticationEventSink.NONE,
         cryptoProvider: Gvp1CryptoProvider = UnavailableGvp1CryptoProvider,
     ): ControlApiComponents {
         val vault = InMemoryConnectionEnvelopeVault()
+        val rawTransport = UrlConnectionTransport(baseUrl)
+        val transport = RefreshingHttpTransport(
+            delegate = rawTransport,
+            tokenProvider = tokenProvider,
+            authenticationEvents = authenticationEvents,
+        )
         val client = ControlApiClient(
-            transport = UrlConnectionTransport(baseUrl),
+            transport = transport,
             tokenProvider = tokenProvider,
             authenticationEvents = authenticationEvents,
         )
@@ -36,7 +43,8 @@ object ControlApiRepositoryFactory {
     fun create(
         baseUrl: String,
         tokenProvider: AuthTokenProvider,
-        authenticationEvents: AuthenticationEventSink = AuthenticationEventSink.NONE,
+        authenticationEvents: AuthenticationEventSink =
+            (tokenProvider as? AuthenticationEventSink) ?: AuthenticationEventSink.NONE,
     ): ControlApiRepository = createComponents(baseUrl, tokenProvider, authenticationEvents).repository
 }
 
