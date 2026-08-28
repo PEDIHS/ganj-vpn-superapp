@@ -43,6 +43,10 @@ Telegram integration فقط Login نیست. Target نهایی شامل:
 
 UI فعلی روی `main` Functional/Foundation UI است و **Final Product Design محسوب نمی‌شود**.
 
+مرجع قطعی UI/UX و Visual Brand:
+
+[`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md)
+
 Final Android UI باید:
 
 - فارسی و انگلیسی resource-based؛
@@ -53,15 +57,54 @@ Final Android UI باید:
 - Motion و micro-interaction حرفه‌ای؛
 - پنج Tab اصلی Home / Servers / Connect / Store / Account؛
 - Design System اختصاصی Ganj؛
+- Material 3 / M3 Expressive behavior بومی Android؛
 - Apple HIG-inspired clarity؛
 - Liquid Glass / Glassmorphism به‌صورت کنترل‌شده و functional، نه افراطی؛
 - ظاهر Premium، گرم و هویت‌دار، نه UI خام/Developer-like.
 
-### 5.1 Visual Brand Clarification
+### 5.1 Visual Brand Lock
 
-Tokenهای فعلی در `docs/04-design-system.fa.md` و implementationهای Phase 7 **baseline طراحی هستند، نه Brand Lock غیرقابل تغییر**.
+لوگوی رسمی Ganj VPN، با فرم G/Shield و Diamond مرکزی و ترکیب **Emerald Green + Metallic Gold**، منبع اصلی Visual DNA محصول است.
 
-Final palette باید با Brand assets تأییدشده Ganj تطبیق داده شود. Marketing assets فعلی جهت Premium dark با accentهای سبز/teal/gold را نشان می‌دهند؛ در عین حال انتخاب رنگ نهایی UI باید با تست Contrast، accessibility، dark/light و consistency انجام شود. بنابراین هیچ AI/Developer نباید صرفاً به دلیل وجود token آبی فعلی، آن را «رنگ نهایی قطعی برند» فرض کند.
+از این لحظه تصمیم قطعی Brand:
+
+- **Emerald Green رنگ Primary برند و Action است.**
+- **Gold رنگ Premium/Signature Accent است، نه رنگ غالب صفحه.**
+- **Neutral Dark/Warm Light surfaces بخش غالب UI هستند.**
+- **Blue به‌عنوان Brand Primary حذف است.**
+- `#0A84FF`، `#007AFF` و Material/iOS blue نباید Primary Design Token Ganj باشند.
+- Gold نباید تمام Buttonها، Cardها، Navbar یا Background را پر کند.
+- Emerald نیز نباید کل صفحه را به سطح سبز اشباع تبدیل کند.
+- Premium بودن باید از spacing، hierarchy، typography، material، motion و polish بیاید؛ نه از مصرف زیاد طلایی.
+
+Representative palette لوگوی رسمی:
+
+Emerald:
+
+- `#012009`
+- `#013A16`
+- `#01481D`
+
+Gold:
+
+- `#B3710D`
+- `#CF9221`
+- `#D0B348`
+- `#F8D162`
+- `#FCF4B3`
+
+UI-adjusted semantic tokens در `design/tokens.json` و سند 15 تعریف می‌شوند. رنگ‌های خام Logo نباید بدون Contrast/Accessibility review روی text/control استفاده شوند.
+
+### 5.2 Material / Glass Lock
+
+- Material 3 / M3 Expressive پایه component behavior و interaction Android است، نه palette برند.
+- Dynamic Color برای Brand Core در MVP به‌صورت پیش‌فرض خاموش است تا هویت Ganj با wallpaper کاربر به آبی/بنفش/رنگ تصادفی تبدیل نشود.
+- Liquid Glass/Glassmorphism فقط برای navigation/control/transient layers استفاده می‌شود؛ body content باید عمدتاً opaque/readable باشد.
+- fallback بدون blur برای accessibility و low-performance device الزامی است.
+
+### 5.3 Phase 7 UI Migration
+
+Branch `phase-7/android-ui-accessibility-v2` که هنوز از `GanjBlue`/palette آبی استفاده می‌کند، قبل از merge نهایی باید به Emerald/Gold/Neutral Design Tokens migration شود.
 
 ## 6. Smart Banking / Receipt Verification
 
@@ -117,7 +160,7 @@ PRها بعداً با نام‌های Phase 6A / 6B / 6C و Phase 7 Trackها �
 5. Real VPN E2E + resilience/leak/device tests؛
 6. Google Play Billing E2E + reconciliation؛
 7. Subscription lifecycle + multi-device؛
-8. Final localization/UI/accessibility؛
+8. Final localization/UI/accessibility طبق Visual Brand Lock؛
 9. Minimum operational Admin Console؛
 10. Internal/Closed Beta؛
 11. Security/compliance remediation؛
@@ -127,11 +170,12 @@ PRها بعداً با نام‌های Phase 6A / 6B / 6C و Phase 7 Trackها �
 
 اگر این Scope Lock با سند قدیمی تعارض داشت:
 
-1. code/tests/CI روی `main`؛
+1. code/tests/CI روی `main` برای runtime behavior؛
 2. OpenAPI/migrations؛
 3. این Scope Lock برای Requirementهای Product فعلی؛
-4. Project Bible؛
-5. Roadmap/old Master Plan؛
-6. historical PR text
+4. `15-android-ui-ux-brand-system.fa.md` برای UI/UX/Visual Brand؛
+5. Project Bible؛
+6. Roadmap/old Master Plan؛
+7. historical PR text
 
 ملاک تفسیر باشد.
