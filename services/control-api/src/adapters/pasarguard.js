@@ -43,8 +43,13 @@ function normalizeBaseUrl(value) {
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
     throw new Error('PasarGuard base URL must be a credential-free HTTPS URL.');
   }
-  url.pathname = url.pathname.replace(/\/+$/, '');
+  url.pathname = url.pathname.replace(/\/+$/, '') || '/';
   return url;
+}
+
+function apiUrl(baseUrl, path) {
+  const prefix = baseUrl.pathname === '/' ? '' : baseUrl.pathname.replace(/\/+$/, '');
+  return new URL(`${prefix}${path}`, baseUrl.origin);
 }
 
 function validateConnector(connector) {
@@ -326,7 +331,7 @@ export class PasarGuardLiveServiceAdapter {
     const form = new URLSearchParams({ username: connector.adminUsername, password: connector.adminPassword });
     let response;
     try {
-      response = await this.fetchImpl(new URL(`${baseUrl.pathname}/api/admin/token`, baseUrl.origin), {
+      response = await this.fetchImpl(apiUrl(baseUrl, '/api/admin/token'), {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
         body: form,
@@ -350,7 +355,7 @@ export class PasarGuardLiveServiceAdapter {
     const token = await this.authenticate(connector);
     let response;
     try {
-      response = await this.fetchImpl(new URL(`${baseUrl.pathname}/api/user/${encodeURIComponent(username)}`, baseUrl.origin), {
+      response = await this.fetchImpl(apiUrl(baseUrl, `/api/user/${encodeURIComponent(username)}`), {
         method: 'GET',
         headers: { accept: 'application/json', authorization: `Bearer ${token}` },
         redirect: 'error',
