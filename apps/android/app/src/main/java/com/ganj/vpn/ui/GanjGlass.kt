@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -76,6 +77,7 @@ internal fun GanjGlassSurface(
     accent: Color = MaterialTheme.colorScheme.primary,
     shapeRadius: Dp = 24.dp,
     padding: PaddingValues = PaddingValues(16.dp),
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(10.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val glass = LocalGanjGlassPalette.current
@@ -113,6 +115,7 @@ internal fun GanjGlassSurface(
             )
             .border(1.dp, border.copy(alpha = 0.72f), shape)
             .padding(padding),
+        verticalArrangement = verticalArrangement,
         content = content,
     )
 }
