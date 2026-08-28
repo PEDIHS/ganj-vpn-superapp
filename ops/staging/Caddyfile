@@ -1,0 +1,56 @@
+{
+  admin off
+  auto_https disable_redirects
+  servers {
+    metrics
+    timeouts {
+      read_body 15s
+      read_header 10s
+      write 30s
+      idle 2m
+    }
+  }
+}
+
+{$STAGING_HOST:staging.ganj.local} {
+  tls internal
+
+  encode zstd gzip
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "no-referrer"
+    Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+    -Server
+  }
+
+  @health path /healthz
+  handle @health {
+    reverse_proxy control-api:8080
+  }
+
+  handle {
+    request_body {
+      max_size 1MB
+    }
+    reverse_proxy control-api:8080 {
+      header_up X-Forwarded-Proto https
+      header_up X-Forwarded-Host {host}
+      health_uri /healthz
+      health_interval 15s
+      health_timeout 3s
+      fail_duration 15s
+    }
+  }
+
+  log {
+    output stdout
+    format json
+  }
+}
+
+http://{$STAGING_HOST:staging.ganj.local} {
+  redir https://{$STAGING_HOST:staging.ganj.local}{uri} permanent
+}
