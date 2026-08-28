@@ -1,9 +1,17 @@
 import { createApplication } from './application.js';
 import { createHttpServer } from './http.js';
+import { createLegacyAdminApplication, LegacyAdminReadModel } from './legacy-admin-routes.js';
 import { createRuntime } from './runtime.js';
 
 const runtime = await createRuntime(process.env);
-const application = createApplication(runtime);
+const baseApplication = createApplication(runtime);
+const application = typeof runtime.repository?.database === 'function'
+  ? createLegacyAdminApplication({
+      baseApplication,
+      auth: runtime.auth,
+      readModel: new LegacyAdminReadModel(runtime.repository),
+    })
+  : baseApplication;
 const port = Number(process.env.PORT ?? 8080);
 const host = process.env.HOST ?? '127.0.0.1';
 const server = createHttpServer(application);
