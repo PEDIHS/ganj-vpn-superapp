@@ -6,6 +6,9 @@ import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.AuthSessionApi
 import com.ganj.vpn.core.controlapi.AuthSessionCredentials
 import com.ganj.vpn.core.controlapi.GuestSessionCommand
+import com.ganj.vpn.core.controlapi.Gvp1CryptoFailureReason
+import com.ganj.vpn.core.controlapi.Gvp1CryptoResult
+import com.ganj.vpn.core.controlapi.Gvp1DecryptRequest
 import com.ganj.vpn.core.controlapi.NetworkFailure
 import com.ganj.vpn.core.controlapi.RefreshSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshToken
@@ -14,15 +17,14 @@ import com.ganj.vpn.core.controlapi.SessionCredentialVault
 import com.ganj.vpn.core.controlapi.TelegramAuthorization
 import com.ganj.vpn.core.controlapi.TelegramAuthorizationCommand
 import com.ganj.vpn.core.controlapi.TelegramExchangeCommand
-import com.ganj.vpn.core.controlapi.Gvp1CryptoFailureReason
-import com.ganj.vpn.core.controlapi.Gvp1CryptoResult
-import com.ganj.vpn.core.controlapi.Gvp1DecryptRequest
 import com.ganj.vpn.core.deviceidentity.DeviceIdentity
 import com.ganj.vpn.core.deviceidentity.DeviceProofRequest
 import com.ganj.vpn.core.deviceidentity.DevicePublicIdentity
 import com.ganj.vpn.core.deviceidentity.SignedDeviceProof
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -30,9 +32,10 @@ class AndroidAuthSessionManagerTest {
     private val metadata = ResponseMetadata(null, null)
 
     @Test
-    fun `first bootstrap registers device with GDP1 and persists session`() {
+    fun `first bootstrap registers device with GDP1 and persists exact server session`() {
+        val issued = session("a")
         val vault = FakeVault()
-        val api = FakeApi(guestResult = ApiResult.Success(session("a"), metadata))
+        val api = FakeApi(guestResult = ApiResult.Success(issued, metadata))
         val identity = FakeIdentity()
         val manager = manager(api, identity, vault)
 
@@ -42,13 +45,16 @@ class AndroidAuthSessionManagerTest {
         assertEquals(DEVICE_ID, result.deviceId)
         assertEquals("/v1/auth/guest", identity.lastRequest?.pathAndQuery)
         assertEquals(1, api.guestCalls)
-        assertEquals("a".repeat(43), vault.restore()?.refreshToken?.let { raw(it) })
+        assertSame(issued, vault.lastSaved)
+        assertSame(issued, vault.restore())
     }
 
     @Test
     fun `cold start rotates stored refresh token before using session`() {
-        val vault = FakeVault(session("a"))
-        val api = FakeApi(refreshResult = ApiResult.Success(session("b"), metadata))
+        val original = session("a")
+        val rotated = session("b")
+        val vault = FakeVault(original)
+        val api = FakeApi(refreshResult = ApiResult.Success(rotated, metadata))
         val identity = FakeIdentity()
         val manager = manager(api, identity, vault)
 
@@ -57,8 +63,10 @@ class AndroidAuthSessionManagerTest {
         assertEquals(AuthBootstrapSource.REFRESHED, result.source)
         assertEquals(1, api.refreshCalls)
         assertEquals(0, api.guestCalls)
+        assertSame(original.refreshToken, api.lastRefreshCommand?.refreshToken)
         assertEquals("/v1/auth/refresh", identity.lastRequest?.pathAndQuery)
-        assertEquals("b".repeat(43), vault.restore()?.refreshToken?.let { raw(it) })
+        assertSame(rotated, vault.lastSaved)
+        assertSame(rotated, vault.restore())
     }
 
     @Test
@@ -71,7 +79,7 @@ class AndroidAuthSessionManagerTest {
         val result = manager.ensureSession() as AuthBootstrapResult.Ready
 
         assertEquals(AuthBootstrapSource.CACHED, result.source)
-        assertEquals(original.userId, vault.restore()?.userId)
+        assertSame(original, vault.restore())
         assertEquals(0, api.guestCalls)
         assertFalse(vault.cleared)
     }
@@ -92,14 +100,16 @@ class AndroidAuthSessionManagerTest {
         assertFalse(result.retryable)
         assertTrue(vault.cleared)
         assertEquals(0, api.guestCalls)
+        assertNull(vault.restore())
     }
 
     @Test
     fun `ordinary expired refresh can recover same device through a new GDP1 session`() {
+        val recovered = session("c")
         val vault = FakeVault(session("a"))
         val api = FakeApi(
             refreshResult = ApiResult.Failure(ApiError.AuthenticationExpired(null, "invalid_refresh_token")),
-            guestResult = ApiResult.Success(session("c"), metadata),
+            guestResult = ApiResult.Success(recovered, metadata),
         )
         val manager = manager(api, FakeIdentity(), vault)
 
@@ -108,19 +118,22 @@ class AndroidAuthSessionManagerTest {
         assertEquals(AuthBootstrapSource.DEVICE_PROOF, result.source)
         assertTrue(vault.cleared)
         assertEquals(1, api.guestCalls)
-        assertEquals("c".repeat(43), vault.restore()?.refreshToken?.let { raw(it) })
+        assertSame(recovered, vault.lastSaved)
+        assertSame(recovered, vault.restore())
     }
 
     @Test
-    fun `durable vault failure does not expose the server-issued token in memory`() {
+    fun `durable vault failure does not expose server issued token in memory`() {
+        val issued = session("a")
         val vault = FakeVault(saveFails = true)
-        val api = FakeApi(guestResult = ApiResult.Success(session("a"), metadata))
+        val api = FakeApi(guestResult = ApiResult.Success(issued, metadata))
         val manager = manager(api, FakeIdentity(), vault)
 
         val result = manager.ensureSession() as AuthBootstrapResult.Failed
 
         assertEquals(AuthBootstrapFailure.PERSISTENCE, result.reason)
-        assertEquals(null, vault.currentAccessToken())
+        assertNull(vault.currentAccessToken())
+        assertNull(vault.restore())
     }
 
     private fun manager(api: FakeApi, identity: FakeIdentity, vault: FakeVault) = AndroidAuthSessionManager(
@@ -140,19 +153,7 @@ class AndroidAuthSessionManagerTest {
         refreshTokenExpiresAt = "2026-09-27T04:00:00Z",
     )
 
-    private fun raw(token: RefreshToken): String = token.toString().let {
-        // Tests compare via the request passed to the fake API, never by logging token internals.
-        when (token) {
-            else -> if (it.contains("REDACTED")) {
-                // The fake vault keeps the exact object; compare expected rotation through API calls instead.
-                apiTokenLookup[token] ?: ""
-            } else ""
-        }
-    }
-
-    private val apiTokenLookup = mutableMapOf<RefreshToken, String>()
-
-    private inner class FakeIdentity : DeviceIdentity {
+    private class FakeIdentity : DeviceIdentity {
         var lastRequest: DeviceProofRequest? = null
 
         override fun publicIdentity(): Result<DevicePublicIdentity> = Result.success(
@@ -187,29 +188,28 @@ class AndroidAuthSessionManagerTest {
             Gvp1CryptoResult.Failure(Gvp1CryptoFailureReason.PROVIDER_UNAVAILABLE)
     }
 
-    private inner class FakeApi(
-        private val guestResult: ApiResult<AuthSessionCredentials> = ApiResult.Failure(ApiError.Server(null, 503, "guest", true)),
-        private val refreshResult: ApiResult<AuthSessionCredentials> = ApiResult.Failure(ApiError.Server(null, 503, "refresh", true)),
+    private class FakeApi(
+        private val guestResult: ApiResult<AuthSessionCredentials> = ApiResult.Failure(
+            ApiError.Server(null, 503, "guest", true),
+        ),
+        private val refreshResult: ApiResult<AuthSessionCredentials> = ApiResult.Failure(
+            ApiError.Server(null, 503, "refresh", true),
+        ),
     ) : AuthSessionApi {
         var guestCalls = 0
         var refreshCalls = 0
+        var lastGuestCommand: GuestSessionCommand? = null
+        var lastRefreshCommand: RefreshSessionCommand? = null
 
         override fun createGuest(command: GuestSessionCommand): ApiResult<AuthSessionCredentials> {
             guestCalls++
-            if (guestResult is ApiResult.Success) {
-                apiTokenLookup[guestResult.value.refreshToken] = when (guestResult.value.refreshToken) {
-                    else -> if (guestCalls > 0) when {
-                        guestResult.value === session("c") -> "c".repeat(43)
-                        else -> "a".repeat(43)
-                    } else ""
-                }
-            }
+            lastGuestCommand = command
             return guestResult
         }
 
         override fun refresh(command: RefreshSessionCommand): ApiResult<AuthSessionCredentials> {
             refreshCalls++
-            if (refreshResult is ApiResult.Success) apiTokenLookup[refreshResult.value.refreshToken] = "b".repeat(43)
+            lastRefreshCommand = command
             return refreshResult
         }
 
@@ -229,19 +229,23 @@ class AndroidAuthSessionManagerTest {
     ) : SessionCredentialVault {
         private var value = initial
         var cleared = false
+        var lastSaved: AuthSessionCredentials? = null
 
         override fun currentAccessToken(): AccessToken? = value?.accessToken
         override fun currentUserId(): String? = value?.userId
         override fun currentDeviceId(): String? = value?.deviceId
         override fun currentRefreshToken(): RefreshToken? = value?.refreshToken
         override fun restore(): AuthSessionCredentials? = value
+
         override fun save(session: AuthSessionCredentials): Result<Unit> = if (saveFails) {
             value = null
             Result.failure(IllegalStateException("disk"))
         } else {
             value = session
+            lastSaved = session
             Result.success(Unit)
         }
+
         override fun clear(): Result<Unit> {
             value = null
             cleared = true
