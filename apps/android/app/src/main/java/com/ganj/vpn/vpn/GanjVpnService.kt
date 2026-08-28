@@ -5,6 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.VpnService
 import android.os.Binder
 import android.os.Build
@@ -15,15 +17,20 @@ import com.ganj.vpn.R
 import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.vpn.ConnectionState
 import com.ganj.vpn.core.vpn.SecureProfileRecoveryStore
+import com.ganj.vpn.core.vpn.VpnReconnectCoordinator
 import com.ganj.vpn.core.xray.AndroidXrayEngine
 import com.ganj.vpn.core.xray.ReflectiveLibXrayBridge
 import com.ganj.vpn.core.xray.TunnelDevice
 import com.ganj.vpn.core.xray.TunnelPlatform
+import com.ganj.vpn.core.xray.VpnRuntimeException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -38,7 +45,18 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     private val localBinder = LocalBinder()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val recoveryInFlight = AtomicBoolean(false)
+    private val desiredConnection = AtomicBoolean(false)
+    private val networkLossObserved = AtomicBoolean(false)
+    private val reconnectCoordinator = VpnReconnectCoordinator()
     private val recoveryStore by lazy { SecureProfileRecoveryStore(applicationContext) }
+    private val connectivityManager by lazy { getSystemService(ConnectivityManager::class.java) }
+
+    @Volatile
+    private var reconnectJob: Job? = null
+
+    @Volatile
+    private var networkCallbackRegistered = false
+
     private val engine by lazy {
         AndroidXrayEngine(
             platform = this,
@@ -46,9 +64,35 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         )
     }
 
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onLost(network: Network) {
+            if (!desiredConnection.get()) return
+            networkLossObserved.set(true)
+            // Android may deliver new-network onAvailable before old-network onLost. If a new
+            // default already exists, reconnect now; otherwise wait for its onAvailable callback.
+            if (
+                connectivityManager.activeNetwork != null &&
+                networkLossObserved.compareAndSet(true, false)
+            ) {
+                scheduleNetworkReconnect()
+            }
+        }
+
+        override fun onAvailable(network: Network) {
+            if (!desiredConnection.get()) return
+            if (networkLossObserved.compareAndSet(true, false)) {
+                scheduleNetworkReconnect()
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        networkCallbackRegistered = runCatching {
+            connectivityManager.registerDefaultNetworkCallback(networkCallback)
+            true
+        }.getOrDefault(false)
     }
 
     override fun onBind(intent: Intent): IBinder? =
@@ -58,10 +102,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         when (intent?.action) {
             ACTION_PREPARE -> startForeground(NOTIFICATION_ID, connectionNotification())
             ACTION_DISCONNECT -> {
-                recoveryStore.clear()
-                engine.disconnect()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+                terminateDesiredConnection(clearRecovery = true)
                 return START_NOT_STICKY
             }
             null -> {
@@ -79,27 +120,78 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         serviceScope.launch {
             try {
                 val restored = recoveryStore.restore().getOrElse {
-                    recoveryStore.clear()
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf(startId)
+                    terminateDesiredConnection(clearRecovery = true, startId = startId)
                     return@launch
                 }
                 if (restored == null) {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf(startId)
+                    terminateDesiredConnection(clearRecovery = false, startId = startId)
                     return@launch
                 }
 
+                desiredConnection.set(true)
                 val result = engine.connect(ConnectionRequest(restored))
                 if (result.isFailure) {
-                    recoveryStore.clear()
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf(startId)
+                    terminateDesiredConnection(clearRecovery = true, startId = startId)
                 }
             } finally {
                 recoveryInFlight.set(false)
             }
         }
+    }
+
+    private fun scheduleNetworkReconnect() {
+        if (!desiredConnection.get() || recoveryInFlight.get()) return
+        reconnectJob?.cancel()
+        val epoch = reconnectCoordinator.beginEpoch()
+        reconnectJob = serviceScope.launch { reconnectLoop(epoch) }
+    }
+
+    private suspend fun reconnectLoop(epoch: Long) {
+        while (isActive && desiredConnection.get() && reconnectCoordinator.isCurrent(epoch)) {
+            val plan = reconnectCoordinator.nextPlan(epoch) ?: return
+            delay(plan.delayMillis)
+            if (!isActive || !desiredConnection.get() || !reconnectCoordinator.isCurrent(epoch)) return
+
+            val restored = recoveryStore.restore().getOrElse {
+                terminateDesiredConnection(clearRecovery = true)
+                return
+            } ?: run {
+                terminateDesiredConnection(clearRecovery = false)
+                return
+            }
+
+            val result = engine.reconnect(ConnectionRequest(restored))
+            if (result.isSuccess) {
+                reconnectCoordinator.markConnected(epoch)
+                return
+            }
+
+            when ((result.exceptionOrNull() as? VpnRuntimeException)?.code) {
+                "vpn.profile_expired",
+                "vpn.reconnect_without_tunnel",
+                -> {
+                    terminateDesiredConnection(clearRecovery = true)
+                    return
+                }
+            }
+            // Other transient/native failures retain the existing TUN. Traffic therefore remains
+            // routed into the VPN interface while bounded retries continue instead of bypassing it.
+        }
+    }
+
+    private fun terminateDesiredConnection(
+        clearRecovery: Boolean,
+        startId: Int? = null,
+    ) {
+        desiredConnection.set(false)
+        networkLossObserved.set(false)
+        reconnectCoordinator.invalidate()
+        reconnectJob?.cancel()
+        reconnectJob = null
+        if (clearRecovery) recoveryStore.clear()
+        engine.disconnect()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (startId == null) stopSelf() else stopSelf(startId)
     }
 
     override fun establish(mtu: Int): Result<TunnelDevice> = runCatching {
@@ -121,14 +213,17 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     override fun protect(fileDescriptor: Int): Boolean = super.protect(fileDescriptor)
 
     override fun onRevoke() {
-        recoveryStore.clear()
-        engine.disconnect()
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        terminateDesiredConnection(clearRecovery = true)
         super.onRevoke()
     }
 
     override fun onDestroy() {
+        reconnectCoordinator.invalidate()
+        reconnectJob?.cancel()
+        if (networkCallbackRegistered) {
+            runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
+            networkCallbackRegistered = false
+        }
         serviceScope.cancel()
         engine.close()
         super.onDestroy()
@@ -136,10 +231,15 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
     inner class LocalBinder internal constructor() : Binder() {
         suspend fun connect(request: ConnectionRequest): Result<Unit> = withContext(Dispatchers.IO) {
+            reconnectCoordinator.invalidate()
+            reconnectJob?.cancel()
+            reconnectJob = null
+            networkLossObserved.set(false)
             startForeground(NOTIFICATION_ID, connectionNotification())
 
             val persisted = recoveryStore.save(request.profile)
             if (persisted.isFailure) {
+                desiredConnection.set(false)
                 request.profile.close()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -149,7 +249,9 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 )
             }
 
+            desiredConnection.set(true)
             engine.connect(request).onFailure {
+                desiredConnection.set(false)
                 recoveryStore.clear()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -157,6 +259,11 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         }
 
         suspend fun disconnect(): Result<Unit> = withContext(Dispatchers.IO) {
+            desiredConnection.set(false)
+            networkLossObserved.set(false)
+            reconnectCoordinator.invalidate()
+            reconnectJob?.cancel()
+            reconnectJob = null
             recoveryStore.clear()
             engine.disconnect().also {
                 stopForeground(STOP_FOREGROUND_REMOVE)
