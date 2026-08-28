@@ -2,6 +2,9 @@ package com.ganj.vpn.core.vpn
 
 import java.io.Closeable
 import java.net.IDN
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.StandardCharsets
 
 sealed interface ProvisionedTransport {
     data object Tcp : ProvisionedTransport
@@ -46,31 +49,46 @@ class ProvisionedProfile(
     private val secret = credential.copyOf()
 
     init {
-        require(profileId.isCanonicalUuid())
-        require(serviceId.isCanonicalUuid())
-        require(serverId.isCanonicalUuid())
-        require(endpoint.isSafeHost())
-        require(port in 1..65535)
-        require(secret.size in 8..4096)
-        require(expiresAtEpochMillis > 0)
-        require(protocol != VpnProtocol.SHADOWSOCKS || shadowsocksMethod in ALLOWED_SS_METHODS)
-        require(flow == null || protocol == VpnProtocol.VLESS && flow in ALLOWED_VLESS_FLOWS)
-        validateCredential(protocol, secret, shadowsocksMethod)
-        validateTransport(transport)
-        validateSecurity(security)
+        try {
+            require(profileId.isCanonicalUuid())
+            require(serviceId.isCanonicalUuid())
+            require(serverId.isCanonicalUuid())
+            require(endpoint.isSafeHost())
+            require(port in 1..65535)
+            require(secret.size in 8..4096)
+            require(expiresAtEpochMillis > 0)
+            require(protocol != VpnProtocol.SHADOWSOCKS || shadowsocksMethod in ALLOWED_SS_METHODS)
+            require(flow == null || protocol == VpnProtocol.VLESS && flow in ALLOWED_VLESS_FLOWS)
+            validateCredential(protocol, secret, shadowsocksMethod)
+            validateTransport(transport)
+            validateSecurity(security)
+            validateProtocolCompatibility(protocol, transport, security, flow)
+        } catch (error: Throwable) {
+            secret.fill(0)
+            throw error
+        }
     }
 
     /**
      * Gives the audited runtime a short-lived view of the server-issued credential.
-     *
-     * This method is public only because the runtime lives in a separate Gradle module. There is
-     * intentionally no credential getter, serializer, parser, or share-link import surface.
+     * There is intentionally no credential getter, serializer, parser, or share-link import surface.
      */
     @JvmSynthetic
     fun <T> useCredential(block: (String) -> T): T {
         check(secret.any { it.toInt() != 0 }) { "Provisioned profile was already destroyed" }
         val value = secret.toString(Charsets.UTF_8)
         return block(value)
+    }
+
+    /** Internal byte-level view used only by the sealed recovery codec in this module. */
+    internal fun <T> useCredentialBytes(block: (ByteArray) -> T): T {
+        check(secret.any { it.toInt() != 0 }) { "Provisioned profile was already destroyed" }
+        val copy = secret.copyOf()
+        return try {
+            block(copy)
+        } finally {
+            copy.fill(0)
+        }
     }
 
     fun isExpired(nowEpochMillis: Long): Boolean = nowEpochMillis >= expiresAtEpochMillis
@@ -102,10 +120,10 @@ private fun validateCredential(protocol: VpnProtocol, value: ByteArray, shadowso
         -> require(value.toString(Charsets.US_ASCII).isCanonicalUuid()) {
             "VLESS and VMess credentials must be canonical UUIDs"
         }
-        VpnProtocol.TROJAN -> require(value.size in 8..256)
+        VpnProtocol.TROJAN -> require(value.size in 8..256 && value.isStrictUtf8Secret())
         VpnProtocol.SHADOWSOCKS -> {
             val minimum = if (shadowsocksMethod?.startsWith("2022-") == true) 16 else 8
-            require(value.size in minimum..256)
+            require(value.size in minimum..256 && value.isStrictUtf8Secret())
         }
     }
 }
@@ -141,6 +159,29 @@ private fun validateSecurity(value: ProvisionedSecurity) {
     }
 }
 
+private fun validateProtocolCompatibility(
+    protocol: VpnProtocol,
+    transport: ProvisionedTransport,
+    security: ProvisionedSecurity,
+    flow: String?,
+) {
+    if (security is ProvisionedSecurity.Reality) {
+        require(protocol == VpnProtocol.VLESS) { "REALITY is supported only for VLESS" }
+        require(
+            transport == ProvisionedTransport.Tcp || transport is ProvisionedTransport.Grpc,
+        ) { "REALITY requires TCP or gRPC transport" }
+    }
+    require(protocol != VpnProtocol.TROJAN || security is ProvisionedSecurity.Tls) {
+        "Trojan requires authenticated TLS"
+    }
+    if (flow != null) {
+        require(transport == ProvisionedTransport.Tcp) { "VLESS flow requires TCP transport" }
+        require(security is ProvisionedSecurity.Tls || security is ProvisionedSecurity.Reality) {
+            "VLESS flow requires authenticated transport security"
+        }
+    }
+}
+
 private fun String.isCanonicalUuid(): Boolean =
     matches(Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"))
 
@@ -155,5 +196,16 @@ private fun String.isSafeHost(): Boolean {
             label.length in 1..63 &&
                 label.matches(Regex("^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$"))
         }
+    }.getOrDefault(false)
+}
+
+private fun ByteArray.isStrictUtf8Secret(): Boolean {
+    if (any { it == 0.toByte() }) return false
+    return runCatching {
+        StandardCharsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .decode(ByteBuffer.wrap(this))
+            .all { !it.isISOControl() }
     }.getOrDefault(false)
 }
