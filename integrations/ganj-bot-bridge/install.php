@@ -9,6 +9,7 @@ if (PHP_VERSION_ID < 80100) {
     fwrite(STDERR, "PHP 8.1 or newer is required.\n");
     exit(1);
 }
+umask(0077);
 
 function installerFail(string $message): never
 {
@@ -23,26 +24,52 @@ function installerEnv(string $name): string
     return $value;
 }
 
+function installerInsideRoot(string $candidate, string $root): bool
+{
+    $rootPrefix = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+    return $candidate === $root || str_starts_with($candidate . DIRECTORY_SEPARATOR, $rootPrefix);
+}
+
 function installerPrivateSecretFile(string $path, string $root): string
 {
     $real = realpath($path);
-    if ($real === false || !is_file($real) || is_link($real)) installerFail('Secret file is unavailable: ' . $path);
-    $rootReal = rtrim((string)realpath($root), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-    if (str_starts_with($real . DIRECTORY_SEPARATOR, $rootReal)) {
-        installerFail('Secret files must be outside the public bot root.');
-    }
+    if ($real === false || !is_file($real) || is_link($path)) installerFail('Secret file is unavailable: ' . $path);
+    if (installerInsideRoot($real, $root)) installerFail('Secret files must be outside the public bot root.');
     $mode = @fileperms($real);
-    if (is_int($mode) && (($mode & 0077) !== 0)) installerFail('Secret file permissions must be 0600 or stricter.');
+    if (!is_int($mode) || (($mode & 0077) !== 0)) installerFail('Secret file permissions must be 0600 or stricter.');
     $value = trim((string)file_get_contents($real));
     if (strlen($value) < 32 || strlen($value) > 4096) installerFail('Secret file must contain 32 to 4096 characters.');
     $value = str_repeat("\0", strlen($value));
     return $real;
 }
 
+function installerPrivateDataFile(string $path, string $root): string
+{
+    $real = realpath($path);
+    if ($real === false || !is_file($real) || is_link($path)) installerFail('Private data file is unavailable: ' . $path);
+    if (installerInsideRoot($real, $root)) installerFail('Private data files must be outside the public bot root.');
+    $mode = @fileperms($real);
+    if (!is_int($mode) || (($mode & 0022) !== 0)) installerFail('Private data file must not be group/world writable.');
+    return $real;
+}
+
+function installerPrivateDirectory(string $path, string $root): string
+{
+    $real = realpath($path);
+    if ($real === false || !is_dir($real) || is_link($path)) installerFail('Backup directory must already exist.');
+    if (installerInsideRoot($real, $root)) installerFail('Backup directory must be outside the public bot root.');
+    $mode = @fileperms($real);
+    if (!is_int($mode) || (($mode & 0077) !== 0)) installerFail('Backup directory permissions must be 0700 or stricter.');
+    if (!is_writable($real)) installerFail('Backup directory is not writable.');
+    return rtrim($real, DIRECTORY_SEPARATOR);
+}
+
 $options = getopt('', ['bot-root:']);
 $source = __DIR__;
-$root = isset($options['bot-root']) ? (string)$options['bot-root'] : dirname(__DIR__);
-$root = realpath($root) ?: installerFail('Bot root does not exist.');
+$rootInput = isset($options['bot-root']) ? (string)$options['bot-root'] : dirname(__DIR__);
+$resolvedRoot = realpath($rootInput);
+if ($resolvedRoot === false || !is_dir($resolvedRoot)) installerFail('Bot root does not exist.');
+$root = rtrim($resolvedRoot, DIRECTORY_SEPARATOR);
 $index = $root . '/index.php';
 $botConfig = $root . '/config.php';
 if (!is_file($index) || !is_file($botConfig)) installerFail('index.php and config.php were not found in the bot root.');
@@ -57,10 +84,8 @@ if (!is_array($url) || ($url['scheme'] ?? '') !== 'https' || empty($url['host'])
 }
 $approvalTokenFile = installerPrivateSecretFile(installerEnv('GANJ_BOT_APPROVAL_TOKEN_FILE'), $root);
 $projectionTokenFile = installerPrivateSecretFile(installerEnv('GANJ_BOT_PROJECTION_TOKEN_FILE'), $root);
-$connectorMapFile = realpath(installerEnv('GANJ_PASARGUARD_CONNECTOR_MAP_FILE'));
-if ($connectorMapFile === false || !is_file($connectorMapFile) || is_link($connectorMapFile)) {
-    installerFail('PasarGuard connector map file is unavailable.');
-}
+$connectorMapFile = installerPrivateDataFile(installerEnv('GANJ_PASARGUARD_CONNECTOR_MAP_FILE'), $root);
+$backupDir = installerPrivateDirectory(installerEnv('GANJ_BOT_BRIDGE_BACKUP_DIR'), $root);
 $connectorMap = json_decode((string)file_get_contents($connectorMapFile), true);
 if (!is_array($connectorMap)) installerFail('PasarGuard connector map must be a JSON object.');
 foreach ($connectorMap as $panel => $connector) {
@@ -162,10 +187,6 @@ try {
 $target = $root . '/.ganj-app-bridge';
 if (!is_dir($target) && !mkdir($target, 0700, true) && !is_dir($target)) installerFail('Cannot create bridge directory.');
 @chmod($target, 0700);
-$backupDir = $target . '/backups';
-if (!is_dir($backupDir) && !mkdir($backupDir, 0700, true) && !is_dir($backupDir)) installerFail('Cannot create backup directory.');
-@chmod($backupDir, 0700);
-
 foreach (['bootstrap.php', 'projection.php'] as $payload) {
     $destination = $target . '/' . $payload;
     $temporary = $destination . '.tmp';
@@ -188,8 +209,8 @@ if (file_put_contents($target . '/config.php.tmp', $configBody, LOCK_EX) === fal
 @chmod($target . '/config.php.tmp', 0640);
 if (!rename($target . '/config.php.tmp', $target . '/config.php')) installerFail('Cannot publish bridge config.');
 
-$access = "Options -Indexes\n<FilesMatch \"^(?:config|bootstrap)\\.php$\">\n  Require all denied\n</FilesMatch>\n";
-file_put_contents($target . '/.htaccess', $access, LOCK_EX);
+$access = "Options -Indexes\n<FilesMatch \"^(?!projection\\.php$).*$\">\n  Require all denied\n</FilesMatch>\n";
+if (file_put_contents($target . '/.htaccess', $access, LOCK_EX) === false) installerFail('Cannot write bridge access policy.');
 @chmod($target . '/.htaccess', 0640);
 
 if (!str_contains($original, $managed)) {
@@ -199,8 +220,13 @@ if (!str_contains($original, $managed)) {
         . $needle;
     $patched = str_replace($needle, $hook, $original, $replacements);
     if ($replacements !== 1) installerFail('Bot hook patch was not deterministic.');
-    $backup = $backupDir . '/index.php.' . gmdate('Ymd-His') . '.bak';
-    if (!copy($index, $backup)) installerFail('Cannot create bot index backup.');
+    try {
+        $backupSuffix = bin2hex(random_bytes(6));
+    } catch (Throwable $error) {
+        installerFail('Cannot create a unique backup name.');
+    }
+    $backup = $backupDir . '/index.php.' . gmdate('Ymd-His') . '.' . $backupSuffix . '.bak';
+    if (file_put_contents($backup, $original, LOCK_EX) === false) installerFail('Cannot create bot index backup.');
     @chmod($backup, 0600);
     $temporaryIndex = $index . '.ganj-app.tmp';
     if (file_put_contents($temporaryIndex, $patched, LOCK_EX) === false) installerFail('Cannot write patched bot index.');
@@ -210,4 +236,5 @@ if (!str_contains($original, $managed)) {
 
 fwrite(STDOUT, "Ganj App bridge installed successfully.\n");
 fwrite(STDOUT, "Projection URL path: /.ganj-app-bridge/projection.php\n");
+fwrite(STDOUT, "Private backup directory: " . $backupDir . "\n");
 fwrite(STDOUT, "Remove the uploaded installer directory after verification; the managed bridge directory must remain.\n");
