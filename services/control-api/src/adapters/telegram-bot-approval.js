@@ -68,7 +68,7 @@ export class TelegramBotApprovalAdapter {
   }) {
     const storeMethods = [
       'create', 'approve', 'cancel', 'findStatus', 'loadForExchange',
-      'prepareAccountLink', 'markConsumed',
+      'prepareAccountLink', 'markConsumed', 'restoreApproved',
     ];
     if (!store || storeMethods.some((method) => typeof store[method] !== 'function')) {
       throw new Error('Telegram Bot approval store is incomplete.');
@@ -239,13 +239,31 @@ export class TelegramBotApprovalAdapter {
     if (!consumed) {
       throw new ApiError(409, 'telegram_bot_exchange_replayed', 'Telegram Bot exchange was already consumed.');
     }
-    return this.accountBroker.linkAndIssueSession({
-      telegramSubject: row.telegramSubject,
-      username: row.username,
-      displayName: row.displayName,
-      deviceId: row.deviceId,
-      providerClaims: { method: 'bot-approval' },
-    });
+    try {
+      return await this.accountBroker.linkAndIssueSession({
+        telegramSubject: row.telegramSubject,
+        username: row.username,
+        displayName: row.displayName,
+        deviceId: row.deviceId,
+        providerClaims: { method: 'bot-approval' },
+      });
+    } catch (error) {
+      const restored = await this.store.restoreApproved({
+        stateDigest,
+        userId: principal.userId,
+        deviceId: principal.deviceId,
+        consumedAt: this.clock(),
+      }).catch(() => false);
+      if (!restored) {
+        throw new ApiError(
+          503,
+          'telegram_bot_exchange_recovery_failed',
+          'Telegram login could not be recovered safely. Start a new approval.',
+          { retryable: true },
+        );
+      }
+      throw error;
+    }
   }
 
   exchangeCode(row) {
@@ -403,11 +421,6 @@ export class PostgresTelegramBotApprovalStore {
         await client.query('ROLLBACK');
         return 'merge_required';
       }
-      await client.query(
-        `DELETE FROM control_services
-          WHERE user_id = $1 AND tier = 'free'`,
-        [currentUserId],
-      );
       await client.query('COMMIT');
       return 'ready';
     } catch (error) {
@@ -427,6 +440,19 @@ export class PostgresTelegramBotApprovalStore {
           AND consumed_at IS NULL AND expires_at > $4
         RETURNING state_digest`,
       [stateDigest, userId, deviceId, now],
+    );
+    return result.rowCount === 1;
+  }
+
+  async restoreApproved({ stateDigest, userId, deviceId, consumedAt }) {
+    const result = await this.pool.query(
+      `UPDATE control_telegram_bot_approvals
+          SET consumed_at = NULL
+        WHERE state_digest = $1 AND user_id = $2 AND device_id = $3
+          AND consumed_at IS NOT NULL AND cancelled_at IS NULL
+          AND expires_at > $4
+        RETURNING state_digest`,
+      [stateDigest, userId, deviceId, consumedAt],
     );
     return result.rowCount === 1;
   }
