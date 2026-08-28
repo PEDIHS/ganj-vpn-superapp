@@ -1,0 +1,77 @@
+name: ganj-vpn-backup-verification
+
+services:
+  source-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ganj_source
+      POSTGRES_USER: ganj_test
+      POSTGRES_PASSWORD: testtest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ganj_test -d ganj_source"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    tmpfs: [/var/lib/postgresql/data]
+
+  restore-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ganj_restore_verify
+      POSTGRES_USER: ganj_test
+      POSTGRES_PASSWORD: testtest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ganj_test -d ganj_restore_verify"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    tmpfs: [/var/lib/postgresql/data]
+
+  migrate:
+    build:
+      context: ../services/control-api
+      dockerfile: Dockerfile
+      target: test
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgres://ganj_test:testtest@source-db:5432/ganj_source
+      MIGRATIONS_INCLUDE_TEST_SEED: "false"
+    depends_on:
+      source-db:
+        condition: service_healthy
+    command: ["node", "src/migrate.js"]
+
+  backup:
+    image: postgres:16-alpine
+    environment:
+      OPS_TEST_MODE: "true"
+      DATABASE_URL: postgres://ganj_test:testtest@source-db:5432/ganj_source
+      BACKUP_DIRECTORY: /backups
+      BACKUP_RETENTION_DAYS: "1"
+    volumes:
+      - ./scripts/backup-postgres.sh:/opt/ganj/ops/backup-postgres.sh:ro
+      - verification_backup:/backups
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    entrypoint: ["/opt/ganj/ops/backup-postgres.sh"]
+
+  verify:
+    image: postgres:16-alpine
+    environment:
+      OPS_TEST_MODE: "true"
+      RESTORE_DATABASE_URL: postgres://ganj_test:testtest@restore-db:5432/ganj_restore_verify
+      RESTORE_ARCHIVE: /backups/latest.dump
+      RESTORE_CONFIRMATION: ganj_restore_verify
+    volumes:
+      - ./scripts/restore-postgres.sh:/opt/ganj/ops/restore-postgres.sh:ro
+      - verification_backup:/backups:ro
+    depends_on:
+      backup:
+        condition: service_completed_successfully
+      restore-db:
+        condition: service_healthy
+    entrypoint: ["/opt/ganj/ops/restore-postgres.sh"]
+
+volumes:
+  verification_backup:

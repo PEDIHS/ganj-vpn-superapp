@@ -1,0 +1,36 @@
+name: ganj-vpn-test-adapters
+
+# This stack is deliberately standalone. Never combine it with compose.production.yml.
+services:
+  control-api-test:
+    profiles: ["test-adapters"]
+    build:
+      context: ../services/control-api
+      dockerfile: Dockerfile
+      target: test
+    environment:
+      NODE_ENV: test
+      CONTROL_API_ADAPTER_MODE: test
+      HOST: 0.0.0.0
+      PORT: "8080"
+    command: ["node", "src/index.js"]
+    user: "100:101"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    ports:
+      - "127.0.0.1:${TEST_ADAPTER_PORT:-18080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
