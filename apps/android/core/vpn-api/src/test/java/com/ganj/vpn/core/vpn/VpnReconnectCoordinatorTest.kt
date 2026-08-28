@@ -15,9 +15,9 @@ class VpnReconnectCoordinatorTest {
         )
         val epoch = coordinator.beginEpoch()
 
-        assertEquals(10, coordinator.nextPlan(epoch)?.delayMillis)
-        assertEquals(20, coordinator.nextPlan(epoch)?.delayMillis)
-        assertEquals(40, coordinator.nextPlan(epoch)?.delayMillis)
+        assertEquals(10L, coordinator.nextPlan(epoch)?.delayMillis)
+        assertEquals(20L, coordinator.nextPlan(epoch)?.delayMillis)
+        assertEquals(40L, coordinator.nextPlan(epoch)?.delayMillis)
         assertNull(coordinator.nextPlan(epoch))
     }
 
