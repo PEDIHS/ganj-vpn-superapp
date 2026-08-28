@@ -2,6 +2,8 @@ package com.ganj.vpn.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -31,20 +34,26 @@ import com.ganj.vpn.presentation.PlanUiModel
 import com.ganj.vpn.presentation.ServiceUiStatus
 import com.ganj.vpn.presentation.UiFailure
 import com.ganj.vpn.presentation.UiTier
+import kotlin.math.roundToInt
 
 @Composable
 internal fun Page(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        content = content,
-    )
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val horizontalPadding = GanjResponsivePolicy.horizontalPagePaddingDp(
+            maxWidth.value.roundToInt(),
+        ).dp
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = horizontalPadding, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            content = content,
+        )
+    }
 }
 
 @Composable
@@ -53,43 +62,76 @@ internal fun AppHeader(
     subtitle: String,
     onRefresh: (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Text(
-                text = subtitle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        if (onRefresh != null) {
-            GanjGlassSurface(
-                role = GanjGlassRole.Clear,
-                accent = MaterialTheme.colorScheme.primary,
-                shapeRadius = 999.dp,
-                padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                modifier = Modifier.clickable(
-                    role = Role.Button,
-                    onClick = onRefresh,
-                ),
+    val fontScale = LocalDensity.current.fontScale
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val stack = GanjResponsivePolicy.shouldStackPrimaryActions(
+            widthDp = maxWidth.value.roundToInt(),
+            fontScale = fontScale,
+        )
+        if (stack) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.common_refresh),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                HeaderCopy(title = title, subtitle = subtitle)
+                if (onRefresh != null) {
+                    Box(modifier = Modifier.align(Alignment.End)) {
+                        RefreshChip(onRefresh)
+                    }
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    HeaderCopy(title = title, subtitle = subtitle)
+                }
+                if (onRefresh != null) {
+                    RefreshChip(onRefresh)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun HeaderCopy(title: String, subtitle: String) {
+    Column {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            text = subtitle,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}
+
+@Composable
+private fun RefreshChip(onRefresh: () -> Unit) {
+    GanjGlassSurface(
+        role = GanjGlassRole.Clear,
+        accent = MaterialTheme.colorScheme.primary,
+        shapeRadius = 999.dp,
+        padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier.clickable(
+            role = Role.Button,
+            onClick = onRefresh,
+        ),
+    ) {
+        Text(
+            text = stringResource(R.string.common_refresh),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 
