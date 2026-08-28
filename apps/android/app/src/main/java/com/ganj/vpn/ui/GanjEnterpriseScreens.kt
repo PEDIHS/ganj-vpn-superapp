@@ -19,10 +19,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ganj.vpn.R
 import com.ganj.vpn.enterprise.BugCategory
 import com.ganj.vpn.enterprise.BugReportInput
 import com.ganj.vpn.enterprise.BugReportUiState
@@ -58,12 +60,14 @@ internal fun ProductGateScreen(
                 textAlign = TextAlign.Center,
             )
             Text(
-                "Connections and purchases are paused until the signed product policy allows them.",
+                stringResource(R.string.gate_policy_paused),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
             )
-            Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text("Check again") }
+            Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.gate_check_again))
+            }
         }
     }
 }
@@ -80,22 +84,26 @@ internal fun EnterpriseStatusCard(
         else -> MaterialTheme.colorScheme.error
     }
     ContentCard(accent = accent) {
-        Text("Product status", fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.enterprise_product_status), fontWeight = FontWeight.Bold)
         Text(
             when (availability) {
-                ProductAvailabilityUiState.Loading -> "Checking signed runtime policy…"
-                ProductAvailabilityUiState.Available -> "Operational"
+                ProductAvailabilityUiState.Loading -> stringResource(R.string.enterprise_policy_checking)
+                ProductAvailabilityUiState.Available -> stringResource(R.string.enterprise_operational)
                 is ProductAvailabilityUiState.OptionalUpdate ->
-                    "Version ${availability.latestVersion} is available."
-                is ProductAvailabilityUiState.ForcedUpdate -> "A security update is required."
-                is ProductAvailabilityUiState.Maintenance -> availability.message ?: "Maintenance in progress."
-                ProductAvailabilityUiState.AuthRequired -> "Sign in to resolve device policy."
-                is ProductAvailabilityUiState.Failed -> "Runtime policy is unavailable; optional features are off."
+                    stringResource(R.string.enterprise_optional_update, availability.latestVersion)
+                is ProductAvailabilityUiState.ForcedUpdate ->
+                    stringResource(R.string.enterprise_security_update_required)
+                is ProductAvailabilityUiState.Maintenance ->
+                    availability.message ?: stringResource(R.string.enterprise_maintenance)
+                ProductAvailabilityUiState.AuthRequired -> stringResource(R.string.enterprise_sign_in_policy)
+                is ProductAvailabilityUiState.Failed -> stringResource(R.string.enterprise_policy_unavailable)
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
-        OutlinedButton(onClick = onRefresh) { Text("Refresh product status") }
+        OutlinedButton(onClick = onRefresh) {
+            Text(stringResource(R.string.enterprise_refresh_status))
+        }
     }
 }
 
@@ -112,9 +120,9 @@ internal fun BugReportPanel(
     val submitting = status == BugReportUiState.Submitting
 
     ContentCard(accent = MaterialTheme.colorScheme.secondary) {
-        Text("Report a problem", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(stringResource(R.string.bug_title), fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text(
-            "Do not paste VPN configurations, credentials, links, or private message content.",
+            stringResource(R.string.bug_privacy_warning),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp,
         )
@@ -122,32 +130,37 @@ internal fun BugReportPanel(
             value = title,
             onValueChange = { title = it.take(200) },
             enabled = !submitting,
-            label = { Text("Short title") },
+            label = { Text(stringResource(R.string.bug_short_title)) },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = description,
             onValueChange = { description = it.take(12_000) },
             enabled = !submitting,
-            label = { Text("What happened?") },
+            label = { Text(stringResource(R.string.bug_what_happened)) },
             minLines = 3,
             modifier = Modifier.fillMaxWidth(),
         )
-        Text("Category", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text(
+            stringResource(R.string.bug_category),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(BugCategory.CONNECTION, BugCategory.PURCHASE, BugCategory.ACCOUNT).forEach { option ->
+                val optionText = bugCategoryText(option)
                 OutlinedButton(
                     onClick = { category = option },
                     enabled = !submitting,
                 ) {
-                    Text(if (category == option) "✓ ${option.name}" else option.name, fontSize = 10.sp)
+                    Text(if (category == option) "✓ $optionText" else optionText, fontSize = 10.sp)
                 }
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !submitting)
             Text(
-                "I approve sending coarse device, network type, connection state and error code.",
+                stringResource(R.string.bug_diagnostics_consent),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 11.sp,
                 modifier = Modifier.weight(1f),
@@ -158,21 +171,25 @@ internal fun BugReportPanel(
                 onClick = { onSubmit(BugReportInput(title, description, category, consent)) },
                 enabled = title.trim().length >= 3 && description.trim().length >= 3 && consent,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Send privacy-safe report") }
-            BugReportUiState.Submitting -> LoadingCard("Submitting report")
+            ) {
+                Text(stringResource(R.string.bug_send))
+            }
+            BugReportUiState.Submitting -> LoadingCard(stringResource(R.string.bug_submitting))
             BugReportUiState.AuthRequired -> AuthCard(onClear)
             is BugReportUiState.Submitted -> {
                 Text(
-                    "Report ${status.publicCode} submitted",
+                    stringResource(R.string.bug_submitted, status.publicCode),
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    "Status: ${status.status.name}",
+                    stringResource(R.string.bug_status, status.status.name),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                 )
-                OutlinedButton(onClick = onClear) { Text("Report another issue") }
+                OutlinedButton(onClick = onClear) {
+                    Text(stringResource(R.string.bug_another))
+                }
             }
             is BugReportUiState.Failed -> {
                 Text(
@@ -180,7 +197,15 @@ internal fun BugReportPanel(
                     color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold,
                 )
-                OutlinedButton(onClick = onClear) { Text(if (status.retryable) "Try again" else "Edit report") }
+                OutlinedButton(onClick = onClear) {
+                    Text(
+                        if (status.retryable) {
+                            stringResource(R.string.common_retry)
+                        } else {
+                            stringResource(R.string.bug_edit)
+                        },
+                    )
+                }
             }
         }
     }
@@ -196,17 +221,16 @@ internal fun DiagnosticPanel(
     val busy = status == DiagnosticUiState.Running || status == DiagnosticUiState.Uploading
 
     ContentCard(accent = MaterialTheme.colorScheme.primary) {
-        Text("Privacy-safe diagnostics", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(stringResource(R.string.diagnostic_title), fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text(
-            "Tests only result classes, latency, packet loss, VPN state and device integrity. " +
-                "No hostname, destination, IP address, DNS query, payload, credential or configuration is collected.",
+            stringResource(R.string.diagnostic_privacy_body),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp,
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
             Text(
-                "I approve running and uploading this minimized diagnostic report.",
+                stringResource(R.string.diagnostic_consent),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 11.sp,
                 modifier = Modifier.weight(1f),
@@ -217,22 +241,26 @@ internal fun DiagnosticPanel(
                 onClick = { onSubmit(consent) },
                 enabled = consent,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Run diagnostics") }
-            DiagnosticUiState.Running -> LoadingCard("Running allowlisted tests")
-            DiagnosticUiState.Uploading -> LoadingCard("Uploading redacted results")
+            ) {
+                Text(stringResource(R.string.diagnostic_run))
+            }
+            DiagnosticUiState.Running -> LoadingCard(stringResource(R.string.diagnostic_running))
+            DiagnosticUiState.Uploading -> LoadingCard(stringResource(R.string.diagnostic_uploading))
             DiagnosticUiState.AuthRequired -> AuthCard(onClear)
             is DiagnosticUiState.Submitted -> {
                 Text(
-                    "Diagnostic report submitted",
+                    stringResource(R.string.diagnostic_submitted),
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    "Redaction policy: ${status.redactionVersion}",
+                    stringResource(R.string.diagnostic_redaction_policy, status.redactionVersion),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                 )
-                OutlinedButton(onClick = onClear) { Text("Done") }
+                OutlinedButton(onClick = onClear) {
+                    Text(stringResource(R.string.common_done))
+                }
             }
             is DiagnosticUiState.Failed -> {
                 Text(
@@ -240,7 +268,15 @@ internal fun DiagnosticPanel(
                     color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold,
                 )
-                OutlinedButton(onClick = onClear) { Text(if (status.retryable) "Retry" else "Review consent") }
+                OutlinedButton(onClick = onClear) {
+                    Text(
+                        if (status.retryable) {
+                            stringResource(R.string.common_retry)
+                        } else {
+                            stringResource(R.string.diagnostic_review_consent)
+                        },
+                    )
+                }
             }
         }
     }
