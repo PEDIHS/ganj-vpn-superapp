@@ -9,6 +9,7 @@ internal enum class GanjWidthClass {
 internal object GanjResponsivePolicy {
     const val CompactWidthMaxDp = 359
     const val WideWidthMinDp = 600
+    const val NavigationAllLabelsMinDp = 400
     const val LargeFontScale = 1.30f
 
     fun widthClass(widthDp: Int): GanjWidthClass = when {
@@ -21,7 +22,7 @@ internal object GanjResponsivePolicy {
         widthClass(widthDp) == GanjWidthClass.Compact || fontScale >= LargeFontScale
 
     fun shouldShowAllNavigationLabels(widthDp: Int, fontScale: Float): Boolean =
-        widthDp >= 360 && fontScale < LargeFontScale
+        widthDp >= NavigationAllLabelsMinDp && fontScale < LargeFontScale
 
     fun categoryColumns(widthDp: Int, fontScale: Float): Int =
         if (shouldStackPrimaryActions(widthDp, fontScale)) 1 else 2
