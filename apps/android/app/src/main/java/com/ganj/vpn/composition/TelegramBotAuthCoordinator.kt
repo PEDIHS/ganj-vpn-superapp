@@ -11,7 +11,6 @@ import java.net.URI
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.text.SimpleDateFormat
-import java.util.Base64
 import java.util.Locale
 import java.util.TimeZone
 
@@ -76,14 +75,14 @@ internal class TelegramBotAuthCoordinator(
         val verifierBytes = ByteArray(32)
         random.nextBytes(verifierBytes)
         val verifier = try {
-            Base64.getUrlEncoder().withoutPadding().encodeToString(verifierBytes)
+            verifierBytes.toBase64UrlWithoutPadding()
         } finally {
             verifierBytes.fill(0)
         }
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(verifier.toByteArray(Charsets.US_ASCII))
         val challenge = try {
-            Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+            digest.toBase64UrlWithoutPadding()
         } finally {
             digest.fill(0)
         }
