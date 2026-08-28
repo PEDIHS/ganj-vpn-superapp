@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="visual_protected">Protected</string>
+    <string name="visual_ready">Ready</string>
+    <string name="visual_verified">Verified</string>
+    <string name="visual_signature">Ganj Signature</string>
+    <string name="visual_device_verified">Device verified</string>
+    <string name="visual_selected_service">Selected service</string>
+    <string name="visual_active_service">Active service</string>
+    <string name="visual_protocols">%1$d protocols</string>
+    <string name="visual_service_security">Secure service access</string>
+    <string name="visual_service_security_body">Only your verified subscription and registered device can request a connection profile.</string>
+    <string name="visual_available_services">Available services</string>
+    <string name="visual_available_services_body">Smart routing uses only destinations allowed by your current service.</string>
+    <string name="visual_store_plans">Subscription plans</string>
+    <string name="visual_store_plans_body">Choose the service tier that fits your usage.</string>
+    <string name="visual_my_services">Your subscriptions</string>
+    <string name="visual_my_services_body">Manage and connect using services already linked to your account.</string>
+</resources>
