@@ -70,6 +70,7 @@ class GanjComposition internal constructor(
     val reducer: GanjUiReducer,
     val enterpriseController: EnterpriseController,
     val enterpriseReducer: EnterpriseReducer,
+    private val telegramAuth: TelegramBotAuthCoordinator?,
     private val playAdapter: GooglePlayBillingAdapter,
     private val playLifecycle: PlayBillingLifecycleBridge,
     private val purchaseEvents: PlayPurchaseEventRelay,
@@ -95,6 +96,19 @@ class GanjComposition internal constructor(
     fun retainEnterpriseState(state: EnterpriseUiState) {
         retainedEnterpriseState = state
     }
+
+    fun isTelegramLinked(): Boolean = telegramAuth?.isLinked() == true
+
+    fun hasPendingTelegramLogin(): Boolean = telegramAuth?.hasPendingFlow() == true
+
+    fun beginTelegramLogin(): TelegramBotAuthResult =
+        telegramAuth?.begin() ?: TelegramBotAuthResult.Failed("auth.unavailable")
+
+    fun resumeTelegramLogin(): TelegramBotAuthResult =
+        telegramAuth?.resume() ?: TelegramBotAuthResult.Failed("auth.unavailable")
+
+    fun logoutTelegram(): TelegramBotAuthResult =
+        telegramAuth?.logout() ?: TelegramBotAuthResult.LoggedOut
 
     suspend fun launchGooglePlayCheckout(
         activity: Activity,
@@ -172,6 +186,7 @@ object GanjCompositionFactory {
         tokenProvider: AuthTokenProvider,
         currentUser: CurrentUserIdProvider,
         connectionContext: ConnectionProfileContextProvider,
+        telegramAuth: TelegramBotAuthCoordinator? = null,
         enterpriseRepository: EnterpriseExperienceRepository = FailClosedEnterpriseRepository(),
         enterpriseDeviceContext: EnterpriseDeviceContextProvider = EnterpriseDeviceContextProvider { null },
         diagnosticCollector: PrivacySafeDiagnosticCollector = PrivacySafeDiagnosticCollector { emptyList() },
@@ -208,8 +223,12 @@ object GanjCompositionFactory {
             mapper = mapper,
             actionVault = actionVault,
         )
+        // Guest sessions are sufficient for Free browsing/connect but deliberately not for paid
+        // ownership. The linked marker is UX-only; the backend still verifies the resulting linked
+        // session and commercial ownership for protected operations.
         val checkoutSession = AuthenticatedCheckoutSession {
-            tokenProvider.currentAccessToken() != null &&
+            telegramAuth?.isLinked() == true &&
+                tokenProvider.currentAccessToken() != null &&
                 !currentUser.currentUserId().isNullOrBlank()
         }
         val enterpriseSession = EnterpriseSessionGate {
@@ -239,6 +258,7 @@ object GanjCompositionFactory {
                 reducer = enterpriseReducer,
             ),
             enterpriseReducer = enterpriseReducer,
+            telegramAuth = telegramAuth,
             playAdapter = playAdapter,
             playLifecycle = playLifecycle,
             purchaseEvents = purchaseEvents,
@@ -260,6 +280,7 @@ object GanjCompositionFactory {
         tokenProvider = InMemorySessionTokenProvider(),
         currentUser = CurrentUserIdProvider { null },
         connectionContext = ConnectionProfileContextProvider { null },
+        telegramAuth = null,
         cryptoProvider = cryptoProvider,
     )
 
