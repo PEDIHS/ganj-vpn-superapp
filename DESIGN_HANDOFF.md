@@ -47,5 +47,8 @@ Do not redesign product behavior blindly. Existing code, domain models, APIs and
 8. Developer-ready specifications
 9. Mapping from proposed screens/components to existing implementation areas
 
+## Export
+This branch includes a GitHub Actions workflow that packages this private repository as a design-handoff ZIP while excluding common generated and local-sensitive files.
+
 ## Notes
 Generated build outputs, caches, local secrets and machine-specific files should not be considered part of the design source of truth.
