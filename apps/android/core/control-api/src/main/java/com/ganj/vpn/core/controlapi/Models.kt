@@ -5,6 +5,7 @@ import java.util.UUID
 enum class SubscriptionTier { FREE, PREMIUM, VIP }
 enum class PurchaseChannel { PLAY, DIRECT, WALLET }
 enum class ServiceStatus { PENDING, ACTIVE, DISABLED, EXPIRED, REVOKED }
+enum class ServerStatus { ACTIVE, BUSY, MAINTENANCE }
 enum class VpnProtocol { VLESS, VMESS, TROJAN, SHADOWSOCKS, WIREGUARD }
 
 data class Money(
@@ -41,6 +42,35 @@ data class UserService(
     val deviceLimit: Int,
     val allowedProtocols: Set<VpnProtocol>,
 )
+
+/**
+ * UI-safe server catalog entry. It intentionally cannot carry endpoint, port, credential,
+ * subscription URL, Xray JSON, or any other reusable VPN configuration material.
+ */
+data class ManagedServer(
+    val id: String,
+    val code: String,
+    val name: String,
+    val countryCode: String,
+    val city: String?,
+    val tier: SubscriptionTier,
+    val status: ServerStatus,
+    val loadRatio: Double,
+    val latencyHintMs: Int?,
+    val favorite: Boolean,
+    val protocols: Set<VpnProtocol>,
+) {
+    init {
+        requireUuid("id", id)
+        require(code.length in 1..128)
+        require(name.length in 1..200)
+        require(countryCode.matches(Regex("^[A-Z]{2}$")))
+        require(city == null || city.length in 1..200)
+        require(loadRatio in 0.0..1.0)
+        require(latencyHintMs == null || latencyHintMs >= 0)
+        require(protocols.isNotEmpty())
+    }
+}
 
 data class CheckoutCommand(
     val planId: String,
