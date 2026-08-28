@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -63,35 +64,35 @@ internal fun AppHeader(
     onRefresh: (() -> Unit)? = null,
 ) {
     val fontScale = LocalDensity.current.fontScale
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val stack = GanjResponsivePolicy.shouldStackPrimaryActions(
-            widthDp = maxWidth.value.roundToInt(),
-            fontScale = fontScale,
-        )
-        if (stack) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                HeaderCopy(title = title, subtitle = subtitle)
-                if (onRefresh != null) {
-                    Box(modifier = Modifier.align(Alignment.End)) {
-                        RefreshChip(onRefresh)
-                    }
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    HeaderCopy(title = title, subtitle = subtitle)
-                }
-                if (onRefresh != null) {
+    val windowWidthDp = LocalConfiguration.current.screenWidthDp
+    val stack = GanjResponsivePolicy.shouldStackPrimaryActions(
+        widthDp = windowWidthDp,
+        fontScale = fontScale,
+    )
+
+    if (stack) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            HeaderCopy(title = title, subtitle = subtitle)
+            if (onRefresh != null) {
+                Box(modifier = Modifier.align(Alignment.End)) {
                     RefreshChip(onRefresh)
                 }
+            }
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                HeaderCopy(title = title, subtitle = subtitle)
+            }
+            if (onRefresh != null) {
+                RefreshChip(onRefresh)
             }
         }
     }
