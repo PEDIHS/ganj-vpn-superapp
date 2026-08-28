@@ -1,0 +1,128 @@
+name: ganj-vpn-staging
+
+services:
+  postgres:
+    image: postgres:16.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ganj
+      POSTGRES_USER: ganj
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ganj -d ganj"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+    security_opt: ["no-new-privileges:true"]
+
+  migrate:
+    image: ${CONTROL_API_IMAGE:?CONTROL_API_IMAGE must be an immutable @sha256 image reference}
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://ganj@postgres:5432/ganj
+      DATABASE_SSL: disable
+      PGPASSWORD_FILE: /run/secrets/postgres_password
+      MIGRATION_DATABASE_NAME: ${MIGRATION_DATABASE_NAME:-ganj}
+    secrets:
+      - postgres_password
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        export PGPASSWORD="$$(cat /run/secrets/postgres_password)"
+        case "$${MIGRATION_DATABASE_NAME}" in
+          ganj|ganj_restore) ;;
+          *) echo 'invalid migration database name' >&2; exit 1 ;;
+        esac
+        export DATABASE_URL="postgresql://ganj:$${PGPASSWORD}@postgres:5432/$${MIGRATION_DATABASE_NAME}"
+        node src/migrate.js
+    networks: [backend]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  control-api:
+    image: ${CONTROL_API_IMAGE:?CONTROL_API_IMAGE must be an immutable @sha256 image reference}
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: [.env]
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8080
+      CONTROL_API_ADAPTER_MODE: production
+      DATABASE_URL: postgresql://ganj@postgres:5432/ganj
+      DATABASE_SSL: disable
+      CONTROL_API_VAULT_TOKEN_FILE: /run/secrets/ganj/vault-token
+      AUTH_SESSION_SIGNING_PRIVATE_JWK_FILE: /run/secrets/ganj/auth-session-private.jwk
+      TELEGRAM_OIDC_CLIENT_SECRET_FILE: /run/secrets/ganj/telegram-oidc-client-secret
+      CONTROL_API_ASSIGNMENT_SECRET_FILE: /run/secrets/ganj/assignment-key
+      CONTROL_API_RUNTIME_CONFIG_PRIVATE_KEY_FILE: /run/secrets/ganj/runtime-config-ed25519.pem
+      GOOGLE_PLAY_SERVICE_ACCOUNT_FILE: /run/secrets/ganj/google-play-service-account.json
+    volumes:
+      - ./secrets/vault-token:/run/secrets/ganj/vault-token:ro
+      - ./secrets/auth-session-private.jwk:/run/secrets/ganj/auth-session-private.jwk:ro
+      - ./secrets/telegram-oidc-client-secret:/run/secrets/ganj/telegram-oidc-client-secret:ro
+      - ./secrets/assignment-key:/run/secrets/ganj/assignment-key:ro
+      - ./secrets/runtime-config-ed25519.pem:/run/secrets/ganj/runtime-config-ed25519.pem:ro
+      - ./secrets/google-play-service-account.json:/run/secrets/ganj/google-play-service-account.json:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+      start_period: 10s
+    networks: [backend, egress]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  edge:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    depends_on:
+      control-api:
+        condition: service_healthy
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      STAGING_HOST: ${STAGING_HOST:-staging.ganj.local}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [backend, edge]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+
+networks:
+  backend:
+    internal: true
+  egress: {}
+  edge: {}
+
+volumes:
+  postgres_data: {}
+  caddy_data: {}
+  caddy_config: {}
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres-password
