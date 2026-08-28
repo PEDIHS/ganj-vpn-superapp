@@ -377,9 +377,13 @@ export function createApplication({ repository, auth, telegramAuth, purchaseVeri
             return;
           }
           let status = currentService.status;
-          if (publisherState.entitled) status = 'active';
-          else if (publisherState.state === 'SUBSCRIPTION_STATE_EXPIRED') status = 'expired';
-          else if (publisherState.state !== 'SUBSCRIPTION_STATE_PENDING') status = 'disabled';
+          if (publisherState.serviceDisposition === 'active' || publisherState.entitled) status = 'active';
+          else if (publisherState.serviceDisposition === 'expired'
+            || publisherState.state === 'SUBSCRIPTION_STATE_EXPIRED') status = 'expired';
+          else if (publisherState.serviceDisposition === 'disabled') status = 'disabled';
+          else if (publisherState.serviceDisposition !== 'preserve'
+            && publisherState.state !== 'SUBSCRIPTION_STATE_PENDING'
+            && publisherState.state !== 'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED') status = 'disabled';
           await repository.saveService({
             ...currentService,
             status,
