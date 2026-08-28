@@ -11,7 +11,6 @@ class GanjUiReducerTest {
     @Test
     fun `refresh remains in progress until catalog services and servers resolve`() {
         val refreshing = reducer.reduce(readyState(), GanjUiEvent.RefreshRequested)
-
         assertEquals(ContentState.Loading, refreshing.catalog)
         assertEquals(ContentState.Loading, refreshing.services)
         assertEquals(ContentState.Loading, refreshing.servers)
@@ -35,7 +34,6 @@ class GanjUiReducerTest {
         val auth = reducer.reduce(GanjUiState(), GanjUiEvent.ServicesResolved(ContentState.AuthRequired))
         val failure = UiFailure(UiFailureKind.NETWORK, "network.unavailable", true)
         val error = reducer.reduce(auth, GanjUiEvent.CatalogResolved(ContentState.Error(failure)))
-
         assertEquals(ContentState.AuthRequired, auth.services)
         assertEquals(ContentState.Error(failure), error.catalog)
     }
@@ -48,10 +46,8 @@ class GanjUiReducerTest {
             services = ContentState.Ready(listOf(active, expired)),
             servers = ContentState.Ready(listOf(server())),
         )
-
         val denied = reducer.reduce(state, GanjUiEvent.SelectService(EXPIRED_ID))
         val selected = reducer.reduce(denied, GanjUiEvent.SelectService(ACTIVE_ID))
-
         assertEquals(null, denied.selectedEntitlementId)
         assertEquals(ACTIVE_ID, selected.selectedEntitlementId)
         assertEquals(SERVER_ID, selected.selectedServerId)
@@ -67,9 +63,7 @@ class GanjUiReducerTest {
             servers = ContentState.Ready(listOf(premiumServer)),
             selectedEntitlementId = FREE_ID,
         )
-
         val selected = reducer.reduce(state, GanjUiEvent.SelectServer(SERVER_ID))
-
         assertEquals(SERVER_ID, selected.selectedServerId)
         assertEquals(ACTIVE_ID, selected.selectedEntitlementId)
     }
@@ -78,26 +72,15 @@ class GanjUiReducerTest {
     fun `checkout progresses pending verified active`() {
         val plan = plan()
         val initial = GanjUiState(catalog = ContentState.Ready(listOf(plan)))
-        val requested = reducer.reduce(
-            initial,
-            GanjUiEvent.CheckoutRequested(plan.id),
-        )
+        val requested = reducer.reduce(initial, GanjUiEvent.CheckoutRequested(plan.id))
         val pending = reducer.reduce(
             requested,
-            GanjUiEvent.CheckoutPending(
-                plan.id,
-                "order-1",
-                CheckoutSafeAction.LaunchGooglePlay(ACTION_HANDLE),
-            ),
+            GanjUiEvent.CheckoutPending(plan.id, "order-1", CheckoutSafeAction.LaunchGooglePlay(ACTION_HANDLE)),
         )
         val verified = reducer.reduce(pending, GanjUiEvent.CheckoutVerified(plan.id, "order-1"))
         val active = reducer.reduce(verified, GanjUiEvent.CheckoutActivated(plan.id, ACTIVE_ID))
-
         assertTrue(requested.checkout is CheckoutUiState.Pending)
-        assertEquals(
-            CheckoutSafeAction.LaunchGooglePlay(ACTION_HANDLE),
-            (pending.checkout as CheckoutUiState.Pending).action,
-        )
+        assertEquals(CheckoutSafeAction.LaunchGooglePlay(ACTION_HANDLE), (pending.checkout as CheckoutUiState.Pending).action)
         assertTrue(verified.checkout is CheckoutUiState.Verified)
         assertEquals(CheckoutUiState.Active(plan.id, ACTIVE_ID), active.checkout)
         assertEquals(ACTIVE_ID, active.selectedEntitlementId)
@@ -126,7 +109,6 @@ class GanjUiReducerTest {
             ),
         )
         val denied = reducer.reduce(state, GanjUiEvent.ConnectionRequested(EXPIRED_ID))
-
         assertEquals(ConnectionUiState.Requesting(ACTIVE_ID), requested.connection)
         assertEquals(SERVER_ID, requested.selectedServerId)
         assertEquals(requested.connection, stale.connection)
@@ -140,25 +122,21 @@ class GanjUiReducerTest {
             ready.connection,
         )
         assertTrue(denied.connection is ConnectionUiState.Failed)
-        assertEquals(
-            "connection.service_inactive",
-            (denied.connection as ConnectionUiState.Failed).failure.messageKey,
-        )
+        assertEquals("connection.service_inactive", (denied.connection as ConnectionUiState.Failed).failure.messageKey)
     }
 
     @Test
-    fun `active entitlement without eligible server reports server unavailable`() {
+    fun `active entitlement without eligible server reports mapped server unavailable`() {
         val active = service(ACTIVE_ID, ServiceUiStatus.ACTIVE)
         val state = GanjUiState(
             services = ContentState.Ready(listOf(active)),
             servers = ContentState.Empty,
             selectedEntitlementId = ACTIVE_ID,
         )
-
         val denied = reducer.reduce(state, GanjUiEvent.ConnectionRequested(ACTIVE_ID))
-
         val failure = (denied.connection as ConnectionUiState.Failed).failure
-        assertEquals("connection.server_unavailable", failure.messageKey)
+        assertEquals(UiFailureKind.SERVER, failure.kind)
+        assertEquals("server.unavailable", failure.messageKey)
         assertTrue(failure.retryable)
     }
 
