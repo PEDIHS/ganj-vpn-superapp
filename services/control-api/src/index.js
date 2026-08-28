@@ -1,9 +1,15 @@
 import { createAdminAwareApplication } from './admin-aware-application.js';
+import { createTelegramBotApprovalAdapter } from './adapters/telegram-bot-approval.js';
+import { createFreeAdminApplication } from './free-admin-routes.js';
 import { createHttpServer } from './http.js';
 import { createLegacyAdminApplication, LegacyAdminReadModel } from './legacy-admin-routes.js';
+import { createOperationsAdminApplication } from './operations-admin-routes.js';
 import { withOperationalReadiness } from './operational-application.js';
+import { createPasarGuardPaidApplication, createPasarGuardPaidRuntime } from './pasarguard-paid-routes.js';
 import { loadProductionEnvironment } from './production-environment.js';
 import { createRuntime } from './runtime.js';
+import { createSafeApplicationBoundary } from './safe-application-boundary.js';
+import { createTelegramBotApprovalApplication } from './telegram-bot-routes.js';
 
 const environment = process.env.NODE_ENV === 'production'
   ? await loadProductionEnvironment(process.env)
@@ -17,10 +23,50 @@ const legacyAdminApplication = typeof runtime.repository?.database === 'function
       readModel: new LegacyAdminReadModel(runtime.repository),
     })
   : adminApplication;
+const adapterMode = environment.CONTROL_API_ADAPTER_MODE ?? 'production';
+const [telegramBotApproval, paidRuntime] = adapterMode === 'production'
+  ? await Promise.all([
+      createTelegramBotApprovalAdapter({ environment }),
+      createPasarGuardPaidRuntime({ environment }),
+    ])
+  : [null, null];
+
+const paidApplication = paidRuntime
+  ? createPasarGuardPaidApplication({
+      baseApplication: legacyAdminApplication,
+      repository: runtime.repository,
+      auth: runtime.auth,
+      bindingStore: paidRuntime.bindingStore,
+      connectorRegistry: paidRuntime.connectorRegistry,
+      liveAdapter: paidRuntime.liveAdapter,
+      internalToken: paidRuntime.internalToken,
+    })
+  : legacyAdminApplication;
+
+const telegramApplication = telegramBotApproval
+  ? createTelegramBotApprovalApplication({
+      baseApplication: paidApplication,
+      auth: runtime.auth,
+      telegramBotApproval,
+    })
+  : paidApplication;
+
+const freeAdminApplication = createFreeAdminApplication({
+  baseApplication: telegramApplication,
+  repository: runtime.repository,
+  auth: runtime.auth,
+});
+const routedApplication = createOperationsAdminApplication({
+  baseApplication: freeAdminApplication,
+  repository: runtime.repository,
+  auth: runtime.auth,
+  paidRuntime,
+});
 const application = withOperationalReadiness(
-  legacyAdminApplication,
+  createSafeApplicationBoundary(routedApplication),
   { repository: runtime.repository },
 );
+
 const port = Number(environment.PORT ?? 8080);
 const host = environment.HOST ?? '127.0.0.1';
 const server = createHttpServer(application);
@@ -30,14 +76,22 @@ server.listen(port, host, () => {
     event: 'control_api_started',
     host,
     port,
-    adapter_mode: environment.CONTROL_API_ADAPTER_MODE ?? 'production',
+    adapter_mode: adapterMode,
+    telegram_login_primary: telegramBotApproval ? 'bot-approval' : 'test-adapter',
+    paid_runtime: paidRuntime ? 'pasarguard-live' : 'test-adapter',
+    free_admin: 'control-api',
+    operations_admin: 'control-api',
   });
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     server.close(async (error) => {
-      await runtime.close?.();
+      await Promise.allSettled([
+        runtime.close?.(),
+        telegramBotApproval?.close?.(),
+        paidRuntime?.close?.(),
+      ]);
       process.exitCode = error ? 1 : 0;
     });
   });
