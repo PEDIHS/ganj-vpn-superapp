@@ -32,13 +32,18 @@ services:
       DATABASE_URL: postgresql://ganj@postgres:5432/ganj
       DATABASE_SSL: disable
       PGPASSWORD_FILE: /run/secrets/postgres_password
+      MIGRATION_DATABASE_NAME: ${MIGRATION_DATABASE_NAME:-ganj}
     secrets:
       - postgres_password
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
         export PGPASSWORD="$$(cat /run/secrets/postgres_password)"
-        export DATABASE_URL="postgresql://ganj:$${PGPASSWORD}@postgres:5432/ganj"
+        case "$${MIGRATION_DATABASE_NAME}" in
+          ganj|ganj_restore) ;;
+          *) echo 'invalid migration database name' >&2; exit 1 ;;
+        esac
+        export DATABASE_URL="postgresql://ganj:$${PGPASSWORD}@postgres:5432/$${MIGRATION_DATABASE_NAME}"
         node src/migrate.js
     networks: [backend]
     read_only: true
