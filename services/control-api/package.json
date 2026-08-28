@@ -12,6 +12,7 @@
   "scripts": {
     "start": "node src/index.js",
     "start:test-adapters": "CONTROL_API_ADAPTER_MODE=test node src/index.js",
+    "legacy:sync": "node src/legacy-runner.js",
     "test": "node --test --test-reporter=spec test/*.test.js",
     "test:postgres": "node src/migrate.js && MIGRATIONS_INCLUDE_TEST_SEED=true node src/migrate.js && node --test --test-reporter=spec test/postgres.integration.test.js",
     "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude='test/**' --test-coverage-exclude='src/adapters/postgres.js' --test-coverage-exclude='src/migrate.js' --test-coverage-lines=80 --test-coverage-functions=70 --test-coverage-branches=70 test/*.test.js",

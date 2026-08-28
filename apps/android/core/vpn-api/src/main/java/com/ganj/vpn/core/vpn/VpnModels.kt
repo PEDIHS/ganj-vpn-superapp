@@ -33,6 +33,13 @@ class ConnectionRequest(val profile: ProvisionedProfile) {
 interface VpnEngine {
     fun currentState(): ConnectionState
     fun connect(request: ConnectionRequest): Result<Unit>
+
+    /**
+     * Restart the encrypted core over the already-established VPN TUN. Implementations must not
+     * close the TUN during a recoverable network handover, avoiding a direct-routing bypass window.
+     */
+    fun reconnect(request: ConnectionRequest): Result<Unit>
+
     fun disconnect(): Result<Unit>
 }
 
