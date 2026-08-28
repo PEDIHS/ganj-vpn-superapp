@@ -153,11 +153,9 @@ internal class TelegramAuthCoordinator(
             )
         ) {
             is ApiResult.Success -> {
-                if (linkState.setLinked(true).isFailure) {
-                    TelegramAuthResult.Failed("auth.link_state_persistence_failed")
-                } else {
-                    TelegramAuthResult.Linked
-                }
+                // Best effort only: server-issued credentials are authoritative, not this UX marker.
+                linkState.setLinked(true)
+                TelegramAuthResult.Linked
             }
             is ApiResult.Failure -> TelegramAuthResult.Failed("auth.telegram_exchange_failed")
         }
@@ -165,9 +163,10 @@ internal class TelegramAuthCoordinator(
 
     fun logout(): TelegramAuthResult {
         store.clear()
-        val remoteAndLocalSessionCleared = session.logout()
-        val markerCleared = linkState.setLinked(false).isSuccess
-        return if (remoteAndLocalSessionCleared && markerCleared) {
+        val sessionCleared = session.logout()
+        // Best effort only. A marker persistence failure must not revive or retain authorization.
+        linkState.setLinked(false)
+        return if (sessionCleared) {
             TelegramAuthResult.LoggedOut
         } else {
             TelegramAuthResult.Failed("auth.logout_failed")
