@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModelProvider
 import com.ganj.vpn.core.controlapi.AndroidKeystoreSessionVault
 import com.ganj.vpn.core.controlapi.AuthSessionApiFactory
 import com.ganj.vpn.core.deviceidentity.AndroidDeviceIdentity
-import com.ganj.vpn.presentation.ConnectionProfileContextProvider
 import java.net.URI
 
 class GanjCompositionOwner internal constructor(
@@ -35,7 +34,10 @@ class GanjCompositionOwner internal constructor(
                     endpoint = endpoint,
                     tokenProvider = sessionManager,
                     currentUser = sessionManager,
-                    connectionContext = ConnectionProfileContextProvider { null },
+                    connectionContext = AndroidConnectionProfileContextProvider(
+                        session = sessionManager,
+                        identity = deviceIdentity,
+                    ),
                     cryptoProvider = deviceIdentity,
                 )
             } else {
