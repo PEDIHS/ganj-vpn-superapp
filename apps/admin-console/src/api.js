@@ -1,4 +1,9 @@
-const SAFE_API_PATH = /^\/v1\/admin\/control-plane\/[A-Za-z0-9/_-]*$/;
+const CONTROL_PLANE_SERVERS_PATH = /^\/v1\/admin\/control-plane\/servers(?:\/[0-9a-f-]{36})?$/i;
+const FREE_SERVER_IMPORT_PATH = '/v1/admin/free/servers/import';
+
+function isSafeAdminPath(path) {
+  return path === FREE_SERVER_IMPORT_PATH || CONTROL_PLANE_SERVERS_PATH.test(path);
+}
 
 function sanitizeBaseUrl(value) {
   const raw = value || window.location.origin;
@@ -19,12 +24,20 @@ function safeMessage(error) {
   const known = {
     unauthorized: 'نشست مدیریت معتبر نیست.',
     admin_scope_required: 'این حساب دسترسی Control Plane ندارد.',
+    insufficient_scope: 'این حساب مجوز مدیریت سرور رایگان را ندارد.',
     server_not_found: 'سرور پیدا نشد.',
+    free_server_not_found: 'سرور رایگان پیدا نشد.',
     server_code_conflict: 'کد سرور قبلاً استفاده شده است.',
     invalid_server_status: 'وضعیت انتخاب‌شده معتبر نیست.',
     invalid_protocols: 'پروتکل‌های انتخاب‌شده معتبر نیستند.',
     invalid_secret_reference: 'مرجع Secret Store معتبر نیست.',
-    raw_secret_forbidden: 'ورود کانفیگ یا credential خام مجاز نیست.',
+    invalid_free_config: 'کانفیگ رایگان معتبر یا پشتیبانی‌شده نیست.',
+    unsupported_free_protocol: 'پروتکل این کانفیگ در پلن رایگان پشتیبانی نمی‌شود.',
+    secret_write_failed: 'ذخیره امن کانفیگ انجام نشد؛ دوباره تلاش کنید.',
+    secret_conflict: 'برای این کد سرور قبلاً یک اتصال امن ثبت شده است.',
+    unsupported_fields: 'اطلاعات ارسالی با قرارداد امن پنل سازگار نیست.',
+    invalid_request: 'اطلاعات فرم کامل یا معتبر نیست.',
+    raw_secret_forbidden: 'ورود کانفیگ خام در این بخش مجاز نیست.',
   };
   return known[code] ?? 'درخواست مدیریت با خطا مواجه شد.';
 }
@@ -50,7 +63,7 @@ export class AdminApiClient {
   }
 
   async request(method, path, body) {
-    if (!SAFE_API_PATH.test(path)) throw new Error('Unsafe Admin API path.');
+    if (!isSafeAdminPath(path)) throw new Error('Unsafe Admin API path.');
     const token = await this.accessTokenProvider();
     if (typeof token !== 'string' || token.length < 16 || /\s/.test(token)) {
       throw new AdminApiError({ status: 401, code: 'unauthorized' });
@@ -93,6 +106,10 @@ export class AdminApiClient {
 
   createServer(input) {
     return this.request('POST', '/v1/admin/control-plane/servers', input);
+  }
+
+  importFreeServer(input) {
+    return this.request('POST', FREE_SERVER_IMPORT_PATH, input);
   }
 
   updateServer(serverId, patch) {
