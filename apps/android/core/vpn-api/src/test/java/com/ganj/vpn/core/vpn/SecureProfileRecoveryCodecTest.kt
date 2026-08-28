@@ -73,6 +73,19 @@ class SecureProfileRecoveryCodecTest {
                 )
             }.isFailure,
         )
+        assertTrue(
+            runCatching {
+                profile(
+                    transport = ProvisionedTransport.WebSocket("/vpn", "vpn.example.com"),
+                    security = ProvisionedSecurity.Reality(
+                        serverName = "vpn.example.com",
+                        publicKey = "A".repeat(43),
+                        shortId = "a1b2",
+                    ),
+                    flow = null,
+                )
+            }.isFailure,
+        )
     }
 
     @Test
