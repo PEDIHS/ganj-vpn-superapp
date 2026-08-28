@@ -27,7 +27,9 @@ internal class ServerCatalogClient(
             countryCode?.let { add("country=$it") }
             protocol?.let { add("protocol=${it.name.lowercase()}") }
         }
-        val path = "/servers" + query.takeIf(List<String>::isNotEmpty)?.joinToString("?", "&") .orEmpty()
+        val path = "/servers" + query.takeIf { it.isNotEmpty() }
+            ?.joinToString(separator = "&", prefix = "?")
+            .orEmpty()
         return execute(path, ::mapServers)
     }
 
