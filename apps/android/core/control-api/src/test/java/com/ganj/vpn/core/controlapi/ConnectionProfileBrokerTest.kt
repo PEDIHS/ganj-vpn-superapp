@@ -131,9 +131,9 @@ class ConnectionProfileBrokerTest {
     }
 
     @Test
-    fun `schema v1 allows explicit websocket reality material`() {
+    fun `schema v1 allows explicit tcp reality Vision material`() {
         val profileJson = validPlaintext(
-            transport = """{"type":"ws","path":"/vpn","host":"edge.ganj.test"}""",
+            transport = """{"type":"tcp"}""",
             security = """{"type":"reality","server_name":"edge.ganj.test","fingerprint":"chrome","public_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","short_id":"aabbccdd","allow_insecure":false}""",
             flow = "\"xtls-rprx-vision\"",
         )
@@ -141,7 +141,7 @@ class ConnectionProfileBrokerTest {
 
         val result = fixture.broker.provision(fixture.lease, binding()) as ProfileProvisioningResult.Success
 
-        assertEquals(ProvisionedTransport.WebSocket("/vpn", "edge.ganj.test"), result.profile.transport)
+        assertEquals(ProvisionedTransport.Tcp, result.profile.transport)
         assertTrue(result.profile.security is ProvisionedSecurity.Reality)
         result.profile.close()
     }
@@ -175,7 +175,11 @@ class ConnectionProfileBrokerTest {
         val insecureTls = validPlaintext(
             security = """{"type":"tls","server_name":"de1.ganj.test","fingerprint":"chrome","allow_insecure":true}""",
         )
-        listOf(missingTransport, unknownField, insecureTls).forEach { payload ->
+        val unsupportedRealityWebSocket = validPlaintext(
+            transport = """{"type":"ws","path":"/vpn","host":"edge.ganj.test"}""",
+            security = """{"type":"reality","server_name":"edge.ganj.test","fingerprint":"chrome","public_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","short_id":"aabbccdd","allow_insecure":false}""",
+        )
+        listOf(missingTransport, unknownField, insecureTls, unsupportedRealityWebSocket).forEach { payload ->
             val fixture = fixture(CapturingProvider(NODE_AAD, payload.toByteArray()))
             assertFailure(fixture.broker.provision(fixture.lease, binding()), ProfileProvisioningError.PAYLOAD_INVALID)
         }

@@ -31,7 +31,7 @@ class XrayRuntimeTest {
     }
 
     @Test
-    fun `compiler creates native tun and vless reality config only from typed profile`() {
+    fun `compiler creates native tun and vless reality grpc config only from typed profile`() {
         val profile = profile(
             security = ProvisionedSecurity.Reality(
                 serverName = "edge.example.com",
@@ -39,6 +39,7 @@ class XrayRuntimeTest {
                 shortId = "a1b2c3d4",
             ),
             transport = ProvisionedTransport.Grpc("ganj-vpn"),
+            flow = null,
         )
         val sensitive = XrayConfigCompiler().compile(profile, tunFileDescriptor = 42)
 
@@ -74,6 +75,41 @@ class XrayRuntimeTest {
         assertTrue(engine.disconnect().isSuccess)
         assertTrue(platform.tunnelClosed)
         assertEquals(ConnectionPhase.DISCONNECTED, engine.currentState().phase)
+    }
+
+    @Test
+    fun `reconnect restarts core while retaining existing tun`() {
+        val platform = FakePlatform()
+        val native = FakeNative()
+        var now = 1_000L
+        val engine = AndroidXrayEngine(platform, native, clock = { now })
+
+        assertTrue(engine.connect(ConnectionRequest(profile(expiresAt = 10_000L))).isSuccess)
+        val firstConnectedAt = engine.currentState().connectedAtEpochMillis
+        now = 2_000L
+
+        assertTrue(engine.reconnect(ConnectionRequest(profile(expiresAt = 10_000L))).isSuccess)
+
+        assertEquals(ConnectionPhase.CONNECTED, engine.currentState().phase)
+        assertEquals(firstConnectedAt, engine.currentState().connectedAtEpochMillis)
+        assertEquals(1, platform.events.count { it == "establish" })
+        assertFalse(platform.tunnelClosed)
+        assertEquals(1, native.stopCalls)
+        assertEquals(2, native.startCalls)
+    }
+
+    @Test
+    fun `reconnect without established tun fails closed`() {
+        val platform = FakePlatform()
+        val native = FakeNative()
+        val engine = AndroidXrayEngine(platform, native, clock = { 1_000L })
+
+        val result = engine.reconnect(ConnectionRequest(profile(expiresAt = 5_000L)))
+
+        assertTrue(result.isFailure)
+        assertEquals("vpn.reconnect_without_tunnel", engine.currentState().errorCode)
+        assertTrue(platform.events.isEmpty())
+        assertEquals(0, native.startCalls)
     }
 
     @Test
@@ -133,6 +169,7 @@ class XrayRuntimeTest {
         endpoint: String = "vpn.example.com",
         security: ProvisionedSecurity = ProvisionedSecurity.Tls("vpn.example.com"),
         transport: ProvisionedTransport = ProvisionedTransport.Tcp,
+        flow: String? = "xtls-rprx-vision",
         expiresAt: Long = System.currentTimeMillis() + 60_000,
     ) = ProvisionedProfile(
         profileId = "10000000-0000-4000-8000-000000000001",
@@ -144,7 +181,7 @@ class XrayRuntimeTest {
         credential = "40000000-0000-4000-8000-000000000001".encodeToByteArray(),
         transport = transport,
         security = security,
-        flow = "xtls-rprx-vision",
+        flow = flow,
         expiresAtEpochMillis = expiresAt,
     )
 
@@ -171,6 +208,8 @@ class XrayRuntimeTest {
     ) : XrayNativeBridge {
         val events = mutableListOf<String>()
         var observedFd: Int? = null
+        var startCalls = 0
+        var stopCalls = 0
 
         override fun installSocketProtector(protector: SocketProtector): NativeCallResult {
             observedFd = 77
@@ -180,10 +219,14 @@ class XrayRuntimeTest {
 
         override fun start(config: SensitiveXrayConfig): NativeCallResult {
             events += "start"
+            startCalls += 1
             config.consume()
             return startResult
         }
 
-        override fun stop(): NativeCallResult = NativeCallResult(true)
+        override fun stop(): NativeCallResult {
+            stopCalls += 1
+            return NativeCallResult(true)
+        }
     }
 }
