@@ -1,0 +1,14 @@
+{
+  "name": "@ganj/admin-console",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "node --check src/api.js && node --check src/app.js",
+    "serve": "node dev-server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
