@@ -9,7 +9,9 @@ import org.junit.Test
 
 class ControlApiClientMappingTest {
     private val transport = FakeTransport()
-    private val client = ControlApiClient(transport, AuthTokenProvider { TOKEN }, AuthenticationEventSink.NONE)
+    private val tokenProvider = AuthTokenProvider { TOKEN }
+    private val client = ControlApiClient(transport, tokenProvider, AuthenticationEventSink.NONE)
+    private val serverCatalog = ServerCatalogClient(transport, tokenProvider, AuthenticationEventSink.NONE)
 
     @Test
     fun `catalog is mapped from the OpenAPI envelope`() {
@@ -124,7 +126,7 @@ class ControlApiClientMappingTest {
             ),
         )
         val vault = InMemoryConnectionEnvelopeVault()
-        val repository = DefaultControlApiRepository(client, vault)
+        val repository = DefaultControlApiRepository(client, serverCatalog, vault)
 
         val result = repository.prepareConnection(validConnectionCommand()).requireSuccess()
         val lease = result.value
@@ -160,7 +162,7 @@ class ControlApiClientMappingTest {
             ),
         )
 
-        val result = DefaultControlApiRepository(client, InMemoryConnectionEnvelopeVault())
+        val result = DefaultControlApiRepository(client, serverCatalog, InMemoryConnectionEnvelopeVault())
             .prepareConnection(validConnectionCommand())
 
         assertTrue(result is ApiResult.Failure)
