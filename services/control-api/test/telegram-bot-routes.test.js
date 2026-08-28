@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { ApiError } from '../src/errors.js';
 import { createTelegramBotApprovalApplication } from '../src/telegram-bot-routes.js';
 
 const USER_ID = '10000000-0000-4000-8000-000000000001';
@@ -14,10 +15,7 @@ function setup() {
     async authenticate(request) {
       calls.push({ operation: 'authenticate' });
       if (request.headers.get('authorization') !== 'Bearer guest-session') {
-        const error = new Error('Authentication required');
-        error.status = 401;
-        error.code = 'authentication_required';
-        throw error;
+        throw new ApiError(401, 'authentication_required', 'Authentication required.');
       }
       return { userId: USER_ID, deviceId: DEVICE_ID };
     },
