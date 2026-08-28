@@ -49,19 +49,24 @@ class ProvisionedProfile(
     private val secret = credential.copyOf()
 
     init {
-        require(profileId.isCanonicalUuid())
-        require(serviceId.isCanonicalUuid())
-        require(serverId.isCanonicalUuid())
-        require(endpoint.isSafeHost())
-        require(port in 1..65535)
-        require(secret.size in 8..4096)
-        require(expiresAtEpochMillis > 0)
-        require(protocol != VpnProtocol.SHADOWSOCKS || shadowsocksMethod in ALLOWED_SS_METHODS)
-        require(flow == null || protocol == VpnProtocol.VLESS && flow in ALLOWED_VLESS_FLOWS)
-        validateCredential(protocol, secret, shadowsocksMethod)
-        validateTransport(transport)
-        validateSecurity(security)
-        validateProtocolCompatibility(protocol, transport, security, flow)
+        try {
+            require(profileId.isCanonicalUuid())
+            require(serviceId.isCanonicalUuid())
+            require(serverId.isCanonicalUuid())
+            require(endpoint.isSafeHost())
+            require(port in 1..65535)
+            require(secret.size in 8..4096)
+            require(expiresAtEpochMillis > 0)
+            require(protocol != VpnProtocol.SHADOWSOCKS || shadowsocksMethod in ALLOWED_SS_METHODS)
+            require(flow == null || protocol == VpnProtocol.VLESS && flow in ALLOWED_VLESS_FLOWS)
+            validateCredential(protocol, secret, shadowsocksMethod)
+            validateTransport(transport)
+            validateSecurity(security)
+            validateProtocolCompatibility(protocol, transport, security, flow)
+        } catch (error: Throwable) {
+            secret.fill(0)
+            throw error
+        }
     }
 
     /**
