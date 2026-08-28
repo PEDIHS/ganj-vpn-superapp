@@ -15,11 +15,12 @@ class GanjResponsivePolicyTest {
     }
 
     @Test
-    fun regularPhones_keepTwoColumnLayoutAtNormalFontScale() {
+    fun regularPhones_keepTwoColumnContentButCompactNavigationWhenNeeded() {
         assertEquals(GanjWidthClass.Regular, GanjResponsivePolicy.widthClass(390))
         assertFalse(GanjResponsivePolicy.shouldStackPrimaryActions(390, 1f))
-        assertTrue(GanjResponsivePolicy.shouldShowAllNavigationLabels(390, 1f))
+        assertFalse(GanjResponsivePolicy.shouldShowAllNavigationLabels(390, 1f))
         assertEquals(2, GanjResponsivePolicy.categoryColumns(390, 1f))
+        assertTrue(GanjResponsivePolicy.shouldShowAllNavigationLabels(411, 1f))
     }
 
     @Test
