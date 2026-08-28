@@ -34,7 +34,7 @@ data class ConnectionProfileContext(
 )
 
 fun interface ConnectionProfileContextProvider {
-    fun forEntitlement(entitlementId: String): ConnectionProfileContext?
+    fun forConnection(entitlementId: String, serverId: String): ConnectionProfileContext?
 }
 
 fun interface AuthenticatedCheckoutSession {
@@ -112,7 +112,10 @@ class GanjController(
 ) {
     fun refresh(state: GanjUiState): GanjUiState {
         var next = reducer.reduce(state, GanjUiEvent.CatalogResolved(mapper.catalog(repository.catalog(PurchaseChannel.PLAY))))
+        // Services are intentionally resolved before servers. For a fresh guest this allows the
+        // server-side FreeAccessRepository to create the idempotent free entitlement first.
         next = reducer.reduce(next, GanjUiEvent.ServicesResolved(mapper.services(repository.myServices())))
+        next = reducer.reduce(next, GanjUiEvent.ServersResolved(mapper.servers(repository.servers())))
         return next
     }
 
@@ -220,7 +223,15 @@ class GanjController(
                     UiFailure(UiFailureKind.ENTITLEMENT, "connection.service_inactive", false),
                 ),
             )
-        val context = connectionContext.forEntitlement(service.entitlementId)
+        val server = working.compatibleServerFor(service)
+            ?: return reducer.reduce(
+                working,
+                GanjUiEvent.ConnectionRejected(
+                    entitlementId,
+                    UiFailure(UiFailureKind.ENTITLEMENT, "connection.server_unavailable", true),
+                ),
+            )
+        val context = connectionContext.forConnection(service.entitlementId, server.id)
             ?: return reducer.reduce(
                 working,
                 GanjUiEvent.ConnectionRejected(
@@ -228,6 +239,15 @@ class GanjController(
                     UiFailure(UiFailureKind.CONFIGURATION, "connection.context_unavailable", true),
                 ),
             )
+        if (context.serverId != server.id) {
+            return reducer.reduce(
+                working,
+                GanjUiEvent.ConnectionRejected(
+                    entitlementId,
+                    UiFailure(UiFailureKind.CONFIGURATION, "connection.context_unavailable", false),
+                ),
+            )
+        }
         val userId = currentUser.currentUserId()?.takeIf(String::isNotBlank)
             ?: return reducer.reduce(working, GanjUiEvent.ConnectionAuthenticationRequired)
         return when (
@@ -308,6 +328,7 @@ class GanjController(
     ): GanjUiState {
         var next = reducer.reduce(state, GanjUiEvent.CheckoutVerified(planId, orderId))
         next = reducer.reduce(next, GanjUiEvent.ServicesResolved(mapper.services(repository.myServices())))
+        next = reducer.reduce(next, GanjUiEvent.ServersResolved(mapper.servers(repository.servers())))
         return if (next.serviceItems.any { it.entitlementId == entitlementId && it.isActive }) {
             reducer.reduce(next, GanjUiEvent.CheckoutActivated(planId, entitlementId))
         } else {
@@ -321,5 +342,4 @@ class GanjController(
         } else {
             reducer.reduce(state, GanjUiEvent.CheckoutRejected(planId, mapper.apiFailure(error)))
         }
-
 }
