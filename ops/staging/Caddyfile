@@ -13,8 +13,6 @@
 }
 
 {$STAGING_HOST:staging.ganj.local} {
-  tls internal
-
   encode zstd gzip
 
   header {
