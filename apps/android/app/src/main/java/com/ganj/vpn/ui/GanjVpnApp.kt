@@ -220,10 +220,10 @@ fun GanjVpnApp(
                             onRefresh = ::refresh,
                         )
 
-                        GanjDestination.Servers -> SmartRoutingScreen(
+                        GanjDestination.Servers -> ManagedServerRoutingScreen(
                             state = state,
-                            onSelectService = {
-                                commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
+                            onSelectServer = {
+                                commit(reducer.reduce(state, GanjUiEvent.SelectServer(it)))
                             },
                             onConnect = {
                                 requestProfile(it)
