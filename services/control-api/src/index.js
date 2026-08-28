@@ -1,4 +1,4 @@
-import { createApplication } from './application.js';
+import { createAdminAwareApplication } from './admin-aware-application.js';
 import { createHttpServer } from './http.js';
 import { withOperationalReadiness } from './operational-application.js';
 import { loadProductionEnvironment } from './production-environment.js';
@@ -8,13 +8,19 @@ const environment = process.env.NODE_ENV === 'production'
   ? await loadProductionEnvironment(process.env)
   : process.env;
 const runtime = await createRuntime(environment);
-const application = withOperationalReadiness(createApplication(runtime), { repository: runtime.repository });
+const adminApplication = createAdminAwareApplication(runtime);
+const application = withOperationalReadiness(adminApplication, { repository: runtime.repository });
 const port = Number(environment.PORT ?? 8080);
 const host = environment.HOST ?? '127.0.0.1';
 const server = createHttpServer(application);
 
 server.listen(port, host, () => {
-  console.info({ event: 'control_api_started', host, port, adapter_mode: environment.CONTROL_API_ADAPTER_MODE ?? 'production' });
+  console.info({
+    event: 'control_api_started',
+    host,
+    port,
+    adapter_mode: environment.CONTROL_API_ADAPTER_MODE ?? 'production',
+  });
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
