@@ -57,9 +57,7 @@ internal fun GanjLiquidConnectControl(
     val accent by animateColorAsState(accentTarget, label = "ganjConnectionAccent")
     val scale by animateFloatAsState(
         targetValue = when (state) {
-            GanjConnectionVisualState.Connecting,
-            GanjConnectionVisualState.Reconnecting,
-            -> 0.985f
+            GanjConnectionVisualState.Connecting, GanjConnectionVisualState.Reconnecting -> 0.985f
             else -> 1f
         },
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 320f),
@@ -88,6 +86,11 @@ internal fun GanjLiquidConnectControl(
         readyText = stringResource(R.string.connection_a11y_ready),
         unavailableText = stringResource(R.string.connection_a11y_unavailable),
     )
+    val contentColor = when (state) {
+        GanjConnectionVisualState.Failed -> MaterialTheme.colorScheme.onError
+        GanjConnectionVisualState.Unavailable -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onPrimary
+    }
 
     Box(
         modifier = modifier
@@ -130,14 +133,14 @@ internal fun GanjLiquidConnectControl(
                     text = action,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = contentColor,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = status,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.82f),
+                    color = contentColor.copy(alpha = 0.82f),
                     textAlign = TextAlign.Center,
                     maxLines = 2,
                 )
