@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="telegram_account_title">حساب گنج</string>
+    <string name="telegram_account_guest">مهمان</string>
+    <string name="telegram_account_linked">تلگرام متصل</string>
+    <string name="telegram_account_guest_body">استفاده از VPN رایگان نیازی به ورود ندارد. تلگرام فقط برای خرید و سرویس‌های پولی قبلی شما متصل می‌شود.</string>
+    <string name="telegram_account_linked_body">حساب تلگرام شما به این دستگاه متصل است و مالکیت سرویس‌های پولی می‌تواند همگام شود.</string>
+    <string name="telegram_account_login">ورود با تلگرام</string>
+    <string name="telegram_account_waiting">در ربات گنج درخواست ورود را تأیید کنید و به برنامه برگردید؛ وضعیت به‌صورت خودکار بررسی می‌شود.</string>
+    <string name="telegram_account_check">بررسی تأیید</string>
+    <string name="telegram_account_cancelled">درخواست ورود در تلگرام لغو شد.</string>
+    <string name="telegram_account_failed">اتصال حساب تلگرام کامل نشد. یک درخواست ورود جدید بسازید.</string>
+    <string name="telegram_account_logout">خروج از حساب تلگرام</string>
+</resources>
