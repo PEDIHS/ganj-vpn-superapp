@@ -5,12 +5,21 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
+header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 
 function bridgeFail(int $status, string $code): never
 {
     http_response_code($status);
     echo json_encode(['error' => ['code' => $code]], JSON_UNESCAPED_SLASHES);
     exit;
+}
+
+function bridgeTruncate(string $value, int $limit): string
+{
+    if ($limit < 1 || preg_match('//u', $value) !== 1) return '';
+    if (function_exists('mb_substr')) return mb_substr($value, 0, $limit, 'UTF-8');
+    if (preg_match('/^.{0,' . $limit . '}/us', $value, $match) !== 1) return '';
+    return $match[0];
 }
 
 function bridgeSecret(string $path): string
@@ -51,8 +60,9 @@ function bridgeTrafficLimit(array $row): ?int
     return (int)min(9007199254740991, round($gigabytes * 1073741824));
 }
 
-$secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-    || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+// HTTP_X_FORWARDED_PROTO is deliberately not trusted because it is client controlled unless
+// the web server strips it. Reverse proxies must set the PHP HTTPS server variable explicitly.
+$secure = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off';
 if (!$secure) bridgeFail(400, 'https_required');
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') bridgeFail(405, 'method_not_allowed');
 
@@ -135,7 +145,7 @@ foreach ($rows as $row) {
         'telegram_subject' => (string)$row['id_user'],
         'external_service_id' => (string)$row['id_invoice'],
         'plan_code' => $planCode,
-        'display_name' => mb_substr(trim((string)$row['name_product']), 0, 160, 'UTF-8') ?: 'Ganj VPN Service',
+        'display_name' => bridgeTruncate(trim((string)$row['name_product']), 160) ?: 'Ganj VPN Service',
         'status' => bridgeStatus((string)$row['status']),
         'expires_at' => bridgeExpiresAt($row),
         'traffic_limit_bytes' => bridgeTrafficLimit($row),
