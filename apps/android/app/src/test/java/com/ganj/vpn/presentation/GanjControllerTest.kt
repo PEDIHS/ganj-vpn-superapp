@@ -8,6 +8,7 @@ import com.ganj.vpn.core.controlapi.CheckoutOrder
 import com.ganj.vpn.core.controlapi.ConnectionProfileCommand
 import com.ganj.vpn.core.controlapi.ConnectionProfileLease
 import com.ganj.vpn.core.controlapi.ControlApiRepository
+import com.ganj.vpn.core.controlapi.ManagedServer
 import com.ganj.vpn.core.controlapi.Money
 import com.ganj.vpn.core.controlapi.OrderStatus
 import com.ganj.vpn.core.controlapi.PurchaseChannel
@@ -289,6 +290,7 @@ class GanjControllerTest {
     private class FakeRepository(
         var catalogResult: ApiResult<List<CatalogProduct>> = success(emptyList()),
         var servicesResult: ApiResult<List<UserService>> = success(emptyList()),
+        var serversResult: ApiResult<List<ManagedServer>> = success(emptyList()),
         var checkoutResult: ApiResult<CheckoutOrder> = ApiResult.Failure(
             ApiError.Server(null, 503, "not_configured", true),
         ),
@@ -302,6 +304,12 @@ class GanjControllerTest {
         override fun catalog(channel: PurchaseChannel): ApiResult<List<CatalogProduct>> = catalogResult
 
         override fun myServices(): ApiResult<List<UserService>> = servicesResult
+
+        override fun servers(
+            tier: SubscriptionTier?,
+            countryCode: String?,
+            protocol: VpnProtocol?,
+        ): ApiResult<List<ManagedServer>> = serversResult
 
         override fun checkout(command: CheckoutCommand): ApiResult<CheckoutOrder> {
             checkoutCommand = command
