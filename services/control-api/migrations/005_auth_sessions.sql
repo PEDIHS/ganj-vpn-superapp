@@ -40,7 +40,21 @@ CREATE INDEX IF NOT EXISTS control_refresh_tokens_expiry_idx
   WHERE consumed_at IS NULL AND revoked_at IS NULL;
 
 ALTER TABLE control_telegram_login_states
-  ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES control_users(id) ON DELETE CASCADE;
+  ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES control_users(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS oidc_nonce_digest char(64);
+
+-- Login states are deliberately short-lived. States created by a pre-nonce build
+-- cannot be safely upgraded, so invalidate them during the auth migration.
+DELETE FROM control_telegram_login_states
+ WHERE user_id IS NULL OR oidc_nonce_digest IS NULL;
+
+ALTER TABLE control_telegram_login_states
+  ALTER COLUMN user_id SET NOT NULL,
+  ALTER COLUMN oidc_nonce_digest SET NOT NULL;
+
+CREATE INDEX IF NOT EXISTS control_telegram_login_states_owner_pending_idx
+  ON control_telegram_login_states(user_id, device_id, expires_at)
+  WHERE consumed_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS control_auth_proof_nonces (
   nonce_digest char(64) PRIMARY KEY CHECK (nonce_digest ~ '^[0-9a-f]{64}$'),
