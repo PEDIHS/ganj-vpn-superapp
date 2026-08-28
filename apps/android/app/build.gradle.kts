@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -13,11 +15,11 @@ val escapedControlApiBaseUrl = controlApiBaseUrl
 val escapedTelegramRedirectUri = telegramRedirectUri
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")
-val telegramRedirect = java.net.URI(telegramRedirectUri)
+val telegramRedirect = URI(telegramRedirectUri)
 require(telegramRedirect.scheme == "https" && !telegramRedirect.host.isNullOrBlank()) {
     "GANJ_TELEGRAM_REDIRECT_URI must be an absolute HTTPS URI"
 }
-val telegramRedirectPath = telegramRedirect.rawPath.takeUnless { it.isNullOrBlank() } ?: "/"
+val telegramRedirectPath: String = telegramRedirect.rawPath?.takeIf { it.isNotBlank() } ?: "/"
 
 android {
     namespace = "com.ganj.vpn"
