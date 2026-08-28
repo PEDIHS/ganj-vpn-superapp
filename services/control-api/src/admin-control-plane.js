@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { ApiError, rejectUnknown, requireObject, requireString, requireUuid, success } from './errors.js';
 
 const ADMIN_SCOPE = 'admin:control-plane';
@@ -16,6 +16,10 @@ function match(pathname, pattern) {
     else if (expected[index] !== actual[index]) return null;
   }
   return params;
+}
+
+function digest(value) {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
 function requireAdmin(principal) {
@@ -89,7 +93,7 @@ function present(server) {
     load_ratio: server.load_ratio,
     latency_hint_ms: server.latency_hint_ms,
     protocols: [...server.protocols],
-    secret_configured: Boolean(server.secret_ref),
+    secret_configured: Boolean(server.secret_ref ?? server.secretRef),
     updated_at: server.updated_at ?? null,
   };
 }
@@ -130,16 +134,19 @@ function patchPayload(existing, body) {
   };
 }
 
-async function audit(repository, principal, action, targetId, details) {
+async function audit(repository, principal, requestId, action, targetId, before, after) {
   if (typeof repository.appendAdminAudit !== 'function') return;
   await repository.appendAdminAudit({
     id: randomUUID(),
-    actorUserId: principal.userId,
-    actorDeviceId: principal.deviceId,
+    actorSubject: principal.subject ?? `user:${principal.userId}`,
     action,
-    targetType: 'vpn_server',
-    targetId,
-    details,
+    resourceType: 'vpn_server',
+    resourceId: targetId,
+    reason: 'admin_control_plane',
+    requestId,
+    beforeDigest: before ? digest(present(before)) : null,
+    afterDigest: after ? digest(present(after)) : null,
+    outcome: 'success',
     createdAt: new Date().toISOString(),
   });
 }
@@ -163,7 +170,7 @@ export function createAdminControlPlaneRouter({ repository, clock = () => new Da
       const value = createPayload(requireObject(await parseBody(request), 'body'));
       const created = await repository.transaction(async () => {
         const stored = await repository.createServer(value);
-        await audit(repository, principal, 'server.create', stored.id, { code: stored.code, tier: stored.tier, status: stored.status });
+        await audit(repository, principal, requestId, 'server.create', stored.id, null, stored);
         return stored;
       });
       return { status: 201, body: success(present(created), requestId, clock) };
@@ -184,11 +191,7 @@ export function createAdminControlPlaneRouter({ repository, clock = () => new Da
       const next = patchPayload(existing, body);
       const saved = await repository.transaction(async () => {
         const stored = await repository.saveServer(next);
-        await audit(repository, principal, 'server.update', stored.id, {
-          changed_fields: Object.keys(body).sort(),
-          status: stored.status,
-          tier: stored.tier,
-        });
+        await audit(repository, principal, requestId, 'server.update', stored.id, existing, stored);
         return stored;
       });
       return { status: 200, body: success(present(saved), requestId, clock) };
