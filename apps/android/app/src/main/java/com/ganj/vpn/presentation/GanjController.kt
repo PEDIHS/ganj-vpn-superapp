@@ -231,7 +231,7 @@ class GanjController(
                 working,
                 GanjUiEvent.ConnectionRejected(
                     entitlementId,
-                    UiFailure(UiFailureKind.ENTITLEMENT, "connection.server_unavailable", true),
+                    UiFailure(UiFailureKind.SERVER, "server.unavailable", true),
                 ),
             )
         val context = connectionContext.forConnection(service.entitlementId, server.id)
