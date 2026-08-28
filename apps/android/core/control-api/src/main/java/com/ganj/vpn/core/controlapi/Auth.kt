@@ -2,6 +2,7 @@ package com.ganj.vpn.core.controlapi
 
 class AccessToken private constructor(private val secret: String) {
     internal fun authorizationValue(): String = "Bearer $secret"
+    internal fun rawValue(): String = secret
 
     override fun toString(): String = "AccessToken([REDACTED])"
 
