@@ -4,9 +4,20 @@ plugins {
 }
 
 val controlApiBaseUrl = providers.gradleProperty("GANJ_CONTROL_API_BASE_URL").orElse("").get()
+val telegramRedirectUri = providers.gradleProperty("GANJ_TELEGRAM_REDIRECT_URI")
+    .orElse("https://auth.invalid/ganj/telegram/callback")
+    .get()
 val escapedControlApiBaseUrl = controlApiBaseUrl
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")
+val escapedTelegramRedirectUri = telegramRedirectUri
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+val telegramRedirect = java.net.URI(telegramRedirectUri)
+require(telegramRedirect.scheme == "https" && !telegramRedirect.host.isNullOrBlank()) {
+    "GANJ_TELEGRAM_REDIRECT_URI must be an absolute HTTPS URI"
+}
+val telegramRedirectPath = telegramRedirect.rawPath.takeUnless { it.isNullOrBlank() } ?: "/"
 
 android {
     namespace = "com.ganj.vpn"
@@ -19,6 +30,9 @@ android {
         versionCode = 3
         versionName = "0.3.0"
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
+        buildConfigField("String", "TELEGRAM_REDIRECT_URI", "\"$escapedTelegramRedirectUri\"")
+        manifestPlaceholders["telegramAuthHost"] = telegramRedirect.host
+        manifestPlaceholders["telegramAuthPath"] = telegramRedirectPath
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
