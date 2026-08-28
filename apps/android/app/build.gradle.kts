@@ -4,7 +4,13 @@ plugins {
 }
 
 val controlApiBaseUrl = providers.gradleProperty("GANJ_CONTROL_API_BASE_URL").orElse("").get()
+val telegramBotRedirectUri = providers.gradleProperty("GANJ_TELEGRAM_BOT_REDIRECT_URI")
+    .orElse("https://auth.invalid/telegram")
+    .get()
 val escapedControlApiBaseUrl = controlApiBaseUrl
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+val escapedTelegramBotRedirectUri = telegramBotRedirectUri
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")
 
@@ -19,6 +25,7 @@ android {
         versionCode = 3
         versionName = "0.3.0"
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
+        buildConfigField("String", "TELEGRAM_BOT_REDIRECT_URI", "\"$escapedTelegramBotRedirectUri\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -62,6 +69,7 @@ dependencies {
 
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")
