@@ -14,7 +14,7 @@ import javax.crypto.spec.GCMParameterSpec
 class AndroidKeystoreSessionVault(
     context: Context,
     private val keyAlias: String = DEFAULT_KEY_ALIAS,
-) : AuthTokenProvider {
+) : SessionCredentialVault {
     private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
     private val lock = Any()
 
@@ -26,13 +26,13 @@ class AndroidKeystoreSessionVault(
 
     override fun currentAccessToken(): AccessToken? = restore()?.accessToken
 
-    fun currentUserId(): String? = restore()?.userId
+    override fun currentUserId(): String? = restore()?.userId
 
-    fun currentDeviceId(): String? = restore()?.deviceId
+    override fun currentDeviceId(): String? = restore()?.deviceId
 
-    fun currentRefreshToken(): RefreshToken? = restore()?.refreshToken
+    override fun currentRefreshToken(): RefreshToken? = restore()?.refreshToken
 
-    fun restore(): AuthSessionCredentials? {
+    override fun restore(): AuthSessionCredentials? {
         if (loaded) return cached
         return synchronized(lock) {
             if (loaded) return@synchronized cached
@@ -58,7 +58,7 @@ class AndroidKeystoreSessionVault(
      * A failed durable write drops the in-memory session instead of continuing with a refresh token
      * that the server may already have consumed.
      */
-    fun save(session: AuthSessionCredentials): Result<Unit> = synchronized(lock) {
+    override fun save(session: AuthSessionCredentials): Result<Unit> = synchronized(lock) {
         runCatching {
             val payload = SessionVaultCodec.encode(session)
             val envelope = try {
@@ -82,7 +82,7 @@ class AndroidKeystoreSessionVault(
         }
     }
 
-    fun clear(): Result<Unit> = synchronized(lock) {
+    override fun clear(): Result<Unit> = synchronized(lock) {
         runCatching {
             check(preferences.edit().remove(ENTRY).commit()) { "Session credential deletion failed" }
             cached = null
