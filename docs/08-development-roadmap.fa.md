@@ -1,5 +1,9 @@
 # Development Roadmap
 
+> **Scope Lock:** چرخه اجرایی فعلی Android-only است. iOS/Desktop فقط Post-MVP هستند. Requirementهای قطعی جاری در [`00-CURRENT_PRODUCT_SCOPE.fa.md`](00-CURRENT_PRODUCT_SCOPE.fa.md) ثبت شده‌اند.
+>
+> **Phase Naming:** Phaseهای 0 تا 5 در این فایل «Product Roadmap Phases» هستند. نام‌های Phase 6A/6B/6C و Phase 7 که در PR/Branchها دیده می‌شوند «Engineering Delivery Increments» هستند و نباید با تکمیل Phase 5 Release اشتباه شوند.
+
 برآورد برای تیم 8–10 نفره با Sprint دو هفته‌ای است. تاریخ‌ها پس از دسترسی به Backend staging و Signing account نهایی می‌شوند.
 
 ## Phase 0 — Baseline (هفته 0–2)
@@ -80,12 +84,13 @@ Exit gate: sandbox purchase → entitlement → connect → revoke با Audit ک
 - Free plan، quota/speed policy و contextual ads؛
 - favorites، search/filter/sort، speed test؛
 - accessibility، performance profiles، battery tests؛
-- privacy policy/data safety drafts.
+- privacy policy/data safety drafts؛
 - bug/crash reporting، support tickets و privacy-safe diagnostics؛
 - remote config، feature flags، staged rollout و A/B testing؛
 - analytics funnels، product dashboard و consent governance؛
 - server/backend monitoring، alerting، audit، SOC و anti-abuse؛
-- backup/restore drills و disaster recovery evidence.
+- backup/restore drills و disaster recovery evidence؛
+- Direct Commerce Smart Banking/receipt-verification adapter به‌عنوان قابلیت P1، جدا از VPN Data Plane و بدون افزودن permission بانکی به Play build مگر پس از Policy/Privacy approval.
 
 Exit gate: internal alpha و policy review.
 
@@ -101,6 +106,8 @@ Exit gate: internal alpha و policy review.
 Exit gate: Production readiness review و rollout 5% → 20% → 50% → 100%.
 
 ## Post-MVP
+
+این بخش **Scope اجرایی فعلی نیست** و تا بسته‌شدن Android Production Critical Path نباید باعث ایجاد Track فعال شود.
 
 - WireGuard، MultiHop، rotating IP؛
 - per-app routing بدون `QUERY_ALL_PACKAGES` broad access در صورت امکان؛
