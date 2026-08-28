@@ -13,6 +13,7 @@ import com.ganj.vpn.composition.GanjCompositionOwner
 import com.ganj.vpn.presentation.ConnectionEffectResult
 import com.ganj.vpn.presentation.UiFailure
 import com.ganj.vpn.presentation.UiFailureKind
+import com.ganj.vpn.ui.GanjTheme
 import com.ganj.vpn.ui.GanjVpnApp
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -36,25 +37,27 @@ class MainActivity : ComponentActivity() {
             GanjCompositionOwner.Factory(application, BuildConfig.CONTROL_API_BASE_URL),
         )[GanjCompositionOwner::class.java].composition
         setContent {
-            GanjVpnApp(
-                composition = composition,
-                onLaunchGooglePlay = { handle ->
-                    composition.launchGooglePlayCheckout(this@MainActivity, handle)
-                },
-                onLaunchVpn = { handle ->
-                    if (ensureVpnPermission()) {
-                        composition.launchVpnConnection(handle)
-                    } else {
-                        ConnectionEffectResult.Failed(
-                            UiFailure(
-                                UiFailureKind.CONFIGURATION,
-                                "connection.permission_denied",
-                                retryable = true,
-                            ),
-                        )
-                    }
-                },
-            )
+            GanjTheme {
+                GanjVpnApp(
+                    composition = composition,
+                    onLaunchGooglePlay = { handle ->
+                        composition.launchGooglePlayCheckout(this@MainActivity, handle)
+                    },
+                    onLaunchVpn = { handle ->
+                        if (ensureVpnPermission()) {
+                            composition.launchVpnConnection(handle)
+                        } else {
+                            ConnectionEffectResult.Failed(
+                                UiFailure(
+                                    UiFailureKind.CONFIGURATION,
+                                    "connection.permission_denied",
+                                    retryable = true,
+                                ),
+                            )
+                        }
+                    },
+                )
+            }
         }
     }
 
