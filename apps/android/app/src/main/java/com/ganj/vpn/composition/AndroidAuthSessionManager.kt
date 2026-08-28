@@ -1,13 +1,12 @@
 package com.ganj.vpn.composition
 
-import android.util.Base64
 import com.ganj.vpn.core.controlapi.AccessToken
-import com.ganj.vpn.core.controlapi.AndroidKeystoreSessionVault
 import com.ganj.vpn.core.controlapi.ApiError
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.AuthSessionApi
 import com.ganj.vpn.core.controlapi.AuthSessionCredentials
 import com.ganj.vpn.core.controlapi.AuthSessionProofPayload
+import com.ganj.vpn.core.controlapi.AuthSessionVault
 import com.ganj.vpn.core.controlapi.AuthenticationEventSink
 import com.ganj.vpn.core.controlapi.GuestSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshSessionCommand
@@ -29,7 +28,7 @@ import java.util.TimeZone
  */
 internal class AndroidAuthSessionManager(
     private val api: AuthSessionApi,
-    private val vault: AndroidKeystoreSessionVault,
+    private val vault: AuthSessionVault,
     private val identity: DeviceIdentity,
     private val random: SecureRandom = SecureRandom(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
@@ -155,7 +154,13 @@ internal class AndroidAuthSessionManager(
         val nonceBytes = ByteArray(24)
         random.nextBytes(nonceBytes)
         val nonce = try {
-            Base64.encodeToString(nonceBytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+            buildString(nonceBytes.size * 2) {
+                nonceBytes.forEach { byte ->
+                    val value = byte.toInt() and 0xff
+                    append(HEX[value ushr 4])
+                    append(HEX[value and 0x0f])
+                }
+            }
         } finally {
             nonceBytes.fill(0)
         }
@@ -192,5 +197,6 @@ internal class AndroidAuthSessionManager(
 
     private companion object {
         const val REFRESH_EARLY_MILLIS = 120_000L
+        const val HEX = "0123456789abcdef"
     }
 }
