@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { ApiError, failure, rejectUnknown, requireObject, requireString, requireUuid, success } from './errors.js';
 import { parseBody } from './application.js';
+import { parseSingleManagedConnection } from './adapters/pasarguard.js';
 
 const SERVER_STATUSES = new Set(['active', 'busy', 'maintenance', 'disabled']);
 const SERVER_PROTOCOLS = new Set(['vless', 'vmess', 'trojan', 'shadowsocks']);
@@ -168,7 +169,13 @@ function serverPatch(body) {
   return patch;
 }
 
-export function createFreeAdminApplication({ baseApplication, repository, auth, clock = () => new Date() }) {
+export function createFreeAdminApplication({
+  baseApplication,
+  repository,
+  auth,
+  secretWriter = null,
+  clock = () => new Date(),
+}) {
   if (typeof baseApplication !== 'function' || !repository || typeof repository.readFreePolicy !== 'function'
     || typeof repository.updateFreePolicy !== 'function' || typeof repository.listManagedFreeServers !== 'function'
     || typeof repository.createManagedFreeServer !== 'function' || typeof repository.updateManagedFreeServer !== 'function'
@@ -179,7 +186,8 @@ export function createFreeAdminApplication({ baseApplication, repository, auth, 
     const url = new URL(request.url);
     const { pathname } = url;
     const serverMatch = pathname.match(/^\/v1\/admin\/free\/servers\/([0-9a-f-]{36})$/i);
-    const relevant = pathname === '/v1/admin/free/policy' || pathname === '/v1/admin/free/servers' || serverMatch;
+    const importPath = pathname === '/v1/admin/free/servers/import';
+    const relevant = pathname === '/v1/admin/free/policy' || pathname === '/v1/admin/free/servers' || importPath || serverMatch;
     if (!relevant) return baseApplication(request);
     const requestIdHeader = request.headers.get('x-request-id');
     const requestId = /^[0-9a-f-]{36}$/i.test(requestIdHeader ?? '') ? requestIdHeader : randomUUID();
@@ -213,6 +221,66 @@ export function createFreeAdminApplication({ baseApplication, repository, auth, 
       if (request.method === 'GET' && pathname === '/v1/admin/free/servers') {
         requireScope(principal, 'admin:free:read');
         return { status: 200, body: success((await repository.listManagedFreeServers()).map(safeServer), requestId, clock) };
+      }
+      if (request.method === 'POST' && importPath) {
+        requireScope(principal, 'admin:free:write');
+        if (typeof secretWriter?.storeServerConnection !== 'function'
+          || typeof secretWriter?.deleteServerConnection !== 'function') {
+          throw new ApiError(503, 'free_config_import_unavailable', 'Secure Free config import is not configured.', { retryable: true });
+        }
+        const body = requireObject(await parseBody(request));
+        rejectUnknown(body, ['id', 'code', 'name', 'country_code', 'city', 'status', 'load_ratio', 'latency_hint_ms',
+          'config', 'priority', 'provider_ref', 'upstream_ref', 'max_load_ratio', 'max_active_profile_grants',
+          'emergency_disabled', 'rollout_percent', 'min_app_version', 'reason']);
+        const why = reason(body);
+        const connection = parseSingleManagedConnection(body.config);
+        if (connection.protocol !== 'vless') {
+          throw new ApiError(400, 'invalid_free_config', 'Free access currently requires a VLESS server config.');
+        }
+        const value = createServer({
+          ...body,
+          protocols: [connection.protocol],
+          secret_ref: 'vault:pending',
+        });
+        let secretRef;
+        try {
+          const stored = await secretWriter.storeServerConnection({
+            serverCode: value.code,
+            connection,
+          });
+          secretRef = reference(stored?.secretRef, 'secret_ref');
+          const created = await repository.transaction(async () => {
+            const server = await repository.createManagedFreeServer({ ...value, secretRef });
+            const safe = safeServer(server);
+            await repository.appendAdminAudit({
+              actorSubject,
+              action: 'free_server.import',
+              resourceType: 'free_server',
+              resourceId: server.id,
+              reason: why,
+              requestId,
+              afterDigest: digest(safe),
+              outcome: 'success',
+              createdAt: clock().toISOString(),
+            });
+            return safe;
+          });
+          return { status: 201, body: success(created, requestId, clock) };
+        } catch (error) {
+          if (secretRef) {
+            try {
+              await secretWriter.deleteServerConnection({ secretRef });
+            } catch {
+              throw new ApiError(
+                503,
+                'free_config_import_rollback_failed',
+                'Free server import failed and its isolated Vault secret could not be rolled back.',
+                { retryable: true },
+              );
+            }
+          }
+          throw error;
+        }
       }
       if (request.method === 'POST' && pathname === '/v1/admin/free/servers') {
         requireScope(principal, 'admin:free:write');
