@@ -1,5 +1,7 @@
 package com.ganj.vpn.ui
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -13,8 +15,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ganj.vpn.R
 import com.ganj.vpn.composition.GanjComposition
+import com.ganj.vpn.composition.TelegramBotAuthResult
 import com.ganj.vpn.enterprise.BugReportInput
 import com.ganj.vpn.enterprise.EnterpriseEvent
 import com.ganj.vpn.enterprise.EnterpriseUiState
@@ -40,11 +46,13 @@ fun GanjVpnApp(
     composition: GanjComposition,
     onLaunchGooglePlay: suspend (CheckoutActionHandle) -> CheckoutEffectResult,
     onLaunchVpn: suspend (ConnectionActionHandle) -> ConnectionEffectResult,
+    onLaunchTelegram: (String) -> Unit,
 ) {
     val controller = remember(composition) { composition.controller }
     val reducer = remember(composition) { composition.reducer }
     val enterpriseController = remember(composition) { composition.enterpriseController }
     val enterpriseReducer = remember(composition) { composition.enterpriseReducer }
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
     var selectedDestination by remember { mutableStateOf(GanjDestination.Connect) }
@@ -52,10 +60,13 @@ fun GanjVpnApp(
     var enterpriseState by remember(composition) {
         mutableStateOf(composition.restoreEnterpriseState())
     }
+    var telegramLinked by remember(composition) { mutableStateOf(composition.isTelegramLinked()) }
+    var telegramResult by remember { mutableStateOf<TelegramBotAuthResult?>(null) }
     var refreshJob by remember { mutableStateOf<Job?>(null) }
     var checkoutJob by remember { mutableStateOf<Job?>(null) }
     var connectionJob by remember { mutableStateOf<Job?>(null) }
     var enterpriseJob by remember { mutableStateOf<Job?>(null) }
+    var telegramJob by remember { mutableStateOf<Job?>(null) }
 
     fun commit(next: GanjUiState) {
         composition.retainUiState(next)
@@ -119,6 +130,47 @@ fun GanjVpnApp(
         }
     }
 
+    fun handleTelegramResult(result: TelegramBotAuthResult) {
+        telegramResult = result
+        when (result) {
+            TelegramBotAuthResult.Linked -> {
+                telegramLinked = true
+                refresh()
+                refreshEnterprise()
+            }
+            TelegramBotAuthResult.LoggedOut -> {
+                telegramLinked = false
+                refresh()
+                refreshEnterprise()
+            }
+            else -> Unit
+        }
+    }
+
+    fun beginTelegramLogin() {
+        telegramJob?.cancel()
+        telegramJob = scope.launch {
+            val result = withContext(Dispatchers.IO) { composition.beginTelegramLogin() }
+            handleTelegramResult(result)
+            if (result is TelegramBotAuthResult.Launch) onLaunchTelegram(result.approvalUrl)
+        }
+    }
+
+    fun checkTelegramLogin() {
+        if (!composition.hasPendingTelegramLogin()) return
+        telegramJob?.cancel()
+        telegramJob = scope.launch {
+            handleTelegramResult(withContext(Dispatchers.IO) { composition.resumeTelegramLogin() })
+        }
+    }
+
+    fun logoutTelegram() {
+        telegramJob?.cancel()
+        telegramJob = scope.launch {
+            handleTelegramResult(withContext(Dispatchers.IO) { composition.logoutTelegram() })
+        }
+    }
+
     fun checkout(plan: PlanUiModel) {
         checkoutJob?.cancel()
         commit(reducer.reduce(state, GanjUiEvent.CheckoutRequested(plan.id)))
@@ -155,6 +207,22 @@ fun GanjVpnApp(
     LaunchedEffect(composition) {
         refresh()
         refreshEnterprise()
+    }
+
+    LaunchedEffect(state.checkout) {
+        if (state.checkout is CheckoutUiState.AuthRequired) {
+            selectedDestination = GanjDestination.Account
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, composition) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && composition.hasPendingTelegramLogin()) {
+                checkTelegramLogin()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     DisposableEffect(composition) {
@@ -220,10 +288,10 @@ fun GanjVpnApp(
                             onRefresh = ::refresh,
                         )
 
-                        GanjDestination.Servers -> SmartRoutingScreen(
+                        GanjDestination.Servers -> ManagedServerRoutingScreen(
                             state = state,
-                            onSelectService = {
-                                commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
+                            onSelectServer = {
+                                commit(reducer.reduce(state, GanjUiEvent.SelectServer(it)))
                             },
                             onConnect = {
                                 requestProfile(it)
@@ -249,38 +317,48 @@ fun GanjVpnApp(
                             onRetry = ::refresh,
                         )
 
-                        GanjDestination.Account -> MyServicesScreen(
-                            state = state,
-                            enterpriseState = enterpriseState,
-                            onSelectService = {
-                                commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
-                            },
-                            onConnect = {
-                                state.selectedEntitlementId?.let(::requestProfile)
-                                selectedDestination = GanjDestination.Connect
-                            },
-                            onBuy = { selectedDestination = GanjDestination.Store },
-                            onRetry = ::refresh,
-                            onEnterpriseRefresh = ::refreshEnterprise,
-                            onSubmitBug = ::submitBug,
-                            onSubmitDiagnostics = ::submitDiagnostics,
-                            onClearBug = {
-                                commitEnterprise(
-                                    enterpriseReducer.reduce(
-                                        enterpriseState,
-                                        EnterpriseEvent.ClearBugResult,
-                                    ),
-                                )
-                            },
-                            onClearDiagnostic = {
-                                commitEnterprise(
-                                    enterpriseReducer.reduce(
-                                        enterpriseState,
-                                        EnterpriseEvent.ClearDiagnosticResult,
-                                    ),
-                                )
-                            },
-                        )
+                        GanjDestination.Account -> Column(Modifier.fillMaxSize()) {
+                            TelegramAccountCard(
+                                linked = telegramLinked,
+                                result = telegramResult,
+                                onLogin = ::beginTelegramLogin,
+                                onCheck = ::checkTelegramLogin,
+                                onLogout = ::logoutTelegram,
+                            )
+                            MyServicesScreen(
+                                state = state,
+                                enterpriseState = enterpriseState,
+                                onSelectService = {
+                                    commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
+                                },
+                                onConnect = {
+                                    state.selectedEntitlementId?.let(::requestProfile)
+                                    selectedDestination = GanjDestination.Connect
+                                },
+                                onBuy = { selectedDestination = GanjDestination.Store },
+                                onRetry = ::refresh,
+                                onEnterpriseRefresh = ::refreshEnterprise,
+                                onSubmitBug = ::submitBug,
+                                onSubmitDiagnostics = ::submitDiagnostics,
+                                onClearBug = {
+                                    commitEnterprise(
+                                        enterpriseReducer.reduce(
+                                            enterpriseState,
+                                            EnterpriseEvent.ClearBugResult,
+                                        ),
+                                    )
+                                },
+                                onClearDiagnostic = {
+                                    commitEnterprise(
+                                        enterpriseReducer.reduce(
+                                            enterpriseState,
+                                            EnterpriseEvent.ClearDiagnosticResult,
+                                        ),
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                 }
             }

@@ -55,19 +55,37 @@ test('production environment loads approved secret files without mutating source
   t.after(() => rm(root, { recursive: true, force: true }));
   const jwk = join(root, 'auth.jwk');
   const telegram = join(root, 'telegram-secret');
+  const botApproval = join(root, 'bot-approval-token');
+  const botCodeKey = join(root, 'bot-code-key');
+  const connectors = join(root, 'pasarguard-connectors');
+  const botSync = join(root, 'bot-sync-token');
   await secretFile(jwk, '{"kty":"OKP","crv":"Ed25519","d":"private"}');
   await secretFile(telegram, 'telegram-secret-value');
+  await secretFile(botApproval, 'test-bot-approval-token-value');
+  await secretFile(botCodeKey, 'test-bot-code-key-value');
+  await secretFile(connectors, '{"connector":"test"}');
+  await secretFile(botSync, 'test-bot-sync-token-value');
   const source = {
     AUTH_SESSION_SIGNING_PRIVATE_JWK_FILE: jwk,
     TELEGRAM_OIDC_CLIENT_SECRET_FILE: telegram,
+    TELEGRAM_BOT_APPROVAL_INTERNAL_TOKEN_FILE: botApproval,
+    TELEGRAM_BOT_APPROVAL_CODE_KEY_FILE: botCodeKey,
+    PASARGUARD_CONNECTORS_JSON_FILE: connectors,
+    GANJ_BOT_SYNC_INTERNAL_TOKEN_FILE: botSync,
     NODE_ENV: 'production',
   };
 
   const loaded = await loadProductionEnvironment(source);
   assert.equal(loaded.AUTH_SESSION_SIGNING_PRIVATE_JWK, '{"kty":"OKP","crv":"Ed25519","d":"private"}');
   assert.equal(loaded.TELEGRAM_OIDC_CLIENT_SECRET, 'telegram-secret-value');
+  assert.equal(loaded.TELEGRAM_BOT_APPROVAL_INTERNAL_TOKEN, 'test-bot-approval-token-value');
+  assert.equal(loaded.TELEGRAM_BOT_APPROVAL_CODE_KEY, 'test-bot-code-key-value');
+  assert.equal(loaded.PASARGUARD_CONNECTORS_JSON, '{"connector":"test"}');
+  assert.equal(loaded.GANJ_BOT_SYNC_INTERNAL_TOKEN, 'test-bot-sync-token-value');
   assert.equal(loaded.AUTH_SESSION_SIGNING_PRIVATE_JWK_FILE, undefined);
+  assert.equal(loaded.PASARGUARD_CONNECTORS_JSON_FILE, undefined);
   assert.equal(source.AUTH_SESSION_SIGNING_PRIVATE_JWK, undefined);
+  assert.equal(source.GANJ_BOT_SYNC_INTERNAL_TOKEN, undefined);
 });
 
 test('production environment rejects ambiguous direct plus file secret configuration', async (t) => {

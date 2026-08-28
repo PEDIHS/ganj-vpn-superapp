@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 
 const REFERENCE = /^vault:([A-Za-z0-9][A-Za-z0-9._/-]{2,240})$/;
@@ -40,6 +41,20 @@ function validatePayload(value) {
   return structuredClone(value);
 }
 
+function managedRelativePath(value) {
+  if (typeof value !== 'string' || !/^[a-z0-9][a-z0-9._-]{1,127}\/[0-9a-f-]{36}$/.test(value)) {
+    throw new Error('Managed Vault server-secret path is invalid.');
+  }
+  return value;
+}
+
+function metadataPath(dataPath) {
+  const marker = '/data/';
+  const index = dataPath.indexOf(marker);
+  if (index < 1) throw new Error('Vault server-secret prefix must address a KV v2 data path.');
+  return `${dataPath.slice(0, index)}/metadata/${dataPath.slice(index + marker.length)}`;
+}
+
 async function boundedJson(response) {
   const declared = Number(response.headers.get('content-length') ?? 0);
   if (declared > MAX_RESPONSE_BYTES) throw new Error('Vault response is too large.');
@@ -58,15 +73,21 @@ export async function createServerSecretResolver({ environment = process.env, fe
     throw new Error('CONTROL_API_VAULT_SECRET_PREFIX is invalid.');
   }
 
-  async function call(path, { authenticated = true } = {}) {
+  async function call(path, { authenticated = true, method = 'GET', body } = {}) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), Number(environment.CONTROL_API_VAULT_TIMEOUT_MS ?? 4000));
     try {
       const headers = new Headers({ Accept: 'application/json' });
       if (authenticated) headers.set('X-Vault-Token', token);
       if (namespace) headers.set('X-Vault-Namespace', namespace);
+      if (body !== undefined) headers.set('Content-Type', 'application/json');
       return await fetchImpl(`${address}/v1/${path}`, {
-        method: 'GET', headers, signal: controller.signal, redirect: 'error', cache: 'no-store',
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
+        redirect: 'error',
+        cache: 'no-store',
       });
     } finally {
       clearTimeout(timeout);
@@ -77,7 +98,7 @@ export async function createServerSecretResolver({ environment = process.env, fe
   if (![200, 429, 472, 473].includes(health.status)) throw new Error('Vault health check failed during startup.');
 
   return {
-    kind: 'vault-kv-v1',
+    kind: 'vault-kv-v2',
     async resolveServerConnection({ secretRef }) {
       const path = secretPath(secretRef, prefix);
       const response = await call(path);
@@ -87,6 +108,27 @@ export async function createServerSecretResolver({ environment = process.env, fe
       // KV v2 response: { data: { data: { ...secret }, metadata: ... } }
       const secret = payload?.data?.data;
       return validatePayload(secret);
+    },
+    async storeServerConnection({ serverCode, connection }) {
+      if (typeof serverCode !== 'string' || !/^[a-z0-9][a-z0-9._-]{1,127}$/.test(serverCode)) {
+        throw new Error('Managed server code is invalid.');
+      }
+      const relative = managedRelativePath(`${serverCode}/${randomUUID()}`);
+      const path = `${prefix}${relative}`;
+      if (path.length > 241) throw new Error('Managed Vault server-secret path is too long.');
+      const data = validatePayload(connection);
+      const response = await call(path, {
+        method: 'POST',
+        body: { data, options: { cas: 0 } },
+      });
+      if (!response.ok) throw new Error('Vault server secret write failed.');
+      return { secretRef: `vault:${path}` };
+    },
+    async deleteServerConnection({ secretRef }) {
+      const path = secretPath(secretRef, prefix);
+      managedRelativePath(path.slice(prefix.length));
+      const response = await call(metadataPath(path), { method: 'DELETE' });
+      if (response.status !== 404 && !response.ok) throw new Error('Vault server secret rollback failed.');
     },
     async close() {},
   };

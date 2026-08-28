@@ -140,6 +140,39 @@ class XrayRuntimeTest {
         assertEquals("xray.native_rejected", engine.currentState().errorCode)
     }
 
+    @Test
+    fun `compiler accepts every backend Shadowsocks method alias`() {
+        val methods = listOf(
+            "2022-blake3-aes-128-gcm",
+            "2022-blake3-aes-256-gcm",
+            "2022-blake3-chacha20-poly1305",
+            "aes-128-gcm",
+            "aes-256-gcm",
+            "chacha20-ietf-poly1305",
+            "chacha20-poly1305",
+            "xchacha20-ietf-poly1305",
+            "xchacha20-poly1305",
+        )
+
+        methods.forEach { method ->
+            val profile = ProvisionedProfile(
+                profileId = "10000000-0000-4000-8000-000000000001",
+                serviceId = "20000000-0000-4000-8000-000000000001",
+                serverId = "30000000-0000-4000-8000-000000000001",
+                endpoint = "vpn.example.com",
+                port = 443,
+                protocol = VpnProtocol.SHADOWSOCKS,
+                credential = "server-issued-password".encodeToByteArray(),
+                shadowsocksMethod = method,
+                expiresAtEpochMillis = System.currentTimeMillis() + 60_000,
+            )
+
+            val config = XrayConfigCompiler().compile(profile, 42).consume()
+            assertTrue(config.contains("\"method\":\"$method\""))
+            profile.close()
+        }
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `manual configuration shaped endpoint is rejected`() {
         profile(endpoint = "vless://manual-config.example")

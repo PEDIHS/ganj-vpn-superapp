@@ -8,6 +8,10 @@ Create these files on the staging host before starting the stack:
 - `vault-token` — short-lived/revocable Vault token restricted to the Ganj server-secret prefix
 - `auth-session-private.jwk` — private Ed25519 JWK JSON used by Auth Session signing
 - `telegram-oidc-client-secret`
+- `telegram-bot-approval-token` — independent random bearer, at least 32 characters
+- `telegram-bot-code-key` — independent HMAC key, at least 32 characters
+- `pasarguard-connectors.json` — connector endpoints plus Admin API credentials
+- `ganj-bot-sync-token` — independent random bearer, at least 32 characters
 - `assignment-key` — at least 32 random bytes
 - `runtime-config-ed25519.pem`
 - `google-play-service-account.json`
@@ -27,12 +31,16 @@ The Control API secret bootstrap and Vault token loader reject files with group/
 Example concept (replace UID/GID with the built image values):
 
 ```bash
-chown 100:101 vault-token auth-session-private.jwk telegram-oidc-client-secret assignment-key runtime-config-ed25519.pem google-play-service-account.json
-chmod 0400 vault-token auth-session-private.jwk telegram-oidc-client-secret assignment-key runtime-config-ed25519.pem google-play-service-account.json
+chown 100:101 vault-token auth-session-private.jwk telegram-oidc-client-secret telegram-bot-approval-token telegram-bot-code-key pasarguard-connectors.json ganj-bot-sync-token assignment-key runtime-config-ed25519.pem google-play-service-account.json
+chmod 0400 vault-token auth-session-private.jwk telegram-oidc-client-secret telegram-bot-approval-token telegram-bot-code-key pasarguard-connectors.json ganj-bot-sync-token assignment-key runtime-config-ed25519.pem google-play-service-account.json
 chmod 0600 postgres-password
 ```
 
 Never loosen secrets to `0644` merely to make a container boot. Fix ownership instead.
+
+## PasarGuard connector registry
+
+`pasarguard-connectors.json` is a JSON object keyed by the stable `connector_ref` used by Bot reconciliation. Each entry contains `baseUrl`, `adminUsername`, `adminPassword`, optional `subscriptionOrigins`, `countryCode` and `city`. Use credential-free HTTPS origins and keep this whole file outside Git.
 
 ## Vault server secret value
 

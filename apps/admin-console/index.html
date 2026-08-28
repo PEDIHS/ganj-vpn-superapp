@@ -20,36 +20,56 @@
       </div>
       <nav class="nav" aria-label="منوی مدیریت">
         <button class="nav-item active" data-view="servers"><span>◈</span> سرورها</button>
-        <button class="nav-item" data-view="pasarguard" disabled><span>⌁</span> PasarGuard <small>بعدی</small></button>
-        <button class="nav-item" data-view="bot-sync" disabled><span>⇄</span> Bot Sync <small>بعدی</small></button>
-        <button class="nav-item" data-view="accounts" disabled><span>◎</span> حساب‌ها <small>بعدی</small></button>
+        <button class="nav-item" data-view="pasarguard"><span>⌁</span> PasarGuard</button>
+        <button class="nav-item" data-view="bot-sync"><span>⇄</span> Bot Sync</button>
+        <button class="nav-item" data-view="accounts"><span>◎</span> حساب‌ها</button>
       </nav>
-      <div class="security-note"><span class="dot"></span><div><b>Secret-safe</b><small>کانفیگ خام در این پنل نمایش داده نمی‌شود.</small></div></div>
+      <div class="security-note"><span class="dot"></span><div><b>Secret-safe</b><small>کانفیگ خام فقط یک‌بار به Secret Store فرستاده می‌شود و هرگز دوباره نمایش داده نمی‌شود.</small></div></div>
     </aside>
 
     <main class="content">
       <header class="topbar">
-        <div><p class="eyebrow">OPERATOR CONSOLE</p><h1>Server Registry</h1><p>مدیریت Free / Premium / VIP از یک Control Plane مشترک</p></div>
+        <div><p class="eyebrow">OPERATOR CONSOLE</p><h1 id="pageTitle">Server Registry</h1><p id="pageSubtitle">مدیریت Free / Premium / VIP از یک Control Plane مشترک</p></div>
         <div class="top-actions"><button id="refreshButton" class="button secondary">↻ بروزرسانی</button><button id="openCreateButton" class="button primary">＋ سرور جدید</button></div>
       </header>
 
-      <section class="metrics" aria-label="خلاصه وضعیت">
-        <article class="metric glass"><span>کل سرورها</span><strong id="metricTotal">—</strong><small>Registry</small></article>
-        <article class="metric glass"><span>فعال</span><strong id="metricActive">—</strong><small>Online</small></article>
-        <article class="metric glass"><span>Free</span><strong id="metricFree">—</strong><small>Guest access</small></article>
-        <article class="metric glass"><span>نیازمند توجه</span><strong id="metricAttention">—</strong><small>Maintenance / Disabled</small></article>
-      </section>
-
-      <section class="toolbar glass">
-        <label class="search"><span>⌕</span><input id="searchInput" type="search" autocomplete="off" placeholder="جستجو بر اساس نام، کشور یا کد سرور"></label>
-        <div class="filters" role="group" aria-label="فیلتر پلن">
-          <button class="chip active" data-tier="all">همه</button><button class="chip" data-tier="free">Free</button><button class="chip" data-tier="premium">Premium</button><button class="chip" data-tier="vip">VIP</button>
-        </div>
-      </section>
-
       <section id="statusBanner" class="status-banner hidden" role="status"></section>
-      <section id="serverGrid" class="server-grid" aria-live="polite"></section>
-      <section id="emptyState" class="empty glass hidden"><div>◇</div><h2>سروری پیدا نشد</h2><p>فیلترها را تغییر بده یا یک سرور جدید ثبت کن.</p></section>
+
+      <section class="console-view" data-console-view="servers">
+        <section class="metrics" aria-label="خلاصه وضعیت">
+          <article class="metric glass"><span>کل سرورها</span><strong id="metricTotal">—</strong><small>Registry</small></article>
+          <article class="metric glass"><span>فعال</span><strong id="metricActive">—</strong><small>Online</small></article>
+          <article class="metric glass"><span>Free</span><strong id="metricFree">—</strong><small>Guest access</small></article>
+          <article class="metric glass"><span>نیازمند توجه</span><strong id="metricAttention">—</strong><small>Maintenance / Disabled</small></article>
+        </section>
+
+        <section class="toolbar glass">
+          <label class="search"><span>⌕</span><input id="searchInput" type="search" autocomplete="off" placeholder="جستجو بر اساس نام، کشور یا کد سرور"></label>
+          <div class="filters" role="group" aria-label="فیلتر پلن">
+            <button class="chip active" data-tier="all">همه</button><button class="chip" data-tier="free">Free</button><button class="chip" data-tier="premium">Premium</button><button class="chip" data-tier="vip">VIP</button>
+          </div>
+        </section>
+        <section id="serverGrid" class="server-grid" aria-live="polite"></section>
+        <section id="emptyState" class="empty glass hidden"><div>◇</div><h2>سروری پیدا نشد</h2><p>فیلترها را تغییر بده یا یک سرور جدید ثبت کن.</p></section>
+      </section>
+
+      <section class="console-view hidden" data-console-view="pasarguard">
+        <section class="ops-grid">
+          <article class="ops-card glass"><div class="ops-head"><div><p class="eyebrow">CONNECTORS</p><h2>اتصال‌های PasarGuard</h2></div><button id="reloadConnectors" class="button secondary">بروزرسانی</button></div><div id="connectorList" class="ops-list"></div></article>
+          <article class="ops-card glass"><p class="eyebrow">SERVICE DIAGNOSTIC</p><h2>بررسی سرویس پولی</h2><p class="ops-copy">شناسه سرویس Control API را وارد کن؛ پنل فقط وضعیت زنده و metadata امن را نمایش می‌دهد.</p><form id="diagnosticForm" class="inline-form"><input id="diagnosticServiceId" autocomplete="off" placeholder="UUID سرویس" required><button class="button primary">بررسی</button></form><pre id="diagnosticResult" class="safe-output">هنوز سرویسی بررسی نشده است.</pre></article>
+        </section>
+      </section>
+
+      <section class="console-view hidden" data-console-view="bot-sync">
+        <section class="ops-grid">
+          <article class="ops-card glass"><div class="ops-head"><div><p class="eyebrow">BOT SOURCES</p><h2>وضعیت همگام‌سازی</h2></div><button id="reloadBotSync" class="button secondary">بروزرسانی</button></div><div id="sourceList" class="ops-list"></div></article>
+          <article class="ops-card glass"><div class="ops-head"><div><p class="eyebrow">CONFLICT QUEUE</p><h2>Conflictهای باز</h2></div><span id="conflictCount" class="status-pill">0</span></div><div id="conflictList" class="ops-list"></div></article>
+        </section>
+      </section>
+
+      <section class="console-view hidden" data-console-view="accounts">
+        <section class="ops-card glass account-card"><p class="eyebrow">SHARED ACCOUNT</p><h2>بررسی حساب مشترک</h2><p class="ops-copy">User UUID داخلی Ganj را وارد کن تا وضعیت Telegram link، دستگاه‌ها، سرویس‌ها و reconciliation یکجا خوانده شود.</p><form id="accountForm" class="inline-form"><input id="accountUserId" autocomplete="off" placeholder="UUID کاربر" required><button class="button primary">نمایش حساب</button></form><pre id="accountResult" class="safe-output">هنوز حسابی انتخاب نشده است.</pre></section>
+      </section>
     </main>
   </div>
 
@@ -76,8 +96,13 @@
         <label>Load Ratio<input id="serverLoad" type="number" min="0" max="1" step="0.01" value="0"></label>
         <label>Latency Hint (ms)<input id="serverLatency" type="number" min="0" max="60000" step="1"></label>
       </div>
-      <fieldset><legend>Protocol capability</legend><div class="protocols"><label><input type="checkbox" name="protocol" value="vless" checked>VLESS</label><label><input type="checkbox" name="protocol" value="vmess">VMess</label><label><input type="checkbox" name="protocol" value="trojan">Trojan</label><label><input type="checkbox" name="protocol" value="shadowsocks">Shadowsocks</label></div></fieldset>
-      <label id="secretReferenceField">Secret Store Reference<input id="serverSecretReference" autocomplete="off" spellcheck="false" placeholder="vault:kv/data/ganj/servers/de-premium-01"><small>فقط reference؛ کانفیگ، UUID، password یا subscription URL وارد نکن.</small></label>
+      <fieldset id="protocolField"><legend>Protocol capability</legend><div class="protocols"><label><input type="checkbox" name="protocol" value="vless" checked>VLESS</label><label><input type="checkbox" name="protocol" value="vmess">VMess</label><label><input type="checkbox" name="protocol" value="trojan">Trojan</label><label><input type="checkbox" name="protocol" value="shadowsocks">Shadowsocks</label></div></fieldset>
+      <label id="secretReferenceField">PasarGuard / Secret Binding Reference<input id="serverSecretReference" autocomplete="off" spellcheck="false" maxlength="256" placeholder="pasarguard:connector/server"><small>برای Premium/VIP فقط شناسه اتصال ثبت می‌شود؛ credential، UUID یا subscription URL وارد نکن.</small></label>
+      <section id="freeImportFields" class="sensitive-panel hidden" aria-labelledby="freeImportTitle">
+        <div class="sensitive-title"><div><b id="freeImportTitle">ورود یک‌بارمصرف کانفیگ رایگان</b><small>پروتکل در Backend استخراج و کانفیگ مستقیماً در Secret Store ذخیره می‌شود.</small></div><span>EPHEMERAL</span></div>
+        <label>کانفیگ رایگان<textarea id="serverConfig" rows="5" minlength="12" maxlength="16384" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="configSafetyNote" placeholder="vless://…"></textarea><small id="configSafetyNote">این مقدار در state مرورگر، فهرست سرورها، لاگ یا پاسخ API نگه‌داری نمی‌شود و بلافاصله پس از ارسال یا انصراف پاک خواهد شد.</small></label>
+        <label>دلیل ثبت یا تغییر<input id="serverReason" minlength="8" maxlength="500" autocomplete="off" placeholder="برای مثال: افزودن ظرفیت رایگان ترکیه"><small>برای Audit Log اجباری است؛ اطلاعات محرمانه وارد نکن.</small></label>
+      </section>
       <div class="modal-actions"><button value="cancel" class="button secondary">انصراف</button><button id="saveServerButton" value="default" class="button primary">ذخیره</button></div>
     </form>
   </dialog>

@@ -4,6 +4,8 @@ import com.ganj.vpn.core.billing.BillingFailure
 import com.ganj.vpn.core.controlapi.ApiError
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.CatalogProduct
+import com.ganj.vpn.core.controlapi.ManagedServer
+import com.ganj.vpn.core.controlapi.ServerStatus
 import com.ganj.vpn.core.controlapi.ServiceStatus
 import com.ganj.vpn.core.controlapi.SubscriptionTier
 import com.ganj.vpn.core.controlapi.UserService
@@ -23,6 +25,15 @@ class GanjPresentationMapper {
             ContentState.Empty
         } else {
             ContentState.Ready(result.value.map(::service))
+        }
+        is ApiResult.Failure -> contentFailure(result.error)
+    }
+
+    fun servers(result: ApiResult<List<ManagedServer>>): ContentState<ServerUiModel> = when (result) {
+        is ApiResult.Success -> if (result.value.isEmpty()) {
+            ContentState.Empty
+        } else {
+            ContentState.Ready(result.value.map(::server))
         }
         is ApiResult.Failure -> contentFailure(result.error)
     }
@@ -77,6 +88,24 @@ class GanjPresentationMapper {
         expiresAt = service.expiresAt,
         deviceLimit = service.deviceLimit,
         allowedProtocols = service.allowedProtocols.mapTo(linkedSetOf()) { it.name },
+    )
+
+    private fun server(server: ManagedServer): ServerUiModel = ServerUiModel(
+        id = server.id,
+        code = server.code,
+        displayName = server.name,
+        countryCode = server.countryCode,
+        city = server.city,
+        tier = server.tier.toUiTier(),
+        status = when (server.status) {
+            ServerStatus.ACTIVE -> ServerUiStatus.ACTIVE
+            ServerStatus.BUSY -> ServerUiStatus.BUSY
+            ServerStatus.MAINTENANCE -> ServerUiStatus.MAINTENANCE
+        },
+        loadRatio = server.loadRatio,
+        latencyHintMs = server.latencyHintMs,
+        favorite = server.favorite,
+        protocols = server.protocols.mapTo(linkedSetOf()) { it.name },
     )
 
     private fun SubscriptionTier.toUiTier(): UiTier = when (this) {

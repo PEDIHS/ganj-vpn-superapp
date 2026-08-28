@@ -8,10 +8,12 @@ import com.ganj.vpn.core.controlapi.CheckoutOrder
 import com.ganj.vpn.core.controlapi.ConnectionProfileCommand
 import com.ganj.vpn.core.controlapi.ConnectionProfileLease
 import com.ganj.vpn.core.controlapi.ControlApiRepository
+import com.ganj.vpn.core.controlapi.ManagedServer
 import com.ganj.vpn.core.controlapi.Money
 import com.ganj.vpn.core.controlapi.OrderStatus
 import com.ganj.vpn.core.controlapi.PurchaseChannel
 import com.ganj.vpn.core.controlapi.ResponseMetadata
+import com.ganj.vpn.core.controlapi.ServerStatus
 import com.ganj.vpn.core.controlapi.ServiceStatus
 import com.ganj.vpn.core.controlapi.SubscriptionTier
 import com.ganj.vpn.core.controlapi.UserService
@@ -28,57 +30,44 @@ import org.junit.Test
 
 class GanjControllerTest {
     @Test
-    fun `refresh resolves catalog and services without mock state`() {
+    fun `refresh resolves catalog services and servers without mock state`() {
         val repository = FakeRepository(
             catalogResult = success(listOf(product())),
             servicesResult = success(listOf(service())),
+            serversResult = success(listOf(server())),
         )
         val controller = controller(repository)
-
         val state = controller.refresh(GanjUiState(refreshInProgress = true))
-
         assertEquals(PLAN_ID, state.selectedPlanId)
         assertEquals(SERVICE_ID, state.selectedEntitlementId)
+        assertEquals(SERVER_ID, state.selectedServerId)
         assertFalse(state.refreshInProgress)
         assertEquals(1, state.plans.size)
         assertEquals(1, state.serviceItems.size)
+        assertEquals(1, state.serverItems.size)
     }
 
     @Test
     fun `checkout maps 401 to auth required and never invokes billing`() {
-        val repository = FakeRepository(
-            checkoutResult = ApiResult.Failure(ApiError.AuthenticationRequired("request-401")),
-        )
+        val repository = FakeRepository(checkoutResult = ApiResult.Failure(ApiError.AuthenticationRequired("request-401")))
         val billing = FakeBilling(BillingStartResult.Pending(CheckoutSafeAction.LaunchGooglePlay(ACTION_HANDLE)))
-        val controller = controller(repository, billing = billing)
-
-        val state = runSuspend {
-            controller.checkout(stateWithPlan(), PLAN_ID)
-        }
-
+        val state = runSuspend { controller(repository, billing = billing).checkout(stateWithPlan(), PLAN_ID) }
         assertEquals(CheckoutUiState.AuthRequired, state.checkout)
         assertEquals(0, billing.calls)
     }
 
     @Test
     fun `missing authenticated session creates no checkout identifier or API request`() {
-        val repository = FakeRepository(
-            checkoutResult = success(order(OrderStatus.PENDING, entitlementId = null)),
-        )
+        val repository = FakeRepository(checkoutResult = success(order(OrderStatus.PENDING, entitlementId = null)))
         val billing = FakeBilling(BillingStartResult.Pending(CheckoutSafeAction.LaunchGooglePlay(ACTION_HANDLE)))
         var generated = false
         val controller = controller(
             repository = repository,
             billing = billing,
             checkoutSession = AuthenticatedCheckoutSession { false },
-            ids = StableIdGenerator {
-                generated = true
-                IDEMPOTENCY_KEY
-            },
+            ids = StableIdGenerator { generated = true; IDEMPOTENCY_KEY },
         )
-
         val state = runSuspend { controller.checkout(stateWithPlan(), PLAN_ID) }
-
         assertEquals(CheckoutUiState.AuthRequired, state.checkout)
         assertFalse(generated)
         assertNull(repository.checkoutCommand)
@@ -92,12 +81,8 @@ class GanjControllerTest {
             ApiError.RateLimited("request-429", 60) to UiFailureKind.RATE_LIMIT,
             ApiError.Server("request-503", 503, "unavailable", true) to UiFailureKind.SERVER,
         )
-
         errors.forEach { (error, expectedKind) ->
-            val controller = controller(FakeRepository(checkoutResult = ApiResult.Failure(error)))
-            val state = runSuspend {
-                controller.checkout(stateWithPlan(), PLAN_ID)
-            }
+            val state = runSuspend { controller(FakeRepository(checkoutResult = ApiResult.Failure(error))).checkout(stateWithPlan(), PLAN_ID) }
             val failure = (state.checkout as CheckoutUiState.Failed).failure
             assertEquals(expectedKind, failure.kind)
             assertTrue(failure.retryable)
@@ -106,16 +91,9 @@ class GanjControllerTest {
 
     @Test
     fun `pending checkout shares retry-stable idempotency key with billing`() {
-        val repository = FakeRepository(
-            checkoutResult = success(order(OrderStatus.PENDING, entitlementId = null)),
-        )
+        val repository = FakeRepository(checkoutResult = success(order(OrderStatus.PENDING, entitlementId = null)))
         val billing = FakeBilling(BillingStartResult.Pending(CheckoutSafeAction.LaunchGooglePlay(ACTION_HANDLE)))
-        val controller = controller(repository, billing = billing)
-
-        val state = runSuspend {
-            controller.checkout(stateWithPlan(), PLAN_ID)
-        }
-
+        val state = runSuspend { controller(repository, billing = billing).checkout(stateWithPlan(), PLAN_ID) }
         val pending = state.checkout as CheckoutUiState.Pending
         assertEquals("order-1", pending.orderId)
         assertEquals(CheckoutSafeAction.LaunchGooglePlay(ACTION_HANDLE), pending.action)
@@ -127,35 +105,33 @@ class GanjControllerTest {
     fun `fulfilled checkout becomes active only after backend service sync`() {
         val repository = FakeRepository(
             servicesResult = success(listOf(service())),
+            serversResult = success(listOf(server())),
             checkoutResult = success(order(OrderStatus.FULFILLED, SERVICE_ID)),
         )
         val billing = FakeBilling(BillingStartResult.Pending(CheckoutSafeAction.WaitForProvider))
-        val controller = controller(repository, billing = billing)
-
-        val state = runSuspend {
-            controller.checkout(stateWithPlan(), PLAN_ID)
-        }
-
+        val state = runSuspend { controller(repository, billing = billing).checkout(stateWithPlan(), PLAN_ID) }
         assertEquals(CheckoutUiState.Active(PLAN_ID, SERVICE_ID), state.checkout)
         assertEquals(SERVICE_ID, state.selectedEntitlementId)
+        assertEquals(SERVER_ID, state.selectedServerId)
         assertEquals(0, billing.calls)
     }
 
     @Test
-    fun `connection UI supplies only entitlement and controller creates bound command`() {
-        val repository = FakeRepository(
-            profileResult = ApiResult.Failure(ApiError.Forbidden("request-403", "device_denied")),
-        )
-        var contextInput: String? = null
-        val contextProvider = ConnectionProfileContextProvider { entitlementId ->
-            contextInput = entitlementId
-            ConnectionProfileContext(DEVICE_ID, SERVER_ID, NONCE, DEVICE_PROOF)
+    fun `connection binds selected entitlement and server into device proof context`() {
+        val repository = FakeRepository(profileResult = ApiResult.Failure(ApiError.Forbidden("request-403", "device_denied")))
+        var contextEntitlement: String? = null
+        var contextServer: String? = null
+        val contextProvider = object : ConnectionProfileContextProvider {
+            override fun forEntitlement(entitlementId: String): ConnectionProfileContext? = null
+            override fun forConnection(entitlementId: String, serverId: String): ConnectionProfileContext {
+                contextEntitlement = entitlementId
+                contextServer = serverId
+                return ConnectionProfileContext(DEVICE_ID, SERVER_ID, NONCE, DEVICE_PROOF)
+            }
         }
-        val controller = controller(repository, connectionContext = contextProvider)
-
-        val state = controller.prepareConnection(stateWithService(), SERVICE_ID)
-
-        assertEquals(SERVICE_ID, contextInput)
+        val state = controller(repository, connectionContext = contextProvider).prepareConnection(stateWithService(), SERVICE_ID)
+        assertEquals(SERVICE_ID, contextEntitlement)
+        assertEquals(SERVER_ID, contextServer)
         assertEquals(SERVICE_ID, repository.profileCommand?.serviceId)
         assertEquals(DEVICE_ID, repository.profileCommand?.deviceId)
         assertEquals(SERVER_ID, repository.profileCommand?.serverId)
@@ -167,31 +143,33 @@ class GanjControllerTest {
     fun `inactive or unknown entitlement fails before context and profile API`() {
         var contextCalled = false
         val repository = FakeRepository()
-        val controller = controller(
-            repository,
-            connectionContext = ConnectionProfileContextProvider {
-                contextCalled = true
-                null
-            },
-        )
-
+        val controller = controller(repository, connectionContext = ConnectionProfileContextProvider { contextCalled = true; null })
         val state = controller.prepareConnection(stateWithService(ServiceStatus.EXPIRED), SERVICE_ID)
-
         assertFalse(contextCalled)
         assertNull(repository.profileCommand)
-        assertEquals(
-            "connection.service_inactive",
-            (state.connection as ConnectionUiState.Failed).failure.messageKey,
-        )
+        assertEquals("connection.service_inactive", (state.connection as ConnectionUiState.Failed).failure.messageKey)
+    }
+
+    @Test
+    fun `active entitlement without compatible server fails before device proof`() {
+        var contextCalled = false
+        val repository = FakeRepository()
+        val controller = controller(repository, connectionContext = ConnectionProfileContextProvider { contextCalled = true; null })
+        val stateWithoutServer = stateWithService().copy(servers = ContentState.Empty, selectedServerId = null)
+        val state = controller.prepareConnection(stateWithoutServer, SERVICE_ID)
+        assertFalse(contextCalled)
+        assertNull(repository.profileCommand)
+        val failed = state.connection as ConnectionUiState.Failed
+        assertEquals(UiFailureKind.SERVER, failed.failure.kind)
+        assertEquals("server.unavailable", failed.failure.messageKey)
+        assertTrue(failed.failure.retryable)
     }
 
     @Test
     fun `missing device context fails closed without requesting a profile`() {
         val repository = FakeRepository()
-        val controller = controller(repository, connectionContext = ConnectionProfileContextProvider { null })
-
-        val state = controller.prepareConnection(stateWithService(), SERVICE_ID)
-
+        val state = controller(repository, connectionContext = ConnectionProfileContextProvider { null })
+            .prepareConnection(stateWithService(), SERVICE_ID)
         assertNull(repository.profileCommand)
         val failed = state.connection as ConnectionUiState.Failed
         assertEquals(UiFailureKind.CONFIGURATION, failed.failure.kind)
@@ -205,113 +183,56 @@ class GanjControllerTest {
         connectionContext: ConnectionProfileContextProvider = ConnectionProfileContextProvider { null },
         ids: StableIdGenerator = StableIdGenerator { IDEMPOTENCY_KEY },
         currentUser: CurrentUserIdProvider = CurrentUserIdProvider { USER_ID },
-        connectionActions: ConnectionActionVault = InMemoryConnectionActionVault(
-            tokenFactory = { "00000000000000000000000000000002" },
-        ),
-    ) = GanjController(
-        repository = repository,
-        billing = billing,
-        checkoutSession = checkoutSession,
-        currentUser = currentUser,
-        connectionContext = connectionContext,
-        connectionActions = connectionActions,
-        ids = ids,
-    )
+        connectionActions: ConnectionActionVault = InMemoryConnectionActionVault(tokenFactory = { "00000000000000000000000000000002" }),
+    ) = GanjController(repository, billing, checkoutSession, currentUser, connectionContext, connectionActions, ids = ids)
 
     private fun stateWithPlan() = GanjUiState(
         catalog = ContentState.Ready(listOf(planUi())),
         services = ContentState.Empty,
+        servers = ContentState.Empty,
         selectedPlanId = PLAN_ID,
     )
 
     private fun stateWithService(status: ServiceStatus = ServiceStatus.ACTIVE): GanjUiState {
-        val mapped = GanjPresentationMapper().services(success(listOf(service(status))))
+        val mapper = GanjPresentationMapper()
         return GanjUiState(
             catalog = ContentState.Empty,
-            services = mapped,
+            services = mapper.services(success(listOf(service(status)))),
+            servers = mapper.servers(success(listOf(server()))),
             selectedEntitlementId = if (status == ServiceStatus.ACTIVE) SERVICE_ID else null,
+            selectedServerId = SERVER_ID,
         )
     }
 
     private fun planUi() = (GanjPresentationMapper().catalog(success(listOf(product()))) as ContentState.Ready).items.single()
+    private fun product() = CatalogProduct(PLAN_ID, "premium-monthly", "Premium Monthly", SubscriptionTier.PREMIUM, 30, 100_000, 3, listOf("Smart connect"), Money(999, "EUR"))
+    private fun service(status: ServiceStatus = ServiceStatus.ACTIVE) = UserService(SERVICE_ID, "Germany Premium", status, SubscriptionTier.PREMIUM, "DE", 100_000, 10_000, "2027-01-01T00:00:00Z", 3, setOf(VpnProtocol.VLESS))
+    private fun server() = ManagedServer(SERVER_ID, "de-free-01", "Germany 01", "DE", "Frankfurt", SubscriptionTier.FREE, ServerStatus.ACTIVE, 0.25, 42, true, setOf(VpnProtocol.VLESS))
+    private fun order(status: OrderStatus, entitlementId: String?) = CheckoutOrder("order-1", status, PurchaseChannel.PLAY, Money(999, "EUR"), entitlementId)
 
-    private fun product() = CatalogProduct(
-        id = PLAN_ID,
-        code = "premium-monthly",
-        name = "Premium Monthly",
-        tier = SubscriptionTier.PREMIUM,
-        durationDays = 30,
-        trafficLimitBytes = 100_000,
-        deviceLimit = 3,
-        features = listOf("Smart connect"),
-        price = Money(999, "EUR"),
-    )
-
-    private fun service(status: ServiceStatus = ServiceStatus.ACTIVE) = UserService(
-        id = SERVICE_ID,
-        name = "Germany Premium",
-        status = status,
-        tier = SubscriptionTier.PREMIUM,
-        countryCode = "DE",
-        trafficLimitBytes = 100_000,
-        trafficUsedBytes = 10_000,
-        expiresAt = "2027-01-01T00:00:00Z",
-        deviceLimit = 3,
-        allowedProtocols = setOf(VpnProtocol.VLESS),
-    )
-
-    private fun order(status: OrderStatus, entitlementId: String?) = CheckoutOrder(
-        id = "order-1",
-        status = status,
-        channel = PurchaseChannel.PLAY,
-        total = Money(999, "EUR"),
-        entitlementServiceId = entitlementId,
-    )
-
-    private class FakeBilling(
-        private val result: BillingStartResult,
-    ) : CheckoutBillingCoordinator {
-        var calls: Int = 0
+    private class FakeBilling(private val result: BillingStartResult) : CheckoutBillingCoordinator {
+        var calls = 0
         var plan: PlanUiModel? = null
         var idempotencyKey: String? = null
-
-        override suspend fun begin(
-            plan: PlanUiModel,
-            idempotencyKey: String,
-        ): BillingStartResult {
-            calls += 1
-            this.plan = plan
-            this.idempotencyKey = idempotencyKey
-            return result
+        override suspend fun begin(plan: PlanUiModel, idempotencyKey: String): BillingStartResult {
+            calls += 1; this.plan = plan; this.idempotencyKey = idempotencyKey; return result
         }
     }
 
     private class FakeRepository(
         var catalogResult: ApiResult<List<CatalogProduct>> = success(emptyList()),
         var servicesResult: ApiResult<List<UserService>> = success(emptyList()),
-        var checkoutResult: ApiResult<CheckoutOrder> = ApiResult.Failure(
-            ApiError.Server(null, 503, "not_configured", true),
-        ),
-        var profileResult: ApiResult<ConnectionProfileLease> = ApiResult.Failure(
-            ApiError.Server(null, 503, "not_configured", true),
-        ),
+        var serversResult: ApiResult<List<ManagedServer>> = success(emptyList()),
+        var checkoutResult: ApiResult<CheckoutOrder> = ApiResult.Failure(ApiError.Server(null, 503, "not_configured", true)),
+        var profileResult: ApiResult<ConnectionProfileLease> = ApiResult.Failure(ApiError.Server(null, 503, "not_configured", true)),
     ) : ControlApiRepository {
         var checkoutCommand: CheckoutCommand? = null
         var profileCommand: ConnectionProfileCommand? = null
-
-        override fun catalog(channel: PurchaseChannel): ApiResult<List<CatalogProduct>> = catalogResult
-
-        override fun myServices(): ApiResult<List<UserService>> = servicesResult
-
-        override fun checkout(command: CheckoutCommand): ApiResult<CheckoutOrder> {
-            checkoutCommand = command
-            return checkoutResult
-        }
-
-        override fun prepareConnection(command: ConnectionProfileCommand): ApiResult<ConnectionProfileLease> {
-            profileCommand = command
-            return profileResult
-        }
+        override fun catalog(channel: PurchaseChannel) = catalogResult
+        override fun myServices() = servicesResult
+        override fun servers(tier: SubscriptionTier?, countryCode: String?, protocol: VpnProtocol?) = serversResult
+        override fun checkout(command: CheckoutCommand): ApiResult<CheckoutOrder> { checkoutCommand = command; return checkoutResult }
+        override fun prepareConnection(command: ConnectionProfileCommand): ApiResult<ConnectionProfileLease> { profileCommand = command; return profileResult }
     }
 
     private companion object {
@@ -324,22 +245,13 @@ class GanjControllerTest {
         const val NONCE = "nonce-opaque-device-bound-value-00000001"
         const val DEVICE_PROOF = "proof-opaque-device-bound-value-00000001"
         val ACTION_HANDLE = CheckoutActionHandle("gp_action_00000000000000000000000000000001")
-
-        fun <T> success(value: T): ApiResult.Success<T> = ApiResult.Success(
-            value,
-            ResponseMetadata("request-id", "2026-08-24T00:00:00Z"),
-        )
-
+        fun <T> success(value: T) = ApiResult.Success(value, ResponseMetadata("request-id", "2026-08-24T00:00:00Z"))
         fun <T> runSuspend(block: suspend () -> T): T {
             var outcome: Result<T>? = null
-            block.startCoroutine(
-                object : Continuation<T> {
-                    override val context = EmptyCoroutineContext
-                    override fun resumeWith(result: Result<T>) {
-                        outcome = result
-                    }
-                },
-            )
+            block.startCoroutine(object : Continuation<T> {
+                override val context = EmptyCoroutineContext
+                override fun resumeWith(result: Result<T>) { outcome = result }
+            })
             assertNotNull("Test coroutine must complete synchronously", outcome)
             return outcome!!.getOrThrow()
         }

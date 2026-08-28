@@ -19,12 +19,15 @@ import com.ganj.vpn.core.controlapi.ControlApiComponents
 import com.ganj.vpn.core.controlapi.ControlApiRepository
 import com.ganj.vpn.core.controlapi.ControlApiRepositoryFactory
 import com.ganj.vpn.core.controlapi.Gvp1CryptoProvider
+import com.ganj.vpn.core.controlapi.ManagedServer
 import com.ganj.vpn.core.controlapi.ProfileProvisioningBinding
 import com.ganj.vpn.core.controlapi.ProfileProvisioningError
 import com.ganj.vpn.core.controlapi.ProfileProvisioningResult
 import com.ganj.vpn.core.controlapi.PurchaseChannel
+import com.ganj.vpn.core.controlapi.SubscriptionTier
 import com.ganj.vpn.core.controlapi.UnavailableGvp1CryptoProvider
 import com.ganj.vpn.core.controlapi.UserService
+import com.ganj.vpn.core.controlapi.VpnProtocol
 import com.ganj.vpn.core.playbilling.GooglePlayBillingAdapter
 import com.ganj.vpn.core.playbilling.PlayBillingLifecycleBridge
 import com.ganj.vpn.core.playbilling.PlayPurchaseEvent
@@ -67,6 +70,7 @@ class GanjComposition internal constructor(
     val reducer: GanjUiReducer,
     val enterpriseController: EnterpriseController,
     val enterpriseReducer: EnterpriseReducer,
+    private val telegramAuth: TelegramBotAuthCoordinator?,
     private val playAdapter: GooglePlayBillingAdapter,
     private val playLifecycle: PlayBillingLifecycleBridge,
     private val purchaseEvents: PlayPurchaseEventRelay,
@@ -92,6 +96,19 @@ class GanjComposition internal constructor(
     fun retainEnterpriseState(state: EnterpriseUiState) {
         retainedEnterpriseState = state
     }
+
+    fun isTelegramLinked(): Boolean = telegramAuth?.isLinked() == true
+
+    fun hasPendingTelegramLogin(): Boolean = telegramAuth?.hasPendingFlow() == true
+
+    internal fun beginTelegramLogin(): TelegramBotAuthResult =
+        telegramAuth?.begin() ?: TelegramBotAuthResult.Failed("auth.unavailable")
+
+    internal fun resumeTelegramLogin(): TelegramBotAuthResult =
+        telegramAuth?.resume() ?: TelegramBotAuthResult.Failed("auth.unavailable")
+
+    internal fun logoutTelegram(): TelegramBotAuthResult =
+        telegramAuth?.logout() ?: TelegramBotAuthResult.LoggedOut
 
     suspend fun launchGooglePlayCheckout(
         activity: Activity,
@@ -163,12 +180,13 @@ class PlayPurchaseEventRelay : PlayPurchaseObserver, Closeable {
 }
 
 object GanjCompositionFactory {
-    fun create(
+    internal fun create(
         application: Application,
         endpoint: String,
         tokenProvider: AuthTokenProvider,
         currentUser: CurrentUserIdProvider,
         connectionContext: ConnectionProfileContextProvider,
+        telegramAuth: TelegramBotAuthCoordinator? = null,
         enterpriseRepository: EnterpriseExperienceRepository = FailClosedEnterpriseRepository(),
         enterpriseDeviceContext: EnterpriseDeviceContextProvider = EnterpriseDeviceContextProvider { null },
         diagnosticCollector: PrivacySafeDiagnosticCollector = PrivacySafeDiagnosticCollector { emptyList() },
@@ -205,8 +223,12 @@ object GanjCompositionFactory {
             mapper = mapper,
             actionVault = actionVault,
         )
+        // Guest sessions are sufficient for Free browsing/connect but deliberately not for paid
+        // ownership. The linked marker is UX-only; the backend still verifies the resulting linked
+        // session and commercial ownership for protected operations.
         val checkoutSession = AuthenticatedCheckoutSession {
-            tokenProvider.currentAccessToken() != null &&
+            telegramAuth?.isLinked() == true &&
+                tokenProvider.currentAccessToken() != null &&
                 !currentUser.currentUserId().isNullOrBlank()
         }
         val enterpriseSession = EnterpriseSessionGate {
@@ -236,6 +258,7 @@ object GanjCompositionFactory {
                 reducer = enterpriseReducer,
             ),
             enterpriseReducer = enterpriseReducer,
+            telegramAuth = telegramAuth,
             playAdapter = playAdapter,
             playLifecycle = playLifecycle,
             purchaseEvents = purchaseEvents,
@@ -257,6 +280,7 @@ object GanjCompositionFactory {
         tokenProvider = InMemorySessionTokenProvider(),
         currentUser = CurrentUserIdProvider { null },
         connectionContext = ConnectionProfileContextProvider { null },
+        telegramAuth = null,
         cryptoProvider = cryptoProvider,
     )
 
@@ -279,12 +303,16 @@ private class UnavailableControlApiRepository(
 ) : ControlApiRepository {
     override fun catalog(channel: PurchaseChannel): ApiResult<List<CatalogProduct>> = failure()
     override fun myServices(): ApiResult<List<UserService>> = failure()
+    override fun servers(
+        tier: SubscriptionTier?,
+        countryCode: String?,
+        protocol: VpnProtocol?,
+    ): ApiResult<List<ManagedServer>> = failure()
     override fun checkout(command: CheckoutCommand): ApiResult<CheckoutOrder> = failure()
     override fun prepareConnection(command: ConnectionProfileCommand): ApiResult<ConnectionProfileLease> = failure()
 
     private fun failure(): ApiResult.Failure = ApiResult.Failure(ApiError.Protocol(null, reason))
 }
-
 
 private object UnavailableConnectionProfileBroker : ConnectionProfileBroker {
     override fun provision(

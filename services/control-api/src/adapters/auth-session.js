@@ -629,14 +629,18 @@ export class PostgresAuthSessionStore {
       );
       if (linked.rowCount === 1 && linked.rows[0].id !== currentUserId) {
         const holdings = await client.query(
-          `SELECT EXISTS(SELECT 1 FROM control_services WHERE user_id = $1)
-               OR EXISTS(SELECT 1 FROM control_orders WHERE user_id = $1) AS has_holdings`,
+          `SELECT EXISTS(SELECT 1 FROM control_services WHERE user_id = $1 AND tier <> 'free')
+               OR EXISTS(SELECT 1 FROM control_orders WHERE user_id = $1) AS has_paid_holdings`,
           [currentUserId],
         );
-        if (holdings.rows[0].has_holdings) {
+        if (holdings.rows[0].has_paid_holdings) {
           throw new ApiError(409, 'telegram_account_merge_required', 'Guest entitlements require a reviewed account merge.');
         }
         const targetUserId = linked.rows[0].id;
+        await client.query(
+          "DELETE FROM control_services WHERE user_id = $1 AND tier = 'free'",
+          [currentUserId],
+        );
         await client.query(
           'UPDATE control_auth_sessions SET revoked_at = COALESCE(revoked_at, $2) WHERE user_id = $1',
           [currentUserId, now],

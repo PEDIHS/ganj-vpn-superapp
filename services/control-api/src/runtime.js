@@ -7,6 +7,9 @@ import { createTestTelegramAuthAdapter } from './adapters/test-telegram-auth.js'
 import { FIXTURES, InMemoryRepository, createSeed } from './repository.js';
 import { createTestEnterpriseSecurity } from './enterprise.js';
 import { withAdminControlPlaneRepository } from './admin-control-plane-repository.js';
+import { withFreeAccess } from './free-access.js';
+import { withFreePolicy } from './free-policy.js';
+import { withFreeServerRegistry } from './free-server-registry.js';
 
 async function importFactory(specifier, exportName, environment) {
   if (!specifier) throw new Error(`${exportName} adapter module is required.`);
@@ -29,9 +32,15 @@ export async function createRuntime(environment = process.env) {
     const primarySecret = environment.CONTROL_API_TEST_DEVICE_SECRET ?? 'local-device-secret-change-me';
     const secondSecret = environment.CONTROL_API_TEST_SECOND_DEVICE_SECRET ?? 'local-second-device-secret-change-me';
     const purchaseToken = environment.CONTROL_API_TEST_PURCHASE_TOKEN ?? 'aaaaaaaaaaaaaaaa';
-    const repository = new InMemoryRepository(createSeed());
+    const repository = withAdminControlPlaneRepository(
+      withFreeServerRegistry(
+        withFreePolicy(
+          withFreeAccess(new InMemoryRepository(createSeed())),
+        ),
+      ),
+    );
     return {
-      repository: withAdminControlPlaneRepository(repository),
+      repository,
       auth: createTestAuthAdapter({
         deviceSecrets: {
           [FIXTURES.devices.primary]: primarySecret,
@@ -63,9 +72,15 @@ export async function createRuntime(environment = process.env) {
     || telegramAuth?.kind === 'test-only' || playNotifications?.kind === 'test-only' || enterpriseSecurity?.kind === 'test-only') {
     throw new Error('Test adapters cannot be loaded in production mode.');
   }
-  const controlPlaneRepository = withAdminControlPlaneRepository(repository);
+  const managedRepository = withAdminControlPlaneRepository(
+    withFreeServerRegistry(
+      withFreePolicy(
+        withFreeAccess(repository),
+      ),
+    ),
+  );
   return {
-    repository: controlPlaneRepository,
+    repository: managedRepository,
     auth,
     authSession,
     purchaseVerifier,
@@ -74,7 +89,7 @@ export async function createRuntime(environment = process.env) {
     enterpriseSecurity,
     async close() {
       await Promise.allSettled(
-        [repository, auth, authSession, purchaseVerifier, telegramAuth, playNotifications, enterpriseSecurity]
+        [managedRepository, auth, authSession, purchaseVerifier, telegramAuth, playNotifications, enterpriseSecurity]
           .map((resource) => resource?.close?.()),
       );
     },

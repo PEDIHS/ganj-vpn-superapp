@@ -6,7 +6,7 @@ import {
   sign as signBytes,
 } from 'node:crypto';
 import test from 'node:test';
-import { AuthSessionService } from '../src/adapters/auth-session.js';
+import { AuthSessionService, PostgresAuthSessionStore } from '../src/adapters/auth-session.js';
 import { JwksJwtVerifier } from '../src/security/jwt.js';
 
 const USER_ID = '10000000-0000-4000-8000-000000000001';
@@ -269,4 +269,47 @@ test('Telegram start is access-bound, PKCE S256-only, redirect-allowlisted and s
     }),
     (error) => error.code === 'invalid_telegram_login',
   );
+});
+
+
+test('Postgres Telegram merge removes only free guest entitlement inside the link transaction', async () => {
+  const targetUserId = '10000000-0000-4000-8000-000000000002';
+  const queries = [];
+  const client = {
+    async query(sql) {
+      queries.push(sql);
+      if (sql.includes('FROM control_devices')) {
+        return { rowCount: 1, rows: [{ user_id: USER_ID, telegram_subject: null }] };
+      }
+      if (sql.includes('FROM control_users WHERE telegram_subject')) {
+        return { rowCount: 1, rows: [{ id: targetUserId }] };
+      }
+      if (sql.includes('AS has_paid_holdings')) {
+        return { rowCount: 1, rows: [{ has_paid_holdings: false }] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release() {},
+  };
+  const store = new PostgresAuthSessionStore({
+    async connect() { return client; },
+    async end() {},
+  });
+
+  const linked = await store.linkTelegram({
+    telegramSubject: '123456789',
+    username: 'ganj_user',
+    displayName: 'Ganj User',
+    deviceId: DEVICE_ID,
+    now: NOW,
+  });
+
+  assert.equal(linked.userId, targetUserId);
+  const deleteIndex = queries.findIndex((sql) =>
+    sql.includes("DELETE FROM control_services WHERE user_id = $1 AND tier = 'free'"));
+  const moveIndex = queries.findIndex((sql) => sql.includes('UPDATE control_devices SET user_id'));
+  const commitIndex = queries.lastIndexOf('COMMIT');
+  assert.ok(deleteIndex > queries.indexOf('BEGIN'));
+  assert.ok(moveIndex > deleteIndex);
+  assert.ok(commitIndex > moveIndex);
 });

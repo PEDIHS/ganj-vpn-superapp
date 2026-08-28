@@ -57,6 +57,49 @@ internal class DefaultAuthSessionApi(
         mapData = ::mapSession,
     )
 
+    override fun beginTelegramBot(
+        accessToken: AccessToken,
+        command: TelegramAuthorizationCommand,
+    ): ApiResult<TelegramBotAuthorization> = execute(
+        method = HttpMethod.POST,
+        path = "/auth/telegram/bot/start",
+        headers = mapOf("Authorization" to accessToken.authorizationValue()),
+        body = JsonEncoder.objectValue(
+            "code_challenge" to command.codeChallenge,
+            "redirect_uri" to command.redirectUri,
+        ),
+        mapData = ::mapTelegramBotAuthorization,
+    )
+
+    override fun telegramBotStatus(
+        accessToken: AccessToken,
+        state: String,
+    ): ApiResult<TelegramBotApprovalStatus> {
+        require(state.matches(BASE64URL_32_BYTES)) { "Bot approval state is invalid" }
+        return execute(
+            method = HttpMethod.POST,
+            path = "/auth/telegram/bot/status",
+            headers = mapOf("Authorization" to accessToken.authorizationValue()),
+            body = JsonEncoder.objectValue("state" to state),
+            mapData = ::mapTelegramBotStatus,
+        )
+    }
+
+    override fun exchangeTelegramBot(
+        accessToken: AccessToken,
+        command: TelegramExchangeCommand,
+    ): ApiResult<AuthSessionCredentials> = execute(
+        method = HttpMethod.POST,
+        path = "/auth/telegram/bot/exchange",
+        headers = mapOf("Authorization" to accessToken.authorizationValue()),
+        body = JsonEncoder.objectValue(
+            "code" to command.code,
+            "state" to command.state,
+            "code_verifier" to command.codeVerifier,
+        ),
+        mapData = ::mapSession,
+    )
+
     override fun logout(accessToken: AccessToken): ApiResult<Boolean> = execute(
         method = HttpMethod.POST,
         path = "/auth/logout",
@@ -150,6 +193,33 @@ internal class DefaultAuthSessionApi(
         )
     }
 
+    private fun mapTelegramBotAuthorization(data: JsonValue): TelegramBotAuthorization {
+        val value = data.asObject()
+        return TelegramBotAuthorization(
+            approvalUrl = value.requiredString("approval_url"),
+            state = value.requiredString("state"),
+            expiresAt = value.requiredString("expires_at").utcTimestamp("expires_at"),
+        )
+    }
+
+    private fun mapTelegramBotStatus(data: JsonValue): TelegramBotApprovalStatus {
+        val value = data.asObject()
+        val status = when (value.requiredString("status")) {
+            "pending" -> TelegramBotApprovalState.PENDING
+            "approved" -> TelegramBotApprovalState.APPROVED
+            "cancelled" -> TelegramBotApprovalState.CANCELLED
+            "expired" -> TelegramBotApprovalState.EXPIRED
+            "consumed" -> TelegramBotApprovalState.CONSUMED
+            else -> throw JsonProtocolException("Unknown Telegram Bot approval status")
+        }
+        val code = value.optionalString("code")
+        return TelegramBotApprovalStatus(
+            state = status,
+            code = code,
+            expiresAt = value.requiredString("expires_at").utcTimestamp("expires_at"),
+        )
+    }
+
     private fun mapHttpError(
         response: HttpResponse,
         root: JsonValue.ObjectValue?,
@@ -208,5 +278,6 @@ internal class DefaultAuthSessionApi(
         val UTC_TIMESTAMP = Regex(
             "^[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,9})?Z$",
         )
+        val BASE64URL_32_BYTES = Regex("^[A-Za-z0-9_-]{43}$")
     }
 }

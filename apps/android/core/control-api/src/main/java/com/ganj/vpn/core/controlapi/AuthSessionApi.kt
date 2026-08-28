@@ -109,11 +109,56 @@ data class TelegramExchangeCommand(
     }
 }
 
+data class TelegramBotAuthorization(
+    val approvalUrl: String,
+    val state: String,
+    val expiresAt: String,
+) {
+    init {
+        require(approvalUrl.startsWith("https://t.me/"))
+        require(state.matches(BASE64URL_32_BYTES))
+        requireUtcTimestamp(expiresAt, "expiresAt")
+    }
+}
+
+enum class TelegramBotApprovalState {
+    PENDING,
+    APPROVED,
+    CANCELLED,
+    EXPIRED,
+    CONSUMED,
+}
+
+data class TelegramBotApprovalStatus(
+    val state: TelegramBotApprovalState,
+    val code: String?,
+    val expiresAt: String,
+) {
+    init {
+        requireUtcTimestamp(expiresAt, "expiresAt")
+        if (state == TelegramBotApprovalState.APPROVED) {
+            require(code != null && code.matches(BASE64URL_32_BYTES))
+        } else {
+            require(code == null)
+        }
+    }
+}
+
 interface AuthSessionApi {
     fun createGuest(command: GuestSessionCommand): ApiResult<AuthSessionCredentials>
     fun refresh(command: RefreshSessionCommand): ApiResult<AuthSessionCredentials>
+
+    /** OIDC fallback. Bot Approval is the primary Telegram UX. */
     fun beginTelegram(accessToken: AccessToken, command: TelegramAuthorizationCommand): ApiResult<TelegramAuthorization>
     fun exchangeTelegram(command: TelegramExchangeCommand): ApiResult<AuthSessionCredentials>
+
+    fun beginTelegramBot(accessToken: AccessToken, command: TelegramAuthorizationCommand): ApiResult<TelegramBotAuthorization>
+    fun telegramBotStatus(accessToken: AccessToken, state: String): ApiResult<TelegramBotApprovalStatus>
+    fun exchangeTelegramBot(
+        accessToken: AccessToken,
+        command: TelegramExchangeCommand,
+    ): ApiResult<AuthSessionCredentials>
+
     fun logout(accessToken: AccessToken): ApiResult<Boolean>
 }
 

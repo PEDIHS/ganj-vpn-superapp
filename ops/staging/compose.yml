@@ -68,6 +68,10 @@ services:
       CONTROL_API_VAULT_TOKEN_FILE: /run/secrets/ganj/vault-token
       AUTH_SESSION_SIGNING_PRIVATE_JWK_FILE: /run/secrets/ganj/auth-session-private.jwk
       TELEGRAM_OIDC_CLIENT_SECRET_FILE: /run/secrets/ganj/telegram-oidc-client-secret
+      TELEGRAM_BOT_APPROVAL_INTERNAL_TOKEN_FILE: /run/secrets/ganj/telegram-bot-approval-token
+      TELEGRAM_BOT_APPROVAL_CODE_KEY_FILE: /run/secrets/ganj/telegram-bot-code-key
+      PASARGUARD_CONNECTORS_JSON_FILE: /run/secrets/ganj/pasarguard-connectors.json
+      GANJ_BOT_SYNC_INTERNAL_TOKEN_FILE: /run/secrets/ganj/ganj-bot-sync-token
       CONTROL_API_ASSIGNMENT_SECRET_FILE: /run/secrets/ganj/assignment-key
       CONTROL_API_RUNTIME_CONFIG_PRIVATE_KEY_FILE: /run/secrets/ganj/runtime-config-ed25519.pem
       GOOGLE_PLAY_SERVICE_ACCOUNT_FILE: /run/secrets/ganj/google-play-service-account.json
@@ -75,6 +79,10 @@ services:
       - ./secrets/vault-token:/run/secrets/ganj/vault-token:ro
       - ./secrets/auth-session-private.jwk:/run/secrets/ganj/auth-session-private.jwk:ro
       - ./secrets/telegram-oidc-client-secret:/run/secrets/ganj/telegram-oidc-client-secret:ro
+      - ./secrets/telegram-bot-approval-token:/run/secrets/ganj/telegram-bot-approval-token:ro
+      - ./secrets/telegram-bot-code-key:/run/secrets/ganj/telegram-bot-code-key:ro
+      - ./secrets/pasarguard-connectors.json:/run/secrets/ganj/pasarguard-connectors.json:ro
+      - ./secrets/ganj-bot-sync-token:/run/secrets/ganj/ganj-bot-sync-token:ro
       - ./secrets/assignment-key:/run/secrets/ganj/assignment-key:ro
       - ./secrets/runtime-config-ed25519.pem:/run/secrets/ganj/runtime-config-ed25519.pem:ro
       - ./secrets/google-play-service-account.json:/run/secrets/ganj/google-play-service-account.json:ro
