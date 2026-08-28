@@ -10,11 +10,13 @@ const TLS_FINGERPRINTS = new Set(['chrome', 'firefox', 'safari', 'ios', 'android
 const SHADOWSOCKS_METHODS = new Set([
   '2022-blake3-aes-128-gcm',
   '2022-blake3-aes-256-gcm',
+  '2022-blake3-chacha20-poly1305',
   'aes-128-gcm',
   'aes-256-gcm',
   'chacha20-poly1305',
   'xchacha20-poly1305',
   'chacha20-ietf-poly1305',
+  'xchacha20-ietf-poly1305',
 ]);
 
 function fail(code, message, status = 502, retryable = true) {
@@ -64,10 +66,19 @@ function validateConnector(connector) {
   const extraOrigins = Array.isArray(connector.subscriptionOrigins) ? connector.subscriptionOrigins : [];
   const allowedOrigins = new Set([baseUrl.origin]);
   for (const candidate of extraOrigins) {
-    let origin;
-    try { origin = new URL(candidate).origin; } catch { throw new Error('PasarGuard subscription origin is invalid.'); }
-    if (!origin.startsWith('https://')) throw new Error('PasarGuard subscription origins must use HTTPS.');
-    allowedOrigins.add(origin);
+    let parsed;
+    try { parsed = new URL(candidate); } catch { throw new Error('PasarGuard subscription origin is invalid.'); }
+    if (
+      parsed.protocol !== 'https:' ||
+      parsed.username ||
+      parsed.password ||
+      parsed.pathname !== '/' ||
+      parsed.search ||
+      parsed.hash
+    ) {
+      throw new Error('PasarGuard subscription origins must be credential-free HTTPS origins.');
+    }
+    allowedOrigins.add(parsed.origin);
   }
   return { baseUrl, allowedOrigins };
 }
@@ -179,9 +190,17 @@ function parseUrlNode(line) {
   if (protocol === 'vless' && !UUID.test(credential)) throw new Error('Invalid VLESS UUID.');
   if (protocol === 'trojan' && (credential.length < 8 || credential.length > 4096)) throw new Error('Invalid Trojan credential.');
   const security = securityFromUrl(url);
+  const transport = transportFromUrl(url);
   const flow = queryValue(url, 'flow');
-  if (flow && (protocol !== 'vless' || flow !== 'xtls-rprx-vision')) throw new Error('Invalid flow.');
-  if (security.type === 'reality' && protocol !== 'vless') throw new Error('REALITY is VLESS-only.');
+  if (flow && (protocol !== 'vless' || flow !== 'xtls-rprx-vision' || transport.type !== 'tcp')) {
+    throw new Error('Invalid flow.');
+  }
+  if (
+    security.type === 'reality' &&
+    (protocol !== 'vless' || !['tcp', 'grpc'].includes(transport.type))
+  ) {
+    throw new Error('REALITY requires VLESS over TCP or gRPC.');
+  }
   if (protocol === 'trojan' && security.type === 'none') throw new Error('Trojan requires authenticated transport security.');
   return {
     name: displayName(url, protocol.toUpperCase()),
@@ -190,7 +209,7 @@ function parseUrlNode(line) {
       port,
       protocol,
       credential,
-      transport: transportFromUrl(url),
+      transport,
       security,
       flow: flow ?? null,
       shadowsocks_method: null,
@@ -253,14 +272,25 @@ function parseShadowsocks(line) {
   if (url.protocol !== 'ss:') throw new Error('Invalid Shadowsocks URL.');
   const endpoint = url.hostname;
   const port = Number(url.port);
-  let auth = decodeURIComponent(url.username);
-  try { auth = Buffer.from(auth, 'base64').toString('utf8'); } catch { /* use plaintext */ }
-  const separator = auth.indexOf(':');
-  if (separator <= 0) throw new Error('Invalid Shadowsocks auth.');
-  const method = auth.slice(0, separator);
-  const credential = auth.slice(separator + 1);
+  let method;
+  let credential;
+  if (url.password) {
+    method = decodeURIComponent(url.username);
+    credential = decodeURIComponent(url.password);
+  } else {
+    const encoded = decodeURIComponent(url.username);
+    const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const auth = Buffer.from(normalized, 'base64').toString('utf8');
+    const separator = auth.indexOf(':');
+    if (separator <= 0) throw new Error('Invalid Shadowsocks auth.');
+    method = auth.slice(0, separator);
+    credential = auth.slice(separator + 1);
+  }
+  const minimumCredentialLength = method.startsWith('2022-') ? 16 : 8;
   if (!SAFE_HOST.test(endpoint) || !Number.isInteger(port) || port < 1 || port > 65_535
-    || !SHADOWSOCKS_METHODS.has(method) || credential.length < 1 || credential.length > 4096) {
+    || !SHADOWSOCKS_METHODS.has(method)
+    || credential.length < minimumCredentialLength
+    || credential.length > 4096) {
     throw new Error('Invalid Shadowsocks node.');
   }
   return {
