@@ -8,7 +8,8 @@ services:
       POSTGRES_DB: ganj
       POSTGRES_USER: ganj
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-    secrets: [postgres_password]
+    secrets:
+      - postgres_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
@@ -21,7 +22,7 @@ services:
     security_opt: ["no-new-privileges:true"]
 
   migrate:
-    image: ${CONTROL_API_IMAGE:?Set CONTROL_API_IMAGE to an immutable Control API image reference}
+    image: ${CONTROL_API_IMAGE:?CONTROL_API_IMAGE must be an immutable @sha256 image reference}
     restart: "no"
     depends_on:
       postgres:
@@ -30,7 +31,9 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://ganj@postgres:5432/ganj
       DATABASE_SSL: disable
-    secrets: [postgres_password]
+      PGPASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
@@ -40,10 +43,11 @@ services:
     networks: [backend]
     read_only: true
     tmpfs: [/tmp]
+    cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
 
   control-api:
-    image: ${CONTROL_API_IMAGE:?Set CONTROL_API_IMAGE to an immutable Control API image reference}
+    image: ${CONTROL_API_IMAGE:?CONTROL_API_IMAGE must be an immutable @sha256 image reference}
     restart: unless-stopped
     depends_on:
       migrate:
