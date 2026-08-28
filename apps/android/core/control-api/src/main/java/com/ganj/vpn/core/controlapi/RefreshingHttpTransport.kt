@@ -28,6 +28,7 @@ internal class RefreshingHttpTransport(
             )
         } finally {
             replayBody?.fill(0)
+            request.body?.fill(0)
         }
     }
 }
