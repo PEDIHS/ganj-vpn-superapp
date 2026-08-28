@@ -14,11 +14,17 @@ import com.ganj.vpn.MainActivity
 import com.ganj.vpn.R
 import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.vpn.ConnectionState
+import com.ganj.vpn.core.vpn.SecureProfileRecoveryStore
 import com.ganj.vpn.core.xray.AndroidXrayEngine
 import com.ganj.vpn.core.xray.ReflectiveLibXrayBridge
 import com.ganj.vpn.core.xray.TunnelDevice
 import com.ganj.vpn.core.xray.TunnelPlatform
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -26,10 +32,13 @@ import kotlinx.coroutines.withContext
  *
  * Requests stay in-process and contain only short-lived profiles issued for the signed-in user's
  * verified entitlement. No Intent extra, file, clipboard value, QR code, or share-link can start a
- * tunnel.
+ * tunnel. Process recovery can only restore a Keystore-sealed profile previously accepted here.
  */
 class GanjVpnService : VpnService(), TunnelPlatform {
     private val localBinder = LocalBinder()
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val recoveryInFlight = AtomicBoolean(false)
+    private val recoveryStore by lazy { SecureProfileRecoveryStore(applicationContext) }
     private val engine by lazy {
         AndroidXrayEngine(
             platform = this,
@@ -49,12 +58,48 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         when (intent?.action) {
             ACTION_PREPARE -> startForeground(NOTIFICATION_ID, connectionNotification())
             ACTION_DISCONNECT -> {
+                recoveryStore.clear()
                 engine.disconnect()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
+                return START_NOT_STICKY
+            }
+            null -> {
+                // START_STICKY process/service recreation. Foreground first, then validate and
+                // decrypt the last server-provisioned profile off the main thread.
+                startForeground(NOTIFICATION_ID, connectionNotification())
+                scheduleRecovery(startId)
             }
         }
-        return START_NOT_STICKY
+        return START_STICKY
+    }
+
+    private fun scheduleRecovery(startId: Int) {
+        if (!recoveryInFlight.compareAndSet(false, true)) return
+        serviceScope.launch {
+            try {
+                val restored = recoveryStore.restore().getOrElse {
+                    recoveryStore.clear()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf(startId)
+                    return@launch
+                }
+                if (restored == null) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf(startId)
+                    return@launch
+                }
+
+                val result = engine.connect(ConnectionRequest(restored))
+                if (result.isFailure) {
+                    recoveryStore.clear()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf(startId)
+                }
+            } finally {
+                recoveryInFlight.set(false)
+            }
+        }
     }
 
     override fun establish(mtu: Int): Result<TunnelDevice> = runCatching {
@@ -76,6 +121,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     override fun protect(fileDescriptor: Int): Boolean = super.protect(fileDescriptor)
 
     override fun onRevoke() {
+        recoveryStore.clear()
         engine.disconnect()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -83,6 +129,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
         engine.close()
         super.onDestroy()
     }
@@ -90,13 +137,27 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     inner class LocalBinder internal constructor() : Binder() {
         suspend fun connect(request: ConnectionRequest): Result<Unit> = withContext(Dispatchers.IO) {
             startForeground(NOTIFICATION_ID, connectionNotification())
+
+            val persisted = recoveryStore.save(request.profile)
+            if (persisted.isFailure) {
+                request.profile.close()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return@withContext Result.failure(
+                    persisted.exceptionOrNull()
+                        ?: IllegalStateException("vpn.profile_recovery_write_failed"),
+                )
+            }
+
             engine.connect(request).onFailure {
+                recoveryStore.clear()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }
 
         suspend fun disconnect(): Result<Unit> = withContext(Dispatchers.IO) {
+            recoveryStore.clear()
             engine.disconnect().also {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
