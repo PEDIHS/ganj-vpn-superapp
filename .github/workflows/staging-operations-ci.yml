@@ -38,12 +38,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: services/control-api/package-lock.json
 
       - name: Install Control API dependencies
         working-directory: services/control-api
-        run: npm ci --ignore-scripts --no-audit --no-fund
+        run: npm install --ignore-scripts --no-audit --no-fund
 
       - name: Test production secret boundaries
         working-directory: services/control-api
