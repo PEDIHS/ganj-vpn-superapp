@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -147,10 +148,18 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     }
 
     private suspend fun reconnectLoop(epoch: Long) {
-        while (isActive && desiredConnection.get() && reconnectCoordinator.isCurrent(epoch)) {
+        while (
+            currentCoroutineContext().isActive &&
+            desiredConnection.get() &&
+            reconnectCoordinator.isCurrent(epoch)
+        ) {
             val plan = reconnectCoordinator.nextPlan(epoch) ?: return
             delay(plan.delayMillis)
-            if (!isActive || !desiredConnection.get() || !reconnectCoordinator.isCurrent(epoch)) return
+            if (
+                !currentCoroutineContext().isActive ||
+                !desiredConnection.get() ||
+                !reconnectCoordinator.isCurrent(epoch)
+            ) return
 
             val restored = recoveryStore.restore().getOrElse {
                 terminateDesiredConnection(clearRecovery = true)
