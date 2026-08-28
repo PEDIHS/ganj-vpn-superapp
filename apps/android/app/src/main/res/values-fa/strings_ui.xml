@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_refresh">بروزرسانی</string>
+    <string name="common_retry">تلاش دوباره</string>
+    <string name="common_wait">کمی صبر کنید…</string>
+    <string name="common_done">تمام</string>
+    <string name="common_selected">انتخاب شده</string>
+    <string name="common_connect">اتصال</string>
+    <string name="common_global">جهانی</string>
+    <string name="common_request_code">درخواست • %1$s</string>
+
+    <string name="home_title">گنج VPN</string>
+    <string name="home_subtitle">داشبورد حریم خصوصی شما</string>
+    <string name="home_connection_profile">وضعیت اتصال</string>
+    <string name="home_vpn_connected">VPN متصل است</string>
+    <string name="home_choose_active_service">یک سرویس فعال انتخاب کنید</string>
+    <string name="home_no_active_service">هنوز سرویس فعالی انتخاب نشده</string>
+    <string name="home_open_secure_connection">باز کردن اتصال امن</string>
+    <string name="home_my_services">سرویس‌های من</string>
+    <string name="home_service_count">%1$d سرویس فعال یا قبلی</string>
+    <string name="home_store">فروشگاه</string>
+    <string name="home_choose_subscription">انتخاب اشتراک</string>
+    <string name="home_subscription_protected">اشتراک محافظت شده</string>
+    <string name="home_subscription_protected_body">دسترسی اتصال فقط از اشتراک تاییدشده گنج و دستگاه ثبت‌شده شما صادر می‌شود.</string>
+
+    <string name="servers_title">مسیریابی هوشمند</string>
+    <string name="servers_subtitle">فقط سرورهای مجاز برای سرویس شما</string>
+    <string name="servers_loading">در حال دریافت سرویس‌های قابل استفاده</string>
+    <string name="servers_empty_title">هنوز سرویسی ندارید</string>
+    <string name="servers_empty_body">برای فعال‌سازی یک سرویس وارد فروشگاه شوید</string>
+    <string name="servers_smart_connect">اتصال هوشمند</string>
+    <string name="servers_backend_verified">انتخاب سرور و صدور پروفایل اتصال برای همین اشتراک دوباره توسط سرور گنج اعتبارسنجی می‌شود.</string>
+
+    <string name="connect_title">گنج VPN</string>
+    <string name="connect_subtitle">امن، سریع و مخصوص شما</string>
+    <string name="connect_no_service">سرویسی انتخاب نشده</string>
+    <string name="connect_choose_service">انتخاب سرویس من</string>
+    <string name="connect_device_bound">متصل به این دستگاه</string>
+    <string name="connect_device_bound_active">پروفایل تاییدشده این دستگاه فقط داخل هسته VPN فعال است.</string>
+    <string name="connect_device_bound_idle">برنامه فقط شناسه سرویس انتخاب‌شده شما را وارد فرایند امن اتصال می‌کند.</string>
+
+    <string name="store_title">فروشگاه گنج</string>
+    <string name="store_subtitle">اشتراک‌های تاییدشده توسط سرور</string>
+    <string name="store_loading">در حال دریافت پلن‌ها</string>
+    <string name="store_empty_title">فعلاً پلنی موجود نیست</string>
+    <string name="store_empty_body">چند لحظه دیگر دوباره امتحان کنید</string>
+    <string name="store_verification_notice">دسترسی سرویس فقط بعد از تایید پرداخت و تایید نهایی سرور فعال می‌شود.</string>
+    <string name="plan_days">%1$d روز</string>
+    <string name="plan_service">پلن سرویس</string>
+    <string name="plan_free">رایگان</string>
+    <string name="plan_continue_google_play">ادامه با Google Play</string>
+    <string name="plan_choose_google_play">انتخاب با Google Play</string>
+    <string name="checkout_pending_title">پرداخت در انتظار تایید</string>
+    <string name="checkout_opening_play">در حال باز کردن پرداخت امن Google Play.</string>
+    <string name="checkout_waiting_provider">در انتظار تایید Google Play و سرور گنج.</string>
+    <string name="checkout_verified_title">پرداخت تایید شد</string>
+    <string name="checkout_verified_body">در انتظار همگام‌سازی سرویس فعال‌شده</string>
+    <string name="checkout_active_title">اشتراک فعال شد</string>
+    <string name="checkout_active_body">سرویس شما در بخش سرویس‌های من آماده است</string>
+
+    <string name="account_title">سرویس‌های من</string>
+    <string name="account_subtitle">همگام‌شده با حساب گنج شما</string>
+    <string name="account_loading">در حال دریافت سرویس‌ها</string>
+    <string name="account_empty_title">هنوز اشتراکی ندارید</string>
+    <string name="account_empty_body">برای شروع یک پلن انتخاب کنید</string>
+    <string name="account_buy_another">خرید اشتراک جدید</string>
+    <string name="account_selected_badge">انتخاب شده</string>
+    <string name="account_use_plan">استفاده از پلن</string>
+    <string name="account_devices_allowed">مجاز روی %1$d دستگاه</string>
+    <string name="traffic_unlimited">ترافیک نامحدود</string>
+    <string name="traffic_gb_left">%1$d گیگابایت باقی‌مانده</string>
+    <string name="traffic_mb_left">%1$d مگابایت باقی‌مانده</string>
+
+    <string name="tier_free">رایگان</string>
+    <string name="tier_premium">پریمیوم</string>
+    <string name="tier_vip">VIP</string>
+    <string name="service_status_pending">در انتظار</string>
+    <string name="service_status_active">فعال</string>
+    <string name="service_status_disabled">غیرفعال</string>
+    <string name="service_status_expired">منقضی شده</string>
+    <string name="service_status_revoked">لغو شده</string>
+
+    <string name="auth_required_title">ورود لازم است</string>
+    <string name="auth_required_body">حساب تلگرام خود را متصل کنید و سپس این صفحه را بروزرسانی کنید.</string>
+    <string name="auth_refresh_session">بروزرسانی نشست</string>
+
+    <string name="gate_security_update_title">بروزرسانی امنیتی لازم است</string>
+    <string name="gate_security_update_body">برای ادامه امن، نسخه %1$s را نصب کنید.</string>
+    <string name="gate_maintenance_title">تعمیرات برنامه‌ریزی‌شده</string>
+    <string name="gate_maintenance_default">گنج VPN موقتاً در دسترس نیست.</string>
+    <string name="gate_policy_paused">تا زمانی که سیاست امضاشده محصول اجازه ندهد، اتصال و خرید متوقف می‌ماند.</string>
+    <string name="gate_check_again">بررسی دوباره</string>
+
+    <string name="enterprise_product_status">وضعیت محصول</string>
+    <string name="enterprise_policy_checking">در حال بررسی سیاست امضاشده برنامه…</string>
+    <string name="enterprise_operational">عملیاتی</string>
+    <string name="enterprise_optional_update">نسخه %1$s آماده بروزرسانی است.</string>
+    <string name="enterprise_security_update_required">یک بروزرسانی امنیتی لازم است.</string>
+    <string name="enterprise_maintenance">تعمیرات در حال انجام است.</string>
+    <string name="enterprise_sign_in_policy">برای بررسی سیاست دستگاه وارد حساب شوید.</string>
+    <string name="enterprise_policy_unavailable">سیاست اجرایی در دسترس نیست؛ قابلیت‌های اختیاری خاموش هستند.</string>
+    <string name="enterprise_refresh_status">بروزرسانی وضعیت محصول</string>
+
+    <string name="bug_title">گزارش مشکل</string>
+    <string name="bug_privacy_warning">کانفیگ VPN، رمز، لینک یا محتوای پیام خصوصی را در گزارش وارد نکنید.</string>
+    <string name="bug_short_title">عنوان کوتاه</string>
+    <string name="bug_what_happened">چه اتفاقی افتاد؟</string>
+    <string name="bug_category">دسته‌بندی</string>
+    <string name="bug_category_connection">اتصال</string>
+    <string name="bug_category_purchase">خرید</string>
+    <string name="bug_category_account">حساب</string>
+    <string name="bug_diagnostics_consent">با ارسال اطلاعات کلی دستگاه، نوع شبکه، وضعیت اتصال و کد خطا موافقم.</string>
+    <string name="bug_send">ارسال گزارش امن</string>
+    <string name="bug_submitting">در حال ارسال گزارش</string>
+    <string name="bug_submitted">گزارش %1$s ارسال شد</string>
+    <string name="bug_status">وضعیت: %1$s</string>
+    <string name="bug_another">گزارش مشکل دیگر</string>
+    <string name="bug_edit">ویرایش گزارش</string>
+
+    <string name="diagnostic_title">عیب‌یابی با حفظ حریم خصوصی</string>
+    <string name="diagnostic_privacy_body">فقط نتیجه تست‌ها، تاخیر، Packet Loss، وضعیت VPN و سلامت دستگاه بررسی می‌شود. هیچ دامنه، مقصد، IP، درخواست DNS، محتوای ترافیک، رمز یا کانفیگی جمع‌آوری نمی‌شود.</string>
+    <string name="diagnostic_consent">با اجرای تست و ارسال این گزارش حداقلی موافقم.</string>
+    <string name="diagnostic_run">اجرای عیب‌یابی</string>
+    <string name="diagnostic_running">در حال اجرای تست‌های مجاز</string>
+    <string name="diagnostic_uploading">در حال ارسال نتایج پاک‌سازی‌شده</string>
+    <string name="diagnostic_submitted">گزارش عیب‌یابی ارسال شد</string>
+    <string name="diagnostic_redaction_policy">نسخه سیاست حذف اطلاعات حساس: %1$s</string>
+    <string name="diagnostic_review_consent">بررسی رضایت</string>
+
+    <string name="failure_auth_required">برای ادامه وارد حساب شوید.</string>
+    <string name="failure_entitlement_denied">این عملیات در سرویس شما فعال نیست.</string>
+    <string name="failure_request_conflict">این درخواست در حال پردازش است.</string>
+    <string name="failure_rate_limited">تعداد تلاش‌ها زیاد بود. کمی بعد دوباره امتحان کنید.</string>
+    <string name="failure_network_unavailable">اتصال اینترنت خود را بررسی کنید.</string>
+    <string name="failure_server_unavailable">سرویس موقتاً در دسترس نیست.</string>
+    <string name="failure_connection_context">اطلاعات امن دستگاه هنوز آماده نیست.</string>
+    <string name="failure_service_inactive">یک سرویس فعال انتخاب کنید.</string>
+    <string name="failure_vpn_permission">برای اتصال باید مجوز VPN اندروید را تایید کنید.</string>
+    <string name="failure_connection_expired">درخواست امن اتصال منقضی شد. دوباره تلاش کنید.</string>
+    <string name="failure_device_crypto">کلیدهای امن این دستگاه هنوز آماده نیستند.</string>
+    <string name="failure_profile_auth">اعتبار پروفایل رمزگذاری‌شده سرور تایید نشد.</string>
+    <string name="failure_protocol_unsupported">پروتکل این سرور در این نسخه پشتیبانی نمی‌شود.</string>
+    <string name="failure_tunnel_start">تونل VPN شروع نشد. با یک شبکه دیگر دوباره تلاش کنید.</string>
+    <string name="failure_disconnect">VPN به‌صورت کامل قطع نشد. دوباره تلاش کنید.</string>
+    <string name="failure_billing_provider">این روش پرداخت هنوز در دسترس نیست.</string>
+    <string name="failure_generic">درخواست به‌صورت امن تکمیل نشد.</string>
+
+    <string name="enterprise_failure_consent">ابتدا خلاصه حریم خصوصی را بررسی و تایید کنید.</string>
+    <string name="enterprise_failure_bug_sensitive">اطلاعات کانفیگ، رمز یا محتوای نامعتبر را حذف کنید.</string>
+    <string name="enterprise_failure_bug_disabled">گزارش مشکل موقتاً در دسترس نیست.</string>
+    <string name="enterprise_failure_diagnostic_disabled">عیب‌یابی موقتاً در دسترس نیست.</string>
+    <string name="enterprise_failure_context">اطلاعات دستگاه آماده نیست. کمی بعد دوباره تلاش کنید.</string>
+    <string name="enterprise_failure_collection">تست‌های عیب‌یابی به‌صورت امن کامل نشدند.</string>
+    <string name="enterprise_failure_invalid">نتیجه عیب‌یابی از اعتبارسنجی محلی عبور نکرد.</string>
+    <string name="enterprise_failure_generic">این قابلیت سازمانی فعلاً در دسترس نیست.</string>
+</resources>
