@@ -1,18 +1,47 @@
 # Ganj Design System
 
-> **Canonical detailed specification:** [`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md)  
-> این فایل خلاصه اجرایی Design System است. در تعارض با نسخه‌های قدیمی، سند 15 مرجع نهایی UI/UX و Brand است.
+> **Canonical UI/UX specification:** [`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md)  
+> **Mandatory Liquid Glass standard:** [`16-liquid-glass-first-design-standard.fa.md`](16-liquid-glass-first-design-standard.fa.md)  
+> این فایل خلاصه اجرایی Design System است. در موضوع Liquid Glass، Depth، Material hierarchy و Motion، سند 16 الزام اجرایی است.
+
+# **اصل شماره ۱ — Liquid Glass-First در تمام اپلیکیشن**
+
+## **تمام Ganj VPN باید از یک زبان طراحی Liquid Glass مدرن، یکپارچه و سراسری پیروی کند.**
+
+این Requirement فقط برای چند Card یا Bottom Bar نیست. از Splash و Login تا Home، Servers، Connect، Store، Account، Settings، Wallet، Support و تمام Sheet/Dialog/Navigationها باید یک سیستم واحد از:
+
+- layered depth؛
+- edge-to-edge composition؛
+- floating functional materials؛
+- adaptive translucency؛
+- fluid motion؛
+- glass navigation/control؛
+- hierarchy بین Content و Controls؛
+- Emerald/Gold stained accents محدود؛
+- accessibility/performance fallbacks
+
+داشته باشند.
+
+### **قاعده حیاتی**
+
+> **Liquid Glass-first ≠ Blur Everywhere.**
+>
+> کل اپ باید زبان Liquid داشته باشد، اما طبق اصول حرفه‌ای Liquid Glass، Content layer برای خوانایی عمدتاً مات/پایدار می‌ماند و Glass به‌طور هدفمند در Navigation، Controls، Search، Sheets، Floating Actions و State transitions استفاده می‌شود.
+
+هر UI PR که فقط چند `GlassCard` اضافه کند ولی Navigation، hierarchy، motion و depth آن همچنان Flat/Material-default باشد، Requirement طراحی را برآورده نکرده است.
 
 ## 1. Design Principles
 
-1. **Connection first:** مهم‌ترین Action همیشه در یک نگاه قابل تشخیص است.
-2. **Calm security:** امنیت با وضوح و ثبات منتقل می‌شود، نه هشدار و رنگ قرمز دائمی.
-3. **Emerald identity:** سبز زمردی رنگ اصلی Brand و Action است.
-4. **Refined gold:** طلایی فقط Premium/Signature Accent است، نه رنگ غالب صفحه.
-5. **Neutral-first composition:** اکثر UI از Graphite/Warm Neutral surfaces ساخته می‌شود تا Emerald و Gold معنی داشته باشند.
-6. **Progressive power:** قابلیت‌های حرفه‌ای بعد از نیاز کاربر آشکار می‌شوند.
-7. **Native Android behavior:** Gesture، Back، Haptic، Typography و Accessibility مطابق Android است.
-8. **Honest premium:** Premium بودن از hierarchy، spacing، material و polish می‌آید؛ نه از طلایی‌کردن کل UI.
+1. **Liquid Glass-first:** تمام Screenها باید به یک Material/Depth/Motion system واحد تعلق داشته باشند.
+2. **Connection first:** مهم‌ترین Action همیشه در یک نگاه قابل تشخیص است.
+3. **Calm security:** امنیت با وضوح و ثبات منتقل می‌شود، نه هشدار و رنگ قرمز دائمی.
+4. **Emerald identity:** سبز زمردی رنگ اصلی Brand و Action است.
+5. **Refined gold:** طلایی فقط Premium/Signature Accent است، نه رنگ غالب صفحه.
+6. **Neutral-first composition:** اکثر UI از Graphite/Warm Neutral surfaces ساخته می‌شود تا Emerald و Gold معنی داشته باشند.
+7. **Meaningful depth:** هر سطح Glass/Elevation باید دلیل تعاملی داشته باشد.
+8. **Fluid state motion:** Motion باید تغییر state را توضیح دهد، نه فقط تزئین باشد.
+9. **Native Android behavior:** Gesture، Predictive Back، Haptic، Typography و Accessibility مطابق Android است.
+10. **Honest premium:** Premium بودن از hierarchy، spacing، material و polish می‌آید؛ نه از طلایی‌کردن کل UI.
 
 ## 2. Brand Color Lock
 
@@ -104,20 +133,40 @@ Gold:
 
 این قانون مانع «فول طلایی» یا «فول سبز» شدن محصول می‌شود.
 
-## 5. Liquid Glass Usage
+## 5. Liquid Glass Material Roles
 
-Liquid Glass/Glassmorphism یک لایه Functional است، نه Background تمام Cardها.
+به‌جای یک `GlassCard` عمومی، Material roleهای زیر الزامی‌اند:
 
-در Ganj:
+### `Glass.Clear`
 
-- Floating bottom bar می‌تواند Glass باشد؛
-- Connect floating control layer می‌تواند Glass محدود داشته باشد؛
-- Sheetهای transient می‌توانند Glass داشته باشند؛
-- Content cards عمدتاً Surface مات و با کنتراست ثابت هستند؛
-- Clear glass فقط روی Hero background غنی و با scrim کنترل‌شده مجاز است؛
-- Reduce Transparency/low-performance fallback باید opaque surface داشته باشد.
+برای کنترل‌های کوچک شناور روی background ساده؛ transparency بیشتر و content کم.
 
-Gold نباید به‌عنوان tint عمومی Glass استفاده شود. Emerald tint بسیار کم برای selected/active states مجاز است.
+### `Glass.Regular`
+
+Material اصلی Bottom Navigation، Toolbar، Search، Filter، Segmented Control و floating controls.
+
+### `Glass.Dense`
+
+برای Bottom Sheet، Modal، Permission explanation و سطح‌هایی که readability بیشتری نیاز دارند.
+
+### `Glass.Prominent`
+
+برای Primary Actionهای محدود مثل Connect و Confirm Purchase؛ معمولاً Emerald stained glass.
+
+### `Glass.OpaqueFallback`
+
+برای Reduce Transparency، High Contrast، low-performance device، Battery Saver یا محیطی که blur مناسب نیست.
+
+### قوانین سخت
+
+- **Bottom Navigation باید Glass باشد.**
+- Search/Filter/Floating Controls باید از Glass role مناسب استفاده کنند.
+- Sheet shell باید Dense Glass یا fallback معادل داشته باشد.
+- Content rows/cards به‌طور پیش‌فرض Glass نیستند.
+- **Nested Glass به‌صورت عمومی ممنوع است.**
+- raw blur/alpha پراکنده در Screen layer ممنوع است؛ همه از token/component system می‌آیند.
+- Gold tint عمومی Glass ممنوع؛ Gold فقط Premium micro-accent.
+- Emerald tint برای selected/active/primary state استفاده می‌شود.
 
 ## 6. Material 3 / M3 Expressive Policy
 
@@ -126,7 +175,8 @@ Jetpack Compose Material 3 / Material 3 Expressive پایه رفتار Native An
 - component behavior، motion و accessibility از Android گرفته می‌شود؛
 - palette پیش‌فرض Material استفاده نمی‌شود؛
 - Dynamic Color برای Brand Core به‌صورت پیش‌فرض خاموش است؛
-- Android 16 edge-to-edge، predictive back و system UI behavior رعایت می‌شود.
+- Android 16 edge-to-edge، predictive back و system UI behavior رعایت می‌شود؛
+- M3 Expressive زبان Ganj را پشتیبانی می‌کند ولی جایگزین Brand/Glass system نمی‌شود.
 
 ## 7. Navigation
 
@@ -140,7 +190,7 @@ Jetpack Compose Material 3 / Material 3 Expressive پایه رفتار Native An
 | Store | پلن‌ها، تمدید و خرید | Gold فقط premium micro-accent |
 | Account | هویت، دستگاه‌ها، تراکنش و Settings | person |
 
-Connect در مرکز prominence بیشتری دارد ولی نباید giant Gold orb شود.
+Bottom Navigation باید floating `Glass.Regular` با edge-to-edge content underneath باشد. Connect در مرکز prominence بیشتری دارد ولی نباید giant Gold orb شود.
 
 ## 8. Typography
 
@@ -149,7 +199,9 @@ Connect در مرکز prominence بیشتری دارد ولی نباید giant G
 - اعداد شبکه با `tabularNums`؛
 - Body پیش‌فرض 15–16sp؛
 - user-facing production text کمتر از 14sp نشود؛
-- Dynamic font scaling تا 200% بدون critical clipping.
+- Dynamic font scaling تا 200% بدون critical clipping؛
+- text روی Glass باید contrast کافی و weight مناسب داشته باشد؛
+- Gold body text ممنوع است.
 
 | Style | Size/Line | Weight |
 |---|---|---|
@@ -187,33 +239,39 @@ Full 3D logo نباید در 24dp UI icon استفاده شود.
 
 ## 11. Connect Control
 
+Connect باید Signature Liquid component محصول باشد.
+
 ### Disconnected
 
-- neutral surface؛
-- Emerald ring؛
+- neutral canvas؛
+- Emerald glass ring/control؛
 - label «اتصال»؛
 - secondary server context.
 
 ### Connecting
 
-- Emerald staged progress؛
+- staged liquid morph؛
+- subtle refraction/highlight movement؛
 - مراحل متنی «بررسی شبکه» → «انتخاب بهترین مسیر» → «ایجاد اتصال امن»؛
 - cancel تا جایی که runtime اجازه می‌دهد.
 
 ### Connected
 
-- Emerald success state؛
+- Emerald stable glass state؛
 - soft glow که سریع settle می‌شود؛
 - Server، Duration و local stats در صورت policy؛
-- Disconnect واضح.
+- Disconnect واضح؛
+- animation دائمی ممنوع.
 
 ### Reconnecting
 
+- همان identity component با pulse کم؛
 - Jade/Amber cue؛
 - no panic red.
 
 ### Failed
 
+- Glass opacity بیشتر و decoration کمتر؛
 - Danger محدود؛
 - Retry، Change Server، Diagnostics/Support.
 
@@ -225,14 +283,16 @@ Full 3D logo نباید در 24dp UI icon استفاده شود.
 | micro feedback | 140–190ms | ease-out |
 | tab/chip | 180–240ms | smooth |
 | content | 220–320ms | fade/slide |
-| sheet | 300–420ms | spring low bounce |
-| connection morph | 450–700ms | staged |
+| glass transform | 280–420ms | fluid |
+| sheet | 300–480ms | spring low bounce |
+| connection morph | 450–750ms | staged |
 
 - هدف 60fps؛ 120Hz compatible؛
 - Blur و shader با performance class کاهش می‌یابد؛
 - Reduce Motion → fade/short transition؛
 - animation شروع واقعی اتصال را معطل نمی‌کند؛
-- perpetual connected pulse ممنوع.
+- perpetual connected pulse ممنوع؛
+- motion باید interruptible و state-driven باشد.
 
 ## 13. Haptics
 
@@ -252,18 +312,20 @@ Full 3D logo نباید در 24dp UI icon استفاده شود.
 - expiry؛
 - recommended server؛
 - quick actions؛
-- campaign فقط context-aware و محدود.
+- floating glass nav/actions؛
+- content cards mostly neutral/matte.
 
 ### Servers
 
-- sticky search؛
-- chip filters؛
+- Glass search/filter؛
 - Smart recommendation؛
 - row حداقل 64–72dp؛
+- server rows mostly solid/tonal؛
 - ping فقط rate-limited در foreground.
 
 ### Connect
 
+- strongest Liquid treatment؛
 - responsive hero control 176–228dp بر اساس viewport؛
 - real runtime state؛
 - no raw profile.
@@ -271,6 +333,7 @@ Full 3D logo نباید در 24dp UI icon استفاده شود.
 ### Store
 
 - plan cards neutral؛
+- glass period/filter controls؛
 - recommended plan Gold rim/badge؛
 - CTA Emerald؛
 - Terms/renewal/cancel قبل از خرید واضح.
@@ -284,7 +347,8 @@ Full 3D logo نباید در 24dp UI icon استفاده شود.
 - Transactions؛
 - Privacy؛
 - Support؛
-- Settings.
+- Settings؛
+- content-first + glass nav/actions.
 
 ## 15. RTL and Localization
 
@@ -301,24 +365,38 @@ Full 3D logo نباید در 24dp UI icon استفاده شود.
 - TalkBack order مطابق hierarchy؛
 - Connect state با live region کنترل‌شده؛
 - همه gestureها جایگزین Button دارند؛
-- Reduce motion/transparency؛
+- Reduce Motion؛
+- **Reduce Transparency → `Glass.OpaqueFallback`**؛
+- High Contrast؛
 - font scale تا 200%؛
 - Gold-on-white text فقط با contrast معتبر.
 
-## 17. Current Migration Requirement
+## 17. Performance / Battery
 
-Branch `phase-7/android-ui-accessibility-v2` در حال حاضر palette آبی دارد. قبل از Final UI merge باید:
+- Glass effect باید performance-aware باشد؛
+- low-end/battery-saver fallback الزامی؛
+- no continuous expensive shader؛
+- no blur on offscreen content؛
+- Connected animation بعد از settle تقریباً static؛
+- Final UI نیازمند frame/jank evidence است.
 
-- `GanjBlue` حذف شود؛
-- Emerald/Gold/Neutral scheme وارد شود؛
-- navigation selected state Emerald شود؛
-- premium Gold محدود باشد؛
-- Light/Dark + fa/en + RTL + Accessibility review شود.
+## 18. Current Migration Requirement
 
-## 18. منابع
+Branch `phase-7/android-ui-accessibility-v2` قبل از Final UI merge باید:
 
-- Apple HIG — Design Principles / Materials / Color
-- Android Developers — Material 3 / Material 3 Expressive
-- Android Developers — Accessibility / Core App Quality
+- `GanjBlue` حذف کند؛
+- Emerald/Gold/Neutral scheme وارد کند؛
+- semantic `GlassRole` system بسازد؛
+- Bottom Navigation را Liquid Glass کند؛
+- Search/Filter/Sheet/Connect را به Material roleهای سند 16 migrate کند؛
+- hardcoded Glass alpha/blur را حذف کند؛
+- Light/Dark + fa/en + RTL + Accessibility review شود؛
+- performance/screenshot tests داشته باشد.
 
-جزئیات کامل و Acceptance Criteria در [`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md) ثبت شده است.
+## 19. منابع
+
+- Apple Liquid Glass / HIG Materials / Color / Design Principles؛
+- Android Developers — Material 3 / Material 3 Expressive؛
+- Android Developers — Accessibility / Core App Quality.
+
+جزئیات Brand در [`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md) و استاندارد اجباری Liquid Glass در [`16-liquid-glass-first-design-standard.fa.md`](16-liquid-glass-first-design-standard.fa.md) ثبت شده است.
