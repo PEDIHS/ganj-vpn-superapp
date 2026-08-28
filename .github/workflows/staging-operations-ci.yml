@@ -61,7 +61,7 @@ jobs:
           set -eu
           cp .env.example .env
           mkdir -p secrets
-          for file in postgres-password vault-token auth-session-private.jwk telegram-oidc-client-secret assignment-key runtime-config-ed25519.pem google-play-service-account.json; do
+          for file in postgres-password vault-token auth-session-private.jwk telegram-oidc-client-secret telegram-bot-approval-token telegram-bot-code-key pasarguard-connectors.json ganj-bot-sync-token assignment-key runtime-config-ed25519.pem google-play-service-account.json; do
             : > "secrets/$file"
             chmod 600 "secrets/$file"
           done
