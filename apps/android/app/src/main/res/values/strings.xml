@@ -1,6 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ganj VPN</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_servers">Servers</string>
+    <string name="nav_connect">Connect</string>
+    <string name="nav_store">Store</string>
+    <string name="nav_account">Account</string>
+    <string name="a11y_selected">selected</string>
+
+    <string name="connection_disconnected">Ready to connect</string>
+    <string name="connection_connecting">Creating a secure connection</string>
+    <string name="connection_connected">VPN connected</string>
+    <string name="connection_reconnecting">Restoring secure connection</string>
+    <string name="connection_failed">Connection failed</string>
+    <string name="connection_unavailable">Choose an active service first</string>
+    <string name="connection_action_connect">Connect</string>
+    <string name="connection_action_disconnect">Disconnect</string>
+    <string name="connection_action_retry">Try again</string>
+    <string name="connection_a11y_connected">VPN is connected. Double tap to disconnect.</string>
+    <string name="connection_a11y_busy">Secure connection is being prepared.</string>
+    <string name="connection_a11y_ready">Ready to connect. Double tap to connect.</string>
+    <string name="connection_a11y_unavailable">Connection is unavailable. Choose an active service first.</string>
+
+    <string name="glass_reduce_transparency">Reduced transparency mode</string>
+
     <string name="vpn_session_name">Ganj VPN secure connection</string>
     <string name="vpn_notification_channel">VPN connection</string>
     <string name="vpn_notification_channel_description">Shows the active Ganj VPN connection</string>
