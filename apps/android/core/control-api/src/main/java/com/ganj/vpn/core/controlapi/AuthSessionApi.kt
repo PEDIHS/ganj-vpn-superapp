@@ -35,6 +35,15 @@ class AuthSessionCredentials(
         "AuthSessionCredentials(userId=$userId, deviceId=$deviceId, accessToken=[REDACTED], refreshToken=[REDACTED])"
 }
 
+interface SessionCredentialVault : AuthTokenProvider {
+    fun currentUserId(): String?
+    fun currentDeviceId(): String?
+    fun currentRefreshToken(): RefreshToken?
+    fun restore(): AuthSessionCredentials?
+    fun save(session: AuthSessionCredentials): Result<Unit>
+    fun clear(): Result<Unit>
+}
+
 data class GuestSessionCommand(
     val deviceId: String,
     val keyVersion: String,
