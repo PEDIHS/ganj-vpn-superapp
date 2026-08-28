@@ -5,8 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.ganj.vpn.core.controlapi.AndroidKeystoreSessionVault
 import com.ganj.vpn.core.controlapi.AuthSessionApiFactory
-import com.ganj.vpn.core.controlapi.AuthSessionCredentials
-import com.ganj.vpn.core.controlapi.AuthSessionVault
 import com.ganj.vpn.core.deviceidentity.AndroidDeviceIdentity
 import com.ganj.vpn.presentation.ConnectionProfileContextProvider
 import java.net.URI
@@ -27,15 +25,9 @@ class GanjCompositionOwner internal constructor(
             require(modelClass.isAssignableFrom(GanjCompositionOwner::class.java))
             val deviceIdentity = AndroidDeviceIdentity.create(application)
             val composition = if (endpoint.isValidControlApiEndpoint()) {
-                val secureVault = AndroidKeystoreSessionVault(application)
-                val vault = object : AuthSessionVault {
-                    override fun restore(): AuthSessionCredentials? = secureVault.restore()
-                    override fun save(session: AuthSessionCredentials): Result<Unit> = secureVault.save(session)
-                    override fun clear(): Result<Unit> = secureVault.clear()
-                }
                 val sessionManager = AndroidAuthSessionManager(
                     api = AuthSessionApiFactory.create(endpoint),
-                    vault = vault,
+                    vault = AndroidKeystoreSessionVault(application),
                     identity = deviceIdentity,
                 )
                 GanjCompositionFactory.create(
