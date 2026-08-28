@@ -19,12 +19,15 @@ import com.ganj.vpn.core.controlapi.ControlApiComponents
 import com.ganj.vpn.core.controlapi.ControlApiRepository
 import com.ganj.vpn.core.controlapi.ControlApiRepositoryFactory
 import com.ganj.vpn.core.controlapi.Gvp1CryptoProvider
+import com.ganj.vpn.core.controlapi.ManagedServer
 import com.ganj.vpn.core.controlapi.ProfileProvisioningBinding
 import com.ganj.vpn.core.controlapi.ProfileProvisioningError
 import com.ganj.vpn.core.controlapi.ProfileProvisioningResult
 import com.ganj.vpn.core.controlapi.PurchaseChannel
+import com.ganj.vpn.core.controlapi.SubscriptionTier
 import com.ganj.vpn.core.controlapi.UnavailableGvp1CryptoProvider
 import com.ganj.vpn.core.controlapi.UserService
+import com.ganj.vpn.core.controlapi.VpnProtocol
 import com.ganj.vpn.core.playbilling.GooglePlayBillingAdapter
 import com.ganj.vpn.core.playbilling.PlayBillingLifecycleBridge
 import com.ganj.vpn.core.playbilling.PlayPurchaseEvent
@@ -279,12 +282,16 @@ private class UnavailableControlApiRepository(
 ) : ControlApiRepository {
     override fun catalog(channel: PurchaseChannel): ApiResult<List<CatalogProduct>> = failure()
     override fun myServices(): ApiResult<List<UserService>> = failure()
+    override fun servers(
+        tier: SubscriptionTier?,
+        countryCode: String?,
+        protocol: VpnProtocol?,
+    ): ApiResult<List<ManagedServer>> = failure()
     override fun checkout(command: CheckoutCommand): ApiResult<CheckoutOrder> = failure()
     override fun prepareConnection(command: ConnectionProfileCommand): ApiResult<ConnectionProfileLease> = failure()
 
     private fun failure(): ApiResult.Failure = ApiResult.Failure(ApiError.Protocol(null, reason))
 }
-
 
 private object UnavailableConnectionProfileBroker : ConnectionProfileBroker {
     override fun provision(
