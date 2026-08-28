@@ -3,11 +3,11 @@ package com.ganj.vpn.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,6 +35,12 @@ import com.ganj.vpn.presentation.ServiceUiModel
 import com.ganj.vpn.presentation.UiTier
 
 @Composable
+private fun shouldStackScreenActions(): Boolean = GanjResponsivePolicy.shouldStackPrimaryActions(
+    widthDp = LocalConfiguration.current.screenWidthDp,
+    fontScale = LocalDensity.current.fontScale,
+)
+
+@Composable
 internal fun HomeScreen(
     state: GanjUiState,
     onOpenConnect: () -> Unit,
@@ -42,6 +50,7 @@ internal fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val connected = state.connection is ConnectionUiState.Connected
+    val stackActions = shouldStackScreenActions()
     Page(modifier) {
         AppHeader(
             stringResource(R.string.home_title),
@@ -78,19 +87,42 @@ internal fun HomeScreen(
             }
         }
         Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            QuickAction(
-                title = stringResource(R.string.home_my_services),
-                subtitle = stringResource(R.string.home_service_count, state.serviceItems.size),
-                onClick = onOpenServices,
-                modifier = Modifier.weight(1f),
-            )
-            QuickAction(
-                title = stringResource(R.string.home_store),
-                subtitle = stringResource(R.string.home_choose_subscription),
-                onClick = onOpenStore,
-                modifier = Modifier.weight(1f),
-            )
+        if (stackActions) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                QuickAction(
+                    title = stringResource(R.string.home_my_services),
+                    subtitle = stringResource(R.string.home_service_count, state.serviceItems.size),
+                    onClick = onOpenServices,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                QuickAction(
+                    title = stringResource(R.string.home_store),
+                    subtitle = stringResource(R.string.home_choose_subscription),
+                    onClick = onOpenStore,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                QuickAction(
+                    title = stringResource(R.string.home_my_services),
+                    subtitle = stringResource(R.string.home_service_count, state.serviceItems.size),
+                    onClick = onOpenServices,
+                    modifier = Modifier.weight(1f),
+                )
+                QuickAction(
+                    title = stringResource(R.string.home_store),
+                    subtitle = stringResource(R.string.home_choose_subscription),
+                    onClick = onOpenStore,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
         Spacer(Modifier.height(10.dp))
         Text(stringResource(R.string.home_subscription_protected), fontWeight = FontWeight.SemiBold)
@@ -302,30 +334,22 @@ internal fun PlanCard(
     onPurchase: (PlanUiModel) -> Unit,
 ) {
     val premium = product.tier == UiTier.VIP
+    val stackActions = shouldStackScreenActions()
     ContentCard(
         accent = if (premium) GanjGold else MaterialTheme.colorScheme.primary,
         modifier = Modifier.clickable { onSelect(product.id) },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            androidx.compose.foundation.layout.Column {
-                Text(product.title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    tierText(product.tier),
-                    color = if (premium) GanjGold else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.End) {
-                Text(formatPrice(product), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    product.durationDays?.let { stringResource(R.string.plan_days, it) }
-                        ?: stringResource(R.string.plan_service),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp,
-                )
+        if (stackActions) {
+            PlanIdentity(product = product, premium = premium)
+            PlanPrice(product = product, horizontalAlignment = Alignment.Start)
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PlanIdentity(product = product, premium = premium)
+                PlanPrice(product = product, horizontalAlignment = Alignment.End)
             }
         }
         product.benefits.take(6).forEach { Text("✓  $it", fontSize = 13.sp) }
@@ -345,6 +369,41 @@ internal fun PlanCard(
                 },
             )
         }
+    }
+}
+
+@Composable
+private fun PlanIdentity(product: PlanUiModel, premium: Boolean) {
+    Column {
+        Text(
+            product.title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            tierText(product.tier),
+            color = if (premium) GanjGold else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun PlanPrice(
+    product: PlanUiModel,
+    horizontalAlignment: Alignment.Horizontal,
+) {
+    Column(horizontalAlignment = horizontalAlignment) {
+        Text(
+            formatPrice(product),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            product.durationDays?.let { stringResource(R.string.plan_days, it) }
+                ?: stringResource(R.string.plan_service),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 
@@ -446,6 +505,7 @@ internal fun ServiceCard(
     onSelect: () -> Unit,
     onConnect: () -> Unit,
 ) {
+    val stackActions = shouldStackScreenActions()
     ContentCard(
         accent = when {
             !service.isActive -> MaterialTheme.colorScheme.error
@@ -453,54 +513,102 @@ internal fun ServiceCard(
             else -> MaterialTheme.colorScheme.primary
         },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            androidx.compose.foundation.layout.Column {
-                Text(service.displayName, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    serviceStatusText(service.status),
-                    color = if (service.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
-                )
-            }
-            if (selected) {
-                Text(
-                    stringResource(R.string.account_selected_badge),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+        if (stackActions) {
+            ServiceIdentity(service = service)
+            if (selected) SelectedServiceBadge()
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ServiceIdentity(service = service)
+                if (selected) SelectedServiceBadge()
             }
         }
         Text(
             "${formatTraffic(service.remainingBytes)} • ${stringResource(R.string.account_devices_allowed, service.deviceLimit)}",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodySmall,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(
-                onClick = onSelect,
-                enabled = service.isActive,
-                modifier = Modifier.weight(1f),
+        if (stackActions) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    if (selected) {
-                        stringResource(R.string.common_selected)
-                    } else {
-                        stringResource(R.string.account_use_plan)
-                    },
-                )
+                OutlinedButton(
+                    onClick = onSelect,
+                    enabled = service.isActive,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        if (selected) {
+                            stringResource(R.string.common_selected)
+                        } else {
+                            stringResource(R.string.account_use_plan)
+                        },
+                    )
+                }
+                Button(
+                    onClick = onConnect,
+                    enabled = service.isActive && selected,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.common_connect))
+                }
             }
-            Button(
-                onClick = onConnect,
-                enabled = service.isActive && selected,
-                modifier = Modifier.weight(1f),
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(stringResource(R.string.common_connect))
+                OutlinedButton(
+                    onClick = onSelect,
+                    enabled = service.isActive,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        if (selected) {
+                            stringResource(R.string.common_selected)
+                        } else {
+                            stringResource(R.string.account_use_plan)
+                        },
+                    )
+                }
+                Button(
+                    onClick = onConnect,
+                    enabled = service.isActive && selected,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.common_connect))
+                }
             }
         }
     }
+}
+
+@Composable
+private fun ServiceIdentity(service: ServiceUiModel) {
+    Column {
+        Text(
+            service.displayName,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            serviceStatusText(service.status),
+            color = if (service.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}
+
+@Composable
+private fun SelectedServiceBadge() {
+    Text(
+        stringResource(R.string.account_selected_badge),
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+    )
 }

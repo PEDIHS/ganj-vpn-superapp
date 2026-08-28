@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ganj_launcher_background"
+        android:pathData="M0,0 H108 V108 H0 Z" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M34,30 C22,38 18,51 22,64 C27,82 46,92 64,86 C82,80 92,61 86,43 C84,37 80,33 74,30"
+        android:strokeColor="@color/ganj_launcher_foreground"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="8" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M54,18 L54,49"
+        android:strokeColor="@color/ganj_launcher_foreground"
+        android:strokeLineCap="round"
+        android:strokeWidth="8" />
+</vector>

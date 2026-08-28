@@ -20,6 +20,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -120,6 +122,10 @@ internal fun BugReportPanel(
     var consent by remember { mutableStateOf(false) }
     val submitting = status == BugReportUiState.Submitting
     val categories = remember { BugCategory.entries.toList() }
+    val categoryColumns = GanjResponsivePolicy.categoryColumns(
+        widthDp = LocalConfiguration.current.screenWidthDp,
+        fontScale = LocalDensity.current.fontScale,
+    )
 
     ContentCard(accent = MaterialTheme.colorScheme.secondary) {
         Text(stringResource(R.string.bug_title), fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -149,7 +155,7 @@ internal fun BugReportPanel(
             fontSize = 12.sp,
         )
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            categories.chunked(2).forEach { rowCategories ->
+            categories.chunked(categoryColumns).forEach { rowCategories ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -163,12 +169,12 @@ internal fun BugReportPanel(
                         ) {
                             Text(
                                 if (category == option) "✓ $optionText" else optionText,
-                                fontSize = 10.sp,
-                                maxLines = 1,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = if (categoryColumns == 1) 2 else 1,
                             )
                         }
                     }
-                    if (rowCategories.size == 1) {
+                    repeat(categoryColumns - rowCategories.size) {
                         Box(modifier = Modifier.weight(1f))
                     }
                 }
@@ -179,7 +185,7 @@ internal fun BugReportPanel(
             Text(
                 stringResource(R.string.bug_diagnostics_consent),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -202,7 +208,7 @@ internal fun BugReportPanel(
                 Text(
                     stringResource(R.string.bug_status, bugStatusText(status.status)),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 OutlinedButton(onClick = onClear) {
                     Text(stringResource(R.string.bug_another))
@@ -242,14 +248,14 @@ internal fun DiagnosticPanel(
         Text(
             stringResource(R.string.diagnostic_privacy_body),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.bodySmall,
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
             Text(
                 stringResource(R.string.diagnostic_consent),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -273,7 +279,7 @@ internal fun DiagnosticPanel(
                 Text(
                     stringResource(R.string.diagnostic_redaction_policy, status.redactionVersion),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 OutlinedButton(onClick = onClear) {
                     Text(stringResource(R.string.common_done))
