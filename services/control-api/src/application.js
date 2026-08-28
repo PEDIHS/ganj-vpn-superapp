@@ -272,7 +272,7 @@ async function fulfillOrder(repository, order, plan, now) {
   });
 }
 
-export function createApplication({ repository, auth, telegramAuth, purchaseVerifier, playNotifications, enterpriseSecurity, clock = () => new Date() }) {
+export function createApplication({ repository, auth, authSession, telegramAuth, purchaseVerifier, playNotifications, enterpriseSecurity, clock = () => new Date() }) {
   assertPort('repository', repository, [
     'transaction',
     'listPlans', 'findPlan', 'listServices', 'findOwnedService', 'saveService', 'createService',
@@ -282,6 +282,7 @@ export function createApplication({ repository, auth, telegramAuth, purchaseVeri
   ]);
   assertPort('auth', auth, ['authenticate', 'verifyDeviceProof', 'sealConnectionProfile']);
   assertPort('Telegram auth', telegramAuth, ['exchangeAuthorizationCode']);
+  if (authSession) assertPort('auth session', authSession, ['jwks', 'guest', 'beginTelegram', 'refresh', 'logout']);
   assertPort('purchase verifier', purchaseVerifier, [
     'verifyPlayPurchase', 'getPlaySubscriptionState', 'acknowledgePlayPurchase',
     'cancelPlaySubscription', 'revokePlaySubscription',
@@ -310,6 +311,40 @@ export function createApplication({ repository, auth, telegramAuth, purchaseVeri
 
       if (request.method === 'GET' && pathname === '/healthz') {
         return { status: 200, body: { status: 'ok' } };
+      }
+
+      if (request.method === 'GET' && pathname === '/.well-known/jwks.json') {
+        if (!authSession) throw new ApiError(503, 'auth_session_unavailable', 'Authentication service is unavailable.');
+        return { status: 200, body: authSession.jwks() };
+      }
+
+      if (request.method === 'POST' && pathname === '/v1/auth/guest') {
+        if (!authSession) throw new ApiError(503, 'auth_session_unavailable', 'Authentication service is unavailable.');
+        const body = await parseBody(request);
+        rejectUnknown(body, [
+          'device_id', 'key_version', 'signing_public_key_spki',
+          'encryption_public_key_raw', 'device_proof',
+        ]);
+        const result = await authSession.guest({
+          deviceId: requireUuid(body.device_id, 'device_id'),
+          keyVersion: requireString(body.key_version, 'key_version', { min: 2, max: 16 }),
+          signingPublicKeySpki: requireString(body.signing_public_key_spki, 'signing_public_key_spki', { min: 80, max: 512 }),
+          encryptionPublicKeyRaw: requireString(body.encryption_public_key_raw, 'encryption_public_key_raw', { min: 43, max: 43 }),
+          deviceProof: requireString(body.device_proof, 'device_proof', { min: 80, max: 1024 }),
+        });
+        return { status: 201, body: success(result, requestId, clock) };
+      }
+
+      if (request.method === 'POST' && pathname === '/v1/auth/refresh') {
+        if (!authSession) throw new ApiError(503, 'auth_session_unavailable', 'Authentication service is unavailable.');
+        const body = await parseBody(request);
+        rejectUnknown(body, ['refresh_token', 'device_id', 'device_proof']);
+        const result = await authSession.refresh({
+          refreshToken: requireString(body.refresh_token, 'refresh_token', { min: 43, max: 43 }),
+          deviceId: requireUuid(body.device_id, 'device_id'),
+          deviceProof: requireString(body.device_proof, 'device_proof', { min: 80, max: 1024 }),
+        });
+        return { status: 200, body: success(result, requestId, clock) };
       }
 
       if (request.method === 'GET' && pathname === '/v1/store/plans') {
@@ -393,6 +428,24 @@ export function createApplication({ repository, auth, telegramAuth, purchaseVeri
       const principal = await auth.authenticate(request);
       requireUuid(principal.userId, 'authenticated user id');
       requireUuid(principal.deviceId, 'authenticated device id');
+
+      if (request.method === 'POST' && pathname === '/v1/auth/telegram/start') {
+        if (!authSession) throw new ApiError(503, 'auth_session_unavailable', 'Authentication service is unavailable.');
+        const body = await parseBody(request);
+        rejectUnknown(body, ['code_challenge', 'redirect_uri']);
+        const result = await authSession.beginTelegram({
+          principal,
+          codeChallenge: requireString(body.code_challenge, 'code_challenge', { min: 43, max: 43 }),
+          redirectUri: requireString(body.redirect_uri, 'redirect_uri', { min: 12, max: 2048 }),
+        });
+        return { status: 200, body: success(result, requestId, clock) };
+      }
+
+      if (request.method === 'POST' && pathname === '/v1/auth/logout') {
+        if (!authSession) throw new ApiError(503, 'auth_session_unavailable', 'Authentication service is unavailable.');
+        const result = await authSession.logout(principal);
+        return { status: 200, body: success(result, requestId, clock) };
+      }
 
       if (enterpriseRouter) {
         const enterpriseResponse = await enterpriseRouter({ request, url, pathname, principal, requestId });
