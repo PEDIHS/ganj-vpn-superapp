@@ -26,7 +26,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ganj.vpn.R
 import com.ganj.vpn.enterprise.BugCategory
 import com.ganj.vpn.enterprise.BugReportInput
@@ -51,16 +50,23 @@ internal fun ProductGateScreen(
             accent = GanjWarning,
             modifier = Modifier.fillMaxWidth(),
         ) {
+            GanjStatusPill(
+                text = stringResource(R.string.enterprise_product_status),
+                tone = GanjStatusTone.Warning,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
             Text(
                 title,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
             Text(
                 message,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
             Text(
                 stringResource(R.string.gate_policy_paused),
@@ -86,24 +92,27 @@ internal fun EnterpriseStatusCard(
         is ProductAvailabilityUiState.OptionalUpdate -> GanjWarning
         else -> MaterialTheme.colorScheme.error
     }
+    val statusText = when (availability) {
+        ProductAvailabilityUiState.Loading -> stringResource(R.string.enterprise_policy_checking)
+        ProductAvailabilityUiState.Available -> stringResource(R.string.enterprise_operational)
+        is ProductAvailabilityUiState.OptionalUpdate ->
+            stringResource(R.string.enterprise_optional_update, availability.latestVersion)
+        is ProductAvailabilityUiState.ForcedUpdate ->
+            stringResource(R.string.enterprise_security_update_required)
+        is ProductAvailabilityUiState.Maintenance ->
+            availability.message ?: stringResource(R.string.enterprise_maintenance)
+        ProductAvailabilityUiState.AuthRequired -> stringResource(R.string.enterprise_sign_in_policy)
+        is ProductAvailabilityUiState.Failed -> stringResource(R.string.enterprise_policy_unavailable)
+    }
+    val tone = when (availability) {
+        ProductAvailabilityUiState.Available -> GanjStatusTone.Positive
+        ProductAvailabilityUiState.Loading -> GanjStatusTone.Neutral
+        is ProductAvailabilityUiState.OptionalUpdate -> GanjStatusTone.Warning
+        else -> GanjStatusTone.Danger
+    }
     ContentCard(accent = accent) {
-        Text(stringResource(R.string.enterprise_product_status), fontWeight = FontWeight.Bold)
-        Text(
-            when (availability) {
-                ProductAvailabilityUiState.Loading -> stringResource(R.string.enterprise_policy_checking)
-                ProductAvailabilityUiState.Available -> stringResource(R.string.enterprise_operational)
-                is ProductAvailabilityUiState.OptionalUpdate ->
-                    stringResource(R.string.enterprise_optional_update, availability.latestVersion)
-                is ProductAvailabilityUiState.ForcedUpdate ->
-                    stringResource(R.string.enterprise_security_update_required)
-                is ProductAvailabilityUiState.Maintenance ->
-                    availability.message ?: stringResource(R.string.enterprise_maintenance)
-                ProductAvailabilityUiState.AuthRequired -> stringResource(R.string.enterprise_sign_in_policy)
-                is ProductAvailabilityUiState.Failed -> stringResource(R.string.enterprise_policy_unavailable)
-            },
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
+        GanjSectionHeader(title = stringResource(R.string.enterprise_product_status))
+        GanjStatusPill(text = statusText, tone = tone)
         OutlinedButton(onClick = onRefresh) {
             Text(stringResource(R.string.enterprise_refresh_status))
         }
@@ -128,12 +137,25 @@ internal fun BugReportPanel(
     )
 
     ContentCard(accent = MaterialTheme.colorScheme.secondary) {
-        Text(stringResource(R.string.bug_title), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text(
-            stringResource(R.string.bug_privacy_warning),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 11.sp,
+        GanjSectionHeader(
+            title = stringResource(R.string.bug_title),
+            supporting = stringResource(R.string.bug_privacy_warning),
         )
+        when (status) {
+            BugReportUiState.Submitting -> GanjStatusPill(
+                text = stringResource(R.string.bug_submitting),
+                tone = GanjStatusTone.Neutral,
+            )
+            is BugReportUiState.Submitted -> GanjStatusPill(
+                text = stringResource(R.string.bug_submitted, status.publicCode),
+                tone = GanjStatusTone.Positive,
+            )
+            is BugReportUiState.Failed -> GanjStatusPill(
+                text = enterpriseMessage(status.messageKey),
+                tone = GanjStatusTone.Danger,
+            )
+            else -> Unit
+        }
         OutlinedTextField(
             value = title,
             onValueChange = { title = it.take(200) },
@@ -152,7 +174,7 @@ internal fun BugReportPanel(
         Text(
             stringResource(R.string.bug_category),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
         )
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             categories.chunked(categoryColumns).forEach { rowCategories ->
@@ -197,14 +219,9 @@ internal fun BugReportPanel(
             ) {
                 Text(stringResource(R.string.bug_send))
             }
-            BugReportUiState.Submitting -> LoadingCard(stringResource(R.string.bug_submitting))
+            BugReportUiState.Submitting -> Unit
             BugReportUiState.AuthRequired -> AuthCard(onClear)
             is BugReportUiState.Submitted -> {
-                Text(
-                    stringResource(R.string.bug_submitted, status.publicCode),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                )
                 Text(
                     stringResource(R.string.bug_status, bugStatusText(status.status)),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -215,11 +232,6 @@ internal fun BugReportPanel(
                 }
             }
             is BugReportUiState.Failed -> {
-                Text(
-                    enterpriseMessage(status.messageKey),
-                    color = MaterialTheme.colorScheme.error,
-                    fontWeight = FontWeight.Bold,
-                )
                 OutlinedButton(onClick = onClear) {
                     Text(
                         if (status.retryable) {
@@ -244,12 +256,29 @@ internal fun DiagnosticPanel(
     val busy = status == DiagnosticUiState.Running || status == DiagnosticUiState.Uploading
 
     ContentCard(accent = MaterialTheme.colorScheme.primary) {
-        Text(stringResource(R.string.diagnostic_title), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text(
-            stringResource(R.string.diagnostic_privacy_body),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
+        GanjSectionHeader(
+            title = stringResource(R.string.diagnostic_title),
+            supporting = stringResource(R.string.diagnostic_privacy_body),
         )
+        when (status) {
+            DiagnosticUiState.Running -> GanjStatusPill(
+                text = stringResource(R.string.diagnostic_running),
+                tone = GanjStatusTone.Neutral,
+            )
+            DiagnosticUiState.Uploading -> GanjStatusPill(
+                text = stringResource(R.string.diagnostic_uploading),
+                tone = GanjStatusTone.Neutral,
+            )
+            is DiagnosticUiState.Submitted -> GanjStatusPill(
+                text = stringResource(R.string.diagnostic_submitted),
+                tone = GanjStatusTone.Positive,
+            )
+            is DiagnosticUiState.Failed -> GanjStatusPill(
+                text = enterpriseMessage(status.messageKey),
+                tone = GanjStatusTone.Danger,
+            )
+            else -> Unit
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
             Text(
@@ -267,30 +296,19 @@ internal fun DiagnosticPanel(
             ) {
                 Text(stringResource(R.string.diagnostic_run))
             }
-            DiagnosticUiState.Running -> LoadingCard(stringResource(R.string.diagnostic_running))
-            DiagnosticUiState.Uploading -> LoadingCard(stringResource(R.string.diagnostic_uploading))
+            DiagnosticUiState.Running -> Unit
+            DiagnosticUiState.Uploading -> Unit
             DiagnosticUiState.AuthRequired -> AuthCard(onClear)
             is DiagnosticUiState.Submitted -> {
-                Text(
-                    stringResource(R.string.diagnostic_submitted),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    stringResource(R.string.diagnostic_redaction_policy, status.redactionVersion),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
+                GanjInfoChip(
+                    text = stringResource(R.string.diagnostic_redaction_policy, status.redactionVersion),
+                    accent = MaterialTheme.colorScheme.primary,
                 )
                 OutlinedButton(onClick = onClear) {
                     Text(stringResource(R.string.common_done))
                 }
             }
             is DiagnosticUiState.Failed -> {
-                Text(
-                    enterpriseMessage(status.messageKey),
-                    color = MaterialTheme.colorScheme.error,
-                    fontWeight = FontWeight.Bold,
-                )
                 OutlinedButton(onClick = onClear) {
                     Text(
                         if (status.retryable) {

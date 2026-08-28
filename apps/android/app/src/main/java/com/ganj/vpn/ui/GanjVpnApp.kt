@@ -207,81 +207,81 @@ fun GanjVpnApp(
                     )
                 },
             ) { padding ->
-                when (selectedDestination) {
-                    GanjDestination.Home -> HomeScreen(
-                        state = state,
-                        onOpenConnect = { selectedDestination = GanjDestination.Connect },
-                        onOpenStore = { selectedDestination = GanjDestination.Store },
-                        onOpenServices = { selectedDestination = GanjDestination.Account },
-                        onRefresh = ::refresh,
-                        modifier = Modifier.padding(padding),
-                    )
+                GanjDestinationTransition(
+                    destination = selectedDestination,
+                    modifier = Modifier.padding(padding),
+                ) { destination ->
+                    when (destination) {
+                        GanjDestination.Home -> HomeScreen(
+                            state = state,
+                            onOpenConnect = { selectedDestination = GanjDestination.Connect },
+                            onOpenStore = { selectedDestination = GanjDestination.Store },
+                            onOpenServices = { selectedDestination = GanjDestination.Account },
+                            onRefresh = ::refresh,
+                        )
 
-                    GanjDestination.Servers -> SmartRoutingScreen(
-                        state = state,
-                        onSelectService = {
-                            commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
-                        },
-                        onConnect = {
-                            requestProfile(it)
-                            selectedDestination = GanjDestination.Connect
-                        },
-                        onRetry = ::refresh,
-                        modifier = Modifier.padding(padding),
-                    )
+                        GanjDestination.Servers -> SmartRoutingScreen(
+                            state = state,
+                            onSelectService = {
+                                commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
+                            },
+                            onConnect = {
+                                requestProfile(it)
+                                selectedDestination = GanjDestination.Connect
+                            },
+                            onRetry = ::refresh,
+                        )
 
-                    GanjDestination.Connect -> ConnectionDashboard(
-                        state = state,
-                        onConnect = ::requestProfile,
-                        onClear = ::disconnectTunnel,
-                        onOpenServices = { selectedDestination = GanjDestination.Account },
-                        onRetry = ::refresh,
-                        modifier = Modifier.padding(padding),
-                    )
+                        GanjDestination.Connect -> ConnectionDashboard(
+                            state = state,
+                            onConnect = ::requestProfile,
+                            onClear = ::disconnectTunnel,
+                            onOpenServices = { selectedDestination = GanjDestination.Account },
+                            onRetry = ::refresh,
+                        )
 
-                    GanjDestination.Store -> StoreScreen(
-                        state = state,
-                        onSelect = {
-                            commit(reducer.reduce(state, GanjUiEvent.SelectPlan(it)))
-                        },
-                        onPurchase = ::checkout,
-                        onRetry = ::refresh,
-                        modifier = Modifier.padding(padding),
-                    )
+                        GanjDestination.Store -> StoreScreen(
+                            state = state,
+                            onSelect = {
+                                commit(reducer.reduce(state, GanjUiEvent.SelectPlan(it)))
+                            },
+                            onPurchase = ::checkout,
+                            onRetry = ::refresh,
+                        )
 
-                    GanjDestination.Account -> MyServicesScreen(
-                        state = state,
-                        enterpriseState = enterpriseState,
-                        onSelectService = {
-                            commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
-                        },
-                        onConnect = {
-                            state.selectedEntitlementId?.let(::requestProfile)
-                            selectedDestination = GanjDestination.Connect
-                        },
-                        onBuy = { selectedDestination = GanjDestination.Store },
-                        onRetry = ::refresh,
-                        onEnterpriseRefresh = ::refreshEnterprise,
-                        onSubmitBug = ::submitBug,
-                        onSubmitDiagnostics = ::submitDiagnostics,
-                        onClearBug = {
-                            commitEnterprise(
-                                enterpriseReducer.reduce(
-                                    enterpriseState,
-                                    EnterpriseEvent.ClearBugResult,
-                                ),
-                            )
-                        },
-                        onClearDiagnostic = {
-                            commitEnterprise(
-                                enterpriseReducer.reduce(
-                                    enterpriseState,
-                                    EnterpriseEvent.ClearDiagnosticResult,
-                                ),
-                            )
-                        },
-                        modifier = Modifier.padding(padding),
-                    )
+                        GanjDestination.Account -> MyServicesScreen(
+                            state = state,
+                            enterpriseState = enterpriseState,
+                            onSelectService = {
+                                commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
+                            },
+                            onConnect = {
+                                state.selectedEntitlementId?.let(::requestProfile)
+                                selectedDestination = GanjDestination.Connect
+                            },
+                            onBuy = { selectedDestination = GanjDestination.Store },
+                            onRetry = ::refresh,
+                            onEnterpriseRefresh = ::refreshEnterprise,
+                            onSubmitBug = ::submitBug,
+                            onSubmitDiagnostics = ::submitDiagnostics,
+                            onClearBug = {
+                                commitEnterprise(
+                                    enterpriseReducer.reduce(
+                                        enterpriseState,
+                                        EnterpriseEvent.ClearBugResult,
+                                    ),
+                                )
+                            },
+                            onClearDiagnostic = {
+                                commitEnterprise(
+                                    enterpriseReducer.reduce(
+                                        enterpriseState,
+                                        EnterpriseEvent.ClearDiagnosticResult,
+                                    ),
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
