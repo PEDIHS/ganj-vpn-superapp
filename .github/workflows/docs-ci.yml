@@ -60,6 +60,10 @@ jobs:
         shell: bash
         run: jq empty design/tokens.json
 
+      - name: Verify Auth Session v1 OpenAPI synchronization
+        shell: bash
+        run: python3 .github/scripts/sync-auth-openapi.py --check
+
       - name: Lint OpenAPI contract
         shell: bash
         run: npx --yes @redocly/cli@1.34.5 lint api/openapi.yaml
