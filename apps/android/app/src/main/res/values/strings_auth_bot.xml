@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="telegram_account_title">Ganj account</string>
+    <string name="telegram_account_guest">Guest</string>
+    <string name="telegram_account_linked">Telegram linked</string>
+    <string name="telegram_account_guest_body">Free VPN works without login. Link Telegram only for purchases and your existing paid services.</string>
+    <string name="telegram_account_linked_body">Your Telegram identity is linked to this device and paid ownership can be synchronized.</string>
+    <string name="telegram_account_login">Continue with Telegram</string>
+    <string name="telegram_account_waiting">Approve the request in Ganj Bot, then return here. We will check it automatically.</string>
+    <string name="telegram_account_check">Check approval</string>
+    <string name="telegram_account_cancelled">The Telegram approval was cancelled.</string>
+    <string name="telegram_account_failed">Telegram linking could not be completed. Start a fresh approval request.</string>
+    <string name="telegram_account_logout">Unlink this device</string>
+</resources>
