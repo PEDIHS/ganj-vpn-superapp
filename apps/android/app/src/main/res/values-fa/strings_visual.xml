@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="visual_protected">محافظت‌شده</string>
+    <string name="visual_ready">آماده</string>
+    <string name="visual_verified">تاییدشده</string>
+    <string name="visual_signature">Ganj Signature</string>
+    <string name="visual_device_verified">دستگاه تاییدشده</string>
+    <string name="visual_selected_service">سرویس انتخاب‌شده</string>
+    <string name="visual_active_service">سرویس فعال</string>
+    <string name="visual_protocols">%1$d پروتکل</string>
+    <string name="visual_service_security">دسترسی امن به سرویس</string>
+    <string name="visual_service_security_body">فقط اشتراک تاییدشده و دستگاه ثبت‌شده شما می‌تواند پروفایل اتصال درخواست کند.</string>
+    <string name="visual_available_services">سرویس‌های قابل استفاده</string>
+    <string name="visual_available_services_body">مسیریابی هوشمند فقط از مقصدهای مجاز سرویس فعلی شما استفاده می‌کند.</string>
+    <string name="visual_store_plans">پلن‌های اشتراک</string>
+    <string name="visual_store_plans_body">پلنی را انتخاب کنید که با نوع استفاده شما هماهنگ است.</string>
+    <string name="visual_my_services">اشتراک‌های شما</string>
+    <string name="visual_my_services_body">سرویس‌های متصل به حساب خود را مدیریت کنید و با آن‌ها وصل شوید.</string>
+</resources>
