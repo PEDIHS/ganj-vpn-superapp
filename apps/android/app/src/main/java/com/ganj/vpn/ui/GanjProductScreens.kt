@@ -22,7 +22,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ganj.vpn.R
 import com.ganj.vpn.enterprise.BugReportInput
 import com.ganj.vpn.enterprise.EnterpriseUiState
@@ -50,6 +49,7 @@ internal fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val connected = state.connection is ConnectionUiState.Connected
+    val serviceReady = state.selectedService?.isActive == true
     val stackActions = shouldStackScreenActions()
     Page(modifier) {
         AppHeader(
@@ -57,12 +57,18 @@ internal fun HomeScreen(
             stringResource(R.string.home_subtitle),
             onRefresh,
         )
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(8.dp))
         GanjGlassSurface(
             role = GanjGlassRole.Prominent,
             accent = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth(),
         ) {
+            if (connected || serviceReady) {
+                GanjStatusPill(
+                    text = stringResource(if (connected) R.string.visual_protected else R.string.visual_ready),
+                    tone = GanjStatusTone.Positive,
+                )
+            }
             Text(
                 stringResource(R.string.home_connection_profile),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -82,11 +88,34 @@ internal fun HomeScreen(
                 state.selectedService?.displayName ?: stringResource(R.string.home_no_active_service),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            state.selectedService?.let { service ->
+                if (stackActions) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GanjInfoChip(text = tierText(service.tier))
+                        GanjInfoChip(
+                            text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
+                            accent = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GanjInfoChip(text = tierText(service.tier))
+                        GanjInfoChip(
+                            text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
+                            accent = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
             Button(onClick = onOpenConnect, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.home_open_secure_connection))
             }
         }
-        Spacer(Modifier.height(6.dp))
+
+        GanjSectionHeader(
+            title = stringResource(R.string.visual_service_security),
+            supporting = stringResource(R.string.visual_service_security_body),
+        )
         if (stackActions) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -124,13 +153,18 @@ internal fun HomeScreen(
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
-        Text(stringResource(R.string.home_subscription_protected), fontWeight = FontWeight.SemiBold)
-        Text(
-            stringResource(R.string.home_subscription_protected_body),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
+        ContentCard(accent = MaterialTheme.colorScheme.primary) {
+            GanjStatusPill(
+                text = stringResource(R.string.visual_verified),
+                tone = GanjStatusTone.Positive,
+            )
+            Text(stringResource(R.string.home_subscription_protected), fontWeight = FontWeight.SemiBold)
+            Text(
+                stringResource(R.string.home_subscription_protected_body),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
 }
 
@@ -148,7 +182,10 @@ internal fun SmartRoutingScreen(
             stringResource(R.string.servers_subtitle),
             onRetry,
         )
-        Spacer(Modifier.height(10.dp))
+        GanjSectionHeader(
+            title = stringResource(R.string.visual_available_services),
+            supporting = stringResource(R.string.visual_available_services_body),
+        )
         when (val services = state.services) {
             ContentState.Loading -> LoadingCard(stringResource(R.string.servers_loading))
             ContentState.Empty -> EmptyCard(
@@ -160,18 +197,55 @@ internal fun SmartRoutingScreen(
             is ContentState.Error -> ErrorCard(services.failure, onRetry)
             is ContentState.Ready -> services.items.forEach { service ->
                 ContentCard(
-                    accent = if (service.isActive) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.outline
+                    accent = when {
+                        !service.isActive -> MaterialTheme.colorScheme.outline
+                        service.tier == UiTier.VIP -> GanjGold
+                        else -> MaterialTheme.colorScheme.primary
                     },
                 ) {
-                    Text(service.displayName, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text(
-                        "${service.countryCode ?: stringResource(R.string.common_global)} • ${service.allowedProtocols.joinToString()}",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                service.displayName,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                service.countryCode ?: stringResource(R.string.common_global),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        GanjStatusPill(
+                            text = if (service.isActive) {
+                                stringResource(R.string.visual_ready)
+                            } else {
+                                serviceStatusText(service.status)
+                            },
+                            tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Neutral,
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GanjInfoChip(
+                            text = stringResource(R.string.visual_protocols, service.allowedProtocols.size),
+                            accent = MaterialTheme.colorScheme.primary,
+                        )
+                        GanjInfoChip(
+                            text = tierText(service.tier),
+                            accent = if (service.tier == UiTier.VIP) GanjGold else MaterialTheme.colorScheme.secondary,
+                        )
+                    }
+                    if (service.allowedProtocols.isNotEmpty()) {
+                        Text(
+                            service.allowedProtocols.joinToString(separator = " • "),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     Button(
                         enabled = service.isActive,
                         onClick = {
@@ -231,7 +305,18 @@ internal fun ConnectionDashboard(
             stringResource(R.string.connect_subtitle),
             onRetry,
         )
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(8.dp))
+        service?.let {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                GanjStatusPill(
+                    text = stringResource(R.string.visual_selected_service),
+                    tone = if (it.tier == UiTier.VIP) GanjStatusTone.Premium else GanjStatusTone.Positive,
+                )
+            }
+        }
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
@@ -249,9 +334,19 @@ internal fun ConnectionDashboard(
         Text(
             text = service?.displayName ?: stringResource(R.string.connect_no_service),
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )
+        service?.let {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                GanjInfoChip(text = tierText(it.tier))
+            }
+        }
         if (service == null) {
             OutlinedButton(
                 onClick = onOpenServices,
@@ -267,9 +362,11 @@ internal fun ConnectionDashboard(
             }
             else -> Unit
         }
-        Spacer(Modifier.height(12.dp))
         ContentCard(accent = MaterialTheme.colorScheme.primary) {
-            Text(stringResource(R.string.connect_device_bound), fontWeight = FontWeight.Bold)
+            GanjStatusPill(
+                text = stringResource(R.string.connect_device_bound),
+                tone = GanjStatusTone.Positive,
+            )
             Text(
                 if (connection is ConnectionUiState.Connected) {
                     stringResource(R.string.connect_device_bound_active)
@@ -278,7 +375,6 @@ internal fun ConnectionDashboard(
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
             )
         }
     }
@@ -298,7 +394,10 @@ internal fun StoreScreen(
             stringResource(R.string.store_subtitle),
             onRetry,
         )
-        Spacer(Modifier.height(10.dp))
+        GanjSectionHeader(
+            title = stringResource(R.string.visual_store_plans),
+            supporting = stringResource(R.string.visual_store_plans_body),
+        )
         when (val catalog = state.catalog) {
             ContentState.Loading -> LoadingCard(stringResource(R.string.store_loading))
             ContentState.Empty -> EmptyCard(
@@ -318,10 +417,14 @@ internal fun StoreScreen(
             checkout = state.checkout,
             onRetry = { state.selectedPlan?.let(onPurchase) ?: onRetry() },
         )
+        GanjStatusPill(
+            text = stringResource(R.string.visual_verified),
+            tone = GanjStatusTone.Positive,
+        )
         Text(
             stringResource(R.string.store_verification_notice),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.bodySmall,
         )
     }
 }
@@ -340,6 +443,37 @@ internal fun PlanCard(
         modifier = Modifier.clickable { onSelect(product.id) },
     ) {
         if (stackActions) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GanjStatusPill(
+                    text = if (premium) stringResource(R.string.visual_signature) else tierText(product.tier),
+                    tone = if (premium) GanjStatusTone.Premium else GanjStatusTone.Positive,
+                )
+                if (selected) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.common_selected),
+                        tone = GanjStatusTone.Positive,
+                    )
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GanjStatusPill(
+                    text = if (premium) stringResource(R.string.visual_signature) else tierText(product.tier),
+                    tone = if (premium) GanjStatusTone.Premium else GanjStatusTone.Positive,
+                )
+                if (selected) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.common_selected),
+                        tone = GanjStatusTone.Positive,
+                    )
+                }
+            }
+        }
+        if (stackActions) {
             PlanIdentity(product = product, premium = premium)
             PlanPrice(product = product, horizontalAlignment = Alignment.Start)
         } else {
@@ -348,11 +482,16 @@ internal fun PlanCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PlanIdentity(product = product, premium = premium)
+                PlanIdentity(product = product, premium = premium, modifier = Modifier.weight(1f))
                 PlanPrice(product = product, horizontalAlignment = Alignment.End)
             }
         }
-        product.benefits.take(6).forEach { Text("✓  $it", fontSize = 13.sp) }
+        product.benefits.take(6).forEach { benefit ->
+            GanjFeatureLine(
+                text = benefit,
+                accent = if (premium) GanjGold else MaterialTheme.colorScheme.primary,
+            )
+        }
         Button(
             onClick = { onPurchase(product) },
             modifier = Modifier.fillMaxWidth(),
@@ -373,8 +512,12 @@ internal fun PlanCard(
 }
 
 @Composable
-private fun PlanIdentity(product: PlanUiModel, premium: Boolean) {
-    Column {
+private fun PlanIdentity(
+    product: PlanUiModel,
+    premium: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
         Text(
             product.title,
             style = MaterialTheme.typography.titleLarge,
@@ -383,6 +526,7 @@ private fun PlanIdentity(product: PlanUiModel, premium: Boolean) {
         Text(
             tierText(product.tier),
             color = if (premium) GanjGold else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
         )
     }
 }
@@ -416,7 +560,10 @@ internal fun CheckoutStatus(
         CheckoutUiState.Idle -> Unit
         CheckoutUiState.AuthRequired -> AuthCard(onRetry)
         is CheckoutUiState.Pending -> ContentCard(accent = GanjWarning) {
-            Text(stringResource(R.string.checkout_pending_title), fontWeight = FontWeight.Bold)
+            GanjStatusPill(
+                text = stringResource(R.string.checkout_pending_title),
+                tone = GanjStatusTone.Warning,
+            )
             Text(
                 checkoutActionText(checkout.action),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -424,7 +571,10 @@ internal fun CheckoutStatus(
             )
         }
         is CheckoutUiState.Verified -> ContentCard(accent = MaterialTheme.colorScheme.secondary) {
-            Text(stringResource(R.string.checkout_verified_title), fontWeight = FontWeight.Bold)
+            GanjStatusPill(
+                text = stringResource(R.string.checkout_verified_title),
+                tone = GanjStatusTone.Positive,
+            )
             Text(
                 stringResource(R.string.checkout_verified_body),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -432,7 +582,10 @@ internal fun CheckoutStatus(
             )
         }
         is CheckoutUiState.Active -> ContentCard(accent = MaterialTheme.colorScheme.primary) {
-            Text(stringResource(R.string.checkout_active_title), fontWeight = FontWeight.Bold)
+            GanjStatusPill(
+                text = stringResource(R.string.checkout_active_title),
+                tone = GanjStatusTone.Positive,
+            )
             Text(
                 stringResource(R.string.checkout_active_body),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -464,7 +617,10 @@ internal fun MyServicesScreen(
             stringResource(R.string.account_subtitle),
             onRetry,
         )
-        Spacer(Modifier.height(10.dp))
+        GanjSectionHeader(
+            title = stringResource(R.string.visual_my_services),
+            supporting = stringResource(R.string.visual_my_services_body),
+        )
         when (val services = state.services) {
             ContentState.Loading -> LoadingCard(stringResource(R.string.account_loading))
             ContentState.Empty -> EmptyCard(
@@ -487,7 +643,7 @@ internal fun MyServicesScreen(
         Button(onClick = onBuy, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.account_buy_another))
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(6.dp))
         EnterpriseStatusCard(enterpriseState.availability, onEnterpriseRefresh)
         if (enterpriseState.features.bugReportsEnabled) {
             BugReportPanel(enterpriseState.bugReport, onSubmitBug, onClearBug)
@@ -515,22 +671,76 @@ internal fun ServiceCard(
     ) {
         if (stackActions) {
             ServiceIdentity(service = service)
-            if (selected) SelectedServiceBadge()
+            if (selected) {
+                GanjStatusPill(
+                    text = stringResource(R.string.visual_selected_service),
+                    tone = GanjStatusTone.Positive,
+                )
+            }
         } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ServiceIdentity(service = service)
-                if (selected) SelectedServiceBadge()
+                ServiceIdentity(service = service, modifier = Modifier.weight(1f))
+                if (selected) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.visual_selected_service),
+                        tone = GanjStatusTone.Positive,
+                    )
+                }
             }
         }
-        Text(
-            "${formatTraffic(service.remainingBytes)} • ${stringResource(R.string.account_devices_allowed, service.deviceLimit)}",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
+        if (stackActions) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GanjStatusPill(
+                    text = if (service.isActive) {
+                        stringResource(R.string.visual_active_service)
+                    } else {
+                        serviceStatusText(service.status)
+                    },
+                    tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Danger,
+                )
+                if (service.tier == UiTier.VIP) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.visual_signature),
+                        tone = GanjStatusTone.Premium,
+                    )
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GanjInfoChip(text = formatTraffic(service.remainingBytes))
+                GanjInfoChip(
+                    text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
+                    accent = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GanjStatusPill(
+                    text = if (service.isActive) {
+                        stringResource(R.string.visual_active_service)
+                    } else {
+                        serviceStatusText(service.status)
+                    },
+                    tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Danger,
+                )
+                if (service.tier == UiTier.VIP) {
+                    GanjStatusPill(
+                        text = stringResource(R.string.visual_signature),
+                        tone = GanjStatusTone.Premium,
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GanjInfoChip(text = formatTraffic(service.remainingBytes))
+                GanjInfoChip(
+                    text = stringResource(R.string.account_devices_allowed, service.deviceLimit),
+                    accent = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
         if (stackActions) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -588,27 +798,20 @@ internal fun ServiceCard(
 }
 
 @Composable
-private fun ServiceIdentity(service: ServiceUiModel) {
-    Column {
+private fun ServiceIdentity(
+    service: ServiceUiModel,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
         Text(
             service.displayName,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            serviceStatusText(service.status),
-            color = if (service.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            tierText(service.tier),
+            color = if (service.tier == UiTier.VIP) GanjGold else MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
     }
-}
-
-@Composable
-private fun SelectedServiceBadge() {
-    Text(
-        stringResource(R.string.account_selected_badge),
-        color = MaterialTheme.colorScheme.primary,
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-    )
 }
