@@ -1,8 +1,13 @@
 package com.ganj.vpn.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -66,7 +71,27 @@ internal fun GanjLiquidConnectControl(
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 320f),
         label = "ganjConnectionStateScale",
     )
-    val scale = if (effects.reduceMotion) 1f else animatedScale
+    val shouldPulse = GanjConnectionMotionPolicy.shouldPulse(
+        state = state,
+        effectsTier = effects.tier,
+        reduceMotion = effects.reduceMotion,
+    )
+    val pulseRange = GanjConnectionMotionPolicy.pulseRange(state)
+    val pulseScale = if (shouldPulse) {
+        val transition = rememberInfiniteTransition(label = "ganjConnectionLiquidPulse")
+        val value by transition.animateFloat(
+            initialValue = pulseRange.start,
+            targetValue = pulseRange.endInclusive,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = if (state == GanjConnectionVisualState.Connected) 1900 else 1050),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "ganjConnectionHaloPulse",
+        )
+        value
+    } else {
+        1f
+    }
 
     val status = when (state) {
         GanjConnectionVisualState.Disconnected -> stringResource(R.string.connection_disconnected)
@@ -103,8 +128,8 @@ internal fun GanjLiquidConnectControl(
 
     Box(
         modifier = modifier
-            .size(218.dp)
-            .scale(scale)
+            .size(226.dp)
+            .scale(if (effects.reduceMotion) 1f else animatedScale)
             .semantics {
                 stateDescription = status
                 contentDescription = a11y
@@ -113,12 +138,14 @@ internal fun GanjLiquidConnectControl(
     ) {
         Box(
             modifier = Modifier
-                .size(218.dp)
+                .size(222.dp)
+                .scale(pulseScale)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
                         listOf(
                             accent.copy(alpha = haloAlpha),
+                            accent.copy(alpha = haloAlpha * 0.35f),
                             Color.Transparent,
                         ),
                     ),
@@ -126,6 +153,18 @@ internal fun GanjLiquidConnectControl(
                 .border(
                     1.dp,
                     accent.copy(alpha = if (effects.reduceTransparency) 0.12f else 0.22f),
+                    CircleShape,
+                ),
+        )
+        Box(
+            modifier = Modifier
+                .size(194.dp)
+                .clip(CircleShape)
+                .border(
+                    1.dp,
+                    LocalGanjGlassPalette.current.highlight.copy(
+                        alpha = if (effects.reduceTransparency) 0.05f else 0.12f,
+                    ),
                     CircleShape,
                 ),
         )
