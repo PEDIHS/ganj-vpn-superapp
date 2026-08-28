@@ -43,9 +43,39 @@ Telegram integration فقط Login نیست. Target نهایی شامل:
 
 UI فعلی روی `main` Functional/Foundation UI است و **Final Product Design محسوب نمی‌شود**.
 
-مرجع قطعی UI/UX و Visual Brand:
+مراجع قطعی UI/UX:
 
-[`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md)
+1. [`15-android-ui-ux-brand-system.fa.md`](15-android-ui-ux-brand-system.fa.md) — Visual Brand / Screen System؛
+2. [`16-liquid-glass-first-design-standard.fa.md`](16-liquid-glass-first-design-standard.fa.md) — **الزام سراسری Liquid Glass / Material / Depth / Motion**.
+
+# **5.0 Non-Negotiable Liquid Glass Requirement**
+
+## **کل اپلیکیشن Ganj VPN باید Liquid Glass-first طراحی و پیاده‌سازی شود.**
+
+این Requirement شامل تمام Screenها و تمام interactionهای اصلی است؛ نه فقط چند Card یا Bottom Navigation.
+
+از Splash و Login تا Home، Servers، Connect، Store، My Services، Account، Settings، Wallet، Support، Diagnostics، Dialog، Sheet، Search و Navigation باید:
+
+- زبان Material واحد؛
+- layered depth؛
+- edge-to-edge composition؛
+- floating functional controls؛
+- adaptive translucency؛
+- glass navigation؛
+- fluid motion؛
+- state-driven morph؛
+- accessibility fallback؛
+- performance-aware rendering
+
+داشته باشند.
+
+### **تفسیر اجباری**
+
+> **Liquid Glass-first به معنی Blur کردن تمام Cardها نیست.**
+>
+> تمام اپ باید از زبان Liquid Glass پیروی کند، اما Content layer برای خوانایی و performance عمدتاً پایدار/مات است و Glass در لایه Functional مانند Navigation، Controls، Search، Sheets، Floating Actions و Transient UI استفاده می‌شود.
+
+اگر یک UI صرفاً `GlassCard` اضافه کند ولی Navigation، depth، motion، edge-to-edge و interaction آن هنوز Flat/Material-default باشد، این Requirement انجام نشده است.
 
 Final Android UI باید:
 
@@ -58,8 +88,8 @@ Final Android UI باید:
 - پنج Tab اصلی Home / Servers / Connect / Store / Account؛
 - Design System اختصاصی Ganj؛
 - Material 3 / M3 Expressive behavior بومی Android؛
-- Apple HIG-inspired clarity؛
-- Liquid Glass / Glassmorphism به‌صورت کنترل‌شده و functional، نه افراطی؛
+- Apple HIG/Liquid Glass-inspired hierarchy/material principles؛
+- Liquid Glass-first across the entire app؛
 - ظاهر Premium، گرم و هویت‌دار، نه UI خام/Developer-like.
 
 ### 5.1 Visual Brand Lock
@@ -95,16 +125,37 @@ Gold:
 
 UI-adjusted semantic tokens در `design/tokens.json` و سند 15 تعریف می‌شوند. رنگ‌های خام Logo نباید بدون Contrast/Accessibility review روی text/control استفاده شوند.
 
-### 5.2 Material / Glass Lock
+### 5.2 Liquid Material Lock
 
 - Material 3 / M3 Expressive پایه component behavior و interaction Android است، نه palette برند.
 - Dynamic Color برای Brand Core در MVP به‌صورت پیش‌فرض خاموش است تا هویت Ganj با wallpaper کاربر به آبی/بنفش/رنگ تصادفی تبدیل نشود.
-- Liquid Glass/Glassmorphism فقط برای navigation/control/transient layers استفاده می‌شود؛ body content باید عمدتاً opaque/readable باشد.
-- fallback بدون blur برای accessibility و low-performance device الزامی است.
+- Liquid Glass یک **زبان طراحی سراسری** است، نه effect اختیاری.
+- Glass roleهای `Clear`, `Regular`, `Dense`, `Prominent`, `OpaqueFallback` باید semantic و token-based باشند.
+- Bottom Navigation، Floating Search/Filter، transient controls، Sheet shell و Signature Connect interaction باید Material role مشخص داشته باشند.
+- Content rows/cards نباید صرفاً برای زیبایی Blur شوند.
+- Nested Glass به‌صورت عمومی ممنوع است.
+- fallback بدون blur برای Accessibility، High Contrast، Battery Saver و low-performance device الزامی است.
+- Final UI باید به Liquid Glass Maturity **Level 3 / Production** طبق سند 16 برسد.
 
-### 5.3 Phase 7 UI Migration
+### 5.3 Motion / Depth Lock
 
-Branch `phase-7/android-ui-accessibility-v2` که هنوز از `GanjBlue`/palette آبی استفاده می‌کند، قبل از merge نهایی باید به Emerald/Gold/Neutral Design Tokens migration شود.
+- motion باید state-driven و interruptible باشد؛
+- Connect مهم‌ترین Liquid state morph اپ است؛
+- connected state نباید animation دائمی و battery-heavy داشته باشد؛
+- edge-to-edge و floating functional layer بخشی از Requirement است؛
+- UI نباید با rectangleهای opaque بزرگ در top/bottom شبیه Material legacy شود.
+
+### 5.4 Phase 7 UI Migration
+
+Branch `phase-7/android-ui-accessibility-v2` که هنوز از `GanjBlue`/palette آبی استفاده می‌کند، قبل از merge نهایی باید:
+
+- به Emerald/Gold/Neutral Design Tokens مهاجرت کند؛
+- semantic Liquid Glass component system داشته باشد؛
+- Bottom Navigation را Liquid کند؛
+- Search/Filter/Sheet/Connect را با Glass roleهای سند 16 بسازد؛
+- raw blur/alphaهای پراکنده را حذف کند؛
+- Reduce Transparency / Reduce Motion / High Contrast fallback داشته باشد؛
+- performance/jank و screenshot evidence ارائه کند.
 
 ## 6. Smart Banking / Receipt Verification
 
@@ -129,7 +180,7 @@ Trackهای فعلی:
 1. Auth / Telegram / Legacy Sync؛
 2. Billing / Entitlement / Commerce؛
 3. VPN Runtime / Resilience؛
-4. Android UI / Localization / Accessibility؛
+4. Android UI / Localization / Accessibility / Liquid Design؛
 5. Admin Console؛
 6. Staging / Operations / Release.
 
@@ -160,7 +211,7 @@ PRها بعداً با نام‌های Phase 6A / 6B / 6C و Phase 7 Trackها �
 5. Real VPN E2E + resilience/leak/device tests؛
 6. Google Play Billing E2E + reconciliation؛
 7. Subscription lifecycle + multi-device؛
-8. Final localization/UI/accessibility طبق Visual Brand Lock؛
+8. Final localization/UI/accessibility + Liquid Glass Level 3؛
 9. Minimum operational Admin Console؛
 10. Internal/Closed Beta؛
 11. Security/compliance remediation؛
@@ -173,9 +224,10 @@ PRها بعداً با نام‌های Phase 6A / 6B / 6C و Phase 7 Trackها �
 1. code/tests/CI روی `main` برای runtime behavior؛
 2. OpenAPI/migrations؛
 3. این Scope Lock برای Requirementهای Product فعلی؛
-4. `15-android-ui-ux-brand-system.fa.md` برای UI/UX/Visual Brand؛
-5. Project Bible؛
-6. Roadmap/old Master Plan؛
-7. historical PR text
+4. `16-liquid-glass-first-design-standard.fa.md` برای Liquid Glass / Material / Depth / Motion؛
+5. `15-android-ui-ux-brand-system.fa.md` برای Visual Brand و UI/UX؛
+6. Project Bible؛
+7. Roadmap/old Master Plan؛
+8. historical PR text
 
 ملاک تفسیر باشد.
