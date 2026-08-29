@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ganj.vpn.R
 import com.ganj.vpn.presentation.ConnectionUiState
@@ -65,7 +66,7 @@ internal fun StitchConnectionScreen(
 ) {
     val connection = state.connection
     val service = state.selectedService
-    val visualState = connection.toVisualState(service)
+    val visualState = connection.toStitchVisualState(service)
     val hasPremium = state.serviceItems.any {
         it.isActive && (it.tier == UiTier.PREMIUM || it.tier == UiTier.VIP)
     }
@@ -80,7 +81,7 @@ internal fun StitchConnectionScreen(
         StitchProtectionBanner(state = visualState, onClick = onOpenServers)
         StitchConnectOrb(
             state = visualState,
-            enabled = service?.isActive == true,
+            activeServiceAvailable = service?.isActive == true,
             onClick = {
                 when {
                     connection is ConnectionUiState.Connected -> onDisconnect()
@@ -90,12 +91,13 @@ internal fun StitchConnectionScreen(
             },
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
-        StitchMetricsCard(connected = connection is ConnectionUiState.Connected)
+        StitchMetricsCard()
         StitchSelectedServerCard(service = service, onOpenServers = onOpenServers)
         StitchSmartConnectCard(
             enabled = service?.isActive == true,
             onClick = {
-                if (service?.isActive == true) onConnect(service.entitlementId) else onOpenServers()
+                service?.takeIf { it.isActive }?.let { onConnect(it.entitlementId) }
+                    ?: onOpenServers()
             },
         )
         StitchPremiumCard(premium = hasPremium, onOpenStore = onOpenStore)
@@ -145,6 +147,7 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
+            modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -162,20 +165,23 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit) {
                     modifier = Modifier.size(38.dp),
                 )
             }
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "گنج VPN",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = StitchEmeraldGlow,
+                    maxLines = 1,
                 )
                 Text(
                     text = "امن، سریع، نامحدود",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
                 )
             }
         }
+        Spacer(Modifier.width(10.dp))
         GanjGlassSurface(
             role = GanjGlassRole.Clear,
             accent = StitchGold,
@@ -184,7 +190,7 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit) {
             modifier = Modifier.clickable(role = Role.Button, onClick = onOpenStore),
         ) {
             Text(
-                text = if (premium) "Premium" else "ارتقا",
+                text = if (premium) "پریمیوم" else "ارتقا",
                 color = StitchGoldBright,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
@@ -199,7 +205,9 @@ private fun StitchProtectionBanner(state: GanjConnectionVisualState, onClick: ()
     GanjGlassSurface(
         role = GanjGlassRole.Dense,
         accent = if (protected) StitchEmeraldGlow else MaterialTheme.colorScheme.outline,
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick),
         shapeRadius = 22.dp,
         padding = PaddingValues(16.dp),
     ) {
@@ -235,7 +243,7 @@ private fun StitchProtectionBanner(state: GanjConnectionVisualState, onClick: ()
                         fontWeight = FontWeight.Bold,
                     )
                 }
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = connectionTitle(state),
                         style = MaterialTheme.typography.titleMedium,
@@ -261,7 +269,7 @@ private fun StitchProtectionBanner(state: GanjConnectionVisualState, onClick: ()
 @Composable
 private fun StitchConnectOrb(
     state: GanjConnectionVisualState,
-    enabled: Boolean,
+    activeServiceAvailable: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -273,12 +281,12 @@ private fun StitchConnectOrb(
         else -> 212.dp
     }
     val outerSize = orbSize + 46.dp
-    val pulse = if (!effects.reduceMotion && (
-            state == GanjConnectionVisualState.Connected ||
-                state == GanjConnectionVisualState.Connecting ||
-                state == GanjConnectionVisualState.Reconnecting
-            )
-    ) {
+    val shouldPulse = !effects.reduceMotion && state in setOf(
+        GanjConnectionVisualState.Connected,
+        GanjConnectionVisualState.Connecting,
+        GanjConnectionVisualState.Reconnecting,
+    )
+    val pulse = if (shouldPulse) {
         val transition = rememberInfiniteTransition(label = "stitchConnectPulse")
         val value by transition.animateFloat(
             initialValue = 0.985f,
@@ -306,7 +314,9 @@ private fun StitchConnectOrb(
     }
 
     Box(
-        modifier = modifier.size(outerSize).semantics { contentDescription = connectionTitle(state) },
+        modifier = modifier
+            .size(outerSize)
+            .semantics { contentDescription = connectionTitle(state) },
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -330,13 +340,17 @@ private fun StitchConnectOrb(
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            accent.copy(alpha = if (enabled) 0.22f else 0.08f),
+                            accent.copy(alpha = if (activeServiceAvailable) 0.22f else 0.08f),
                             MaterialTheme.colorScheme.surface.copy(alpha = 0.24f),
                             Color(0xFF07110D).copy(alpha = 0.94f),
                         ),
                     ),
                 )
-                .border(3.dp, accent.copy(alpha = if (enabled) 0.95f else 0.36f), CircleShape)
+                .border(
+                    3.dp,
+                    accent.copy(alpha = if (activeServiceAvailable) 0.95f else 0.36f),
+                    CircleShape,
+                )
                 .clickable(role = Role.Button, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
@@ -363,7 +377,7 @@ private fun StitchConnectOrb(
 }
 
 @Composable
-private fun StitchMetricsCard(connected: Boolean) {
+private fun StitchMetricsCard() {
     GanjGlassSurface(
         role = GanjGlassRole.Dense,
         accent = MaterialTheme.colorScheme.primary,
@@ -379,9 +393,9 @@ private fun StitchMetricsCard(connected: Boolean) {
         ) {
             StitchMetric(label = "پینگ", value = "—", unit = "ms", highlight = true)
             StitchMetricDivider()
-            StitchMetric(label = "دانلود", value = if (connected) "—" else "—", unit = "Mbps")
+            StitchMetric(label = "دانلود", value = "—", unit = "Mbps")
             StitchMetricDivider()
-            StitchMetric(label = "آپلود", value = if (connected) "—" else "—", unit = "Mbps")
+            StitchMetric(label = "آپلود", value = "—", unit = "Mbps")
         }
     }
 }
@@ -397,20 +411,13 @@ private fun StitchMetric(label: String, value: String, unit: String, highlight: 
             style = MaterialTheme.typography.labelSmall,
             color = if (highlight) StitchEmeraldGlow else MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                color = if (highlight) StitchEmeraldGlow else MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = unit,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            text = persianTechnicalMetric(value, unit),
+            style = MaterialTheme.typography.titleMedium,
+            color = if (highlight) StitchEmeraldGlow else MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
         if (highlight) {
             Text(
                 text = "در انتظار اندازه‌گیری",
@@ -489,7 +496,7 @@ private fun StitchSelectedServerCard(service: ServiceUiModel?, onOpenServers: ()
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = "— ms",
+                    text = persianTechnicalMetric("—", "ms"),
                     color = StitchEmeraldGlow,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -593,7 +600,7 @@ private fun StitchPremiumCard(premium: Boolean, onOpenStore: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = if (premium) "Premium فعال است" else "Premium شوید؛ نامحدود بمانید",
+                    text = if (premium) "پریمیوم فعال است" else "پریمیوم شوید؛ نامحدود بمانید",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = StitchGoldBright,
@@ -628,7 +635,7 @@ private fun StitchPremiumCard(premium: Boolean, onOpenStore: () -> Unit) {
     }
 }
 
-private fun ConnectionUiState.toVisualState(service: ServiceUiModel?): GanjConnectionVisualState = when (this) {
+private fun ConnectionUiState.toStitchVisualState(service: ServiceUiModel?): GanjConnectionVisualState = when (this) {
     is ConnectionUiState.Connected -> GanjConnectionVisualState.Connected
     is ConnectionUiState.Requesting,
     is ConnectionUiState.ProfileReady,
@@ -663,7 +670,7 @@ private fun connectionAction(state: GanjConnectionVisualState): String = when (s
 private fun tierPersian(tier: UiTier): String = when (tier) {
     UiTier.FREE -> "رایگان"
     UiTier.PREMIUM -> "پریمیوم"
-    UiTier.VIP -> "VIP"
+    UiTier.VIP -> "وی‌آی‌پی"
 }
 
 private fun countryName(code: String?): String = when (code?.uppercase()) {
@@ -677,7 +684,7 @@ private fun countryName(code: String?): String = when (code?.uppercase()) {
     "CA" -> "کانادا"
     "SG" -> "سنگاپور"
     null -> "سرور جهانی"
-    else -> code.uppercase()
+    else -> isolateTechnicalLtr(code.uppercase())
 }
 
 private fun countryEmoji(code: String?): String = when (code?.uppercase()) {
@@ -694,7 +701,7 @@ private fun countryEmoji(code: String?): String = when (code?.uppercase()) {
 }
 
 @Composable
-private fun responsiveHorizontalPadding() = when {
+internal fun responsiveHorizontalPadding(): Dp = when {
     LocalConfiguration.current.screenWidthDp <= 360 -> 18.dp
     LocalConfiguration.current.screenWidthDp >= 412 -> 22.dp
     else -> 20.dp
