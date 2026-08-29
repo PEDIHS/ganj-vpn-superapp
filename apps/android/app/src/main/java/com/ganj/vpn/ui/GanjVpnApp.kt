@@ -250,7 +250,7 @@ fun GanjVpnApp(
                             onRetry = ::refresh,
                         )
 
-                        GanjDestination.Account -> MyServicesScreen(
+                        GanjDestination.Account -> StitchProfileScreen(
                             state = state,
                             enterpriseState = enterpriseState,
                             onSelectService = {
