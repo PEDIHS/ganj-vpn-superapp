@@ -232,11 +232,12 @@ fun GanjVpnApp(
                             onRetry = ::refresh,
                         )
 
-                        GanjDestination.Connect -> ConnectionDashboard(
+                        GanjDestination.Connect -> StitchConnectionScreen(
                             state = state,
                             onConnect = ::requestProfile,
-                            onClear = ::disconnectTunnel,
-                            onOpenServices = { selectedDestination = GanjDestination.Account },
+                            onDisconnect = ::disconnectTunnel,
+                            onOpenServers = { selectedDestination = GanjDestination.Servers },
+                            onOpenStore = { selectedDestination = GanjDestination.Store },
                             onRetry = ::refresh,
                         )
 
