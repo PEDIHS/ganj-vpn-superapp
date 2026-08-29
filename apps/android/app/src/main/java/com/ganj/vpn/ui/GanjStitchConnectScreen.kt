@@ -160,7 +160,7 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Image(
-                    painter = painterResource(R.drawable.ic_ganj_launcher_foreground),
+                    painter = painterResource(R.drawable.ganj_logo_official),
                     contentDescription = "نشان گنج VPN",
                     modifier = Modifier.size(38.dp),
                 )
@@ -356,14 +356,22 @@ private fun StitchConnectOrb(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp),
             ) {
-                Text(
-                    text = "⏻",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = accent,
-                    fontWeight = FontWeight.Bold,
-                )
+                Box(
+                    modifier = Modifier
+                        .size(if (width <= 360) 72.dp else 82.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.08f))
+                        .border(1.dp, StitchGold.copy(alpha = 0.20f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ganj_logo_official),
+                        contentDescription = null,
+                        modifier = Modifier.size(if (width <= 360) 58.dp else 66.dp),
+                    )
+                }
                 Text(
                     text = connectionAction(state),
                     style = MaterialTheme.typography.titleMedium,
