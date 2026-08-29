@@ -122,3 +122,44 @@ internal fun GanjNavigationIcon(
         }
     }
 }
+
+@Composable
+internal fun GanjSecurityIcon(
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier = modifier.clearAndSetSemantics { }) {
+        val strokeWidth = 1.9.dp.toPx()
+        val stroke = Stroke(
+            width = strokeWidth,
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round,
+        )
+        val w = size.width
+        val h = size.height
+        val shield = Path().apply {
+            moveTo(w * 0.50f, h * 0.12f)
+            lineTo(w * 0.80f, h * 0.24f)
+            lineTo(w * 0.77f, h * 0.56f)
+            cubicTo(w * 0.75f, h * 0.72f, w * 0.64f, h * 0.84f, w * 0.50f, h * 0.91f)
+            cubicTo(w * 0.36f, h * 0.84f, w * 0.25f, h * 0.72f, w * 0.23f, h * 0.56f)
+            lineTo(w * 0.20f, h * 0.24f)
+            close()
+        }
+        drawPath(shield, color = tint, style = stroke)
+        drawLine(
+            color = tint,
+            start = Offset(w * 0.36f, h * 0.51f),
+            end = Offset(w * 0.46f, h * 0.61f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = tint,
+            start = Offset(w * 0.46f, h * 0.61f),
+            end = Offset(w * 0.66f, h * 0.39f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round,
+        )
+    }
+}
