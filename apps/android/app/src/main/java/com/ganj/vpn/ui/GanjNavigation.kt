@@ -60,11 +60,16 @@ internal fun GanjLiquidBottomNavigation(
     )
     val glass = LocalGanjGlassPalette.current
     val navShape = RoundedCornerShape(30.dp)
+    val horizontalPadding = when {
+        windowWidthDp <= 360 -> 8.dp
+        windowWidthDp >= 412 -> 14.dp
+        else -> 12.dp
+    }
 
     Box(
         modifier = modifier
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = horizontalPadding, vertical = 6.dp)
             .fillMaxWidth()
             .height(92.dp),
     ) {
@@ -119,7 +124,7 @@ private fun GanjNavigationItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val label = persianDestinationLabel(destination)
+    val label = stringResource(destination.labelRes)
     val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     val description = UiAccessibilityPolicy.destinationDescription(
         label = label,
@@ -173,9 +178,10 @@ private fun GanjCenterConnectDestination(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val label = stringResource(R.string.nav_connect)
     val accent = if (selected) Color(0xFF72FCB6) else MaterialTheme.colorScheme.primary
     val description = UiAccessibilityPolicy.destinationDescription(
-        label = "اتصال",
+        label = label,
         selected = selected,
         selectedSuffix = stringResource(R.string.a11y_selected),
     )
@@ -217,19 +223,11 @@ private fun GanjCenterConnectDestination(
         }
         Spacer(Modifier.height(3.dp))
         Text(
-            text = "اتصال",
+            text = label,
             color = accent,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
         )
     }
-}
-
-private fun persianDestinationLabel(destination: GanjDestination): String = when (destination) {
-    GanjDestination.Home -> "خانه"
-    GanjDestination.Servers -> "سرورها"
-    GanjDestination.Connect -> "اتصال"
-    GanjDestination.Store -> "فروشگاه"
-    GanjDestination.Account -> "پروفایل"
 }
