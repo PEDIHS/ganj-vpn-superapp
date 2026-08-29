@@ -34,7 +34,6 @@ class MainActivity : ComponentActivity() {
 
     override fun attachBaseContext(newBase: Context) {
         val persian = Locale.forLanguageTag("fa")
-        Locale.setDefault(persian)
         val configuration = Configuration(newBase.resources.configuration).apply {
             setLocale(persian)
             setLayoutDirection(persian)
