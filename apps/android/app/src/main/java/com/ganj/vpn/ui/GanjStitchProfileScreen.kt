@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,16 +57,11 @@ internal fun StitchProfileScreen(
     val activeServices = state.serviceItems.filter { it.isActive }
     val premium = activeServices.any { it.tier != UiTier.FREE }
     val selected = state.selectedService
-    val horizontalPadding = when {
-        LocalConfiguration.current.screenWidthDp <= 360 -> 18.dp
-        LocalConfiguration.current.screenWidthDp >= 412 -> 22.dp
-        else -> 20.dp
-    }
 
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = horizontalPadding, vertical = 18.dp),
+            .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(
@@ -89,7 +82,7 @@ internal fun StitchProfileScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            ProfileBadge(text = if (premium) "Premium" else "رایگان", gold = premium)
+            ProfileBadge(text = if (premium) "پریمیوم" else "رایگان", gold = premium)
         }
 
         GanjGlassSurface(
@@ -149,12 +142,12 @@ internal fun StitchProfileScreen(
             ) {
                 ProfileStat(
                     label = "سرویس فعال",
-                    value = activeServices.size.toString(),
+                    value = activeServices.size.toPersianDigits(),
                     modifier = Modifier.weight(1f),
                 )
                 ProfileStat(
                     label = "دستگاه مجاز",
-                    value = selected?.deviceLimit?.toString() ?: "—",
+                    value = selected?.deviceLimit?.toPersianDigits() ?: "—",
                     modifier = Modifier.weight(1f),
                     gold = premium,
                 )
@@ -262,7 +255,7 @@ private fun ProfileServiceCard(
             )
             ProfileInfoChip(
                 label = "دستگاه",
-                value = service.deviceLimit.toString(),
+                value = service.deviceLimit.toPersianDigits(),
                 modifier = Modifier.weight(1f),
                 gold = premium,
             )
@@ -448,7 +441,7 @@ private fun ProfileEmptyServices(onBuy: () -> Unit) {
 private fun profileTier(tier: UiTier): String = when (tier) {
     UiTier.FREE -> "رایگان"
     UiTier.PREMIUM -> "پریمیوم"
-    UiTier.VIP -> "VIP"
+    UiTier.VIP -> "وی‌آی‌پی"
 }
 
 private fun profileServiceStatus(service: ServiceUiModel): String = when {
@@ -464,6 +457,6 @@ private fun profileServiceStatus(service: ServiceUiModel): String = when {
 
 private fun profileTraffic(bytes: Long?): String = when {
     bytes == null -> "نامحدود"
-    bytes >= 1_000_000_000L -> "${bytes / 1_000_000_000L} GB"
-    else -> "${bytes / 1_000_000L} MB"
+    bytes >= 1_000_000_000L -> "${(bytes / 1_000_000_000L).toPersianDigits()} گیگابایت"
+    else -> "${(bytes / 1_000_000L).toPersianDigits()} مگابایت"
 }
