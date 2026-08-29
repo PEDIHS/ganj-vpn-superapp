@@ -212,15 +212,15 @@ fun GanjVpnApp(
                     modifier = Modifier.padding(padding),
                 ) { destination ->
                     when (destination) {
-                        GanjDestination.Home -> HomeScreen(
+                        GanjDestination.Home -> StitchHomeScreen(
                             state = state,
                             onOpenConnect = { selectedDestination = GanjDestination.Connect },
                             onOpenStore = { selectedDestination = GanjDestination.Store },
-                            onOpenServices = { selectedDestination = GanjDestination.Account },
-                            onRefresh = ::refresh,
+                            onOpenServers = { selectedDestination = GanjDestination.Servers },
+                            onOpenProfile = { selectedDestination = GanjDestination.Account },
                         )
 
-                        GanjDestination.Servers -> SmartRoutingScreen(
+                        GanjDestination.Servers -> StitchServersScreen(
                             state = state,
                             onSelectService = {
                                 commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
@@ -241,7 +241,7 @@ fun GanjVpnApp(
                             onRetry = ::refresh,
                         )
 
-                        GanjDestination.Store -> StoreScreen(
+                        GanjDestination.Store -> StitchStoreScreen(
                             state = state,
                             onSelect = {
                                 commit(reducer.reduce(state, GanjUiEvent.SelectPlan(it)))
