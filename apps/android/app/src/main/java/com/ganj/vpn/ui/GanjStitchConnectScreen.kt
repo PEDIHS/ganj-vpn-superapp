@@ -275,11 +275,7 @@ private fun StitchConnectOrb(
 ) {
     val effects = LocalGanjVisualEffectsPolicy.current
     val width = LocalConfiguration.current.screenWidthDp
-    val orbSize = when {
-        width <= 360 -> 180.dp
-        width <= 400 -> 198.dp
-        else -> 212.dp
-    }
+    val orbSize = GanjResponsivePolicy.stitchConnectOrbSizeDp(width).dp
     val outerSize = orbSize + 46.dp
     val shouldPulse = !effects.reduceMotion && state in setOf(
         GanjConnectionVisualState.Connected,
@@ -550,11 +546,15 @@ private fun StitchSmartConnectCard(enabled: Boolean, onClick: () -> Unit) {
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.20f))
                         .border(1.dp, StitchEmeraldGlow.copy(alpha = 0.30f), RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = "⚡", style = MaterialTheme.typography.titleLarge, color = StitchEmeraldGlow)
+                    GanjNavigationIcon(
+                        destination = GanjDestination.Connect,
+                        tint = StitchEmeraldGlow,
+                        modifier = Modifier.size(25.dp),
+                    )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -709,8 +709,6 @@ private fun countryEmoji(code: String?): String = when (code?.uppercase()) {
 }
 
 @Composable
-internal fun responsiveHorizontalPadding(): Dp = when {
-    LocalConfiguration.current.screenWidthDp <= 360 -> 18.dp
-    LocalConfiguration.current.screenWidthDp >= 412 -> 22.dp
-    else -> 20.dp
-}
+internal fun responsiveHorizontalPadding(): Dp = GanjResponsivePolicy
+    .stitchHorizontalPaddingDp(LocalConfiguration.current.screenWidthDp)
+    .dp
