@@ -1,5 +1,6 @@
 package com.ganj.vpn.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,10 +25,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ganj.vpn.R
 import com.ganj.vpn.enterprise.BugReportInput
 import com.ganj.vpn.enterprise.EnterpriseUiState
 import com.ganj.vpn.presentation.ContentState
@@ -99,9 +102,9 @@ internal fun StitchProfileScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(58.dp)
+                        .size(62.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                         .border(
                             1.dp,
                             if (premium) ProfileGold.copy(alpha = 0.52f)
@@ -110,11 +113,10 @@ internal fun StitchProfileScreen(
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = "گ",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (premium) ProfileGoldBright else ProfileEmerald,
+                    Image(
+                        painter = painterResource(R.drawable.ganj_logo_official),
+                        contentDescription = "نشان رسمی گنج VPN",
+                        modifier = Modifier.size(48.dp),
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
