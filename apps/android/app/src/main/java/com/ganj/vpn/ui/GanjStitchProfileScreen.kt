@@ -265,6 +265,23 @@ private fun ProfileServiceCard(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ProfileInfoChip(
+                label = "انقضا",
+                value = profileExpiry(service.expiresAt),
+                modifier = Modifier.weight(1f),
+            )
+            ProfileInfoChip(
+                label = "پروتکل",
+                value = profileProtocols(service.allowedProtocols),
+                modifier = Modifier.weight(1f),
+                gold = premium,
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             ProfileSecondaryAction(
@@ -461,4 +478,15 @@ private fun profileTraffic(bytes: Long?): String = when {
     bytes == null -> "نامحدود"
     bytes >= 1_000_000_000L -> "${(bytes / 1_000_000_000L).toPersianDigits()} گیگابایت"
     else -> "${(bytes / 1_000_000L).toPersianDigits()} مگابایت"
+}
+
+private fun profileExpiry(expiresAt: String?): String = when {
+    expiresAt.isNullOrBlank() -> "بدون تاریخ مشخص"
+    else -> isolateTechnicalLtr(expiresAt.take(10).toPersianDigits())
+}
+
+private fun profileProtocols(protocols: Set<String>): String = when {
+    protocols.isEmpty() -> "—"
+    protocols.size == 1 -> isolateTechnicalLtr(protocols.first())
+    else -> "${protocols.size.toPersianDigits()} پروتکل"
 }
