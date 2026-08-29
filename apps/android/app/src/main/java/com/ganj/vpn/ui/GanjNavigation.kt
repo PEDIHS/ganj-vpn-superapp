@@ -1,6 +1,9 @@
 package com.ganj.vpn.ui
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -71,7 +75,7 @@ internal fun GanjLiquidBottomNavigation(
             .navigationBarsPadding()
             .padding(horizontal = horizontalPadding, vertical = 6.dp)
             .fillMaxWidth()
-            .height(92.dp),
+            .height(94.dp),
     ) {
         Row(
             modifier = Modifier
@@ -82,13 +86,13 @@ internal fun GanjLiquidBottomNavigation(
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            glass.highlight.copy(alpha = 0.08f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            glass.highlight.copy(alpha = 0.09f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.075f),
                         ),
                     ),
                 )
-                .border(1.dp, glass.borderSoft.copy(alpha = 0.72f), navShape)
+                .border(1.dp, glass.borderSoft.copy(alpha = 0.74f), navShape)
                 .padding(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -126,6 +130,17 @@ private fun GanjNavigationItem(
 ) {
     val label = stringResource(destination.labelRes)
     val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val effects = LocalGanjVisualEffectsPolicy.current
+    val itemScale = animateFloatAsState(
+        targetValue = if (!effects.reduceMotion && selected) 1.025f else 1f,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
+        label = "navItemScale",
+    ).value
+    val itemOffset = animateDpAsState(
+        targetValue = if (!effects.reduceMotion && selected) (-2).dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.80f, stiffness = 560f),
+        label = "navItemOffset",
+    ).value
     val description = UiAccessibilityPolicy.destinationDescription(
         label = label,
         selected = selected,
@@ -135,6 +150,8 @@ private fun GanjNavigationItem(
     Box(
         modifier = modifier
             .heightIn(min = 58.dp)
+            .offset(y = itemOffset)
+            .scale(itemScale)
             .clip(RoundedCornerShape(20.dp))
             .background(
                 if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -155,7 +172,7 @@ private fun GanjNavigationItem(
             GanjNavigationIcon(
                 destination = destination,
                 tint = tint,
-                modifier = Modifier.size(21.dp),
+                modifier = Modifier.size(if (selected) 22.dp else 21.dp),
             )
             if (showLabel) {
                 Spacer(Modifier.height(3.dp))
@@ -180,6 +197,17 @@ private fun GanjCenterConnectDestination(
 ) {
     val label = stringResource(R.string.nav_connect)
     val accent = if (selected) Color(0xFF72FCB6) else MaterialTheme.colorScheme.primary
+    val effects = LocalGanjVisualEffectsPolicy.current
+    val centerScale = animateFloatAsState(
+        targetValue = if (!effects.reduceMotion && selected) 1.055f else 1f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 430f),
+        label = "centerConnectScale",
+    ).value
+    val centerOffset = animateDpAsState(
+        targetValue = if (!effects.reduceMotion && selected) (-3).dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.76f, stiffness = 460f),
+        label = "centerConnectOffset",
+    ).value
     val description = UiAccessibilityPolicy.destinationDescription(
         label = label,
         selected = selected,
@@ -187,25 +215,26 @@ private fun GanjCenterConnectDestination(
     )
 
     Column(
-        modifier = modifier.offset(y = 1.dp),
+        modifier = modifier.offset(y = 1.dp + centerOffset),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier = Modifier
                 .size(64.dp)
+                .scale(centerScale)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            accent.copy(alpha = 0.32f),
+                            accent.copy(alpha = if (selected) 0.40f else 0.28f),
                             Color(0xFF063E2F),
                             Color(0xFF07110D),
                         ),
                     ),
                 )
                 .border(
-                    width = 2.dp,
-                    color = if (selected) Color(0xFF72FCB6) else MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
+                    width = if (selected) 2.dp else 1.5.dp,
+                    color = if (selected) Color(0xFF72FCB6) else MaterialTheme.colorScheme.primary.copy(alpha = 0.76f),
                     shape = CircleShape,
                 )
                 .semantics {
@@ -218,7 +247,7 @@ private fun GanjCenterConnectDestination(
             GanjNavigationIcon(
                 destination = GanjDestination.Connect,
                 tint = accent,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(if (selected) 30.dp else 28.dp),
             )
         }
         Spacer(Modifier.height(3.dp))
