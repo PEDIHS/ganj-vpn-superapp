@@ -385,7 +385,7 @@ internal fun StitchStoreScreen(
 
         when (state.checkout) {
             CheckoutUiState.Idle -> Unit
-            else -> CheckoutStatus(
+            else -> StitchCheckoutStatus(
                 checkout = state.checkout,
                 onRetry = { state.selectedPlan?.let(onPurchase) ?: onRetry() },
             )
@@ -497,7 +497,7 @@ private fun StitchMiniAction(
         Text(
             text = text,
             modifier = Modifier.align(Alignment.Center),
-            color = MaterialTheme.colorScheme.onPrimary,
+            color = if (accent == StitchProductGold) Color(0xFF211600) else MaterialTheme.colorScheme.onPrimary,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
         )
@@ -706,6 +706,78 @@ private fun StitchPlanCard(
             onClick = onPurchase,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+@Composable
+private fun StitchCheckoutStatus(
+    checkout: CheckoutUiState,
+    onRetry: () -> Unit,
+) {
+    when (checkout) {
+        CheckoutUiState.Idle -> Unit
+        CheckoutUiState.AuthRequired -> AuthCard(onRetry)
+        is CheckoutUiState.Pending -> GanjGlassSurface(
+            role = GanjGlassRole.Prominent,
+            accent = GanjWarning,
+            modifier = Modifier.fillMaxWidth(),
+            shapeRadius = 22.dp,
+            padding = PaddingValues(16.dp),
+        ) {
+            GanjStatusPill(text = "پرداخت در انتظار تأیید", tone = GanjStatusTone.Warning)
+            Text(
+                text = "در حال تکمیل خرید",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = checkoutActionText(checkout.action),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        is CheckoutUiState.Verified -> GanjGlassSurface(
+            role = GanjGlassRole.Prominent,
+            accent = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth(),
+            shapeRadius = 22.dp,
+            padding = PaddingValues(16.dp),
+        ) {
+            GanjStatusPill(text = "پرداخت تأیید شد", tone = GanjStatusTone.Positive)
+            Text(
+                text = "در حال فعال‌سازی سرویس",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = StitchProductEmerald,
+            )
+            Text(
+                text = "پرداخت تأیید شده و سرویس شما در حال همگام‌سازی با حساب است.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        is CheckoutUiState.Active -> GanjGlassSurface(
+            role = GanjGlassRole.Prominent,
+            accent = StitchProductGold,
+            modifier = Modifier.fillMaxWidth(),
+            shapeRadius = 22.dp,
+            padding = PaddingValues(16.dp),
+        ) {
+            GanjStatusPill(text = "اشتراک فعال شد", tone = GanjStatusTone.Premium)
+            Text(
+                text = "سرویس شما آماده استفاده است",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = StitchProductGoldBright,
+            )
+            Text(
+                text = "سرویس فعال‌شده در پروفایل و فهرست سرورها در دسترس است.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        is CheckoutUiState.Failed -> ErrorCard(checkout.failure, onRetry)
     }
 }
 
