@@ -64,7 +64,7 @@ internal fun StitchHomeScreen(
         StitchSimpleHeader(
             title = "خانه",
             subtitle = "مدیریت سریع سرویس‌ها و وضعیت حساب",
-            badge = if (premium) "Premium" else "رایگان",
+            badge = if (premium) "پریمیوم" else "رایگان",
             goldBadge = premium,
         )
 
@@ -113,7 +113,7 @@ internal fun StitchHomeScreen(
             StitchQuickCard(
                 emoji = "🌐",
                 title = "سرورها",
-                subtitle = "${activeServices.size} سرویس فعال",
+                subtitle = "${activeServices.size.toPersianDigits()} سرویس فعال",
                 onClick = onOpenServers,
                 modifier = Modifier.weight(1f),
             )
@@ -202,7 +202,8 @@ internal fun StitchServersScreen(
     val services = state.serviceItems.filter { service ->
         val matchesQuery = query.isBlank() ||
             service.displayName.contains(query, ignoreCase = true) ||
-            service.countryCode.orEmpty().contains(query, ignoreCase = true)
+            service.countryCode.orEmpty().contains(query, ignoreCase = true) ||
+            serverCountry(service.countryCode).contains(query, ignoreCase = true)
         val matchesFilter = when (filter) {
             ServerFilter.ALL -> true
             ServerFilter.FREE -> service.tier == UiTier.FREE
@@ -215,7 +216,7 @@ internal fun StitchServersScreen(
         StitchSimpleHeader(
             title = "سرورها",
             subtitle = "انتخاب بهترین سرویس فعال برای اتصال",
-            badge = "${state.serviceItems.size} سرور",
+            badge = "${state.serviceItems.size.toPersianDigits()} سرور",
         )
 
         OutlinedTextField(
@@ -400,7 +401,7 @@ private fun StitchPage(
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+            .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         content()
@@ -625,7 +626,7 @@ private fun StitchServerRow(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "— ms",
+                    text = persianTechnicalMetric("—", "ms"),
                     color = StitchProductEmerald,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
@@ -668,7 +669,11 @@ private fun StitchPlanCard(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = if (plan.durationDays == null) "بدون محدودیت زمانی مشخص" else "${plan.durationDays} روز",
+                    text = if (plan.durationDays == null) {
+                        "بدون محدودیت زمانی مشخص"
+                    } else {
+                        "${plan.durationDays.toPersianDigits()} روز"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -677,13 +682,13 @@ private fun StitchPlanCard(
                 text = when (plan.tier) {
                     UiTier.FREE -> "رایگان"
                     UiTier.PREMIUM -> "پریمیوم"
-                    UiTier.VIP -> "VIP"
+                    UiTier.VIP -> "وی‌آی‌پی"
                 },
                 gold = premium,
             )
         }
         Text(
-            text = formatPrice(plan),
+            text = formatPrice(plan).toPersianDigits(),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
