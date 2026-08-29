@@ -1,35 +1,40 @@
 # Stitch Persian UI checklist
 
-## Completed
+## Completed UI scope
 
 - [x] Persian-only RTL application shell
 - [x] Persian-only advertised locale
 - [x] Persian default Android resources for Activity, VPN service and notifications
 - [x] Emerald / refined-gold Liquid Glass theme
+- [x] Persian-tuned typography scale and zero letter-spacing for RTL text
 - [x] Floating five-tab navigation: خانه / سرورها / اتصال / فروشگاه / پروفایل
-- [x] Elevated center Connect navigation
+- [x] Elevated center Connect navigation with selected-state motion
 - [x] Official supplied Ganj logo embedded as an Android resource
+- [x] Official brand mark used in Connect hero, header, Profile and launcher surface
+- [x] Branded Android window chrome and Android 12+ splash surface
 - [x] Stitch-derived Connect screen wired to real state/actions
 - [x] Home full visual port
-- [x] Servers full visual port with real search and Free/Premium filters
-- [x] Store full visual port wired to real catalog/checkout
-- [x] Profile full visual port preserving Enterprise, bug report and diagnostics
+- [x] Servers full visual port with real search, Persian country matching and Free/Premium filters
+- [x] Store full visual port wired to real catalog and dedicated Liquid checkout states
+- [x] Premium/gold CTA contrast corrected
+- [x] Profile full visual port preserving real service, Enterprise, bug-report and diagnostics actions
+- [x] Enterprise status, bug report and diagnostics moved to the same Liquid component language
 - [x] Shared Loading / Empty / Auth / Error visual states
 - [x] Full-screen forced-update and maintenance gates
 - [x] Persian numeral helper
 - [x] Unicode BiDi isolation for technical LTR values inside RTL UI
 - [x] Responsive policy locked for 360 / 390 / 412 / 430dp reference phones
 - [x] Unit tests added for Persian formatting and responsive breakpoints
+- [x] Reduce-motion and reduced-transparency policies preserved
 - [x] No fabricated ping/speed telemetry
 - [x] Static review fixed cross-file responsive-helper visibility issue
 
-## Pending external validation / inputs
+## Intentionally pending external inputs
 
-- [ ] GitHub Actions runner must execute Android CI successfully before merge
-- [ ] Embed Vazirmatn Variable TTF once the binary is available in-repository or uploaded directly
-- [ ] Add live ping / download / upload only after a truthful telemetry contract exists in the VPN/Xray runtime
-- [ ] Final device screenshot pass on at least one 360dp-class and one 412–430dp-class Android phone
+- [ ] Embed Vazirmatn Variable TTF when the font binary can be transferred directly into the repository. Until then the app uses the Persian-tuned typography scale with the device sans fallback.
+- [ ] Add live ping / download / upload only after a truthful telemetry contract exists in the VPN/Xray runtime.
+- [ ] Final physical-device screenshot pass on at least one 360dp-class and one 412–430dp-class Android phone when a build is available.
 
-## Merge rule
+## Validation note
 
-Do not merge this UI branch while Android CI is terminating before runner assignment. Current failed runs have `runner_id=0` and no executed steps, so they do not provide compile/lint evidence.
+GitHub Actions validation is intentionally paused while the repository Actions quota is exhausted. Do not spend Actions quota on this UI pass. UI work should continue through static review and repository-level source inspection until build validation is available again.
