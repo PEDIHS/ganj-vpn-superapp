@@ -64,11 +64,9 @@ internal fun GanjLiquidBottomNavigation(
     )
     val glass = LocalGanjGlassPalette.current
     val navShape = RoundedCornerShape(30.dp)
-    val horizontalPadding = when {
-        windowWidthDp <= 360 -> 8.dp
-        windowWidthDp >= 412 -> 14.dp
-        else -> 12.dp
-    }
+    val horizontalPadding = GanjResponsivePolicy
+        .stitchNavigationHorizontalPaddingDp(windowWidthDp)
+        .dp
 
     Box(
         modifier = modifier
