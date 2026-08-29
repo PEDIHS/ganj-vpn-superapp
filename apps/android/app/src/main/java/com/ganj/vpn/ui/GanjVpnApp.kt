@@ -186,13 +186,15 @@ fun GanjVpnApp(
 
     GanjLiquidCanvas {
         when (val availability = enterpriseState.availability) {
-            is ProductAvailabilityUiState.ForcedUpdate -> ProductGateScreen(
+            is ProductAvailabilityUiState.ForcedUpdate -> StitchProductGateScreen(
+                kind = StitchProductGateKind.SecurityUpdate,
                 title = stringResource(R.string.gate_security_update_title),
                 message = stringResource(R.string.gate_security_update_body, availability.latestVersion),
                 onRetry = ::refreshEnterprise,
             )
 
-            is ProductAvailabilityUiState.Maintenance -> ProductGateScreen(
+            is ProductAvailabilityUiState.Maintenance -> StitchProductGateScreen(
+                kind = StitchProductGateKind.Maintenance,
                 title = stringResource(R.string.gate_maintenance_title),
                 message = availability.message ?: stringResource(R.string.gate_maintenance_default),
                 onRetry = ::refreshEnterprise,
