@@ -47,6 +47,13 @@ private val StitchProductGold = Color(0xFFD5A63A)
 private val StitchProductGoldBright = Color(0xFFF0CD70)
 private val StitchProductEmerald = Color(0xFF72FCB6)
 
+private enum class StitchQuickIcon {
+    SERVERS,
+    STORE,
+    PROFILE,
+    SECURITY,
+}
+
 @Composable
 internal fun StitchHomeScreen(
     state: GanjUiState,
@@ -111,14 +118,14 @@ internal fun StitchHomeScreen(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             StitchQuickCard(
-                emoji = "🌐",
+                icon = StitchQuickIcon.SERVERS,
                 title = "سرورها",
                 subtitle = "${activeServices.size.toPersianDigits()} سرویس فعال",
                 onClick = onOpenServers,
                 modifier = Modifier.weight(1f),
             )
             StitchQuickCard(
-                emoji = "🛍",
+                icon = StitchQuickIcon.STORE,
                 title = "فروشگاه",
                 subtitle = if (premium) "مدیریت اشتراک" else "ارتقای سرویس",
                 onClick = onOpenStore,
@@ -130,14 +137,14 @@ internal fun StitchHomeScreen(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             StitchQuickCard(
-                emoji = "👤",
+                icon = StitchQuickIcon.PROFILE,
                 title = "پروفایل",
                 subtitle = "حساب و دستگاه‌ها",
                 onClick = onOpenProfile,
                 modifier = Modifier.weight(1f),
             )
             StitchQuickCard(
-                emoji = "🛡",
+                icon = StitchQuickIcon.SECURITY,
                 title = "امنیت",
                 subtitle = "دسترسی تأییدشده",
                 onClick = onOpenProfile,
@@ -267,18 +274,42 @@ internal fun StitchServersScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "⚡ اتصال هوشمند",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = StitchProductEmerald,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = state.selectedService?.displayName ?: "ابتدا یک سرویس را از لیست انتخاب کنید",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.26f),
+                                RoundedCornerShape(14.dp),
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        GanjNavigationIcon(
+                            destination = GanjDestination.Connect,
+                            tint = StitchProductEmerald,
+                            modifier = Modifier.size(23.dp),
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "اتصال هوشمند",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = StitchProductEmerald,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = state.selectedService?.displayName ?: "ابتدا یک سرویس را از لیست انتخاب کنید",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 StitchPill(
                     text = "اتصال",
@@ -451,7 +482,7 @@ private fun StitchSectionLabel(text: String) {
 
 @Composable
 private fun StitchQuickCard(
-    emoji: String,
+    icon: StitchQuickIcon,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
@@ -464,7 +495,40 @@ private fun StitchQuickCard(
         shapeRadius = 20.dp,
         padding = PaddingValues(14.dp),
     ) {
-        Text(emoji, style = MaterialTheme.typography.titleLarge)
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                .border(
+                    1.dp,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                    RoundedCornerShape(14.dp),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            when (icon) {
+                StitchQuickIcon.SERVERS -> GanjNavigationIcon(
+                    destination = GanjDestination.Servers,
+                    tint = StitchProductEmerald,
+                    modifier = Modifier.size(22.dp),
+                )
+                StitchQuickIcon.STORE -> GanjNavigationIcon(
+                    destination = GanjDestination.Store,
+                    tint = StitchProductEmerald,
+                    modifier = Modifier.size(22.dp),
+                )
+                StitchQuickIcon.PROFILE -> GanjNavigationIcon(
+                    destination = GanjDestination.Account,
+                    tint = StitchProductEmerald,
+                    modifier = Modifier.size(22.dp),
+                )
+                StitchQuickIcon.SECURITY -> GanjSecurityIcon(
+                    tint = StitchProductEmerald,
+                    modifier = Modifier.size(23.dp),
+                )
+            }
+        }
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
@@ -667,6 +731,8 @@ private fun StitchPlanCard(
                     style = MaterialTheme.typography.titleLarge,
                     color = if (premium) StitchProductGoldBright else MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = if (plan.durationDays == null) {
@@ -687,12 +753,32 @@ private fun StitchPlanCard(
                 gold = premium,
             )
         }
+
         Text(
             text = formatPrice(plan).toPersianDigits(),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            StitchPlanMeta(
+                label = "ترافیک",
+                value = planTrafficLabel(plan.trafficLimitBytes),
+                modifier = Modifier.weight(1f),
+                gold = premium,
+            )
+            StitchPlanMeta(
+                label = "دستگاه",
+                value = "${plan.deviceLimit.toPersianDigits()} دستگاه",
+                modifier = Modifier.weight(1f),
+                gold = premium,
+            )
+        }
+
         plan.benefits.take(4).forEach { benefit ->
             Text(
                 text = "• $benefit",
@@ -706,6 +792,39 @@ private fun StitchPlanCard(
             onClick = onPurchase,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+@Composable
+private fun StitchPlanMeta(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    gold: Boolean,
+) {
+    val accent = if (gold) StitchProductGold else MaterialTheme.colorScheme.primary
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
+            .border(1.dp, accent.copy(alpha = 0.18f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 11.dp, vertical = 9.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (gold) StitchProductGoldBright else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -779,6 +898,13 @@ private fun StitchCheckoutStatus(
         }
         is CheckoutUiState.Failed -> ErrorCard(checkout.failure, onRetry)
     }
+}
+
+private fun planTrafficLabel(bytes: Long?): String = when {
+    bytes == null -> "نامحدود"
+    bytes >= 1_000_000_000L -> "${(bytes / 1_000_000_000L).toPersianDigits()} گیگابایت"
+    bytes >= 1_000_000L -> "${(bytes / 1_000_000L).toPersianDigits()} مگابایت"
+    else -> "${bytes.toPersianDigits()} بایت"
 }
 
 private fun serverCountry(code: String?): String = when (code?.uppercase()) {
