@@ -87,17 +87,71 @@ private val GanjDarkColors = darkColorScheme(
 
 private val GanjTypography = Typography().run {
     copy(
-        displaySmall = displaySmall.copy(lineHeight = 48.sp),
-        headlineLarge = headlineLarge.copy(lineHeight = 42.sp),
-        headlineMedium = headlineMedium.copy(lineHeight = 38.sp),
-        titleLarge = titleLarge.copy(lineHeight = 34.sp),
-        titleMedium = titleMedium.copy(lineHeight = 28.sp),
-        bodyLarge = bodyLarge.copy(lineHeight = 27.sp),
-        bodyMedium = bodyMedium.copy(lineHeight = 24.sp),
-        bodySmall = bodySmall.copy(lineHeight = 21.sp),
-        labelLarge = labelLarge.copy(lineHeight = 23.sp),
-        labelMedium = labelMedium.copy(lineHeight = 20.sp),
-        labelSmall = labelSmall.copy(lineHeight = 18.sp),
+        displaySmall = displaySmall.copy(
+            fontSize = 34.sp,
+            lineHeight = 48.sp,
+            letterSpacing = 0.sp,
+        ),
+        headlineLarge = headlineLarge.copy(
+            fontSize = 30.sp,
+            lineHeight = 42.sp,
+            letterSpacing = 0.sp,
+        ),
+        headlineMedium = headlineMedium.copy(
+            fontSize = 26.sp,
+            lineHeight = 38.sp,
+            letterSpacing = 0.sp,
+        ),
+        headlineSmall = headlineSmall.copy(
+            fontSize = 23.sp,
+            lineHeight = 34.sp,
+            letterSpacing = 0.sp,
+        ),
+        titleLarge = titleLarge.copy(
+            fontSize = 21.sp,
+            lineHeight = 32.sp,
+            letterSpacing = 0.sp,
+        ),
+        titleMedium = titleMedium.copy(
+            fontSize = 17.sp,
+            lineHeight = 28.sp,
+            letterSpacing = 0.sp,
+        ),
+        titleSmall = titleSmall.copy(
+            fontSize = 15.sp,
+            lineHeight = 24.sp,
+            letterSpacing = 0.sp,
+        ),
+        bodyLarge = bodyLarge.copy(
+            fontSize = 16.sp,
+            lineHeight = 27.sp,
+            letterSpacing = 0.sp,
+        ),
+        bodyMedium = bodyMedium.copy(
+            fontSize = 15.sp,
+            lineHeight = 24.sp,
+            letterSpacing = 0.sp,
+        ),
+        bodySmall = bodySmall.copy(
+            fontSize = 13.sp,
+            lineHeight = 21.sp,
+            letterSpacing = 0.sp,
+        ),
+        labelLarge = labelLarge.copy(
+            fontSize = 14.sp,
+            lineHeight = 23.sp,
+            letterSpacing = 0.sp,
+        ),
+        labelMedium = labelMedium.copy(
+            fontSize = 12.sp,
+            lineHeight = 20.sp,
+            letterSpacing = 0.sp,
+        ),
+        labelSmall = labelSmall.copy(
+            fontSize = 11.sp,
+            lineHeight = 18.sp,
+            letterSpacing = 0.sp,
+        ),
     )
 }
 
