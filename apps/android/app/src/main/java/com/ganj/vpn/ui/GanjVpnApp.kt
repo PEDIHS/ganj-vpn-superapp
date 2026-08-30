@@ -31,9 +31,11 @@ import com.ganj.vpn.presentation.ConnectionActionHandle
 import com.ganj.vpn.presentation.ConnectionEffectResult
 import com.ganj.vpn.presentation.ConnectionSafeAction
 import com.ganj.vpn.presentation.ConnectionUiState
+import com.ganj.vpn.presentation.ContentState
 import com.ganj.vpn.presentation.GanjUiEvent
 import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.PlanUiModel
+import com.ganj.vpn.presentation.ServiceUiModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -43,6 +45,24 @@ private enum class GanjAccountSurface {
     PROFILE,
     SETTINGS,
     SUBSCRIPTION_DETAILS,
+}
+
+internal sealed interface TelegramServiceSyncFeedback {
+    data object Syncing : TelegramServiceSyncFeedback
+    data class Success(val serviceCount: Int) : TelegramServiceSyncFeedback
+    data object Empty : TelegramServiceSyncFeedback
+    data object AuthRequired : TelegramServiceSyncFeedback
+    data class Failed(val retryable: Boolean) : TelegramServiceSyncFeedback
+}
+
+internal fun telegramServiceSyncFeedback(
+    services: ContentState<ServiceUiModel>,
+): TelegramServiceSyncFeedback? = when (services) {
+    ContentState.Loading -> TelegramServiceSyncFeedback.Syncing
+    ContentState.Empty -> TelegramServiceSyncFeedback.Empty
+    ContentState.AuthRequired -> TelegramServiceSyncFeedback.AuthRequired
+    is ContentState.Ready -> TelegramServiceSyncFeedback.Success(services.items.size)
+    is ContentState.Error -> TelegramServiceSyncFeedback.Failed(services.failure.retryable)
 }
 
 @Composable
@@ -75,6 +95,7 @@ fun GanjVpnApp(
     var selectedDestination by remember { mutableStateOf(GanjDestination.Connect) }
     var accountSurface by remember { mutableStateOf(GanjAccountSurface.PROFILE) }
     var purchaseConfirmationPlan by remember { mutableStateOf<PlanUiModel?>(null) }
+    var accountSyncFeedback by remember { mutableStateOf<TelegramServiceSyncFeedback?>(null) }
     var state by remember(composition) { mutableStateOf(composition.restoreUiState()) }
     var enterpriseState by remember(composition) {
         mutableStateOf(composition.restoreEnterpriseState())
@@ -194,7 +215,19 @@ fun GanjVpnApp(
 
     LaunchedEffect(accountRefreshGeneration) {
         if (accountRefreshGeneration > 0) {
-            refresh()
+            refreshJob?.cancel()
+            commit(reducer.reduce(state, GanjUiEvent.RefreshRequested))
+            val loadingState = state
+            if (telegramLinked) accountSyncFeedback = TelegramServiceSyncFeedback.Syncing
+            val refreshed = withContext(Dispatchers.IO) {
+                controller.refresh(loadingState)
+            }
+            commit(refreshed)
+            accountSyncFeedback = if (telegramLinked) {
+                telegramServiceSyncFeedback(refreshed.services)
+            } else {
+                null
+            }
             refreshEnterprise()
         }
     }
@@ -345,6 +378,7 @@ fun GanjVpnApp(
                                         busy = telegramBusy,
                                         waitingForApproval = telegramWaiting,
                                         errorCode = telegramErrorCode,
+                                        syncFeedback = accountSyncFeedback,
                                         onLogin = onTelegramLogin,
                                         onCancelApproval = onTelegramCancel,
                                         onFallbackLogin = onTelegramFallback,
