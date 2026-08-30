@@ -84,6 +84,22 @@ async function findTicket(database, ticketId, { lock = false } = {}) {
   return result.rows[0];
 }
 
+async function createReplyNotification(database, ticket) {
+  await database.query(
+    `INSERT INTO control_notifications (id, user_id, kind, title, body, action)
+     SELECT $1, $2, 'support_reply', $3, $4, $5::jsonb
+       FROM control_notification_preferences
+      WHERE user_id = $2 AND support_reply = true`,
+    [
+      randomUUID(),
+      ticket.user_id,
+      'پاسخ جدید پشتیبانی',
+      `برای تیکت ${ticket.public_code} یک پاسخ جدید ثبت شد.`,
+      JSON.stringify({ type: 'open_support', id: ticket.id }),
+    ],
+  );
+}
+
 export function createAdminSupportRouter({ repository, clock = () => new Date(), parseBody }) {
   if (typeof parseBody !== 'function') throw new Error('Admin support parseBody boundary is required.');
 
@@ -151,7 +167,8 @@ export function createAdminSupportRouter({ repository, clock = () => new Date(),
           [messageId, ticketId, ticket.user_id, body],
         );
         let message;
-        if (inserted.rowCount === 1) {
+        const replayed = inserted.rowCount === 0;
+        if (!replayed) {
           message = inserted.rows[0];
         } else {
           const replay = await tx.query(
@@ -172,8 +189,10 @@ export function createAdminSupportRouter({ repository, clock = () => new Date(),
             RETURNING id, user_id, public_code, category, priority, subject, status, created_at, updated_at`,
           [ticketId],
         );
-        await audit(repository, principal, requestId, 'support.reply', ticketId, presentTicket(ticket), presentTicket(updated.rows[0]));
-        return { message, replay: inserted.rowCount === 0 };
+        const updatedTicket = updated.rows[0];
+        if (!replayed) await createReplyNotification(tx, updatedTicket);
+        await audit(repository, principal, requestId, 'support.reply', ticketId, presentTicket(ticket), presentTicket(updatedTicket));
+        return { message, replay: replayed };
       });
       return {
         status: outcome.replay ? 200 : 201,
