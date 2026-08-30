@@ -73,10 +73,13 @@ internal class DefaultDeviceApi(
             is TransportResult.Failure -> ApiResult.Failure(ApiError.Network(kind = result.kind))
             is TransportResult.Response -> {
                 if (result.value.statusCode == 204) {
-                    ApiResult.Success(Unit, ResponseMetadata(
-                        requestId = result.value.headers["x-request-id"],
-                        serverTime = null,
-                    ))
+                    ApiResult.Success(
+                        Unit,
+                        ResponseMetadata(
+                            requestId = result.value.headers["x-request-id"],
+                            serverTime = null,
+                        ),
+                    )
                 } else {
                     ApiResult.Failure(mapHttpError(result.value))
                 }
@@ -134,6 +137,8 @@ internal class DefaultDeviceApi(
 
     private fun mapDevice(item: JsonValue): TrustedDevice {
         val value = item.asObject()
+        val current = (value.values["current"] as? JsonValue.BooleanValue)?.value
+            ?: throw JsonProtocolException("Missing boolean 'current'")
         return TrustedDevice(
             id = value.requiredString("id").canonicalUuid("id"),
             platform = value.requiredString("platform").bounded("platform", 1, 32),
@@ -144,7 +149,7 @@ internal class DefaultDeviceApi(
                 "revoked" -> TrustedDeviceStatus.REVOKED
                 else -> throw JsonProtocolException("Unknown device status")
             },
-            current = value.requiredBoolean("current"),
+            current = current,
             lastSeenAt = value.optionalString("last_seen_at")?.utcTimestamp("last_seen_at"),
         )
     }
