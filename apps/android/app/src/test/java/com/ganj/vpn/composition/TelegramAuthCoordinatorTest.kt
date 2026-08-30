@@ -108,6 +108,19 @@ class TelegramAuthCoordinatorTest {
     }
 
     @Test
+    fun `authenticated account response can reconcile stale presentation marker`() {
+        val gateway = FakeGateway()
+        val flowStore = MemoryFlowStore()
+        val linkStore = MemoryLinkStore(linked = true)
+        val coordinator = coordinator(gateway, flowStore, linkStore)
+
+        assertTrue(coordinator.reconcileLinkedState(false).isSuccess)
+
+        assertFalse(coordinator.isLinked())
+        assertFalse(linkStore.linked)
+    }
+
+    @Test
     fun `approved Bot Approval exchanges once marks linked and clears flow`() {
         val gateway = FakeGateway(botStatus = TelegramBotApprovalState.APPROVED)
         val flowStore = MemoryFlowStore(validBotFlow())
