@@ -2,6 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { createTestAuthAdapter } from './adapters/test-auth.js';
 import { createTestAuthSessionAdapter } from './adapters/test-auth-session.js';
+import { createBotApprovalAdapter, createTestBotApprovalAdapter } from './adapters/bot-approval.js';
 import { createTestPurchaseVerifier } from './adapters/test-purchase-verifier.js';
 import { createTestTelegramAuthAdapter } from './adapters/test-telegram-auth.js';
 import { FIXTURES, InMemoryRepository, createSeed } from './repository.js';
@@ -40,6 +41,7 @@ export async function createRuntime(environment = process.env) {
         },
       }),
       authSession: createTestAuthSessionAdapter(),
+      botApproval: createTestBotApprovalAdapter({ environment }),
       purchaseVerifier: createTestPurchaseVerifier({
         approvedTokens: { [purchaseToken]: 'ganj.premium.30d' },
       }),
@@ -63,18 +65,27 @@ export async function createRuntime(environment = process.env) {
     || telegramAuth?.kind === 'test-only' || playNotifications?.kind === 'test-only' || enterpriseSecurity?.kind === 'test-only') {
     throw new Error('Test adapters cannot be loaded in production mode.');
   }
+  const botApprovalConfigured = Boolean(
+    environment.GANJ_BOT_USERNAME
+    && environment.GANJ_BOT_APPROVAL_HMAC_SECRET
+    && (environment.GANJ_BOT_APPROVAL_REDIRECT_URIS || environment.TELEGRAM_OIDC_REDIRECT_URIS),
+  );
+  const botApproval = botApprovalConfigured
+    ? await createBotApprovalAdapter({ environment })
+    : null;
   const controlPlaneRepository = withAdminControlPlaneRepository(repository);
   return {
     repository: controlPlaneRepository,
     auth,
     authSession,
+    botApproval,
     purchaseVerifier,
     telegramAuth,
     playNotifications,
     enterpriseSecurity,
     async close() {
       await Promise.allSettled(
-        [repository, auth, authSession, purchaseVerifier, telegramAuth, playNotifications, enterpriseSecurity]
+        [repository, auth, authSession, botApproval, purchaseVerifier, telegramAuth, playNotifications, enterpriseSecurity]
           .map((resource) => resource?.close?.()),
       );
     },
