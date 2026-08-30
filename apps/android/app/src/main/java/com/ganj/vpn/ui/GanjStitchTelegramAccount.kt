@@ -43,9 +43,11 @@ internal fun StitchTelegramAccountCard(
     busy: Boolean,
     waitingForApproval: Boolean,
     errorCode: String?,
+    syncFeedback: TelegramServiceSyncFeedback?,
     onLogin: () -> Unit,
     onCancelApproval: () -> Unit,
     onFallbackLogin: () -> Unit,
+    onRetrySync: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -64,6 +66,8 @@ internal fun StitchTelegramAccountCard(
     }
     val showSafeFallback = !linked && !waitingForApproval && !busy &&
         errorCode != null && errorCode in TelegramFallbackErrors
+    val requiresRelogin = errorCode == "auth.session_expired" ||
+        syncFeedback is TelegramServiceSyncFeedback.AuthRequired
 
     GanjGlassSurface(
         role = GanjGlassRole.Prominent,
@@ -147,14 +151,57 @@ internal fun StitchTelegramAccountCard(
             )
         }
 
+        if (linked && errorCode == null) {
+            syncFeedback?.let { feedback ->
+                GanjInlineStatusBanner(
+                    message = telegramServiceSyncMessage(feedback),
+                    tone = when (feedback) {
+                        TelegramServiceSyncFeedback.AuthRequired,
+                        is TelegramServiceSyncFeedback.Failed,
+                        -> AccountBannerTone.Error
+                        else -> AccountBannerTone.Info
+                    },
+                )
+            }
+        }
+
         if (linked) {
-            AccountSecondaryAction(
-                text = if (busy) "لطفاً صبر کنید…" else "خروج از حساب تلگرام",
-                enabled = !busy,
-                destructive = true,
-                onClick = { showLogoutConfirmation = true },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            if (requiresRelogin && !busy) {
+                AccountSecondaryAction(
+                    text = "ورود دوباره با تلگرام",
+                    enabled = true,
+                    onClick = { showLoginConfirmation = true },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            val failedSync = syncFeedback as? TelegramServiceSyncFeedback.Failed
+            if (errorCode == null && failedSync?.retryable == true && !busy) {
+                AccountSecondaryAction(
+                    text = "تلاش دوباره برای همگام‌سازی",
+                    enabled = true,
+                    onClick = onRetrySync,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            if (errorCode == "auth.logout_failed" && !busy) {
+                AccountSecondaryAction(
+                    text = "تلاش دوباره برای خروج",
+                    enabled = true,
+                    destructive = true,
+                    onClick = onLogout,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                AccountSecondaryAction(
+                    text = if (busy) "لطفاً صبر کنید…" else "خروج از حساب تلگرام",
+                    enabled = !busy,
+                    destructive = true,
+                    onClick = { showLogoutConfirmation = true },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         } else {
             GanjLiquidAction(
                 onClick = {
@@ -205,8 +252,12 @@ internal fun StitchTelegramAccountCard(
 
     if (showLoginConfirmation) {
         GanjLiquidConfirmDialog(
-            title = "ورود با ربات گنج",
-            body = "سرورهای رایگان بدون ورود قابل استفاده‌اند. با ادامه، تلگرام باز می‌شود و فقط اگر خودتان در ربات تأیید کنید حساب خریدهای گنج به همین دستگاه متصل می‌شود. هیچ کد ورود یا رمز تلگرام وارد اپ نمی‌کنید.",
+            title = if (linked) "ورود دوباره با ربات گنج" else "ورود با ربات گنج",
+            body = if (linked) {
+                "برای تازه‌سازی نشست حساب، تلگرام باز می‌شود و فقط با تأیید خودتان در ربات گنج یک نشست جدید برای همین دستگاه ساخته می‌شود."
+            } else {
+                "سرورهای رایگان بدون ورود قابل استفاده‌اند. با ادامه، تلگرام باز می‌شود و فقط اگر خودتان در ربات تأیید کنید حساب خریدهای گنج به همین دستگاه متصل می‌شود. هیچ کد ورود یا رمز تلگرام وارد اپ نمی‌کنید."
+            },
             confirmText = "باز کردن تلگرام",
             dismissText = "انصراف",
             onConfirm = {
@@ -362,6 +413,20 @@ private fun AccountSecondaryAction(
     }
 }
 
+private fun telegramServiceSyncMessage(feedback: TelegramServiceSyncFeedback): String = when (feedback) {
+    TelegramServiceSyncFeedback.Syncing -> "حساب متصل شد؛ در حال همگام‌سازی سرویس‌های شما…"
+    is TelegramServiceSyncFeedback.Success ->
+        "حساب متصل شد و ${feedback.serviceCount.toPersianDigits()} سرویس با موفقیت همگام شد."
+    TelegramServiceSyncFeedback.Empty -> "حساب متصل شد؛ سرویس فعالی برای این حساب پیدا نشد."
+    TelegramServiceSyncFeedback.AuthRequired ->
+        "حساب متصل شد اما نشست برای دریافت سرویس‌ها معتبر نیست. دوباره وارد شوید."
+    is TelegramServiceSyncFeedback.Failed -> if (feedback.retryable) {
+        "حساب متصل شد اما همگام‌سازی سرویس‌ها کامل نشد. می‌توانید دوباره تلاش کنید."
+    } else {
+        "حساب متصل شد اما سرویس‌ها فعلاً قابل دریافت نیستند."
+    }
+}
+
 internal fun telegramAuthErrorMessage(code: String): String = when (code) {
     "auth.redirect_not_configured" -> "ورود تلگرام هنوز برای این نسخه پیکربندی نشده است."
     "auth.pkce_unavailable" -> "ایجاد درخواست امنیتی ورود ممکن نشد. دوباره تلاش کنید."
@@ -388,7 +453,7 @@ internal fun telegramAuthErrorMessage(code: String): String = when (code) {
     "auth.callback_state_mismatch" -> "اعتبارسنجی امنیتی ورود ناموفق بود. ورود را دوباره شروع کنید."
     "auth.flow_clear_failed" -> "پاک‌سازی امن درخواست ورود انجام نشد. دوباره تلاش کنید."
     "auth.telegram_exchange_failed" -> "تکمیل ورود جایگزین تلگرام انجام نشد. دوباره تلاش کنید."
-    "auth.logout_failed" -> "خروج کامل از نشست انجام نشد. وضعیت شبکه را بررسی کنید."
+    "auth.logout_failed" -> "خروج از سرور تأیید نشد. نشست این دستگاه حفظ شده تا بتوانید دوباره تلاش کنید."
     "auth.telegram_launch_failed" -> "باز کردن مسیر ورود تلگرام ممکن نشد."
     "auth.unavailable" -> "سرویس ورود در این نسخه در دسترس نیست."
     else -> "ورود تلگرام با خطا روبه‌رو شد. دوباره تلاش کنید."
