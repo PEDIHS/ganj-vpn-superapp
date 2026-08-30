@@ -32,6 +32,13 @@ internal class DefaultAuthSessionApi(
         mapData = ::mapSession,
     )
 
+    override fun currentAccount(accessToken: AccessToken): ApiResult<CurrentAccount> = execute(
+        method = HttpMethod.GET,
+        path = "/me",
+        headers = mapOf("Authorization" to accessToken.authorizationValue()),
+        mapData = ::mapCurrentAccount,
+    )
+
     override fun beginTelegramBotApproval(
         accessToken: AccessToken,
         command: TelegramBotApprovalCommand,
@@ -177,6 +184,20 @@ internal class DefaultAuthSessionApi(
             accessTokenExpiresAt = value.requiredString("access_token_expires_at").utcTimestamp("access_token_expires_at"),
             refreshToken = RefreshToken.from(value.requiredString("refresh_token")),
             refreshTokenExpiresAt = value.requiredString("refresh_token_expires_at").utcTimestamp("refresh_token_expires_at"),
+        )
+    }
+
+    private fun mapCurrentAccount(data: JsonValue): CurrentAccount {
+        val value = data.asObject()
+        if (value.requiredString("status") != "active") {
+            throw JsonProtocolException("Current account is not active")
+        }
+        return CurrentAccount(
+            id = value.requiredString("id").canonicalUuid("id"),
+            displayName = value.optionalString("display_name"),
+            locale = value.requiredString("locale"),
+            telegramLinked = value.optionalBoolean("telegram_linked", default = false),
+            telegramUsername = value.optionalString("telegram_username"),
         )
     }
 
