@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ganj.vpn.R
 import com.ganj.vpn.composition.NotificationCompositionRegistry
+import com.ganj.vpn.composition.NotificationUnreadRegistry
 import com.ganj.vpn.core.controlapi.ApiError
 import com.ganj.vpn.core.controlapi.ApiResult
 import kotlinx.coroutines.Dispatchers
@@ -75,17 +76,17 @@ internal fun GanjLiquidBottomNavigation(
     val horizontalPadding = GanjResponsivePolicy
         .stitchNavigationHorizontalPaddingDp(windowWidthDp)
         .dp
-    val unreadCount by GanjNotificationUnreadRegistry.count.collectAsState()
+    val unreadCount by NotificationUnreadRegistry.count.collectAsState()
     val notificationApi = NotificationCompositionRegistry.currentApi()
 
     LaunchedEffect(notificationApi) {
         val active = notificationApi ?: return@LaunchedEffect
         when (val result = withContext(Dispatchers.IO) { active.notifications(limit = 1) }) {
-            is ApiResult.Success -> GanjNotificationUnreadRegistry.update(result.value.unreadCount)
+            is ApiResult.Success -> NotificationUnreadRegistry.update(result.value.unreadCount)
             is ApiResult.Failure -> if (
                 result.error is ApiError.AuthenticationRequired || result.error is ApiError.AuthenticationExpired
             ) {
-                GanjNotificationUnreadRegistry.clear()
+                NotificationUnreadRegistry.clear()
             }
         }
     }
