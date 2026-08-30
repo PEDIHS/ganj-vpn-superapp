@@ -30,9 +30,9 @@ export function createDeviceRouter({ auth, repository, clock = () => new Date() 
     const principal = await auth.authenticate(request);
     requireUuid(principal.userId, 'authenticated user id');
     requireUuid(principal.deviceId, 'authenticated device id');
-    const database = databaseFor(repository);
 
     if (request.method === 'GET' && listPath) {
+      const database = databaseFor(repository);
       const result = await database.query(
         `SELECT id, status, last_seen_at, created_at
            FROM control_devices
@@ -52,6 +52,7 @@ export function createDeviceRouter({ auth, repository, clock = () => new Date() 
         throw new ApiError(409, 'cannot_revoke_current_device', 'The current device cannot revoke itself.');
       }
       await repository.transaction(async () => {
+        const database = databaseFor(repository);
         const owned = await database.query(
           `SELECT id, status
              FROM control_devices
