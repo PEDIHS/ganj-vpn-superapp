@@ -91,16 +91,18 @@ class TelegramAuthCoordinatorTest {
     }
 
     @Test
-    fun `expired Bot Approval fails before status request`() {
+    fun `expired stored Bot Approval remains detectable until resume surfaces expiry`() {
         val gateway = FakeGateway()
         val flowStore = MemoryFlowStore(validBotFlow(expiresAt = "2026-08-27T00:00:00Z"))
         val coordinator = coordinator(gateway, flowStore)
 
+        assertTrue(coordinator.hasPendingBotApproval())
         val result = coordinator.resumeBotApproval()
 
         assertEquals("auth.bot_approval_expired", (result as TelegramAuthResult.Failed).code)
         assertEquals(0, gateway.statusCount)
         assertTrue(flowStore.flow == null)
+        assertFalse(coordinator.hasPendingBotApproval())
     }
 
     @Test
@@ -113,6 +115,38 @@ class TelegramAuthCoordinatorTest {
         val result = coordinator.resumeBotApproval()
 
         assertEquals("auth.bot_approval_wrong_device", (result as TelegramAuthResult.Failed).code)
+    }
+
+    @Test
+    fun `PKCE or state binding mismatch is not misreported as session expiry`() {
+        val gateway = FakeGateway(
+            botStatus = TelegramBotApprovalState.APPROVED,
+            botExchangeFailure = ApiError.AuthenticationExpired(null, "bot_approval_binding_mismatch"),
+        )
+        val flowStore = MemoryFlowStore(validBotFlow())
+        val coordinator = coordinator(gateway, flowStore)
+
+        val result = coordinator.resumeBotApproval()
+
+        assertEquals("auth.bot_approval_binding_mismatch", (result as TelegramAuthResult.Failed).code)
+        assertEquals(1, gateway.botExchangeCount)
+        assertNotNull(flowStore.flow)
+    }
+
+    @Test
+    fun `replayed exchange is surfaced and flow remains available for explicit restart handling`() {
+        val gateway = FakeGateway(
+            botStatus = TelegramBotApprovalState.APPROVED,
+            botExchangeFailure = ApiError.Conflict(null, "bot_approval_replayed"),
+        )
+        val flowStore = MemoryFlowStore(validBotFlow())
+        val coordinator = coordinator(gateway, flowStore)
+
+        val result = coordinator.resumeBotApproval()
+
+        assertEquals("auth.bot_approval_replayed", (result as TelegramAuthResult.Failed).code)
+        assertEquals(1, gateway.botExchangeCount)
+        assertNotNull(flowStore.flow)
     }
 
     @Test
@@ -213,7 +247,7 @@ class TelegramAuthCoordinatorTest {
     private inner class FakeGateway(
         private val botStatus: TelegramBotApprovalState = TelegramBotApprovalState.PENDING,
         private val statusFailure: ApiError? = null,
-        private val botExchangeSucceeds: Boolean = true,
+        private val botExchangeFailure: ApiError? = null,
     ) : TelegramAuthSessionGateway {
         var lastBotStart: TelegramBotApprovalCommand? = null
         var lastOidcStart: TelegramAuthorizationCommand? = null
@@ -256,9 +290,8 @@ class TelegramAuthCoordinatorTest {
             command: TelegramBotApprovalExchangeCommand,
         ): ApiResult<AuthSessionCredentials> {
             botExchangeCount += 1
-            return if (botExchangeSucceeds) session() else ApiResult.Failure(
-                ApiError.Conflict(null, "bot_approval_replayed"),
-            )
+            botExchangeFailure?.let { return ApiResult.Failure(it) }
+            return session()
         }
 
         override fun beginTelegram(
