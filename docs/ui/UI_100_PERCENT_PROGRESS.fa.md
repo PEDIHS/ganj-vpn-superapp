@@ -1,7 +1,7 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **وضعیت رسمی UI در شروع این Ledger: 54٪**  
-> **وضعیت فعلی پس از Batch 2026-08-30/Auth-1: 56٪**  
+> **وضعیت فعلی پس از Batch 2026-08-30/Settings-1: 58٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
@@ -181,6 +181,8 @@
 - [ ] Post-payment wallet refresh.
 - [ ] Duplicate top-up protection feedback.
 
+> **Runtime note:** OpenAPI برای `/wallet` و `/wallet/transactions` contract دارد، اما Control API runtime فعلی هنوز این routeها را اجرا نمی‌کند؛ بنابراین UI کیف پول تا زمان runtime wiring عمداً fake نمی‌شود.
+
 ---
 
 # 6) Transactions
@@ -212,9 +214,9 @@
 # 7) Settings
 
 ## 7.1 Settings shell
-- [ ] Settings main screen.
-- [ ] Section grouping و search در صورت نیاز.
-- [ ] Consistent toggle/list row component.
+- [x] Settings main screen.
+- [x] Section grouping و search در صورت نیاز. (Grouping انجام شده؛ search برای Scope فعلی لازم نیست.)
+- [x] Consistent toggle/list row component.
 - [ ] Reset/default state policy.
 
 ## 7.2 Connection settings
@@ -227,10 +229,10 @@
 - [ ] Protocol preference فقط اگر contract واقعی expose شود.
 
 ## 7.3 Appearance
-- [ ] Theme: System / Light / Dark.
+- [x] Theme: System / Light / Dark.
 - [ ] Language/locale surface طبق Scope قطعی محصول.
-- [ ] Reduce Motion preference اگر app-owned.
-- [ ] Reduce Transparency preference اگر app-owned.
+- [x] Reduce Motion preference اگر app-owned.
+- [x] Reduce Transparency preference اگر app-owned.
 
 ## 7.4 Privacy
 - [ ] Analytics consent.
@@ -239,7 +241,7 @@
 - [ ] Clear local non-sensitive UI cache در صورت supported.
 
 ## 7.5 About
-- [ ] App version/build.
+- [x] App version/build.
 - [ ] Update status.
 - [ ] Official website/Telegram/support links.
 - [ ] Open-source licenses entry.
@@ -305,7 +307,7 @@
 - [x] Telegram linked/unlinked status integrated into Profile.
 - [ ] Wallet entry integrated into Profile.
 - [ ] Transactions entry integrated into Profile.
-- [ ] Settings entry integrated into Profile.
+- [x] Settings entry integrated into Profile.
 - [ ] Devices entry integrated into Profile.
 - [ ] Notifications entry integrated into Profile.
 - [ ] Security/session status card.
@@ -620,8 +622,8 @@
 - [ ] Search input with clear action.
 - [ ] Password/secret field فقط اگر feature واقعی لازم شود.
 - [ ] Dropdown/selector component.
-- [ ] Radio selection component.
-- [ ] Switch/toggle component.
+- [x] Radio selection component.
+- [x] Switch/toggle component.
 - [ ] Date/range selector در صورت نیاز.
 - [ ] Inline validation/error messaging.
 - [ ] Disabled/read-only styling.
@@ -758,9 +760,9 @@
 | Profile basic | High |
 | Enterprise Bug/Diagnostics | High |
 | Telegram Login final UX | Partial — fallback hardened, Bot Approval P0 pending |
-| Wallet | Not implemented in new UI |
-| Transactions | Not implemented in new UI |
-| Settings | Not implemented in new UI |
+| Wallet | Runtime API pending; UI intentionally not faked |
+| Transactions | Runtime API pending; UI intentionally not faked |
+| Settings | Partial — real persisted Theme + accessibility settings wired |
 | Devices | Not implemented in new UI |
 | Notifications | Not implemented in new UI |
 | Subscription detail flows | Partial |
@@ -772,7 +774,7 @@
 | Full Support/Tickets | Partial |
 | Dialog/Bottom Sheet system | Partial — Liquid confirm dialog added |
 | Physical-device final QA | Pending |
-| **Overall** | **56%** |
+| **Overall** | **58%** |
 
 ## Batch Log
 
@@ -785,6 +787,18 @@
 - Added reusable Liquid confirmation dialog and concrete logout confirmation.
 - Added coordinator unit tests for PKCE start, state mismatch/replay, expiry, redirect mismatch, one-shot success, failed exchange and logout.
 - **Remaining boundary:** Issue #39 Bot Approval is still the required primary login flow; the hardened OIDC/PKCE implementation remains fallback until Bot Approval is implemented and wired. CI/build/device evidence remains pending while GitHub Actions is quota-blocked.
+
+### 2026-08-30 — Settings-1 / persisted appearance + accessibility
+
+- Added a real Settings subflow under Account with system Back handling.
+- Added persistent `System / Light / Dark` theme preference using app-local SharedPreferences.
+- Added persistent Reduce Motion and Reduce Transparency preferences.
+- User reductions are additive: they never override stricter system accessibility/power/low-RAM behavior.
+- Reduce Transparency disables ambient background effects and reuses the existing opaque Liquid fallback.
+- Added a Liquid radio selector, accessible switch/toggle rows with `Role.Switch`, and minimum touch targets.
+- Added real app version/build display from `BuildConfig`.
+- Added pure policy unit tests for theme resolution and system accessibility precedence.
+- **Remaining boundary:** connection settings, privacy settings, legal/support links and device QA are still open. Wallet/Transactions remain blocked on runtime routes even though OpenAPI contracts exist; no fake balance/ledger is shown.
 
 ## Mandatory update format after every Agent batch
 
