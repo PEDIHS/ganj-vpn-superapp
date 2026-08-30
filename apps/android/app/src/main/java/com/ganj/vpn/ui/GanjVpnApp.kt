@@ -175,6 +175,25 @@ fun GanjVpnApp(
         }
     }
 
+    fun refreshLinkedAccount() {
+        refreshJob?.cancel()
+        commit(reducer.reduce(state, GanjUiEvent.RefreshRequested))
+        val loadingState = state
+        accountSyncFeedback = if (telegramLinked) TelegramServiceSyncFeedback.Syncing else null
+        refreshJob = scope.launch {
+            val refreshed = withContext(Dispatchers.IO) {
+                controller.refresh(loadingState)
+            }
+            commit(refreshed)
+            accountSyncFeedback = if (telegramLinked) {
+                telegramServiceSyncFeedback(refreshed.services)
+            } else {
+                null
+            }
+        }
+        refreshEnterprise()
+    }
+
     fun checkout(plan: PlanUiModel) {
         checkoutJob?.cancel()
         commit(reducer.reduce(state, GanjUiEvent.CheckoutRequested(plan.id)))
@@ -215,20 +234,7 @@ fun GanjVpnApp(
 
     LaunchedEffect(accountRefreshGeneration) {
         if (accountRefreshGeneration > 0) {
-            refreshJob?.cancel()
-            commit(reducer.reduce(state, GanjUiEvent.RefreshRequested))
-            val loadingState = state
-            if (telegramLinked) accountSyncFeedback = TelegramServiceSyncFeedback.Syncing
-            val refreshed = withContext(Dispatchers.IO) {
-                controller.refresh(loadingState)
-            }
-            commit(refreshed)
-            accountSyncFeedback = if (telegramLinked) {
-                telegramServiceSyncFeedback(refreshed.services)
-            } else {
-                null
-            }
-            refreshEnterprise()
+            refreshLinkedAccount()
         }
     }
 
@@ -382,6 +388,7 @@ fun GanjVpnApp(
                                         onLogin = onTelegramLogin,
                                         onCancelApproval = onTelegramCancel,
                                         onFallbackLogin = onTelegramFallback,
+                                        onRetrySync = ::refreshLinkedAccount,
                                         onLogout = onTelegramLogout,
                                         modifier = Modifier.padding(
                                             horizontal = responsiveHorizontalPadding(),
