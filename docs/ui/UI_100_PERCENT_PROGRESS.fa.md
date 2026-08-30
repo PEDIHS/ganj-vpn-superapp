@@ -1,11 +1,11 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **وضعیت رسمی UI در شروع این Ledger: 54٪**  
-> **وضعیت فعلی پس از Batch 2026-08-30/Wallet-1: 74٪**  
+> **وضعیت فعلی پس از Batch 2026-08-30/Devices-1: 78٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
-این فایل **مرجع اجرایی اجباری تمام Agentها برای تکمیل UI/UX** است. هر Agent قبل از هر تغییر UI باید این فایل را کامل بخواند، وضعیت Runtime و Branch/PR را بررسی کند، سپس فقط آیتم‌هایی را که واقعاً مطابق Definition of Done تکمیل کرده است از `[ ]` به `[x]` تغییر دهد.
+این فایل **مرجع اجرایی اجباری تمام Agentها برای تکمیل UI/UX** است. هر Agent قبل از هر تغییر UI باید این فایل کامل را بخواند، وضعیت Runtime و Branch/PR را بررسی کند، سپس فقط آیتم‌هایی را که واقعاً مطابق Definition of Done تکمیل کرده است از `[ ]` به `[x]` تغییر دهد.
 
 ---
 
@@ -197,21 +197,21 @@
 - [x] Adjustment transaction visual type.
 - [ ] Failed transaction visual type.
 - [ ] Pending transaction visual type.
-- [ ] Filter by transaction type.
+- [x] Filter by transaction type.
 - [ ] Filter by status.
 - [ ] Filter/date range UX در صورت contract.
 - [x] Pagination/infinite loading.
 - [x] Empty state.
 - [ ] Loading skeleton.
 - [x] Error/retry state.
-- [ ] Transaction Detail bottom sheet/page.
-- [ ] Amount, date, status, reference/order id.
+- [x] Transaction Detail bottom sheet/page.
+- [ ] Amount, date, status, reference/order id. (Amount/date/reference کامل است؛ status در immutable posted-ledger contract وجود ندارد.)
 - [ ] Payment method/source.
 - [x] Description/reason.
-- [ ] Copy reference action با feedback.
+- [x] Copy reference action با feedback.
 - [ ] Receipt/detail link در صورت موجود بودن.
 
-> **Batch Wallet-1 note:** transaction source اکنون یک posted immutable ledger است؛ به همین دلیل Pending/Failed status تا زمانی که قرارداد جداگانه pending-operation/payment وجود نداشته باشد جعل نمی‌شود. صفحه فعلی amount/date/reference/description را در row نشان می‌دهد، اما Detail page، copy-reference، type/status/date filters و payment-source هنوز باز هستند.
+> **Batch Transactions-2 note:** History اکنون type filter واقعی، Detail page، amount/balance-after/date/reference/description و copy-reference feedback دارد. Pending/Failed/status filter/payment method عمداً ساخته نشده‌اند چون `control_wallet_ledger` فقط posted immutable entries را مدل می‌کند و contract فعلی payment-operation status/source ندارد.
 
 ---
 
@@ -256,25 +256,25 @@
 
 # 8) Devices / Device Binding
 
-- [ ] My Devices screen.
-- [ ] Current device highlight.
-- [ ] Other registered devices list.
-- [ ] Device name/type.
-- [ ] Safe platform/OS metadata.
-- [ ] Last activity در حد privacy policy.
-- [ ] Active/revoked status.
+- [x] My Devices screen.
+- [x] Current device highlight.
+- [x] Other registered devices list.
+- [ ] Device name/type. (Backend فعلی model/name را persist نمی‌کند؛ UI فقط name واقعی در صورت وجود یا privacy-safe short identifier نشان می‌دهد.)
+- [ ] Safe platform/OS metadata. (Android platform موجود است؛ OS/version metadata هنوز contract/persistence ندارد.)
+- [x] Last activity در حد privacy policy.
+- [x] Active/revoked status.
 - [ ] Device limit summary.
 - [ ] Device limit reached state.
-- [ ] Device Detail sheet/page.
-- [ ] Revoke device action.
-- [ ] Revoke confirmation dialog.
-- [ ] Revoke processing state.
-- [ ] Revoke success state.
-- [ ] Revoke failure/retry state.
-- [ ] Cannot revoke current/last device policy feedback در صورت applicable.
-- [ ] Device Binding explanation surface.
+- [x] Device Detail sheet/page.
+- [x] Revoke device action.
+- [x] Revoke confirmation dialog.
+- [x] Revoke processing state.
+- [x] Revoke success state.
+- [x] Revoke failure/retry state.
+- [x] Cannot revoke current/last device policy feedback در صورت applicable. (Current device fail-closed؛ last-device policy جداگانه در contract فعلی وجود ندارد.)
+- [x] Device Binding explanation surface.
 
-> **Runtime note:** OpenAPI برای device management contract دارد، اما route اجرایی متناظر در Control API baseline فعلی پیدا نشد؛ UI device management تا runtime wiring fake نمی‌شود.
+> **Batch Devices-1 note:** OpenAPI موجود به Runtime واقعی متصل شد. `GET /v1/me/devices` owner-scoped است؛ `DELETE /v1/me/devices/{device_id}` دستگاه فعلی را fail-closed رد می‌کند و revoke دستگاه دیگر را داخل PostgreSQL transaction انجام می‌دهد: device status، همه auth sessionهای همان device و service bindings همگام invalidate می‌شوند. Android `DeviceApi` با token refresh/strict mapping و Liquid Devices list/detail/revoke flow به Profile وصل شده است. مدل گوشی، OS version و app version چون در DB فعلی ذخیره نمی‌شوند جعل نشده‌اند.
 
 ---
 
@@ -316,7 +316,7 @@
 - [x] Wallet entry integrated into Profile.
 - [x] Transactions entry integrated into Profile.
 - [x] Settings entry integrated into Profile.
-- [ ] Devices entry integrated into Profile.
+- [x] Devices entry integrated into Profile.
 - [ ] Notifications entry integrated into Profile.
 - [ ] Security/session status card.
 - [x] Logout entry + confirmation.
@@ -574,17 +574,17 @@
 - [ ] Pull-to-refresh indicator.
 - [ ] Skeleton/loading shimmer policy که Reduce Motion را رعایت کند.
 - [ ] Inline field validation component.
-- [ ] Copy-to-clipboard feedback component.
+- [x] Copy-to-clipboard feedback component. (Transaction reference feedback source-wired.)
 
 ## 20.2 Required concrete sheets/dialogs
 - [ ] Telegram Login pre-confirmation sheet. (Liquid confirmation dialog موجود است؛ sheet canonical جداگانه هنوز ساخته نشده.)
 - [x] Logout confirmation dialog.
-- [ ] Revoke Device confirmation dialog.
+- [x] Revoke Device confirmation dialog.
 - [ ] Server Detail sheet.
 - [ ] Premium Server Upgrade sheet.
 - [ ] Plan Detail sheet.
 - [x] Purchase Confirmation sheet/dialog.
-- [ ] Transaction Detail sheet.
+- [x] Transaction Detail sheet/page.
 - [ ] Add Balance confirmation/result sheet.
 - [ ] Subscription cancel/change confirmation.
 - [ ] Session expired dialog/banner.
@@ -769,9 +769,9 @@
 | Enterprise Bug/Diagnostics | High |
 | Telegram Login final UX | High — Bot Approval primary + cancel + guarded fallback + re-login + authoritative account identity + real service-refresh feedback wired; real Bot/device E2E pending |
 | Wallet | Partial/High — real DB/runtime/Android/Liquid read flow complete; top-up write/provider flow pending |
-| Transactions | Partial/High — real immutable ledger, pagination and history UI wired; detail/filter/payment-source states pending |
+| Transactions | High — real immutable ledger + pagination + type filter + detail + copy reference wired; payment-operation status/source remains unmodeled |
 | Settings | Partial — real persisted Theme + accessibility settings wired |
-| Devices | Runtime API pending; UI intentionally not faked |
+| Devices | High — real owner-scoped runtime + Android + Liquid list/detail/revoke flow wired; richer device metadata/limits + physical QA pending |
 | Notifications | Runtime API pending; UI intentionally not faked |
 | Subscription detail flows | Partial/High — real read-only details + status surfaces wired |
 | Advanced server UX | Partial |
@@ -780,11 +780,31 @@
 | Onboarding | High — first-run/skip/persistence/replay complete; optional Bot Approval CTA + device QA pending |
 | Referral/Promotions | Not finalized |
 | Full Support/Tickets | Partial |
-| Dialog/Bottom Sheet system | Partial — Liquid confirm + purchase/VPN/auth dialogs added |
+| Dialog/Bottom Sheet system | Partial — Liquid confirm + purchase/VPN/auth/device dialogs and transaction detail added |
 | Physical-device final QA | Pending |
-| **Overall** | **74%** |
+| **Overall** | **78%** |
 
 ## Batch Log
+
+### 2026-08-30 — Devices-1 / trusted-device runtime + Liquid management
+
+- Activated the existing `/v1/me/devices` and `/v1/me/devices/{device_id}` contract with a production Postgres-backed route instead of mock data.
+- Device listing is owner-scoped and marks only the authenticated `device_id` as current; model/name/app-version are not fabricated when persistence does not contain them.
+- Revoke of the current device fails closed with `cannot_revoke_current_device`.
+- Revoke of another owned device executes under the repository PostgreSQL transaction and atomically marks the device revoked, revokes its auth sessions and removes service-device bindings.
+- Added backend route tests for owner scoping, current-device denial and atomic revoke effects.
+- Added Android `DELETE` transport support and strict `DeviceApi` mapping with UUID/status/current/timestamp validation and explicit 204 handling.
+- Added Device API tests including malformed data, current-device conflict and invalid-id no-network behavior.
+- Bound Device API to the app composition lifecycle and added Liquid Devices list/detail/current/revoked/last-seen/revoke confirmation/processing/success/error flows plus a linked-account Profile entry.
+- Added privacy-safe device labels: real backend name when available; otherwise current-device label or only an isolated short UUID suffix rather than fabricating hardware identity.
+- **Remaining boundary:** persisted model/OS/app-version metadata, device-limit aggregation/reached state, physical-device/TalkBack/responsive QA and CI build evidence remain open.
+
+### 2026-08-30 — Transactions-2 / type filter + detail + copy reference
+
+- Added real ledger type filters over `WalletTransactionType` without introducing a fake status model.
+- Added a Liquid Transaction Detail page with direction, amount, balance-after, timestamp, reference type/id and description from the real immutable ledger.
+- Added copy-reference action with local feedback and unit coverage for transaction filtering.
+- Pending/Failed/status/date-range/payment-source surfaces remain intentionally open because the current posted-ledger contract does not expose those concepts.
 
 ### 2026-08-30 — Wallet-1 / real balance + immutable ledger read flow
 
@@ -796,7 +816,7 @@
 - Bound Wallet API to the app composition lifecycle without mixing Wallet state into VPN/catalog presentation state.
 - Added Liquid Wallet and Transactions screens, real balance, recent transactions, full history, pagination, empty/loading/error/retry states and Profile entries visible only for linked accounts.
 - Transaction rows support posted top-up/purchase/refund/adjustment/reversal ledger types and display real amount, resulting balance, timestamp, optional reference and description.
-- **Remaining boundary:** top-up/provider write flow, pending-balance contract, transaction detail/copy/filter/payment-source surfaces, canonical Wallet OpenAPI schema expansion, device QA and CI build evidence remain open. No fake balance/top-up/payment state is shown.
+- **Remaining boundary:** top-up/provider write flow, pending-balance contract, payment-source/status/date-range surfaces, canonical Wallet OpenAPI schema expansion, device QA and CI build evidence remain open. No fake balance/top-up/payment state is shown.
 
 ### 2026-08-30 — Auth-4 / authoritative privacy-safe account identity
 
@@ -893,10 +913,10 @@
 Agent باید انتهای PR/commit summary این چهار خط را به‌روز کند:
 
 ```text
-UI Ledger sections touched: 5, 6, 10, 26
-Leaf items completed: real Wallet screen/balance/recent transactions/refresh/loading/empty/offline states; transaction history/rows/types/pagination/error states; Wallet + Transactions Profile entries
-Remaining unchecked items in touched sections: top-up/provider writes; pending balance; transaction detail/filter/payment-source/copy; device/notification/security surfaces; final runtime audit
-Overall UI completion: 74% (100% forbidden until Final Gate is all checked)
+UI Ledger sections touched: 6, 8, 10, 20, 26
+Leaf items completed: transaction type filter/detail/copy-reference; real trusted-device list/current/detail/revoke flow; Devices Profile entry
+Remaining unchecked items in touched sections: transaction status/payment-source/date-range/skeleton; richer device metadata/limits; notifications/security surfaces; physical-device and final runtime audit
+Overall UI completion: 78% (100% forbidden until Final Gate is all checked)
 ```
 
 این Ledger باید همراه کد تکامل پیدا کند؛ حذف checkbox برای پنهان‌کردن کار باقی‌مانده ممنوع است. اگر Scope رسمی تغییر کرد، ابتدا Scope canonical docs اصلاح شود و سپس آیتم با دلیل مشخص `Deferred by product scope` شود؛ هیچ Agentی حق ندارد مستقل از Product Scope آیتم را نادیده بگیرد.
