@@ -28,6 +28,7 @@ class GanjCompositionOwner internal constructor(
         walletApi?.transactions(cursor = cursor)
 
     override fun onCleared() {
+        WalletCompositionRegistry.unbind(composition)
         composition.close()
     }
 
@@ -74,11 +75,13 @@ class GanjCompositionOwner internal constructor(
                 linkState = AndroidTelegramLinkStateStore(application),
                 redirectUri = telegramRedirectUri,
             )
+            val walletApi = WalletApiFactory.create(endpoint, sessionManager)
+            WalletCompositionRegistry.bind(composition, walletApi)
             return GanjCompositionOwner(
                 composition = composition,
                 telegramAuth = telegramAuth,
                 accountSession = sessionManager,
-                walletApi = WalletApiFactory.create(endpoint, sessionManager),
+                walletApi = walletApi,
             ) as T
         }
 
