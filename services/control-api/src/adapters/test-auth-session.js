@@ -22,6 +22,17 @@ export function createTestAuthSessionAdapter() {
         expires_at: new Date(Date.now() + 600_000).toISOString(),
       };
     },
+    async linkTelegram({ deviceId }) {
+      return {
+        user_id: FIXTURES.users.primary,
+        device_id: deviceId,
+        access_token: 'test-telegram-linked-access-token',
+        access_token_expires_at: new Date(Date.now() + 900_000).toISOString(),
+        refresh_token: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        refresh_token_expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+        token_type: 'Bearer',
+      };
+    },
     async refresh({ deviceId }) {
       return this.guest({ deviceId });
     },
