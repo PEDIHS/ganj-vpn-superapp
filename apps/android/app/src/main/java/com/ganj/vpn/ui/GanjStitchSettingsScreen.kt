@@ -48,10 +48,36 @@ internal fun StitchSettingsScreen(
 ) {
     var showNotificationHub by remember { mutableStateOf(false) }
     var showSupportHub by remember { mutableStateOf(false) }
+    var supportDeepLinkTicketId by remember { mutableStateOf<String?>(null) }
+
+    supportDeepLinkTicketId?.let { ticketId ->
+        StitchSupportDeepLinkTarget(
+            ticketId = ticketId,
+            onBack = {
+                supportDeepLinkTicketId = null
+                showNotificationHub = true
+            },
+            onOpenSupportCenter = {
+                supportDeepLinkTicketId = null
+                showSupportHub = true
+            },
+            modifier = modifier,
+        )
+        return
+    }
 
     if (showNotificationHub) {
         StitchNotificationHub(
             onBack = { showNotificationHub = false },
+            onOpenSupport = { ticketId ->
+                showNotificationHub = false
+                val canonicalId = canonicalSupportTicketIdOrNull(ticketId)
+                if (canonicalId != null) {
+                    supportDeepLinkTicketId = canonicalId
+                } else {
+                    showSupportHub = true
+                }
+            },
             modifier = modifier,
         )
         return
