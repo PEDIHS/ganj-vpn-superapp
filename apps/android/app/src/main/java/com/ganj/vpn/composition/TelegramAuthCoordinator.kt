@@ -77,8 +77,13 @@ internal class TelegramAuthCoordinator(
 ) {
     fun isLinked(): Boolean = linkState.isLinked()
 
+    /**
+     * True while a Bot Approval ceremony is stored locally, including an already-expired request.
+     * Keeping the expired flow visible lets the next resume turn it into an explicit expiry state
+     * instead of silently dropping the user's login attempt.
+     */
     fun hasPendingBotApproval(): Boolean = store.restore()?.let {
-        it.mode == TelegramAuthFlowMode.BOT_APPROVAL && !isExpired(it.expiresAt)
+        it.mode == TelegramAuthFlowMode.BOT_APPROVAL && !it.requestId.isNullOrBlank()
     } == true
 
     /** Primary product login path. */
@@ -263,9 +268,11 @@ internal class TelegramAuthCoordinator(
 
     private fun mapApprovalFailure(error: ApiError, fallback: String): String = when (error) {
         is ApiError.Network -> "auth.bot_approval_offline"
-        is ApiError.AuthenticationRequired,
-        is ApiError.AuthenticationExpired,
-        -> "auth.session_expired"
+        is ApiError.AuthenticationRequired -> "auth.session_expired"
+        is ApiError.AuthenticationExpired -> when (error.code) {
+            "bot_approval_binding_mismatch" -> "auth.bot_approval_binding_mismatch"
+            else -> "auth.session_expired"
+        }
         is ApiError.Forbidden -> when (error.code) {
             "bot_approval_denied" -> "auth.bot_approval_denied"
             else -> fallback
