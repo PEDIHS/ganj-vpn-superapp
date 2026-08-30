@@ -13,6 +13,10 @@ import com.ganj.vpn.core.controlapi.RefreshingAuthTokenProvider
 import com.ganj.vpn.core.controlapi.SessionCredentialVault
 import com.ganj.vpn.core.controlapi.TelegramAuthorization
 import com.ganj.vpn.core.controlapi.TelegramAuthorizationCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalExchangeCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalRequest
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalStatus
 import com.ganj.vpn.core.controlapi.TelegramExchangeCommand
 import com.ganj.vpn.core.deviceidentity.DeviceIdentity
 import com.ganj.vpn.core.deviceidentity.DeviceProofRequest
@@ -58,6 +62,37 @@ internal class AndroidAuthSessionManager(
 
     fun currentDeviceId(): String? = synchronized(lock) {
         (vault.restore() ?: createGuestLocked())?.deviceId
+    }
+
+    override fun beginTelegramBotApproval(
+        command: TelegramBotApprovalCommand,
+    ): ApiResult<TelegramBotApprovalRequest> = synchronized(lock) {
+        val token = currentAccessToken()
+            ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationExpired(null, "auth_required"))
+        api.beginTelegramBotApproval(token, command)
+    }
+
+    override fun telegramBotApprovalStatus(
+        requestId: String,
+    ): ApiResult<TelegramBotApprovalStatus> = synchronized(lock) {
+        val token = currentAccessToken()
+            ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationExpired(null, "auth_required"))
+        api.telegramBotApprovalStatus(token, requestId)
+    }
+
+    override fun exchangeTelegramBotApproval(
+        command: TelegramBotApprovalExchangeCommand,
+    ): ApiResult<AuthSessionCredentials> = synchronized(lock) {
+        val token = currentAccessToken()
+            ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationExpired(null, "auth_required"))
+        when (val result = api.exchangeTelegramBotApproval(token, command)) {
+            is ApiResult.Success -> if (persistLocked(result.value) != null) {
+                result
+            } else {
+                ApiResult.Failure(ApiError.Protocol(null, "session_persistence_failed"))
+            }
+            is ApiResult.Failure -> result
+        }
     }
 
     override fun beginTelegram(
