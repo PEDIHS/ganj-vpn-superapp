@@ -62,7 +62,8 @@ internal fun StitchTelegramAccountCard(
         waitingForApproval -> "در ربات گنج درخواست ورود را تأیید کنید، سپس به برنامه برگردید. هیچ کد یا رمز تلگرامی از شما گرفته نمی‌شود."
         else -> "برای استفاده از سرورهای رایگان نیازی به ورود نیست؛ برای سرویس‌های خریداری‌شده حساب تلگرام را متصل کنید."
     }
-    val showSafeFallback = !linked && !waitingForApproval && !busy && errorCode in TelegramFallbackErrors
+    val showSafeFallback = !linked && !waitingForApproval && !busy &&
+        errorCode != null && errorCode in TelegramFallbackErrors
 
     GanjGlassSurface(
         role = GanjGlassRole.Prominent,
