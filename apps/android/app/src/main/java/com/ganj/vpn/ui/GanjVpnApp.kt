@@ -55,6 +55,8 @@ fun GanjVpnApp(
     accountRefreshGeneration: Int,
     userPreferences: GanjUserPreferences,
     onTelegramLogin: () -> Unit,
+    onTelegramCancel: () -> Unit,
+    onTelegramFallback: () -> Unit,
     onTelegramLogout: () -> Unit,
     onThemePreferenceChanged: (GanjThemePreference) -> Unit,
     onReduceMotionChanged: (Boolean) -> Unit,
@@ -344,6 +346,8 @@ fun GanjVpnApp(
                                         waitingForApproval = telegramWaiting,
                                         errorCode = telegramErrorCode,
                                         onLogin = onTelegramLogin,
+                                        onCancelApproval = onTelegramCancel,
+                                        onFallbackLogin = onTelegramFallback,
                                         onLogout = onTelegramLogout,
                                         modifier = Modifier.padding(
                                             horizontal = responsiveHorizontalPadding(),
