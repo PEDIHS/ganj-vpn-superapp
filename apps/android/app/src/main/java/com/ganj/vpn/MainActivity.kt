@@ -106,6 +106,8 @@ class MainActivity : ComponentActivity() {
                     accountRefreshGeneration = accountRefreshGeneration.value,
                     userPreferences = preferences,
                     onTelegramLogin = ::beginTelegramLogin,
+                    onTelegramCancel = ::cancelTelegramApproval,
+                    onTelegramFallback = ::beginTelegramOidcFallback,
                     onTelegramLogout = ::logoutTelegram,
                     onThemePreferenceChanged = { theme ->
                         updateUserPreferences { it.copy(theme = theme) }
@@ -204,16 +206,42 @@ class MainActivity : ComponentActivity() {
             val result = withContext(Dispatchers.IO) { auth.begin() }
             telegramBusy.value = false
             when (result) {
-                is TelegramAuthResult.Launch -> {
-                    val launched = runCatching {
-                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(result.authorizationUrl)))
-                    }.isSuccess
-                    telegramWaiting.value = launched
-                    if (!launched) telegramErrorCode.value = "auth.telegram_launch_failed"
-                }
+                is TelegramAuthResult.Launch -> launchTelegram(result.authorizationUrl, waitingAfterLaunch = true)
                 else -> applyTelegramResult(result)
             }
         }
+    }
+
+    private fun beginTelegramOidcFallback() {
+        if (telegramBusy.value || telegramLinked.value) return
+        val auth = owner.telegramAuth ?: run {
+            telegramErrorCode.value = "auth.unavailable"
+            return
+        }
+        if (auth.hasPendingBotApproval()) {
+            telegramErrorCode.value = "auth.bot_approval_pending"
+            return
+        }
+
+        telegramBusy.value = true
+        telegramWaiting.value = false
+        telegramErrorCode.value = null
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { auth.beginOidcFallback() }
+            telegramBusy.value = false
+            when (result) {
+                is TelegramAuthResult.Launch -> launchTelegram(result.authorizationUrl, waitingAfterLaunch = false)
+                else -> applyTelegramResult(result)
+            }
+        }
+    }
+
+    private fun launchTelegram(url: String, waitingAfterLaunch: Boolean) {
+        val launched = runCatching {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }.isSuccess
+        telegramWaiting.value = launched && waitingAfterLaunch
+        if (!launched) telegramErrorCode.value = "auth.telegram_launch_failed"
     }
 
     private fun resumeTelegramApproval() {
@@ -229,6 +257,13 @@ class MainActivity : ComponentActivity() {
             telegramBusy.value = false
             applyTelegramResult(result)
         }
+    }
+
+    private fun cancelTelegramApproval() {
+        if (telegramBusy.value || telegramLinked.value || !::owner.isInitialized) return
+        val auth = owner.telegramAuth ?: return
+        val result = auth.cancelPendingBotApproval()
+        applyTelegramResult(result)
     }
 
     private fun handleTelegramIntent(intent: Intent?) {
@@ -259,6 +294,10 @@ class MainActivity : ComponentActivity() {
             TelegramAuthResult.Waiting -> {
                 telegramWaiting.value = true
                 telegramErrorCode.value = null
+            }
+            TelegramAuthResult.Cancelled -> {
+                telegramWaiting.value = false
+                telegramErrorCode.value = "auth.bot_approval_cancelled"
             }
             TelegramAuthResult.LoggedOut -> {
                 telegramLinked.value = false
