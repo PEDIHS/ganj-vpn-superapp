@@ -11,7 +11,7 @@ import java.net.UnknownHostException
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLException
 
-internal enum class HttpMethod { GET, POST, DELETE }
+internal enum class HttpMethod { GET, POST, PUT, DELETE }
 
 internal data class HttpRequest(
     val method: HttpMethod,
