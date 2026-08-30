@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.ganj.vpn.core.controlapi.CurrentAccount
 
 private val TelegramBlue = Color(0xFF229ED9)
 private val AccountEmerald = Color(0xFF72FCB6)
@@ -43,30 +44,40 @@ internal fun StitchTelegramAccountCard(
     busy: Boolean,
     waitingForApproval: Boolean,
     errorCode: String?,
+    currentAccount: CurrentAccount?,
+    accountIdentityLoading: Boolean,
+    accountIdentityErrorCode: String?,
     syncFeedback: TelegramServiceSyncFeedback?,
     onLogin: () -> Unit,
     onCancelApproval: () -> Unit,
     onFallbackLogin: () -> Unit,
+    onRetryIdentity: () -> Unit,
     onRetrySync: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showLoginConfirmation by remember { mutableStateOf(false) }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
+    val identityName = telegramIdentityDisplayName(currentAccount)
+    val identityUsername = telegramIdentityUsername(currentAccount)
     val accent = if (linked) MaterialTheme.colorScheme.primary else TelegramBlue
     val title = when {
         waitingForApproval -> "منتظر تأیید در ربات گنج"
+        linked && identityName != null -> identityName
         linked -> "حساب تلگرام متصل است"
         else -> "ورود با تلگرام"
     }
     val description = when {
         waitingForApproval -> "در ربات گنج درخواست ورود را تأیید کنید، سپس به برنامه برگردید. هیچ کد یا رمز تلگرامی از شما گرفته نمی‌شود."
+        linked && identityUsername != null ->
+            "حساب تلگرام ${isolateTechnicalLtr(identityUsername)} متصل است و سرویس‌های گنج با همین نشست همگام می‌شوند."
         linked -> "سرویس‌های خریداری‌شده و حساب گنج با این نشست همگام می‌شوند."
         else -> "برای استفاده از سرورهای رایگان نیازی به ورود نیست؛ برای سرویس‌های خریداری‌شده حساب تلگرام را متصل کنید."
     }
     val showSafeFallback = !waitingForApproval && !busy &&
         errorCode != null && errorCode in TelegramFallbackErrors
     val requiresRelogin = errorCode == "auth.session_expired" ||
+        accountIdentityErrorCode == "account.auth_required" ||
         syncFeedback is TelegramServiceSyncFeedback.AuthRequired
 
     GanjGlassSurface(
@@ -151,6 +162,19 @@ internal fun StitchTelegramAccountCard(
             )
         }
 
+        if (linked && !waitingForApproval) {
+            when {
+                accountIdentityLoading -> GanjInlineStatusBanner(
+                    message = "در حال دریافت مشخصات امن حساب…",
+                    tone = AccountBannerTone.Info,
+                )
+                accountIdentityErrorCode != null -> GanjInlineStatusBanner(
+                    message = accountIdentityErrorMessage(accountIdentityErrorCode),
+                    tone = AccountBannerTone.Error,
+                )
+            }
+        }
+
         if (linked && !waitingForApproval && errorCode == null) {
             syncFeedback?.let { feedback ->
                 GanjInlineStatusBanner(
@@ -197,6 +221,21 @@ internal fun StitchTelegramAccountCard(
                         text = "ورود دوباره با تلگرام",
                         enabled = true,
                         onClick = { showLoginConfirmation = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                if (
+                    accountIdentityErrorCode != null &&
+                    accountIdentityErrorCode != "account.auth_required" &&
+                    accountIdentityErrorCode != "account.inactive" &&
+                    !accountIdentityLoading &&
+                    !busy
+                ) {
+                    AccountSecondaryAction(
+                        text = "تلاش دوباره برای دریافت مشخصات حساب",
+                        enabled = true,
+                        onClick = onRetryIdentity,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -437,6 +476,28 @@ private fun AccountSecondaryAction(
             },
         )
     }
+}
+
+internal fun telegramIdentityDisplayName(account: CurrentAccount?): String? = account
+    ?.takeIf { it.telegramLinked }
+    ?.displayName
+    ?.trim()
+    ?.takeIf(String::isNotBlank)
+
+internal fun telegramIdentityUsername(account: CurrentAccount?): String? = account
+    ?.takeIf { it.telegramLinked }
+    ?.telegramUsername
+    ?.trim()
+    ?.removePrefix("@")
+    ?.takeIf(String::isNotBlank)
+    ?.let { "@$it" }
+
+internal fun accountIdentityErrorMessage(code: String): String = when (code) {
+    "account.offline" -> "مشخصات حساب در حالت آفلاین به‌روزرسانی نشد. اتصال اینترنت را بررسی کنید."
+    "account.auth_required" -> "نشست حساب برای دریافت مشخصات معتبر نیست. دوباره با تلگرام وارد شوید."
+    "account.inactive" -> "این حساب در حال حاضر فعال نیست. برای بررسی وضعیت با پشتیبانی تماس بگیرید."
+    "account.not_found" -> "مشخصات این حساب در سرور پیدا نشد. می‌توانید دوباره تلاش کنید."
+    else -> "دریافت مشخصات حساب فعلاً ممکن نیست. اطلاعات قبلی دست‌کاری یا حدس زده نمی‌شود."
 }
 
 private fun telegramServiceSyncMessage(feedback: TelegramServiceSyncFeedback): String = when (feedback) {
