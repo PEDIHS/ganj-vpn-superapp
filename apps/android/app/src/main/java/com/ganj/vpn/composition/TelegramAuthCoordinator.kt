@@ -58,6 +58,7 @@ internal sealed interface TelegramAuthResult {
     data class Launch(val authorizationUrl: String) : TelegramAuthResult
     data object Waiting : TelegramAuthResult
     data object Linked : TelegramAuthResult
+    data object Cancelled : TelegramAuthResult
     data object LoggedOut : TelegramAuthResult
     data class Failed(val code: String) : TelegramAuthResult
 }
@@ -135,6 +136,24 @@ internal class TelegramAuthCoordinator(
                 TelegramBotApprovalState.CONSUMED -> consumeFailure("auth.bot_approval_replayed")
                 TelegramBotApprovalState.APPROVED -> exchangeApproved(flow)
             }
+        }
+    }
+
+    /**
+     * Cancels the App-side ceremony by destroying the state/PKCE material required for exchange.
+     * The already-issued opaque Bot token may exist until backend expiry, but can no longer produce
+     * an App session after this device discards its binding material.
+     */
+    fun cancelPendingBotApproval(): TelegramAuthResult {
+        val flow = store.restore()
+            ?: return TelegramAuthResult.Failed("auth.bot_approval_not_pending")
+        if (flow.mode != TelegramAuthFlowMode.BOT_APPROVAL) {
+            return TelegramAuthResult.Failed("auth.bot_approval_not_pending")
+        }
+        return if (store.clear().isSuccess) {
+            TelegramAuthResult.Cancelled
+        } else {
+            TelegramAuthResult.Failed("auth.flow_clear_failed")
         }
     }
 
