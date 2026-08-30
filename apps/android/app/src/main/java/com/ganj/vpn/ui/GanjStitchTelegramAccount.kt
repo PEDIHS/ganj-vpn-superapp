@@ -43,6 +43,7 @@ internal fun StitchTelegramAccountCard(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showLoginConfirmation by remember { mutableStateOf(false) }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
     val accent = if (linked) MaterialTheme.colorScheme.primary else TelegramBlue
     val title = when {
@@ -148,7 +149,9 @@ internal fun StitchTelegramAccountCard(
             )
         } else {
             GanjLiquidAction(
-                onClick = onLogin,
+                onClick = {
+                    if (waitingForApproval) onLogin() else showLoginConfirmation = true
+                },
                 enabled = !busy,
                 accent = TelegramBlue,
                 shapeRadius = 999.dp,
@@ -168,6 +171,20 @@ internal fun StitchTelegramAccountCard(
                 )
             }
         }
+    }
+
+    if (showLoginConfirmation) {
+        GanjLiquidConfirmDialog(
+            title = "ورود با ربات گنج",
+            body = "سرورهای رایگان بدون ورود قابل استفاده‌اند. با ادامه، تلگرام باز می‌شود و فقط اگر خودتان در ربات تأیید کنید حساب خریدهای گنج به همین دستگاه متصل می‌شود. هیچ کد ورود یا رمز تلگرام وارد اپ نمی‌کنید.",
+            confirmText = "باز کردن تلگرام",
+            dismissText = "انصراف",
+            onConfirm = {
+                showLoginConfirmation = false
+                onLogin()
+            },
+            onDismiss = { showLoginConfirmation = false },
+        )
     }
 
     if (showLogoutConfirmation) {
