@@ -78,6 +78,9 @@ internal class TelegramAuthCoordinator(
 ) {
     fun isLinked(): Boolean = linkState.isLinked()
 
+    /** Reconciles only the presentation marker after an authenticated server response. */
+    fun reconcileLinkedState(linked: Boolean): Result<Unit> = linkState.setLinked(linked)
+
     /**
      * True while a Bot Approval ceremony is stored locally, including an already-expired request.
      * Keeping the expired flow visible lets the next resume turn it into an explicit expiry state
