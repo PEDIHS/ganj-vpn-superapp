@@ -50,6 +50,7 @@ fun GanjVpnApp(
     composition: GanjComposition,
     telegramLinked: Boolean,
     telegramBusy: Boolean,
+    telegramWaiting: Boolean,
     telegramErrorCode: String?,
     accountRefreshGeneration: Int,
     userPreferences: GanjUserPreferences,
@@ -340,6 +341,7 @@ fun GanjVpnApp(
                                     StitchTelegramAccountCard(
                                         linked = telegramLinked,
                                         busy = telegramBusy,
+                                        waitingForApproval = telegramWaiting,
                                         errorCode = telegramErrorCode,
                                         onLogin = onTelegramLogin,
                                         onLogout = onTelegramLogout,
