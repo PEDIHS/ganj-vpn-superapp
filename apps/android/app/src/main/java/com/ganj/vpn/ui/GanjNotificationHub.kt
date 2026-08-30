@@ -31,6 +31,7 @@ private enum class NotificationHubSurface { CENTER, PREFERENCES }
 @Composable
 internal fun StitchNotificationHub(
     onBack: () -> Unit,
+    onOpenSupport: (String?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -188,6 +189,7 @@ internal fun StitchNotificationHub(
                 surface = NotificationHubSurface.PREFERENCES
                 refreshPreferences()
             }
+            NotificationActionType.OPEN_SUPPORT -> onOpenSupport(item.action.id)
             null -> Unit
             else -> actionMessage = "این اعلان خوانده شد. مقصد داخلی آن در مرحله بعدی مسیریابی اپ یکپارچه می‌شود."
         }
