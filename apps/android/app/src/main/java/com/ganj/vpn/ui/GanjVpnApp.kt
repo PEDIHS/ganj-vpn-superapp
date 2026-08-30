@@ -1,5 +1,6 @@
 package com.ganj.vpn.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -38,6 +39,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private enum class GanjAccountSurface {
+    PROFILE,
+    SETTINGS,
+}
+
 @Composable
 fun GanjVpnApp(
     composition: GanjComposition,
@@ -45,8 +51,12 @@ fun GanjVpnApp(
     telegramBusy: Boolean,
     telegramErrorCode: String?,
     accountRefreshGeneration: Int,
+    userPreferences: GanjUserPreferences,
     onTelegramLogin: () -> Unit,
     onTelegramLogout: () -> Unit,
+    onThemePreferenceChanged: (GanjThemePreference) -> Unit,
+    onReduceMotionChanged: (Boolean) -> Unit,
+    onReduceTransparencyChanged: (Boolean) -> Unit,
     onLaunchGooglePlay: suspend (CheckoutActionHandle) -> CheckoutEffectResult,
     onLaunchVpn: suspend (ConnectionActionHandle) -> ConnectionEffectResult,
 ) {
@@ -57,6 +67,7 @@ fun GanjVpnApp(
     val scope = rememberCoroutineScope()
 
     var selectedDestination by remember { mutableStateOf(GanjDestination.Connect) }
+    var accountSurface by remember { mutableStateOf(GanjAccountSurface.PROFILE) }
     var state by remember(composition) { mutableStateOf(composition.restoreUiState()) }
     var enterpriseState by remember(composition) {
         mutableStateOf(composition.restoreEnterpriseState())
@@ -65,6 +76,13 @@ fun GanjVpnApp(
     var checkoutJob by remember { mutableStateOf<Job?>(null) }
     var connectionJob by remember { mutableStateOf<Job?>(null) }
     var enterpriseJob by remember { mutableStateOf<Job?>(null) }
+
+    BackHandler(
+        enabled = selectedDestination == GanjDestination.Account &&
+            accountSurface == GanjAccountSurface.SETTINGS,
+    ) {
+        accountSurface = GanjAccountSurface.PROFILE
+    }
 
     fun commit(next: GanjUiState) {
         composition.retainUiState(next)
@@ -221,7 +239,12 @@ fun GanjVpnApp(
                 bottomBar = {
                     GanjLiquidBottomNavigation(
                         selectedDestination = selectedDestination,
-                        onDestinationSelected = { selectedDestination = it },
+                        onDestinationSelected = { destination ->
+                            selectedDestination = destination
+                            if (destination == GanjDestination.Account) {
+                                accountSurface = GanjAccountSurface.PROFILE
+                            }
+                        },
                     )
                 },
             ) { padding ->
@@ -235,7 +258,10 @@ fun GanjVpnApp(
                             onOpenConnect = { selectedDestination = GanjDestination.Connect },
                             onOpenStore = { selectedDestination = GanjDestination.Store },
                             onOpenServers = { selectedDestination = GanjDestination.Servers },
-                            onOpenProfile = { selectedDestination = GanjDestination.Account },
+                            onOpenProfile = {
+                                accountSurface = GanjAccountSurface.PROFILE
+                                selectedDestination = GanjDestination.Account
+                            },
                         )
 
                         GanjDestination.Servers -> StitchServersScreen(
@@ -268,53 +294,71 @@ fun GanjVpnApp(
                             onRetry = ::refresh,
                         )
 
-                        GanjDestination.Account -> Column(
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            StitchTelegramAccountCard(
-                                linked = telegramLinked,
-                                busy = telegramBusy,
-                                errorCode = telegramErrorCode,
-                                onLogin = onTelegramLogin,
-                                onLogout = onTelegramLogout,
-                                modifier = Modifier.padding(
-                                    horizontal = responsiveHorizontalPadding(),
-                                    vertical = 12.dp,
-                                ),
+                        GanjDestination.Account -> when (accountSurface) {
+                            GanjAccountSurface.SETTINGS -> StitchSettingsScreen(
+                                preferences = userPreferences,
+                                onThemeChanged = onThemePreferenceChanged,
+                                onReduceMotionChanged = onReduceMotionChanged,
+                                onReduceTransparencyChanged = onReduceTransparencyChanged,
+                                onBack = { accountSurface = GanjAccountSurface.PROFILE },
+                                modifier = Modifier.fillMaxSize(),
                             )
-                            StitchProfileScreen(
-                                state = state,
-                                enterpriseState = enterpriseState,
-                                onSelectService = {
-                                    commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
-                                },
-                                onConnect = {
-                                    state.selectedEntitlementId?.let(::requestProfile)
-                                    selectedDestination = GanjDestination.Connect
-                                },
-                                onBuy = { selectedDestination = GanjDestination.Store },
-                                onRetry = ::refresh,
-                                onEnterpriseRefresh = ::refreshEnterprise,
-                                onSubmitBug = ::submitBug,
-                                onSubmitDiagnostics = ::submitDiagnostics,
-                                onClearBug = {
-                                    commitEnterprise(
-                                        enterpriseReducer.reduce(
-                                            enterpriseState,
-                                            EnterpriseEvent.ClearBugResult,
-                                        ),
-                                    )
-                                },
-                                onClearDiagnostic = {
-                                    commitEnterprise(
-                                        enterpriseReducer.reduce(
-                                            enterpriseState,
-                                            EnterpriseEvent.ClearDiagnosticResult,
-                                        ),
-                                    )
-                                },
-                                modifier = Modifier.weight(1f),
-                            )
+
+                            GanjAccountSurface.PROFILE -> Column(
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                StitchTelegramAccountCard(
+                                    linked = telegramLinked,
+                                    busy = telegramBusy,
+                                    errorCode = telegramErrorCode,
+                                    onLogin = onTelegramLogin,
+                                    onLogout = onTelegramLogout,
+                                    modifier = Modifier.padding(
+                                        horizontal = responsiveHorizontalPadding(),
+                                        vertical = 12.dp,
+                                    ),
+                                )
+                                StitchSettingsEntry(
+                                    onClick = { accountSurface = GanjAccountSurface.SETTINGS },
+                                    modifier = Modifier.padding(
+                                        horizontal = responsiveHorizontalPadding(),
+                                        vertical = 2.dp,
+                                    ),
+                                )
+                                StitchProfileScreen(
+                                    state = state,
+                                    enterpriseState = enterpriseState,
+                                    onSelectService = {
+                                        commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
+                                    },
+                                    onConnect = {
+                                        state.selectedEntitlementId?.let(::requestProfile)
+                                        selectedDestination = GanjDestination.Connect
+                                    },
+                                    onBuy = { selectedDestination = GanjDestination.Store },
+                                    onRetry = ::refresh,
+                                    onEnterpriseRefresh = ::refreshEnterprise,
+                                    onSubmitBug = ::submitBug,
+                                    onSubmitDiagnostics = ::submitDiagnostics,
+                                    onClearBug = {
+                                        commitEnterprise(
+                                            enterpriseReducer.reduce(
+                                                enterpriseState,
+                                                EnterpriseEvent.ClearBugResult,
+                                            ),
+                                        )
+                                    },
+                                    onClearDiagnostic = {
+                                        commitEnterprise(
+                                            enterpriseReducer.reduce(
+                                                enterpriseState,
+                                                EnterpriseEvent.ClearDiagnosticResult,
+                                            ),
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
                         }
                     }
                 }
