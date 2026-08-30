@@ -64,10 +64,10 @@ test('ticket detail and messages are owner scoped', async () => {
   assert.equal(response.body.data.messages.length, 1);
 });
 
-test('user reply is idempotent and moves ticket to waiting_support', async () => {
+test('new user reply moves ticket to waiting_support', async () => {
   const calls = [];
   const database = {
-    async query(sql, params) {
+    async query(sql) {
       calls.push(sql);
       if (/FROM control_support_tickets/.test(sql)) return { rowCount: 1, rows: [ticket] };
       if (/INSERT INTO control_support_messages/.test(sql)) {
@@ -85,6 +85,59 @@ test('user reply is idempotent and moves ticket to waiting_support', async () =>
   const response = await route({ request: incoming, url: new URL(incoming.url), requestId: '90000000-0000-4000-8000-000000000002' });
   assert.equal(response.status, 201);
   assert.ok(calls.some((sql) => /status = 'waiting_support'/.test(sql)));
+});
+
+test('same client message id and same body replays idempotently', async () => {
+  const stored = {
+    id: messageId,
+    sender_role: 'user',
+    body: 'لطفاً این مشکل را بررسی کنید.',
+    created_at: new Date('2026-08-30T09:20:00Z'),
+  };
+  const database = {
+    async query(sql) {
+      if (/FROM control_support_tickets/.test(sql)) return { rowCount: 1, rows: [ticket] };
+      if (/INSERT INTO control_support_messages/.test(sql)) return { rowCount: 0, rows: [] };
+      if (/SELECT id, sender_role, body, created_at/.test(sql)) return { rowCount: 1, rows: [stored] };
+      if (/UPDATE control_support_tickets/.test(sql)) return { rowCount: 1, rows: [] };
+      throw new Error(`unexpected SQL: ${sql}`);
+    },
+  };
+  const route = router(database);
+  const incoming = request(`/v1/support/tickets/${ticketId}/messages`, {
+    method: 'POST',
+    body: { client_message_id: messageId, body: stored.body },
+  });
+  const response = await route({ request: incoming, url: new URL(incoming.url), requestId: '90000000-0000-4000-8000-000000000005' });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.id, messageId);
+  assert.equal(response.body.data.body, stored.body);
+});
+
+test('same client message id with different body fails closed', async () => {
+  const stored = {
+    id: messageId,
+    sender_role: 'user',
+    body: 'متن قبلی درخواست',
+    created_at: new Date('2026-08-30T09:20:00Z'),
+  };
+  const database = {
+    async query(sql) {
+      if (/FROM control_support_tickets/.test(sql)) return { rowCount: 1, rows: [ticket] };
+      if (/INSERT INTO control_support_messages/.test(sql)) return { rowCount: 0, rows: [] };
+      if (/SELECT id, sender_role, body, created_at/.test(sql)) return { rowCount: 1, rows: [stored] };
+      throw new Error(`unexpected SQL: ${sql}`);
+    },
+  };
+  const route = router(database);
+  const incoming = request(`/v1/support/tickets/${ticketId}/messages`, {
+    method: 'POST',
+    body: { client_message_id: messageId, body: 'متن متفاوت برای همان شناسه' },
+  });
+  await assert.rejects(
+    route({ request: incoming, url: new URL(incoming.url), requestId: '90000000-0000-4000-8000-000000000006' }),
+    (error) => error?.status === 409 && error?.code === 'idempotency_conflict',
+  );
 });
 
 test('closed ticket rejects a reply until reopen', async () => {
