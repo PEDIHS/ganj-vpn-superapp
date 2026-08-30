@@ -5,7 +5,7 @@
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
-این فایل **مرجع اجرایی اجباری تمام Agentها برای تکمیل UI/UX** است. هر Agent قبل از هر تغییر UI باید این فایل کامل را بخواند، وضعیت Runtime و Branch/PR را بررسی کند، سپس فقط آیتم‌هایی را که واقعاً مطابق Definition of Done تکمیل کرده است از `[ ]` به `[x]` تغییر دهد.
+این فایل **مرجع اجرایی اجباری تمام Agentها برای تکمیل UI/UX** است. هر Agent قبل از هر تغییر UI باید این فایل را کامل بخواند، وضعیت Runtime و Branch/PR را بررسی کند، سپس فقط آیتم‌هایی را که واقعاً مطابق Definition of Done تکمیل کرده است از `[ ]` به `[x]` تغییر دهد.
 
 ---
 
@@ -827,7 +827,7 @@
 - Linked UI now shows only real `display_name` and, if the backend actually provides it, normalized `@telegram_username`; no identifier is fabricated when username is unavailable.
 - Added Loading / Offline / AuthRequired / Inactive / NotFound / Retry identity states without clearing a valid session on transient network failure.
 - Fixed account lookup I/O so `/me` is executed only on `Dispatchers.IO`, not the Android main thread.
-- Authenticated `/me` success now reconciles the presentation-only linked marker persistently؛ network/server failures do not mutate it.
+- Authenticated `/me` success now reconciles the presentation-only linked marker persistently; network/server failures do not mutate it.
 - Added backend privacy/fail-closed tests, Android API mapping/redaction tests, UI identity normalization tests and coordinator reconciliation regression coverage.
 - **Remaining boundary:** Auth process recreation, App-closed/foreground deep-link callback QA, double-tap visual idempotency, TalkBack, 360–430dp physical-device QA and real staging Bot approval E2E remain open. GitHub Actions build evidence also remains external until jobs actually receive a runner.
 
