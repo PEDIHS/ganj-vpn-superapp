@@ -16,6 +16,7 @@ data class GanjUserPreferences(
     val theme: GanjThemePreference = GanjThemePreference.SYSTEM,
     val reduceMotion: Boolean = false,
     val reduceTransparency: Boolean = false,
+    val onboardingCompleted: Boolean = false,
 )
 
 internal class AndroidGanjUserPreferencesStore(context: Context) {
@@ -30,12 +31,14 @@ internal class AndroidGanjUserPreferencesStore(context: Context) {
         } ?: GanjThemePreference.SYSTEM,
         reduceMotion = preferences.getBoolean(KEY_REDUCE_MOTION, false),
         reduceTransparency = preferences.getBoolean(KEY_REDUCE_TRANSPARENCY, false),
+        onboardingCompleted = preferences.getBoolean(KEY_ONBOARDING_COMPLETED, false),
     )
 
     fun save(value: GanjUserPreferences): Boolean = preferences.edit()
         .putString(KEY_THEME, value.theme.name)
         .putBoolean(KEY_REDUCE_MOTION, value.reduceMotion)
         .putBoolean(KEY_REDUCE_TRANSPARENCY, value.reduceTransparency)
+        .putBoolean(KEY_ONBOARDING_COMPLETED, value.onboardingCompleted)
         .commit()
 
     private companion object {
@@ -43,6 +46,7 @@ internal class AndroidGanjUserPreferencesStore(context: Context) {
         const val KEY_THEME = "theme"
         const val KEY_REDUCE_MOTION = "reduce_motion"
         const val KEY_REDUCE_TRANSPARENCY = "reduce_transparency"
+        const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
     }
 }
 
