@@ -38,6 +38,7 @@ internal fun StitchSettingsScreen(
     onThemeChanged: (GanjThemePreference) -> Unit,
     onReduceMotionChanged: (Boolean) -> Unit,
     onReduceTransparencyChanged: (Boolean) -> Unit,
+    onRestartOnboarding: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -146,6 +147,12 @@ internal fun StitchSettingsScreen(
         ) {
             SettingsValueRow("نسخه", BuildConfig.VERSION_NAME)
             SettingsValueRow("کد ساخت", BuildConfig.VERSION_CODE.toString().toPersianDigits())
+            SettingsDivider()
+            SettingsActionRow(
+                title = "نمایش دوباره راهنمای شروع",
+                description = "راهنمای شروع رایگان و اولین اتصال دوباره نمایش داده می‌شود.",
+                onClick = onRestartOnboarding,
+            )
             Text(
                 text = "گنج VPN",
                 style = MaterialTheme.typography.labelMedium,
@@ -352,6 +359,42 @@ private fun SettingsValueRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun SettingsActionRow(
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = "‹",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
