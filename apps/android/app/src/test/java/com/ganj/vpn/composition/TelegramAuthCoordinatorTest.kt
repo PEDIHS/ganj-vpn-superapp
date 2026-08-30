@@ -49,6 +49,20 @@ class TelegramAuthCoordinatorTest {
     }
 
     @Test
+    fun `linked account can start relogin without dropping current linked marker`() {
+        val gateway = FakeGateway()
+        val flowStore = MemoryFlowStore()
+        val linkStore = MemoryLinkStore(linked = true)
+        val coordinator = coordinator(gateway, flowStore, linkStore)
+
+        val result = coordinator.begin()
+
+        assertTrue(result is TelegramAuthResult.Launch)
+        assertTrue(linkStore.linked)
+        assertTrue(coordinator.hasPendingBotApproval())
+    }
+
+    @Test
     fun `pending Bot Approval stays resumable`() {
         val gateway = FakeGateway(botStatus = TelegramBotApprovalState.PENDING)
         val flowStore = MemoryFlowStore(validBotFlow())
@@ -77,6 +91,20 @@ class TelegramAuthCoordinatorTest {
         assertEquals("auth.flow_missing_or_consumed", (resumed as TelegramAuthResult.Failed).code)
         assertEquals(0, gateway.statusCount)
         assertEquals(0, gateway.botExchangeCount)
+    }
+
+    @Test
+    fun `linked relogin cancellation keeps existing linked marker`() {
+        val gateway = FakeGateway()
+        val flowStore = MemoryFlowStore(validBotFlow())
+        val linkStore = MemoryLinkStore(linked = true)
+        val coordinator = coordinator(gateway, flowStore, linkStore)
+
+        val cancelled = coordinator.cancelPendingBotApproval()
+
+        assertTrue(cancelled is TelegramAuthResult.Cancelled)
+        assertTrue(linkStore.linked)
+        assertFalse(coordinator.hasPendingBotApproval())
     }
 
     @Test
@@ -228,6 +256,21 @@ class TelegramAuthCoordinatorTest {
         assertEquals(1, gateway.logoutCount)
     }
 
+    @Test
+    fun `logout failure preserves linked marker so user can retry`() {
+        val gateway = FakeGateway(logoutSucceeds = false)
+        val linkStore = MemoryLinkStore(linked = true)
+        val flowStore = MemoryFlowStore(validBotFlow())
+        val coordinator = coordinator(gateway, flowStore, linkStore)
+
+        val result = coordinator.logout()
+
+        assertEquals("auth.logout_failed", (result as TelegramAuthResult.Failed).code)
+        assertTrue(linkStore.linked)
+        assertTrue(flowStore.flow == null)
+        assertEquals(1, gateway.logoutCount)
+    }
+
     private fun coordinator(
         gateway: FakeGateway,
         flowStore: MemoryFlowStore,
@@ -265,6 +308,7 @@ class TelegramAuthCoordinatorTest {
         private val botStatus: TelegramBotApprovalState = TelegramBotApprovalState.PENDING,
         private val statusFailure: ApiError? = null,
         private val botExchangeFailure: ApiError? = null,
+        private val logoutSucceeds: Boolean = true,
     ) : TelegramAuthSessionGateway {
         var lastBotStart: TelegramBotApprovalCommand? = null
         var lastOidcStart: TelegramAuthorizationCommand? = null
@@ -334,7 +378,7 @@ class TelegramAuthCoordinatorTest {
 
         override fun logout(): Boolean {
             logoutCount += 1
-            return true
+            return logoutSucceeds
         }
 
         private fun session(): ApiResult<AuthSessionCredentials> = ApiResult.Success(
