@@ -55,16 +55,21 @@ test('admin support list requires control plane scope', async () => {
   );
 });
 
-test('admin support reply writes support role moves status and audits', async () => {
+test('admin support reply writes support role notifies opted in user moves status and audits', async () => {
   const audits = [];
+  const notificationWrites = [];
   const database = {
-    async query(sql) {
+    async query(sql, params) {
       if (/FROM control_support_tickets/.test(sql)) return { rowCount: 1, rows: [ticket] };
       if (/INSERT INTO control_support_messages/.test(sql)) {
         return { rowCount: 1, rows: [{ id: messageId, sender_role: 'support', body: 'پاسخ پشتیبانی', created_at: new Date('2026-08-30T09:40:00Z') }] };
       }
       if (/UPDATE control_support_tickets/.test(sql)) {
         return { rowCount: 1, rows: [{ ...ticket, status: 'waiting_user', updated_at: new Date('2026-08-30T09:40:00Z') }] };
+      }
+      if (/INSERT INTO control_notifications/.test(sql)) {
+        notificationWrites.push({ sql, params });
+        return { rowCount: 1, rows: [] };
       }
       throw new Error(`unexpected SQL: ${sql}`);
     },
@@ -79,6 +84,10 @@ test('admin support reply writes support role moves status and audits', async ()
 
   assert.equal(response.status, 201);
   assert.equal(response.body.data.sender_role, 'support');
+  assert.equal(notificationWrites.length, 1);
+  assert.match(notificationWrites[0].sql, /support_reply = true/);
+  assert.equal(notificationWrites[0].params[1], userId);
+  assert.match(notificationWrites[0].params[4], /open_support/);
   assert.equal(audits.length, 1);
   assert.equal(audits[0].action, 'support.reply');
   assert.equal(audits[0].resourceId, ticketId);
