@@ -35,6 +35,24 @@ class AuthSessionCredentials(
         "AuthSessionCredentials(userId=$userId, deviceId=$deviceId, accessToken=[REDACTED], refreshToken=[REDACTED])"
 }
 
+data class CurrentAccount(
+    val id: String,
+    val displayName: String?,
+    val locale: String,
+    val telegramLinked: Boolean,
+    val telegramUsername: String?,
+) {
+    init {
+        requireCanonicalUuid(id, "id")
+        require(displayName == null || (displayName.length <= 200 && displayName.none(Char::isISOControl)))
+        require(locale.matches(Regex("^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})?$")))
+        require(telegramUsername == null || (telegramUsername.length <= 64 && telegramUsername.none(Char::isISOControl)))
+    }
+
+    override fun toString(): String =
+        "CurrentAccount(id=$id, displayName=[REDACTED], locale=$locale, telegramLinked=$telegramLinked, telegramUsername=[REDACTED])"
+}
+
 interface SessionCredentialVault : AuthTokenProvider {
     fun currentUserId(): String?
     fun currentDeviceId(): String?
@@ -172,6 +190,7 @@ data class TelegramBotApprovalExchangeCommand(
 interface AuthSessionApi {
     fun createGuest(command: GuestSessionCommand): ApiResult<AuthSessionCredentials>
     fun refresh(command: RefreshSessionCommand): ApiResult<AuthSessionCredentials>
+    fun currentAccount(accessToken: AccessToken): ApiResult<CurrentAccount>
 
     fun beginTelegramBotApproval(
         accessToken: AccessToken,
