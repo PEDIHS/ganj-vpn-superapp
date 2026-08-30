@@ -1,7 +1,7 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **وضعیت رسمی UI در شروع این Ledger: 54٪**  
-> **وضعیت فعلی پس از Batch 2026-08-30/Settings-1: 58٪**  
+> **وضعیت فعلی پس از Batch 2026-08-30/Subscription-1: 60٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
@@ -325,20 +325,20 @@
 - [x] Device limit display.
 - [x] Expiry display.
 - [x] Allowed protocol metadata display.
-- [ ] Dedicated Subscription Detail page/sheet.
-- [ ] Plan/tier detail.
+- [x] Dedicated Subscription Detail page/sheet.
+- [x] Plan/tier detail.
 - [ ] Renewal date/status.
 - [ ] Auto-renew status در صورت billing model.
 - [ ] Renew action.
-- [ ] Upgrade action.
+- [ ] Upgrade action در صورت supported.
 - [ ] Downgrade action در صورت supported.
 - [ ] Cancel action در صورت supported.
 - [ ] Confirm plan change dialog.
 - [ ] Confirm cancel dialog.
-- [ ] Expired service state.
-- [ ] Revoked service state.
+- [x] Expired service state.
+- [x] Revoked service state.
 - [ ] Refunded service state.
-- [ ] Pending activation state.
+- [x] Pending activation state.
 - [ ] Restore Purchase action/state.
 - [ ] Purchase source display.
 - [ ] Related transaction/payment history entry.
@@ -763,9 +763,9 @@
 | Wallet | Runtime API pending; UI intentionally not faked |
 | Transactions | Runtime API pending; UI intentionally not faked |
 | Settings | Partial — real persisted Theme + accessibility settings wired |
-| Devices | Not implemented in new UI |
-| Notifications | Not implemented in new UI |
-| Subscription detail flows | Partial |
+| Devices | Runtime API pending; UI intentionally not faked |
+| Notifications | Runtime API pending; UI intentionally not faked |
+| Subscription detail flows | Partial/High — real read-only details + status surfaces wired |
 | Advanced server UX | Partial |
 | Connect micro-states | Partial |
 | Purchase micro-flows | Partial |
@@ -774,7 +774,7 @@
 | Full Support/Tickets | Partial |
 | Dialog/Bottom Sheet system | Partial — Liquid confirm dialog added |
 | Physical-device final QA | Pending |
-| **Overall** | **58%** |
+| **Overall** | **60%** |
 
 ## Batch Log
 
@@ -799,6 +799,15 @@
 - Added real app version/build display from `BuildConfig`.
 - Added pure policy unit tests for theme resolution and system accessibility precedence.
 - **Remaining boundary:** connection settings, privacy settings, legal/support links and device QA are still open. Wallet/Transactions remain blocked on runtime routes even though OpenAPI contracts exist; no fake balance/ledger is shown.
+
+### 2026-08-30 — Subscription-1 / real service details
+
+- Added a dedicated Liquid Subscription Details surface driven only by real `ServiceUiModel` data.
+- Added tier/status, remaining/used/limit traffic, device limit, expiry, country, entitlement id and allowed-protocol display.
+- Added explicit Pending, Disabled, Expired and Revoked state copy instead of treating every service as active.
+- Added a real Connect action for active services and a real Store navigation action; no unsupported renewal/cancel/payment actions were fabricated.
+- Integrated the selected-service details entry into the Account/Profile flow with system Back handling.
+- **Remaining boundary:** renewal/auto-renew, purchase source/history, refund, cancel/change-plan and restore-purchase require real commerce/presentation contracts before they can be marked complete.
 
 ## Mandatory update format after every Agent batch
 
