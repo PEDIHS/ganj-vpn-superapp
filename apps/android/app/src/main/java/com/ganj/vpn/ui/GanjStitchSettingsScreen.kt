@@ -22,6 +22,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +46,15 @@ internal fun StitchSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showNotificationHub by remember { mutableStateOf(false) }
+    if (showNotificationHub) {
+        StitchNotificationHub(
+            onBack = { showNotificationHub = false },
+            modifier = modifier,
+        )
+        return
+    }
+
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
@@ -62,11 +75,26 @@ internal fun StitchSettingsScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    text = "ظاهر و دسترس‌پذیری برنامه",
+                    text = "ظاهر، دسترس‌پذیری و اعلان‌های برنامه",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+
+        SettingsSectionTitle("اعلان‌ها")
+        GanjGlassSurface(
+            role = GanjGlassRole.Regular,
+            accent = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth(),
+            shapeRadius = 24.dp,
+            padding = PaddingValues(16.dp),
+        ) {
+            SettingsActionRow(
+                title = "مرکز اعلان و تنظیمات",
+                description = "اعلان‌های حساب، سرویس، امنیت و انتخاب دسته‌بندی‌ها",
+                onClick = { showNotificationHub = true },
+            )
         }
 
         SettingsSectionTitle("ظاهر")
@@ -211,7 +239,7 @@ internal fun StitchSettingsEntry(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "ظاهر و دسترس‌پذیری برنامه",
+                text = "ظاهر، اعلان‌ها و دسترس‌پذیری برنامه",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
