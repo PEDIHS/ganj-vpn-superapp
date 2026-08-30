@@ -7,6 +7,7 @@ import com.ganj.vpn.core.controlapi.AuthSessionApi
 import com.ganj.vpn.core.controlapi.AuthSessionCredentials
 import com.ganj.vpn.core.controlapi.AuthSessionProofContract
 import com.ganj.vpn.core.controlapi.AuthenticationEventSink
+import com.ganj.vpn.core.controlapi.CurrentAccount
 import com.ganj.vpn.core.controlapi.GuestSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshingAuthTokenProvider
@@ -62,6 +63,21 @@ internal class AndroidAuthSessionManager(
 
     fun currentDeviceId(): String? = synchronized(lock) {
         (vault.restore() ?: createGuestLocked())?.deviceId
+    }
+
+    fun currentAccount(): ApiResult<CurrentAccount> = synchronized(lock) {
+        val token = currentAccessToken()
+            ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationExpired(null, "auth_required"))
+        when (val first = api.currentAccount(token)) {
+            is ApiResult.Success -> first
+            is ApiResult.Failure -> if (first.error is ApiError.AuthenticationExpired) {
+                val current = vault.restore()
+                val refreshed = current?.let(::refreshLocked)
+                if (refreshed != null) api.currentAccount(refreshed.accessToken) else first
+            } else {
+                first
+            }
+        }
     }
 
     override fun beginTelegramBotApproval(
