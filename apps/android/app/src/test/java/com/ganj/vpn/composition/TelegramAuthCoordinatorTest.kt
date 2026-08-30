@@ -4,6 +4,7 @@ import com.ganj.vpn.core.controlapi.AccessToken
 import com.ganj.vpn.core.controlapi.ApiError
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.AuthSessionCredentials
+import com.ganj.vpn.core.controlapi.NetworkFailure
 import com.ganj.vpn.core.controlapi.RefreshToken
 import com.ganj.vpn.core.controlapi.ResponseMetadata
 import com.ganj.vpn.core.controlapi.TelegramAuthorization
@@ -117,7 +118,7 @@ class TelegramAuthCoordinatorTest {
     @Test
     fun `offline status keeps pending flow for retry`() {
         val gateway = FakeGateway(
-            statusFailure = ApiError.Network(),
+            statusFailure = ApiError.Network(kind = NetworkFailure.OFFLINE_OR_DNS),
         )
         val flowStore = MemoryFlowStore(validBotFlow())
         val coordinator = coordinator(gateway, flowStore)
