@@ -212,6 +212,7 @@ class MainActivity : ComponentActivity() {
                 is ApiResult.Success -> {
                     currentAccount.value = result.value
                     telegramLinked.value = result.value.telegramLinked
+                    owner.telegramAuth?.reconcileLinkedState(result.value.telegramLinked)
                     accountIdentityErrorCode.value = null
                 }
                 is ApiResult.Failure -> {
