@@ -131,8 +131,7 @@ internal class AndroidAuthSessionManager(
             is ApiResult.Success -> invalidateSessionLocked().isSuccess
             is ApiResult.Failure -> when (remote.error) {
                 is ApiError.AuthenticationRequired,
-                is ApiError.AuthenticationExpired,
-                -> invalidateSessionLocked().isSuccess
+                is ApiError.AuthenticationExpired -> invalidateSessionLocked().isSuccess
                 else -> false
             }
         }
