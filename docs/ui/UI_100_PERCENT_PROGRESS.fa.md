@@ -1,7 +1,7 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **وضعیت رسمی UI در شروع این Ledger: 54٪**  
-> **وضعیت فعلی پس از Batch 2026-08-30/Auth-2: 69٪**  
+> **وضعیت فعلی پس از Batch 2026-08-30/Auth-3: 70٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
@@ -121,22 +121,22 @@
 - [x] Wrong-device state.
 - [x] Wrong-state/invalid callback state.
 - [x] Offline during approval state.
-- [ ] Cancelled flow state.
+- [x] Cancelled flow state.
 - [x] Retry action.
-- [ ] Safe fallback OIDC entry فقط در جایگاه fallback.
+- [x] Safe fallback OIDC entry فقط در جایگاه fallback.
 
-> **Batch Auth-2 note:** Bot Approval اکنون مسیر اصلی source/runtime اپ است: silent guest/device session → درخواست یک‌بارمصرف device/state/PKCE-bound → Deep Link ربات → approve/deny HMAC-signed → status check هنگام بازگشت اپ → exchange یک‌بارمصرف → نشست durable → refresh سرویس‌ها. OIDC/PKCE فقط در Coordinator به‌عنوان fallback امن باقی مانده و تا زمانی که entry مناسب fallback و E2E واقعی ربات/دستگاه تأیید نشود، کل Section 4 کامل محسوب نمی‌شود.
+> **Batch Auth-3 note:** Bot Approval مسیر اصلی اپ باقی مانده است. لغو سمت App اکنون state/PKCE binding material را نابود می‌کند و fallback OIDC فقط بعد از failure واقعی capability/start نمایش داده می‌شود، نه کنار CTA اصلی. Canonical `api/openapi.yaml` نیز در نسخه 0.3.0 با Runtime/Android همگام شده و contract regression test برای جلوگیری از drift اضافه شده است.
 
 ## 4.3 Linked account / session
 - [x] Linked Telegram account card با Design جدید.
 - [ ] نمایش identity-safe account info بدون provider token.
 - [x] Session expired surface.
-- [ ] Re-login flow.
+- [x] Re-login flow.
 - [x] Logout action.
 - [x] Logout confirmation dialog.
 - [x] Logout success state.
-- [ ] Logout failure/retry state.
-- [ ] Post-login My Services refresh feedback.
+- [x] Logout failure/retry state.
+- [x] Post-login My Services refresh feedback.
 
 ## 4.4 Auth QA
 - [ ] Process recreation وسط login.
@@ -763,7 +763,7 @@
 | Store basic | High |
 | Profile basic | High |
 | Enterprise Bug/Diagnostics | High |
-| Telegram Login final UX | High — Bot Approval primary source/runtime wired; real Bot/device E2E + fallback entry QA pending |
+| Telegram Login final UX | High — Bot Approval primary + cancel + guarded fallback + re-login + real service-refresh feedback wired; real Bot/device E2E pending |
 | Wallet | Runtime API pending; UI intentionally not faked |
 | Transactions | Runtime API pending; UI intentionally not faked |
 | Settings | Partial — real persisted Theme + accessibility settings wired |
@@ -778,9 +778,23 @@
 | Full Support/Tickets | Partial |
 | Dialog/Bottom Sheet system | Partial — Liquid confirm + purchase/VPN/auth dialogs added |
 | Physical-device final QA | Pending |
-| **Overall** | **69%** |
+| **Overall** | **70%** |
 
 ## Batch Log
+
+### 2026-08-30 — Auth-3 / relogin + retryable logout + service-refresh feedback
+
+- Canonical `api/openapi.yaml` updated to 0.3.0 with the primary Bot Approval start/status/exchange routes and HMAC-protected internal Bot decision callback; OIDC is explicitly fallback-only.
+- Added a no-dependency Control API contract regression test so Bot Approval paths, operation IDs, internal HMAC surface and fallback wording cannot silently drift from the canonical OpenAPI contract.
+- Added App-side Bot Approval cancellation; clearing encrypted local state/PKCE binding material makes a later Bot approval non-exchangeable from that cancelled App flow.
+- Added guarded OIDC fallback entry that appears only after real Bot Approval capability/start failure and is never shown beside the normal primary CTA.
+- Added a real Re-login flow for stale/expired linked sessions, including pending-approval resume/cancel behavior for an already-linked account.
+- Fixed a re-login lifecycle defect where `onResume()` previously ignored pending Bot Approval while the old linked marker was still true.
+- Changed logout semantics so retryable remote failures preserve the local credential and linked presentation marker; the user can perform a real server revoke retry instead of receiving a fake success or losing the revocation credential.
+- Added post-login `/services` refresh feedback driven only by real `ContentState`: syncing, truthful service count, empty, auth-required and retryable/non-retryable failure.
+- Added explicit retry for failed service synchronization and regression tests for relogin marker preservation, cancellation, logout failure and service-sync feedback mapping.
+- Fixed the real Compose compile mismatch where `GanjVpnApp` passed service-sync feedback to a `StitchTelegramAccountCard` signature that had not yet accepted it.
+- **Remaining boundary:** `/v1/me` is still not implemented in the inspected Control API runtime, so identity-safe Telegram username/display-name remains intentionally absent. Real Ganj Bot/staging migration, process-death/deep-link/device/accessibility QA and GitHub Actions build evidence also remain open.
 
 ### 2026-08-30 — Auth-2 / Telegram Bot Approval primary
 
@@ -793,7 +807,7 @@
 - Added Liquid pre-Telegram confirmation plus Opening/Waiting/Processing/Approved/Denied/Expired/Replay/Wrong-device/Binding-mismatch/Offline/Retry surfaces.
 - Added backend negative tests and Android coordinator tests for pending/approve/deny/expiry/wrong-device/binding mismatch/replay/offline and OIDC fallback separation.
 - Static review fixed two real UX/security mapping defects: PKCE/state binding mismatch is no longer mislabeled as session expiry, and an expired stored approval remains detectable until an explicit expiry result is surfaced and the flow is cleared.
-- **Remaining boundary:** app-side cancellation, visible safe OIDC fallback entry, real Ganj Bot installation/staging secrets, process-death/deep-link/device/accessibility QA and GitHub Actions build evidence are still pending. Issue #39 remains open until the real fresh-install → Bot approval → linked services E2E is proven.
+- **Remaining boundary:** cancellation/fallback/re-login/sync feedback moved to Auth-3; real Ganj Bot installation/staging secrets, process-death/deep-link/device/accessibility QA and GitHub Actions build evidence are still pending. Issue #39 remains open until the real fresh-install → Bot approval → linked services E2E is proven.
 
 ### 2026-08-30 — Auth-1 / Telegram fallback + Liquid account surface
 
@@ -803,7 +817,7 @@
 - Added Liquid Telegram account card and real logout action.
 - Added reusable Liquid confirmation dialog and concrete logout confirmation.
 - Added coordinator unit tests for PKCE start, state mismatch/replay, expiry, redirect mismatch, one-shot success, failed exchange and logout.
-- **Remaining boundary:** superseded by Auth-2 for the primary flow; OIDC/PKCE remains fallback, while real Bot/device E2E and CI evidence remain external gates.
+- **Remaining boundary:** superseded by Auth-2/Auth-3 for the primary flow; OIDC/PKCE remains fallback, while real Bot/device E2E and CI evidence remain external gates.
 
 ### 2026-08-30 — Settings-1 / persisted appearance + accessibility
 
@@ -850,10 +864,10 @@
 Agent باید انتهای PR/commit summary این چهار خط را به‌روز کند:
 
 ```text
-UI Ledger sections touched: 4
-Leaf items completed: Privacy/security copy; Pre-Telegram confirmation; Opening; Waiting; Return processing; Success; Denied; Expired; Replay; Wrong-device; Wrong-state/binding; Offline; Retry; Session-expired surface
-Remaining unchecked items in touched sections: Cancelled flow; safe OIDC fallback entry; identity-safe account info; re-login; logout failure/retry; post-login refresh feedback; Auth QA gates
-Overall UI completion: 69% (100% forbidden until Final Gate is all checked)
+UI Ledger sections touched: 4, 10, 26
+Leaf items completed: Cancelled Bot flow; safe fallback OIDC entry; Re-login flow; Logout failure/retry; Post-login My Services refresh feedback
+Remaining unchecked items in touched sections: identity-safe account info (/me runtime missing); Auth QA/device gates; broader runtime-integration audit
+Overall UI completion: 70% (100% forbidden until Final Gate is all checked)
 ```
 
 این Ledger باید همراه کد تکامل پیدا کند؛ حذف checkbox برای پنهان‌کردن کار باقی‌مانده ممنوع است. اگر Scope رسمی تغییر کرد، ابتدا Scope canonical docs اصلاح شود و سپس آیتم با دلیل مشخص `Deferred by product scope` شود؛ هیچ Agentی حق ندارد مستقل از Product Scope آیتم را نادیده بگیرد.
