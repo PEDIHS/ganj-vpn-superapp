@@ -1,11 +1,14 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
-> **وضعیت رسمی UI در شروع این Ledger: 54٪**  
-> **وضعیت فعلی پس از Batch 2026-08-30/Devices-1: 78٪**  
+> **Baseline تاریخی هنگام ایجاد Ledger: 54٪ برآورد قدیمی — دیگر معیار پیشرفت نیست.**  
+> **وضعیت سخت‌گیرانه فعلی پس از Batch 2026-08-30/Notifications-1: 196 / 491 = 39.9٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
 این فایل **مرجع اجرایی اجباری تمام Agentها برای تکمیل UI/UX** است. هر Agent قبل از هر تغییر UI باید این فایل را کامل بخواند، وضعیت Runtime و Branch/PR را بررسی کند، سپس فقط آیتم‌هایی را که واقعاً مطابق Definition of Done تکمیل کرده است از `[ ]` به `[x]` تغییر دهد.
+
+> **فرمول رسمی و تنها معیار درصد UI:** `checked executable items in Sections 1–26 / all executable items in Sections 1–26 × 100`.  
+> درصد وزن‌دار یا دستی ممنوع است. Section 0 و Section 27 در درصد شمرده نمی‌شوند. Agent باید قبل و بعد از هر Batch اجرا کند: `node scripts/ui-progress.mjs --sections`.
 
 ---
 
@@ -280,25 +283,25 @@
 
 # 9) Notifications
 
-- [ ] Notification Center screen.
-- [ ] Read/unread state.
-- [ ] Badge count.
-- [ ] Subscription expiry notification item.
-- [ ] Renewal/purchase success item.
-- [ ] Payment failure item.
-- [ ] Maintenance item.
-- [ ] Forced security update item.
-- [ ] Support/ticket reply item در صورت contract.
-- [ ] Marketing/promo item فقط با opt-in.
-- [ ] Notification empty state.
-- [ ] Notification loading/error state.
-- [ ] Mark as read/all read actions.
-- [ ] Notification preferences screen.
-- [ ] Category toggles بر اساس permission/policy واقعی.
-- [ ] Android notification permission pre-prompt surface برای نسخه‌های لازم.
-- [ ] Permission denied/settings guidance state.
+- [x] Notification Center screen.
+- [x] Read/unread state.
+- [ ] Badge count. (Unread count داخل Notification Center واقعی است؛ badge سراسری Profile/Nav هنوز اضافه نشده.)
+- [x] Subscription expiry notification item.
+- [x] Renewal/purchase success item. (Renewal success از همان verified purchase-success category استفاده می‌کند؛ state جداگانه جعل نشده.)
+- [x] Payment failure item.
+- [x] Maintenance item.
+- [x] Forced security update item.
+- [x] Support/ticket reply item در صورت contract.
+- [x] Marketing/promo item فقط با opt-in.
+- [x] Notification empty state.
+- [x] Notification loading/error state.
+- [x] Mark as read/all read actions.
+- [x] Notification preferences screen.
+- [x] Category toggles بر اساس permission/policy واقعی.
+- [x] Android notification permission pre-prompt surface برای نسخه‌های لازم.
+- [x] Permission denied/settings guidance state.
 
-> **Runtime note:** OpenAPI notification contract موجود است، اما route اجرایی متناظر در Control API baseline فعلی پیدا نشد؛ Notification Center جعلی ساخته نمی‌شود.
+> **Batch Notifications-1 note:** Notifications دیگر placeholder نیست. migration واقعی inbox/preferences با marketing opt-in پیش‌فرض خاموش اضافه شده؛ owner-scoped list/read/read-all/preferences Runtime routes، unread count، cursor pagination و fail-closed stored-action validation پیاده شده‌اند. Android `NotificationApi` با strict mapping و token refresh وصل است. Liquid Notification Center و Preferences شامل تمام kindهای فعلی، read/unread، pagination، empty/loading/error، mark-all، category toggles، Android 13+ permission pre-prompt و Settings guidance است و از Settings قابل دسترس است. Push delivery token/FCM و badge سراسری هنوز جعل نشده‌اند و باز می‌مانند.
 
 ---
 
@@ -317,7 +320,7 @@
 - [x] Transactions entry integrated into Profile.
 - [x] Settings entry integrated into Profile.
 - [x] Devices entry integrated into Profile.
-- [ ] Notifications entry integrated into Profile.
+- [ ] Notifications entry integrated into Profile. (Notification Center فعلاً از Settings قابل دسترس است؛ ورودی مستقیم Profile هنوز باز است.)
 - [ ] Security/session status card.
 - [x] Logout entry + confirmation.
 - [ ] Logout all devices در صورت backend support.
@@ -588,7 +591,7 @@
 - [ ] Add Balance confirmation/result sheet.
 - [ ] Subscription cancel/change confirmation.
 - [ ] Session expired dialog/banner.
-- [ ] Notification permission pre-prompt.
+- [x] Notification permission pre-prompt.
 - [x] VPN permission pre-surface.
 
 > Android VPN permission dialog، Google Play checkout UI و Telegram Bot UI خودشان System/Third-party owned هستند و نباید fake clone شوند.
@@ -770,9 +773,9 @@
 | Telegram Login final UX | High — Bot Approval primary + cancel + guarded fallback + re-login + authoritative account identity + real service-refresh feedback wired; real Bot/device E2E pending |
 | Wallet | Partial/High — real DB/runtime/Android/Liquid read flow complete; top-up write/provider flow pending |
 | Transactions | High — real immutable ledger + pagination + type filter + detail + copy reference wired; payment-operation status/source remains unmodeled |
-| Settings | Partial — real persisted Theme + accessibility settings wired |
+| Settings | Partial — real persisted Theme + accessibility + Notification Center entry wired |
 | Devices | High — real owner-scoped runtime + Android + Liquid list/detail/revoke flow wired; richer device metadata/limits + physical QA pending |
-| Notifications | Runtime API pending; UI intentionally not faked |
+| Notifications | High — real inbox/preferences runtime + Android + Liquid Center/settings/permission flow; global badge/push delivery/internal destination routing pending |
 | Subscription detail flows | Partial/High — real read-only details + status surfaces wired |
 | Advanced server UX | Partial |
 | Connect micro-states | Partial — permission preflow + denial guidance complete |
@@ -780,11 +783,24 @@
 | Onboarding | High — first-run/skip/persistence/replay complete; optional Bot Approval CTA + device QA pending |
 | Referral/Promotions | Not finalized |
 | Full Support/Tickets | Partial |
-| Dialog/Bottom Sheet system | Partial — Liquid confirm + purchase/VPN/auth/device dialogs and transaction detail added |
+| Dialog/Bottom Sheet system | Partial — Liquid confirm + purchase/VPN/auth/device/notification dialogs and transaction detail added |
 | Physical-device final QA | Pending |
-| **Overall** | **78%** |
+| **Overall (strict checkbox formula)** | **196 / 491 = 39.9%** |
 
 ## Batch Log
+
+### 2026-08-30 — Notifications-1 / real inbox + preferences + Android permission UX
+
+- Added PostgreSQL `control_notifications` and `control_notification_preferences` with owner indexes, unread index, existing-user backfill and automatic preferences for new users.
+- Marketing notifications default to opt-out (`false`); account/service/security categories have explicit persisted toggles.
+- Added authenticated owner-scoped list/read/read-all/preferences routes with cursor pagination, unread count and strict stored action/kind validation.
+- Invalid action payload persisted in DB fails as server-data corruption rather than being mislabeled as client validation.
+- Added backend tests for ownership, unread count, cross-user read protection, complete preference writes and invalid stored action failure.
+- Added Android `NotificationApi`, strict kind/action/UUID/timestamp mapping, read/read-all/preferences calls and `PUT` transport support with unit tests.
+- Bound Notification API to app composition and added Liquid Notification Center with read/unread states, all current product kinds, pagination, empty/loading/error and mark-all.
+- Added Liquid Notification Preferences with persisted category toggles, marketing opt-in copy, Android 13+ `POST_NOTIFICATIONS` pre-prompt, permission result state and direct Android notification-settings guidance.
+- Notification Center is reachable through Settings without inventing push delivery. Existing manifest permission is reused.
+- **Remaining boundary:** direct Profile/Nav unread badge, FCM/push-token delivery, full in-app routing for Store/Subscription/Wallet/Support notification actions, canonical OpenAPI expansion, physical-device/TalkBack/responsive QA and CI build evidence remain open.
 
 ### 2026-08-30 — Devices-1 / trusted-device runtime + Liquid management
 
@@ -913,10 +929,10 @@
 Agent باید انتهای PR/commit summary این چهار خط را به‌روز کند:
 
 ```text
-UI Ledger sections touched: 6, 8, 10, 20, 26
-Leaf items completed: transaction type filter/detail/copy-reference; real trusted-device list/current/detail/revoke flow; Devices Profile entry
-Remaining unchecked items in touched sections: transaction status/payment-source/date-range/skeleton; richer device metadata/limits; notifications/security surfaces; physical-device and final runtime audit
-Overall UI completion: 78% (100% forbidden until Final Gate is all checked)
+UI Ledger sections touched: 9, 20
+Leaf items completed: Notification Center/read-unread/kinds/empty-loading-error/read-actions/preferences/category toggles/Android permission pre-prompt/settings guidance
+Remaining unchecked items in touched sections: global unread badge; push delivery; full internal action routing; remaining common overlay system; physical-device QA
+Overall UI completion: 196/491 = 39.9% (calculator formula; 100% forbidden until Final Gate is all checked)
 ```
 
 این Ledger باید همراه کد تکامل پیدا کند؛ حذف checkbox برای پنهان‌کردن کار باقی‌مانده ممنوع است. اگر Scope رسمی تغییر کرد، ابتدا Scope canonical docs اصلاح شود و سپس آیتم با دلیل مشخص `Deferred by product scope` شود؛ هیچ Agentی حق ندارد مستقل از Product Scope آیتم را نادیده بگیرد.
