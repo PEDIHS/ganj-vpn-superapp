@@ -232,12 +232,17 @@ internal class TelegramAuthCoordinator(
         }
     }
 
+    /**
+     * Keeps the presentation link marker intact when server/session revocation can be retried.
+     * The gateway is responsible for preserving local credentials on retryable remote failures.
+     */
     fun logout(): TelegramAuthResult {
         store.clear()
-        val sessionCleared = session.logout()
+        if (!session.logout()) {
+            return TelegramAuthResult.Failed("auth.logout_failed")
+        }
         linkState.setLinked(false)
-        return if (sessionCleared) TelegramAuthResult.LoggedOut
-        else TelegramAuthResult.Failed("auth.logout_failed")
+        return TelegramAuthResult.LoggedOut
     }
 
     private fun exchangeApproved(flow: TelegramAuthFlow): TelegramAuthResult {
