@@ -35,7 +35,7 @@ class AuthSessionCredentials(
         "AuthSessionCredentials(userId=$userId, deviceId=$deviceId, accessToken=[REDACTED], refreshToken=[REDACTED])"
 }
 
-data class CurrentAccount(
+class CurrentAccount(
     val id: String,
     val displayName: String?,
     val locale: String,
@@ -44,13 +44,13 @@ data class CurrentAccount(
 ) {
     init {
         requireCanonicalUuid(id, "id")
-        require(displayName == null || (displayName.length <= 200 && displayName.none(Char::isISOControl)))
-        require(locale.matches(Regex("^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})?$")))
-        require(telegramUsername == null || (telegramUsername.length <= 64 && telegramUsername.none(Char::isISOControl)))
+        require(locale.length in 2..16 && locale.none(Char::isISOControl))
+        require(displayName == null || (displayName.length in 1..256 && displayName.none(Char::isISOControl)))
+        require(telegramUsername == null || (telegramUsername.length in 1..64 && telegramUsername.none(Char::isISOControl)))
     }
 
     override fun toString(): String =
-        "CurrentAccount(id=$id, displayName=[REDACTED], locale=$locale, telegramLinked=$telegramLinked, telegramUsername=[REDACTED])"
+        "CurrentAccount(id=$id, telegramLinked=$telegramLinked, displayName=[REDACTED], telegramUsername=[REDACTED])"
 }
 
 interface SessionCredentialVault : AuthTokenProvider {
