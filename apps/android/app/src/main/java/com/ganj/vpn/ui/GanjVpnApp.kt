@@ -1,5 +1,7 @@
 package com.ganj.vpn.ui
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -13,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.ganj.vpn.R
 import com.ganj.vpn.composition.GanjComposition
 import com.ganj.vpn.enterprise.BugReportInput
@@ -38,6 +41,12 @@ import kotlinx.coroutines.withContext
 @Composable
 fun GanjVpnApp(
     composition: GanjComposition,
+    telegramLinked: Boolean,
+    telegramBusy: Boolean,
+    telegramErrorCode: String?,
+    accountRefreshGeneration: Int,
+    onTelegramLogin: () -> Unit,
+    onTelegramLogout: () -> Unit,
     onLaunchGooglePlay: suspend (CheckoutActionHandle) -> CheckoutEffectResult,
     onLaunchVpn: suspend (ConnectionActionHandle) -> ConnectionEffectResult,
 ) {
@@ -157,6 +166,13 @@ fun GanjVpnApp(
         refreshEnterprise()
     }
 
+    LaunchedEffect(accountRefreshGeneration) {
+        if (accountRefreshGeneration > 0) {
+            refresh()
+            refreshEnterprise()
+        }
+    }
+
     DisposableEffect(composition) {
         val registration = composition.observePlayPurchases { event ->
             scope.launch {
@@ -252,38 +268,54 @@ fun GanjVpnApp(
                             onRetry = ::refresh,
                         )
 
-                        GanjDestination.Account -> StitchProfileScreen(
-                            state = state,
-                            enterpriseState = enterpriseState,
-                            onSelectService = {
-                                commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
-                            },
-                            onConnect = {
-                                state.selectedEntitlementId?.let(::requestProfile)
-                                selectedDestination = GanjDestination.Connect
-                            },
-                            onBuy = { selectedDestination = GanjDestination.Store },
-                            onRetry = ::refresh,
-                            onEnterpriseRefresh = ::refreshEnterprise,
-                            onSubmitBug = ::submitBug,
-                            onSubmitDiagnostics = ::submitDiagnostics,
-                            onClearBug = {
-                                commitEnterprise(
-                                    enterpriseReducer.reduce(
-                                        enterpriseState,
-                                        EnterpriseEvent.ClearBugResult,
-                                    ),
-                                )
-                            },
-                            onClearDiagnostic = {
-                                commitEnterprise(
-                                    enterpriseReducer.reduce(
-                                        enterpriseState,
-                                        EnterpriseEvent.ClearDiagnosticResult,
-                                    ),
-                                )
-                            },
-                        )
+                        GanjDestination.Account -> Column(
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            StitchTelegramAccountCard(
+                                linked = telegramLinked,
+                                busy = telegramBusy,
+                                errorCode = telegramErrorCode,
+                                onLogin = onTelegramLogin,
+                                onLogout = onTelegramLogout,
+                                modifier = Modifier.padding(
+                                    horizontal = responsiveHorizontalPadding(),
+                                    vertical = 12.dp,
+                                ),
+                            )
+                            StitchProfileScreen(
+                                state = state,
+                                enterpriseState = enterpriseState,
+                                onSelectService = {
+                                    commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
+                                },
+                                onConnect = {
+                                    state.selectedEntitlementId?.let(::requestProfile)
+                                    selectedDestination = GanjDestination.Connect
+                                },
+                                onBuy = { selectedDestination = GanjDestination.Store },
+                                onRetry = ::refresh,
+                                onEnterpriseRefresh = ::refreshEnterprise,
+                                onSubmitBug = ::submitBug,
+                                onSubmitDiagnostics = ::submitDiagnostics,
+                                onClearBug = {
+                                    commitEnterprise(
+                                        enterpriseReducer.reduce(
+                                            enterpriseState,
+                                            EnterpriseEvent.ClearBugResult,
+                                        ),
+                                    )
+                                },
+                                onClearDiagnostic = {
+                                    commitEnterprise(
+                                        enterpriseReducer.reduce(
+                                            enterpriseState,
+                                            EnterpriseEvent.ClearDiagnosticResult,
+                                        ),
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                 }
             }
