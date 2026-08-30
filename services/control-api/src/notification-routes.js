@@ -2,6 +2,7 @@ import { ApiError, requireUuid, success } from './errors.js';
 
 const DEFAULT_LIMIT = 30;
 const MAX_LIMIT = 50;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const KINDS = new Set([
   'subscription_expiry',
   'purchase_success',
@@ -52,7 +53,7 @@ function decodeCursor(value) {
   if (separator <= 0) throw new ApiError(400, 'invalid_request', 'cursor is invalid.');
   const createdAt = decoded.slice(0, separator);
   const id = decoded.slice(separator + 1);
-  if (!/^\d{4}-\d{2}-\d{2}T/.test(createdAt) || !/^[0-9a-f-]{36}$/i.test(id)) {
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(createdAt) || !UUID.test(id)) {
     throw new ApiError(400, 'invalid_request', 'cursor is invalid.');
   }
   const parsed = new Date(createdAt);
@@ -80,7 +81,12 @@ function safeAction(value) {
     throw new ApiError(500, 'notification_action_invalid', 'Notification action type is invalid.');
   }
   const result = { type: value.type };
-  if (value.id !== undefined && value.id !== null) result.id = requireUuid(value.id, 'notification action id');
+  if (value.id !== undefined && value.id !== null) {
+    if (typeof value.id !== 'string' || !UUID.test(value.id)) {
+      throw new ApiError(500, 'notification_action_invalid', 'Notification action id is invalid.');
+    }
+    result.id = value.id;
+  }
   return result;
 }
 
