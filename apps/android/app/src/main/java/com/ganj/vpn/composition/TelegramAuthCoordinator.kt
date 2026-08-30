@@ -1,9 +1,15 @@
 package com.ganj.vpn.composition
 
+import com.ganj.vpn.core.controlapi.ApiError
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.AuthSessionCredentials
 import com.ganj.vpn.core.controlapi.TelegramAuthorization
 import com.ganj.vpn.core.controlapi.TelegramAuthorizationCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalExchangeCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalRequest
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalState
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalStatus
 import com.ganj.vpn.core.controlapi.TelegramExchangeCommand
 import java.net.URI
 import java.net.URLDecoder
@@ -13,11 +19,18 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
+internal enum class TelegramAuthFlowMode {
+    BOT_APPROVAL,
+    OIDC_FALLBACK,
+}
+
 internal data class TelegramAuthFlow(
     val state: String,
     val codeVerifier: String,
     val redirectUri: String,
     val expiresAt: String,
+    val mode: TelegramAuthFlowMode = TelegramAuthFlowMode.OIDC_FALLBACK,
+    val requestId: String? = null,
 )
 
 internal interface TelegramAuthFlowStore {
@@ -26,15 +39,16 @@ internal interface TelegramAuthFlowStore {
     fun clear(): Result<Unit>
 }
 
-/**
- * Presentation-only marker. Protected API authorization must never trust this value.
- */
+/** Presentation-only marker. Protected API authorization must never trust this value. */
 internal interface TelegramLinkStateStore {
     fun isLinked(): Boolean
     fun setLinked(linked: Boolean): Result<Unit>
 }
 
 internal interface TelegramAuthSessionGateway {
+    fun beginTelegramBotApproval(command: TelegramBotApprovalCommand): ApiResult<TelegramBotApprovalRequest>
+    fun telegramBotApprovalStatus(requestId: String): ApiResult<TelegramBotApprovalStatus>
+    fun exchangeTelegramBotApproval(command: TelegramBotApprovalExchangeCommand): ApiResult<AuthSessionCredentials>
     fun beginTelegram(command: TelegramAuthorizationCommand): ApiResult<TelegramAuthorization>
     fun exchangeTelegram(command: TelegramExchangeCommand): ApiResult<AuthSessionCredentials>
     fun logout(): Boolean
@@ -42,14 +56,16 @@ internal interface TelegramAuthSessionGateway {
 
 internal sealed interface TelegramAuthResult {
     data class Launch(val authorizationUrl: String) : TelegramAuthResult
+    data object Waiting : TelegramAuthResult
     data object Linked : TelegramAuthResult
     data object LoggedOut : TelegramAuthResult
     data class Failed(val code: String) : TelegramAuthResult
 }
 
 /**
- * Hardened OIDC/PKCE fallback ceremony. Ganj Bot Approval remains the primary product UX.
- * Provider credentials never enter Compose state and the callback is locally one-shot.
+ * Primary Telegram Bot Approval ceremony with OIDC/PKCE retained only as an explicit fallback.
+ * The encrypted local flow stores only state/PKCE/request metadata. Telegram identity and session
+ * credentials are resolved and issued server-side; the Bot never mints App access tokens.
  */
 internal class TelegramAuthCoordinator(
     private val session: TelegramAuthSessionGateway,
@@ -61,38 +77,81 @@ internal class TelegramAuthCoordinator(
 ) {
     fun isLinked(): Boolean = linkState.isLinked()
 
+    fun hasPendingBotApproval(): Boolean = store.restore()?.let {
+        it.mode == TelegramAuthFlowMode.BOT_APPROVAL && !isExpired(it.expiresAt)
+    } == true
+
+    /** Primary product login path. */
     fun begin(): TelegramAuthResult {
         if (!isAllowedRedirect(redirectUri)) {
             return TelegramAuthResult.Failed("auth.redirect_not_configured")
         }
-
-        val verifierBytes = ByteArray(32)
-        random.nextBytes(verifierBytes)
-        val verifier = try {
-            verifierBytes.toBase64UrlWithoutPadding()
-        } finally {
-            verifierBytes.fill(0)
+        val pkce = newPkcePair() ?: return TelegramAuthResult.Failed("auth.pkce_unavailable")
+        return when (
+            val result = session.beginTelegramBotApproval(
+                TelegramBotApprovalCommand(pkce.challenge, redirectUri),
+            )
+        ) {
+            is ApiResult.Failure -> TelegramAuthResult.Failed(mapApprovalFailure(result.error, "auth.bot_approval_start_failed"))
+            is ApiResult.Success -> {
+                val flow = TelegramAuthFlow(
+                    state = result.value.state,
+                    codeVerifier = pkce.verifier,
+                    redirectUri = redirectUri,
+                    expiresAt = result.value.expiresAt,
+                    mode = TelegramAuthFlowMode.BOT_APPROVAL,
+                    requestId = result.value.requestId,
+                )
+                if (store.save(flow).isFailure) {
+                    TelegramAuthResult.Failed("auth.flow_persistence_failed")
+                } else {
+                    TelegramAuthResult.Launch(result.value.botUrl)
+                }
+            }
         }
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(verifier.toByteArray(Charsets.US_ASCII))
-        val challenge = try {
-            digest.toBase64UrlWithoutPadding()
-        } finally {
-            digest.fill(0)
-        }
+    }
 
+    /** Called when the App regains focus after the user approves or denies inside Ganj Bot. */
+    fun resumeBotApproval(): TelegramAuthResult {
+        val flow = store.restore() ?: return TelegramAuthResult.Failed("auth.flow_missing_or_consumed")
+        if (flow.mode != TelegramAuthFlowMode.BOT_APPROVAL || flow.requestId.isNullOrBlank()) {
+            return TelegramAuthResult.Failed("auth.bot_approval_not_pending")
+        }
+        if (isExpired(flow.expiresAt)) return consumeFailure("auth.bot_approval_expired")
+
+        return when (val status = session.telegramBotApprovalStatus(flow.requestId)) {
+            is ApiResult.Failure -> TelegramAuthResult.Failed(
+                mapApprovalFailure(status.error, "auth.bot_approval_status_failed"),
+            )
+            is ApiResult.Success -> when (status.value.state) {
+                TelegramBotApprovalState.PENDING -> TelegramAuthResult.Waiting
+                TelegramBotApprovalState.DENIED -> consumeFailure("auth.bot_approval_denied")
+                TelegramBotApprovalState.EXPIRED -> consumeFailure("auth.bot_approval_expired")
+                TelegramBotApprovalState.CONSUMED -> consumeFailure("auth.bot_approval_replayed")
+                TelegramBotApprovalState.APPROVED -> exchangeApproved(flow)
+            }
+        }
+    }
+
+    /** Hardened OIDC/PKCE fallback. Never call this from the primary login CTA. */
+    fun beginOidcFallback(): TelegramAuthResult {
+        if (!isAllowedRedirect(redirectUri)) {
+            return TelegramAuthResult.Failed("auth.redirect_not_configured")
+        }
+        val pkce = newPkcePair() ?: return TelegramAuthResult.Failed("auth.pkce_unavailable")
         return when (
             val result = session.beginTelegram(
-                TelegramAuthorizationCommand(challenge, redirectUri),
+                TelegramAuthorizationCommand(pkce.challenge, redirectUri),
             )
         ) {
             is ApiResult.Failure -> TelegramAuthResult.Failed("auth.telegram_start_failed")
             is ApiResult.Success -> {
                 val flow = TelegramAuthFlow(
                     state = result.value.state,
-                    codeVerifier = verifier,
+                    codeVerifier = pkce.verifier,
                     redirectUri = redirectUri,
                     expiresAt = result.value.expiresAt,
+                    mode = TelegramAuthFlowMode.OIDC_FALLBACK,
                 )
                 if (store.save(flow).isFailure) {
                     TelegramAuthResult.Failed("auth.flow_persistence_failed")
@@ -103,10 +162,12 @@ internal class TelegramAuthCoordinator(
         }
     }
 
+    /** Handles OIDC fallback App-Link callbacks; Bot Approval resumes by checking backend status. */
     fun complete(callbackUri: String): TelegramAuthResult {
         val flow = store.restore()
             ?: return TelegramAuthResult.Failed("auth.flow_missing_or_consumed")
 
+        if (flow.mode == TelegramAuthFlowMode.BOT_APPROVAL) return resumeBotApproval()
         if (isExpired(flow.expiresAt)) return consumeFailure("auth.flow_expired")
 
         val callback = runCatching { URI(callbackUri) }.getOrNull()
@@ -153,6 +214,74 @@ internal class TelegramAuthCoordinator(
         linkState.setLinked(false)
         return if (sessionCleared) TelegramAuthResult.LoggedOut
         else TelegramAuthResult.Failed("auth.logout_failed")
+    }
+
+    private fun exchangeApproved(flow: TelegramAuthFlow): TelegramAuthResult {
+        val requestId = flow.requestId ?: return consumeFailure("auth.bot_approval_not_pending")
+        return when (
+            val result = session.exchangeTelegramBotApproval(
+                TelegramBotApprovalExchangeCommand(
+                    requestId = requestId,
+                    state = flow.state,
+                    codeVerifier = flow.codeVerifier,
+                ),
+            )
+        ) {
+            is ApiResult.Success -> {
+                if (store.clear().isFailure) {
+                    TelegramAuthResult.Failed("auth.flow_clear_failed")
+                } else {
+                    linkState.setLinked(true)
+                    TelegramAuthResult.Linked
+                }
+            }
+            is ApiResult.Failure -> TelegramAuthResult.Failed(
+                mapApprovalFailure(result.error, "auth.bot_approval_exchange_failed"),
+            )
+        }
+    }
+
+    private data class PkcePair(val verifier: String, val challenge: String)
+
+    private fun newPkcePair(): PkcePair? = runCatching {
+        val verifierBytes = ByteArray(32)
+        random.nextBytes(verifierBytes)
+        val verifier = try {
+            verifierBytes.toBase64UrlWithoutPadding()
+        } finally {
+            verifierBytes.fill(0)
+        }
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(verifier.toByteArray(Charsets.US_ASCII))
+        val challenge = try {
+            digest.toBase64UrlWithoutPadding()
+        } finally {
+            digest.fill(0)
+        }
+        PkcePair(verifier, challenge)
+    }.getOrNull()
+
+    private fun mapApprovalFailure(error: ApiError, fallback: String): String = when (error) {
+        is ApiError.Network -> "auth.bot_approval_offline"
+        is ApiError.AuthenticationRequired,
+        is ApiError.AuthenticationExpired,
+        -> "auth.session_expired"
+        is ApiError.Forbidden -> when (error.code) {
+            "bot_approval_denied" -> "auth.bot_approval_denied"
+            else -> fallback
+        }
+        is ApiError.NotFound -> "auth.bot_approval_wrong_device"
+        is ApiError.Conflict -> when (error.code) {
+            "bot_approval_pending" -> "auth.bot_approval_pending"
+            "bot_approval_expired" -> "auth.bot_approval_expired"
+            "bot_approval_replayed" -> "auth.bot_approval_replayed"
+            "bot_approval_binding_mismatch" -> "auth.bot_approval_binding_mismatch"
+            else -> fallback
+        }
+        is ApiError.Server -> if (error.code == "bot_approval_unavailable") {
+            "auth.bot_approval_unavailable"
+        } else fallback
+        else -> fallback
     }
 
     private fun consumeFailure(code: String): TelegramAuthResult.Failed {
