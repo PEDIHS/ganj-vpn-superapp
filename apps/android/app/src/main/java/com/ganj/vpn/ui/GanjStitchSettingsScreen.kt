@@ -47,9 +47,18 @@ internal fun StitchSettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     var showNotificationHub by remember { mutableStateOf(false) }
+    var showSupportHub by remember { mutableStateOf(false) }
+
     if (showNotificationHub) {
         StitchNotificationHub(
             onBack = { showNotificationHub = false },
+            modifier = modifier,
+        )
+        return
+    }
+    if (showSupportHub) {
+        StitchSupportHub(
+            onBack = { showSupportHub = false },
             modifier = modifier,
         )
         return
@@ -75,7 +84,7 @@ internal fun StitchSettingsScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    text = "ظاهر، دسترس‌پذیری و اعلان‌های برنامه",
+                    text = "ظاهر، اعلان‌ها، پشتیبانی و دسترس‌پذیری برنامه",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -94,6 +103,21 @@ internal fun StitchSettingsScreen(
                 title = "مرکز اعلان و تنظیمات",
                 description = "اعلان‌های حساب، سرویس، امنیت و انتخاب دسته‌بندی‌ها",
                 onClick = { showNotificationHub = true },
+            )
+        }
+
+        SettingsSectionTitle("پشتیبانی")
+        GanjGlassSurface(
+            role = GanjGlassRole.Regular,
+            accent = GanjGold,
+            modifier = Modifier.fillMaxWidth(),
+            shapeRadius = 24.dp,
+            padding = PaddingValues(16.dp),
+        ) {
+            SettingsActionRow(
+                title = "مرکز پشتیبانی",
+                description = "ثبت درخواست، مشاهده وضعیت و گفت‌وگو با پشتیبانی گنج",
+                onClick = { showSupportHub = true },
             )
         }
 
@@ -239,7 +263,7 @@ internal fun StitchSettingsEntry(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "ظاهر، اعلان‌ها و دسترس‌پذیری برنامه",
+                text = "ظاهر، اعلان‌ها، پشتیبانی و دسترس‌پذیری",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
