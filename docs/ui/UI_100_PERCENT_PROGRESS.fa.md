@@ -1,7 +1,7 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **وضعیت رسمی UI در شروع این Ledger: 54٪**  
-> **وضعیت فعلی پس از Batch 2026-08-30/Subscription-1: 60٪**  
+> **وضعیت فعلی پس از Batch 2026-08-30/Connect-Checkout-1: 62٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
@@ -270,6 +270,8 @@
 - [ ] Cannot revoke current/last device policy feedback در صورت applicable.
 - [ ] Device Binding explanation surface.
 
+> **Runtime note:** OpenAPI برای device management contract دارد، اما route اجرایی متناظر در Control API baseline فعلی پیدا نشد؛ UI device management تا runtime wiring fake نمی‌شود.
+
 ---
 
 # 9) Notifications
@@ -291,6 +293,8 @@
 - [ ] Category toggles بر اساس permission/policy واقعی.
 - [ ] Android notification permission pre-prompt surface برای نسخه‌های لازم.
 - [ ] Permission denied/settings guidance state.
+
+> **Runtime note:** OpenAPI notification contract موجود است، اما route اجرایی متناظر در Control API baseline فعلی پیدا نشد؛ Notification Center جعلی ساخته نمی‌شود.
 
 ---
 
@@ -388,9 +392,9 @@
 - [x] Connected/disconnected/connecting visual mapping.
 
 ## 13.2 Pending states/surfaces
-- [ ] VPN permission explanation pre-surface.
-- [ ] Permission denied guidance.
-- [ ] Permission permanently denied → Android Settings guidance.
+- [x] VPN permission explanation pre-surface.
+- [x] Permission denied guidance.
+- [x] Permanent-denial platform review — `VpnService.prepare()` has no app-level permanent-denial state; no fake Android Settings redirect is shown.
 - [ ] Connecting overlay/state polish.
 - [ ] Reconnecting/recovery surface.
 - [ ] Connection timeout state.
@@ -447,7 +451,7 @@
 ## 15.2 Pending purchase surfaces
 - [ ] Plan Detail sheet/page.
 - [ ] Compare plans UX.
-- [ ] Confirm purchase sheet/dialog.
+- [x] Confirm purchase sheet/dialog.
 - [ ] Payment method selector برای flavorهای واقعی.
 - [ ] Wallet vs Google Play/Gateway choice در Direct flavor فقط در صورت contract.
 - [ ] Insufficient wallet balance state.
@@ -575,13 +579,13 @@
 - [ ] Server Detail sheet.
 - [ ] Premium Server Upgrade sheet.
 - [ ] Plan Detail sheet.
-- [ ] Purchase Confirmation sheet/dialog.
+- [x] Purchase Confirmation sheet/dialog.
 - [ ] Transaction Detail sheet.
 - [ ] Add Balance confirmation/result sheet.
 - [ ] Subscription cancel/change confirmation.
 - [ ] Session expired dialog/banner.
 - [ ] Notification permission pre-prompt.
-- [ ] VPN permission pre-surface.
+- [x] VPN permission pre-surface.
 
 > Android VPN permission dialog، Google Play checkout UI و Telegram Bot UI خودشان System/Third-party owned هستند و نباید fake clone شوند.
 
@@ -604,7 +608,7 @@
 - [ ] Retry-in-place pattern.
 - [ ] Rate-limited state.
 - [ ] Session-expired state.
-- [ ] Permission-required state.
+- [x] Permission-required state (VPN pre-permission + denial guidance).
 - [ ] Feature-disabled-by-policy state.
 - [ ] Server-maintenance state.
 - [ ] Billing-provider-unavailable state.
@@ -767,14 +771,14 @@
 | Notifications | Runtime API pending; UI intentionally not faked |
 | Subscription detail flows | Partial/High — real read-only details + status surfaces wired |
 | Advanced server UX | Partial |
-| Connect micro-states | Partial |
-| Purchase micro-flows | Partial |
+| Connect micro-states | Partial — permission preflow + denial guidance complete |
+| Purchase micro-flows | Partial — confirmation gate added |
 | Onboarding | Not finalized |
 | Referral/Promotions | Not finalized |
 | Full Support/Tickets | Partial |
-| Dialog/Bottom Sheet system | Partial — Liquid confirm dialog added |
+| Dialog/Bottom Sheet system | Partial — Liquid confirm + purchase/VPN dialogs added |
 | Physical-device final QA | Pending |
-| **Overall** | **60%** |
+| **Overall** | **62%** |
 
 ## Batch Log
 
@@ -808,6 +812,15 @@
 - Added a real Connect action for active services and a real Store navigation action; no unsupported renewal/cancel/payment actions were fabricated.
 - Integrated the selected-service details entry into the Account/Profile flow with system Back handling.
 - **Remaining boundary:** renewal/auto-renew, purchase source/history, refund, cancel/change-plan and restore-purchase require real commerce/presentation contracts before they can be marked complete.
+
+### 2026-08-30 — Connect-Checkout-1 / permission and purchase gates
+
+- Added an app-owned Liquid explanation before Android's real `VpnService` consent screen.
+- Added permission-denied guidance while preserving the system-owned VPN consent UI.
+- Reviewed Android's VPN permission contract: there is no app-level permanent-denial state analogous to runtime permissions, so no fake Settings redirect is exposed.
+- Added a real Liquid purchase confirmation before invoking the existing checkout controller/provider flow.
+- Purchase confirmation does not fabricate price conversion; Provider remains authoritative for final payable amount/terms.
+- **Remaining boundary:** reconnect/timeout/network-change/tunnel-recovery detail states and richer billing-provider states still require their real runtime contracts/state mappings.
 
 ## Mandatory update format after every Agent batch
 
