@@ -4,32 +4,48 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.net.VpnService
 import android.os.Bundle
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.ganj.vpn.composition.GanjCompositionOwner
+import com.ganj.vpn.composition.TelegramAuthResult
 import com.ganj.vpn.presentation.ConnectionEffectResult
 import com.ganj.vpn.presentation.UiFailure
 import com.ganj.vpn.presentation.UiFailureKind
 import com.ganj.vpn.ui.GanjTheme
 import com.ganj.vpn.ui.GanjVpnApp
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.coroutines.resume
 
 class MainActivity : ComponentActivity() {
     private var vpnPermissionContinuation: CancellableContinuation<Boolean>? = null
+    private lateinit var owner: GanjCompositionOwner
+
+    private val telegramLinked = mutableStateOf(false)
+    private val telegramBusy = mutableStateOf(false)
+    private val telegramErrorCode = mutableStateOf<String?>(null)
+    private val accountRefreshGeneration = mutableStateOf(0)
+
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         val continuation = vpnPermissionContinuation
         vpnPermissionContinuation = null
-        if (continuation?.isActive == true) continuation.resume(result.resultCode == Activity.RESULT_OK)
+        if (continuation?.isActive == true) {
+            continuation.resume(result.resultCode == Activity.RESULT_OK)
+        }
     }
 
     override fun attachBaseContext(newBase: Context) {
@@ -44,14 +60,30 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val composition = ViewModelProvider(
+
+        owner = ViewModelProvider(
             this,
-            GanjCompositionOwner.Factory(application, BuildConfig.CONTROL_API_BASE_URL),
-        )[GanjCompositionOwner::class.java].composition
+            GanjCompositionOwner.Factory(
+                application = application,
+                endpoint = BuildConfig.CONTROL_API_BASE_URL,
+                telegramRedirectUri = BuildConfig.TELEGRAM_REDIRECT_URI,
+            ),
+        )[GanjCompositionOwner::class.java]
+
+        telegramLinked.value = owner.telegramAuth?.isLinked() == true
+        handleTelegramIntent(intent)
+
+        val composition = owner.composition
         setContent {
             GanjTheme {
                 GanjVpnApp(
                     composition = composition,
+                    telegramLinked = telegramLinked.value,
+                    telegramBusy = telegramBusy.value,
+                    telegramErrorCode = telegramErrorCode.value,
+                    accountRefreshGeneration = accountRefreshGeneration.value,
+                    onTelegramLogin = ::beginTelegramLogin,
+                    onTelegramLogout = ::logoutTelegram,
                     onLaunchGooglePlay = { handle ->
                         composition.launchGooglePlayCheckout(this@MainActivity, handle)
                     },
@@ -73,6 +105,84 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleTelegramIntent(intent)
+    }
+
+    private fun beginTelegramLogin() {
+        if (telegramBusy.value) return
+        val auth = owner.telegramAuth ?: run {
+            telegramErrorCode.value = "auth.unavailable"
+            return
+        }
+
+        telegramBusy.value = true
+        telegramErrorCode.value = null
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { auth.begin() }
+            telegramBusy.value = false
+            when (result) {
+                is TelegramAuthResult.Launch -> {
+                    val launched = runCatching {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(result.authorizationUrl)))
+                    }.isSuccess
+                    if (!launched) telegramErrorCode.value = "auth.telegram_launch_failed"
+                }
+                is TelegramAuthResult.Failed -> telegramErrorCode.value = result.code
+                TelegramAuthResult.Linked,
+                TelegramAuthResult.LoggedOut,
+                -> Unit
+            }
+        }
+    }
+
+    private fun handleTelegramIntent(intent: Intent?) {
+        val callback = intent
+            ?.takeIf { it.action == Intent.ACTION_VIEW }
+            ?.dataString
+            ?: return
+        if (!::owner.isInitialized || telegramBusy.value) return
+
+        val auth = owner.telegramAuth ?: return
+        telegramBusy.value = true
+        telegramErrorCode.value = null
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { auth.complete(callback) }
+            telegramBusy.value = false
+            when (result) {
+                TelegramAuthResult.Linked -> {
+                    telegramLinked.value = true
+                    telegramErrorCode.value = null
+                    accountRefreshGeneration.value += 1
+                }
+                is TelegramAuthResult.Failed -> telegramErrorCode.value = result.code
+                is TelegramAuthResult.Launch,
+                TelegramAuthResult.LoggedOut,
+                -> Unit
+            }
+        }
+    }
+
+    private fun logoutTelegram() {
+        if (telegramBusy.value) return
+        val auth = owner.telegramAuth ?: run {
+            telegramErrorCode.value = "auth.unavailable"
+            return
+        }
+
+        telegramBusy.value = true
+        telegramErrorCode.value = null
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { auth.logout() }
+            telegramBusy.value = false
+            telegramLinked.value = auth.isLinked()
+            accountRefreshGeneration.value += 1
+            telegramErrorCode.value = (result as? TelegramAuthResult.Failed)?.code
+        }
+    }
+
     private suspend fun ensureVpnPermission(): Boolean {
         val request: Intent = VpnService.prepare(this) ?: return true
         return suspendCancellableCoroutine { continuation ->
@@ -82,7 +192,9 @@ class MainActivity : ComponentActivity() {
             }
             vpnPermissionContinuation = continuation
             continuation.invokeOnCancellation {
-                if (vpnPermissionContinuation === continuation) vpnPermissionContinuation = null
+                if (vpnPermissionContinuation === continuation) {
+                    vpnPermissionContinuation = null
+                }
             }
             vpnPermissionLauncher.launch(request)
         }
