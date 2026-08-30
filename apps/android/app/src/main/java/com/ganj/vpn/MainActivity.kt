@@ -113,6 +113,12 @@ class MainActivity : ComponentActivity() {
                     onReduceTransparencyChanged = { enabled ->
                         updateUserPreferences { it.copy(reduceTransparency = enabled) }
                     },
+                    onOnboardingCompleted = {
+                        updateUserPreferences { it.copy(onboardingCompleted = true) }
+                    },
+                    onRestartOnboarding = {
+                        updateUserPreferences { it.copy(onboardingCompleted = false) }
+                    },
                     onLaunchGooglePlay = { handle ->
                         composition.launchGooglePlayCheckout(this@MainActivity, handle)
                     },
