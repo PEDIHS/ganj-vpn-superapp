@@ -69,6 +69,7 @@ fun GanjVpnApp(
 
     var selectedDestination by remember { mutableStateOf(GanjDestination.Connect) }
     var accountSurface by remember { mutableStateOf(GanjAccountSurface.PROFILE) }
+    var purchaseConfirmationPlan by remember { mutableStateOf<PlanUiModel?>(null) }
     var state by remember(composition) { mutableStateOf(composition.restoreUiState()) }
     var enterpriseState by remember(composition) {
         mutableStateOf(composition.restoreEnterpriseState())
@@ -291,7 +292,7 @@ fun GanjVpnApp(
                             onSelect = {
                                 commit(reducer.reduce(state, GanjUiEvent.SelectPlan(it)))
                             },
-                            onPurchase = ::checkout,
+                            onPurchase = { plan -> purchaseConfirmationPlan = plan },
                             onRetry = ::refresh,
                         )
 
@@ -395,5 +396,19 @@ fun GanjVpnApp(
                 }
             }
         }
+    }
+
+    purchaseConfirmationPlan?.let { plan ->
+        GanjLiquidConfirmDialog(
+            title = "تأیید خرید ${plan.title}",
+            body = "پس از تأیید، پرداخت امن برای این پلن شروع می‌شود. مبلغ و شرایط نهایی پیش از پرداخت در Provider نمایش داده خواهد شد.",
+            confirmText = "ادامه به پرداخت",
+            dismissText = "انصراف",
+            onConfirm = {
+                purchaseConfirmationPlan = null
+                checkout(plan)
+            },
+            onDismiss = { purchaseConfirmationPlan = null },
+        )
     }
 }
