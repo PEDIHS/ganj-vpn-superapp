@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import test from 'node:test';
 import {
   InMemoryTelegramBotApprovalStore,
@@ -22,7 +22,7 @@ function stable(value) {
 }
 
 function challenge(verifier) {
-  return (await import('node:crypto')).createHash('sha256').update(verifier).digest('base64url');
+  return createHash('sha256').update(verifier).digest('base64url');
 }
 
 function signature(timestamp, body) {
@@ -44,10 +44,9 @@ function service(nowRef) {
 async function approvedFlow(subject = 'tg:123456') {
   const now = { value: '2026-08-30T06:00:00.000Z' };
   const sut = service(now);
-  const codeChallenge = await challenge(VERIFIER);
   const started = await sut.start({
     principal: { userId: USER, deviceId: DEVICE },
-    codeChallenge,
+    codeChallenge: challenge(VERIFIER),
     redirectUri: REDIRECT,
   });
   const approvalToken = new URL(started.bot_url).searchParams.get('start').slice(3);
@@ -65,7 +64,7 @@ async function approvedFlow(subject = 'tg:123456') {
     signature: signature(timestamp, body),
     body,
   });
-  return { now, sut, started, body, decision };
+  return { now, sut, started, decision };
 }
 
 test('approved request is device/state/PKCE bound and one-time', async () => {
@@ -86,7 +85,7 @@ test('approved request is device/state/PKCE bound and one-time', async () => {
       state: started.state,
       codeVerifier: VERIFIER,
     }),
-    (error) => error?.code === 'bot_approval_replayed' || error?.message?.includes('already consumed'),
+    (error) => error?.status === 409,
   );
 });
 
@@ -134,7 +133,7 @@ test('denial cannot be exchanged', async () => {
   const sut = service(now);
   const started = await sut.start({
     principal: { userId: USER, deviceId: DEVICE },
-    codeChallenge: await challenge(VERIFIER),
+    codeChallenge: challenge(VERIFIER),
     redirectUri: REDIRECT,
   });
   const approvalToken = new URL(started.bot_url).searchParams.get('start').slice(3);
@@ -164,7 +163,7 @@ test('expired approval and stale bot signatures are rejected', async () => {
   const sut = service(now);
   const started = await sut.start({
     principal: { userId: USER, deviceId: DEVICE },
-    codeChallenge: await challenge(VERIFIER),
+    codeChallenge: challenge(VERIFIER),
     redirectUri: REDIRECT,
   });
   const approvalToken = new URL(started.bot_url).searchParams.get('start').slice(3);
