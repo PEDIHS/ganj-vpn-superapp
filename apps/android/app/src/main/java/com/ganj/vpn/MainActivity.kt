@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
 
     private val telegramLinked = mutableStateOf(false)
     private val telegramBusy = mutableStateOf(false)
+    private val telegramWaiting = mutableStateOf(false)
     private val telegramErrorCode = mutableStateOf<String?>(null)
     private val accountRefreshGeneration = mutableStateOf(0)
     private val userPreferences = mutableStateOf(GanjUserPreferences())
@@ -86,6 +87,7 @@ class MainActivity : ComponentActivity() {
         )[GanjCompositionOwner::class.java]
 
         telegramLinked.value = owner.telegramAuth?.isLinked() == true
+        telegramWaiting.value = owner.telegramAuth?.hasPendingBotApproval() == true
         handleTelegramIntent(intent)
 
         val composition = owner.composition
@@ -99,6 +101,7 @@ class MainActivity : ComponentActivity() {
                     composition = composition,
                     telegramLinked = telegramLinked.value,
                     telegramBusy = telegramBusy.value,
+                    telegramWaiting = telegramWaiting.value,
                     telegramErrorCode = telegramErrorCode.value,
                     accountRefreshGeneration = accountRefreshGeneration.value,
                     userPreferences = preferences,
@@ -162,6 +165,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::owner.isInitialized && owner.telegramAuth?.hasPendingBotApproval() == true) {
+            resumeTelegramApproval()
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -184,6 +194,7 @@ class MainActivity : ComponentActivity() {
         }
 
         telegramBusy.value = true
+        telegramWaiting.value = false
         telegramErrorCode.value = null
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { auth.begin() }
@@ -193,13 +204,26 @@ class MainActivity : ComponentActivity() {
                     val launched = runCatching {
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(result.authorizationUrl)))
                     }.isSuccess
+                    telegramWaiting.value = launched
                     if (!launched) telegramErrorCode.value = "auth.telegram_launch_failed"
                 }
-                is TelegramAuthResult.Failed -> telegramErrorCode.value = result.code
-                TelegramAuthResult.Linked,
-                TelegramAuthResult.LoggedOut,
-                -> Unit
+                else -> applyTelegramResult(result)
             }
+        }
+    }
+
+    private fun resumeTelegramApproval() {
+        if (telegramBusy.value || telegramLinked.value || !::owner.isInitialized) return
+        val auth = owner.telegramAuth ?: return
+        if (!auth.hasPendingBotApproval()) return
+
+        telegramBusy.value = true
+        telegramWaiting.value = true
+        telegramErrorCode.value = null
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { auth.resumeBotApproval() }
+            telegramBusy.value = false
+            applyTelegramResult(result)
         }
     }
 
@@ -216,17 +240,32 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { auth.complete(callback) }
             telegramBusy.value = false
-            when (result) {
-                TelegramAuthResult.Linked -> {
-                    telegramLinked.value = true
-                    telegramErrorCode.value = null
-                    accountRefreshGeneration.value += 1
-                }
-                is TelegramAuthResult.Failed -> telegramErrorCode.value = result.code
-                is TelegramAuthResult.Launch,
-                TelegramAuthResult.LoggedOut,
-                -> Unit
+            applyTelegramResult(result)
+        }
+    }
+
+    private fun applyTelegramResult(result: TelegramAuthResult) {
+        when (result) {
+            TelegramAuthResult.Linked -> {
+                telegramLinked.value = true
+                telegramWaiting.value = false
+                telegramErrorCode.value = null
+                accountRefreshGeneration.value += 1
             }
+            TelegramAuthResult.Waiting -> {
+                telegramWaiting.value = true
+                telegramErrorCode.value = null
+            }
+            TelegramAuthResult.LoggedOut -> {
+                telegramLinked.value = false
+                telegramWaiting.value = false
+                telegramErrorCode.value = null
+            }
+            is TelegramAuthResult.Failed -> {
+                telegramWaiting.value = owner.telegramAuth?.hasPendingBotApproval() == true
+                telegramErrorCode.value = result.code
+            }
+            is TelegramAuthResult.Launch -> Unit
         }
     }
 
@@ -243,8 +282,9 @@ class MainActivity : ComponentActivity() {
             val result = withContext(Dispatchers.IO) { auth.logout() }
             telegramBusy.value = false
             telegramLinked.value = auth.isLinked()
+            telegramWaiting.value = false
             accountRefreshGeneration.value += 1
-            telegramErrorCode.value = (result as? TelegramAuthResult.Failed)?.code
+            applyTelegramResult(result)
         }
     }
 
