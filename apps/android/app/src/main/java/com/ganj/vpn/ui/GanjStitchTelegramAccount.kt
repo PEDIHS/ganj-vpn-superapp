@@ -2,6 +2,7 @@ package com.ganj.vpn.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 
 private val TelegramBlue = Color(0xFF229ED9)
 private val AccountEmerald = Color(0xFF72FCB6)
@@ -65,9 +66,9 @@ internal fun StitchTelegramAccountCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (linked) "✓" else "✈",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    text = if (linked) "✓" else "TG",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
                     color = if (linked) AccountEmerald else TelegramBlue,
                 )
             }
@@ -166,7 +167,7 @@ internal fun GanjLiquidConfirmDialog(
     onDismiss: () -> Unit,
     destructive: Boolean = false,
 ) {
-    BasicAlertDialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss) {
         GanjGlassSurface(
             role = GanjGlassRole.Prominent,
             accent = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
@@ -268,10 +269,8 @@ private fun AccountSecondaryAction(
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface.copy(alpha = if (enabled) 0.62f else 0.30f))
             .border(1.dp, accent.copy(alpha = 0.30f), shape)
-            .then(
-                Modifier.padding(vertical = 14.dp),
-            )
-            .ganjClickable(enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -303,16 +302,3 @@ internal fun telegramAuthErrorMessage(code: String): String = when (code) {
     "auth.unavailable" -> "سرویس ورود در این نسخه در دسترس نیست."
     else -> "ورود تلگرام با خطا روبه‌رو شد. دوباره تلاش کنید."
 }
-
-/**
- * Keeps click semantics centralized without introducing a second visual component system.
- */
-private fun Modifier.ganjClickable(
-    enabled: Boolean,
-    role: Role,
-    onClick: () -> Unit,
-): Modifier = androidx.compose.foundation.clickable(
-    enabled = enabled,
-    role = role,
-    onClick = onClick,
-)
