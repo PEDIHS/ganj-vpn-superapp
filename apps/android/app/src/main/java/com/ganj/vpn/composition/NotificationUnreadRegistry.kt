@@ -10,7 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 internal object NotificationUnreadRegistry {
     private val mutableCount = MutableStateFlow<Int?>(null)
+    private val mutableRefreshGeneration = MutableStateFlow(0L)
+
     val count: StateFlow<Int?> = mutableCount.asStateFlow()
+    val refreshGeneration: StateFlow<Long> = mutableRefreshGeneration.asStateFlow()
 
     fun update(value: Int) {
         require(value >= 0) { "Unread notification count cannot be negative." }
@@ -19,5 +22,18 @@ internal object NotificationUnreadRegistry {
 
     fun clear() {
         mutableCount.value = null
+    }
+
+    fun requestRefresh() {
+        mutableRefreshGeneration.value = if (mutableRefreshGeneration.value == Long.MAX_VALUE) {
+            0L
+        } else {
+            mutableRefreshGeneration.value + 1L
+        }
+    }
+
+    fun resetForAccountBoundary() {
+        clear()
+        requestRefresh()
     }
 }
