@@ -3,6 +3,7 @@ package com.ganj.vpn.ui
 import com.ganj.vpn.core.controlapi.NotificationActionType
 import com.ganj.vpn.core.controlapi.NotificationKind
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class GanjNotificationsUiTest {
@@ -24,5 +25,16 @@ class GanjNotificationsUiTest {
         assertEquals("مشاهده پشتیبانی", notificationActionLabel(NotificationActionType.OPEN_SUPPORT))
         assertEquals("مشاهده کیف پول", notificationActionLabel(NotificationActionType.OPEN_WALLET))
         assertEquals("باز کردن تنظیمات", notificationActionLabel(NotificationActionType.OPEN_SETTINGS))
+    }
+
+    @Test
+    fun `global unread badge is hidden at zero and capped after ninety nine`() {
+        assertNull(notificationBadgeText(0))
+        assertNull(notificationBadgeText(-1))
+        assertEquals("۱", notificationBadgeText(1))
+        assertEquals("۴۲", notificationBadgeText(42))
+        assertEquals("۹۹", notificationBadgeText(99))
+        assertEquals("۹۹+", notificationBadgeText(100))
+        assertEquals("۹۹+", notificationBadgeText(10_000))
     }
 }
