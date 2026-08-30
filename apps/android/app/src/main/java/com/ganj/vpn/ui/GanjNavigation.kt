@@ -77,9 +77,10 @@ internal fun GanjLiquidBottomNavigation(
         .stitchNavigationHorizontalPaddingDp(windowWidthDp)
         .dp
     val unreadCount by NotificationUnreadRegistry.count.collectAsState()
+    val unreadRefreshGeneration by NotificationUnreadRegistry.refreshGeneration.collectAsState()
     val notificationApi = NotificationCompositionRegistry.currentApi()
 
-    LaunchedEffect(notificationApi) {
+    LaunchedEffect(notificationApi, unreadRefreshGeneration) {
         val active = notificationApi ?: return@LaunchedEffect
         when (val result = withContext(Dispatchers.IO) { active.notifications(limit = 1) }) {
             is ApiResult.Success -> NotificationUnreadRegistry.update(result.value.unreadCount)
