@@ -192,6 +192,10 @@ class MainActivity : ComponentActivity() {
             telegramErrorCode.value = "auth.unavailable"
             return
         }
+        if (auth.hasPendingBotApproval()) {
+            resumeTelegramApproval()
+            return
+        }
 
         telegramBusy.value = true
         telegramWaiting.value = false
