@@ -37,6 +37,7 @@ private val AccountGold = Color(0xFFD5A63A)
 internal fun StitchTelegramAccountCard(
     linked: Boolean,
     busy: Boolean,
+    waitingForApproval: Boolean,
     errorCode: String?,
     onLogin: () -> Unit,
     onLogout: () -> Unit,
@@ -44,6 +45,16 @@ internal fun StitchTelegramAccountCard(
 ) {
     var showLogoutConfirmation by remember { mutableStateOf(false) }
     val accent = if (linked) MaterialTheme.colorScheme.primary else TelegramBlue
+    val title = when {
+        linked -> "حساب تلگرام متصل است"
+        waitingForApproval -> "منتظر تأیید در ربات گنج"
+        else -> "ورود با تلگرام"
+    }
+    val description = when {
+        linked -> "سرویس‌های خریداری‌شده و حساب گنج با این نشست همگام می‌شوند."
+        waitingForApproval -> "در ربات گنج درخواست ورود را تأیید کنید، سپس به برنامه برگردید. هیچ کد یا رمز تلگرامی از شما گرفته نمی‌شود."
+        else -> "برای استفاده از سرورهای رایگان نیازی به ورود نیست؛ برای سرویس‌های خریداری‌شده حساب تلگرام را متصل کنید."
+    }
 
     GanjGlassSurface(
         role = GanjGlassRole.Prominent,
@@ -66,7 +77,11 @@ internal fun StitchTelegramAccountCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (linked) "✓" else "TG",
+                    text = when {
+                        linked -> "✓"
+                        waitingForApproval -> "…"
+                        else -> "TG"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = if (linked) AccountEmerald else TelegramBlue,
@@ -78,31 +93,40 @@ internal fun StitchTelegramAccountCard(
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
-                    text = if (linked) "حساب تلگرام متصل است" else "ورود با تلگرام",
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = if (linked) {
-                        "سرویس‌های خریداری‌شده و حساب گنج با این نشست همگام می‌شوند."
-                    } else {
-                        "برای استفاده از سرورهای رایگان نیازی به ورود نیست؛ برای سرویس‌های خریداری‌شده حساب تلگرام را متصل کنید."
-                    },
+                    text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             AccountStatusBadge(
-                text = if (linked) "متصل" else "مهمان",
+                text = when {
+                    linked -> "متصل"
+                    waitingForApproval -> "در انتظار"
+                    else -> "مهمان"
+                },
                 positive = linked,
             )
         }
 
         if (busy) {
             GanjInlineStatusBanner(
-                message = if (linked) "در حال به‌روزرسانی حساب…" else "در حال آماده‌سازی ورود امن…",
+                message = when {
+                    linked -> "در حال به‌روزرسانی حساب…"
+                    waitingForApproval -> "در حال بررسی نتیجه تأیید…"
+                    else -> "در حال ساخت درخواست امن و باز کردن تلگرام…"
+                },
+                tone = AccountBannerTone.Info,
+            )
+        } else if (waitingForApproval && errorCode == null) {
+            GanjInlineStatusBanner(
+                message = "اگر درخواست را در ربات تأیید کرده‌اید، به برنامه برگردید یا «بررسی وضعیت» را بزنید.",
                 tone = AccountBannerTone.Info,
             )
         }
@@ -131,7 +155,12 @@ internal fun StitchTelegramAccountCard(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    text = if (busy) "در حال آماده‌سازی…" else "ورود با تلگرام",
+                    text = when {
+                        busy && waitingForApproval -> "در حال بررسی…"
+                        busy -> "در حال باز کردن تلگرام…"
+                        waitingForApproval -> "بررسی وضعیت تأیید"
+                        else -> "ورود با تلگرام"
+                    },
                     modifier = Modifier.align(Alignment.Center),
                     color = Color.White,
                     style = MaterialTheme.typography.labelLarge,
@@ -288,7 +317,21 @@ private fun AccountSecondaryAction(
 
 internal fun telegramAuthErrorMessage(code: String): String = when (code) {
     "auth.redirect_not_configured" -> "ورود تلگرام هنوز برای این نسخه پیکربندی نشده است."
-    "auth.telegram_start_failed" -> "شروع ورود تلگرام انجام نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید."
+    "auth.pkce_unavailable" -> "ایجاد درخواست امنیتی ورود ممکن نشد. دوباره تلاش کنید."
+    "auth.bot_approval_start_failed" -> "ساخت درخواست ورود در ربات انجام نشد. دوباره تلاش کنید."
+    "auth.bot_approval_status_failed" -> "وضعیت تأیید از سرور دریافت نشد. دوباره بررسی کنید."
+    "auth.bot_approval_exchange_failed" -> "تأیید انجام شد اما تکمیل نشست ممکن نشد. ورود را دوباره شروع کنید."
+    "auth.bot_approval_unavailable" -> "ورود از طریق ربات موقتاً در دسترس نیست."
+    "auth.bot_approval_offline" -> "برای بررسی تأیید، اتصال اینترنت را برقرار کنید و دوباره تلاش کنید."
+    "auth.bot_approval_pending" -> "درخواست هنوز در ربات تأیید نشده است."
+    "auth.bot_approval_denied" -> "درخواست ورود در ربات رد شد. برای ورود دوباره یک درخواست جدید بسازید."
+    "auth.bot_approval_expired" -> "مهلت تأیید ورود تمام شده است. دوباره «ورود با تلگرام» را بزنید."
+    "auth.bot_approval_replayed" -> "این درخواست ورود قبلاً مصرف شده است. یک درخواست جدید بسازید."
+    "auth.bot_approval_wrong_device" -> "این درخواست متعلق به این دستگاه نیست یا دیگر معتبر نیست."
+    "auth.bot_approval_binding_mismatch" -> "اعتبارسنجی امنیتی درخواست ورود ناموفق بود. ورود را دوباره شروع کنید."
+    "auth.bot_approval_not_pending" -> "درخواست فعالی برای تأیید در ربات وجود ندارد."
+    "auth.session_expired" -> "نشست امن دستگاه منقضی شده است. ورود را دوباره شروع کنید."
+    "auth.telegram_start_failed" -> "شروع ورود جایگزین تلگرام انجام نشد. اتصال اینترنت را بررسی کنید."
     "auth.flow_persistence_failed" -> "ذخیره امن درخواست ورود انجام نشد. دوباره تلاش کنید."
     "auth.flow_missing_or_consumed" -> "این درخواست ورود قبلاً استفاده شده یا دیگر معتبر نیست."
     "auth.flow_expired" -> "مهلت این درخواست ورود تمام شده است. ورود را دوباره شروع کنید."
@@ -296,9 +339,9 @@ internal fun telegramAuthErrorMessage(code: String): String = when (code) {
     "auth.callback_redirect_mismatch" -> "بازگشت ورود از مسیر مورد انتظار انجام نشد."
     "auth.callback_state_mismatch" -> "اعتبارسنجی امنیتی ورود ناموفق بود. ورود را دوباره شروع کنید."
     "auth.flow_clear_failed" -> "پاک‌سازی امن درخواست ورود انجام نشد. دوباره تلاش کنید."
-    "auth.telegram_exchange_failed" -> "تکمیل ورود تلگرام انجام نشد. دوباره تلاش کنید."
+    "auth.telegram_exchange_failed" -> "تکمیل ورود جایگزین تلگرام انجام نشد. دوباره تلاش کنید."
     "auth.logout_failed" -> "خروج کامل از نشست انجام نشد. وضعیت شبکه را بررسی کنید."
-    "auth.telegram_launch_failed" -> "باز کردن مسیر ورود تلگرام ممکن نشد."
+    "auth.telegram_launch_failed" -> "باز کردن ربات گنج در تلگرام ممکن نشد."
     "auth.unavailable" -> "سرویس ورود در این نسخه در دسترس نیست."
     else -> "ورود تلگرام با خطا روبه‌رو شد. دوباره تلاش کنید."
 }
