@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ganj.vpn.R
 import com.ganj.vpn.composition.GanjComposition
+import com.ganj.vpn.core.controlapi.CurrentAccount
 import com.ganj.vpn.enterprise.BugReportInput
 import com.ganj.vpn.enterprise.EnterpriseEvent
 import com.ganj.vpn.enterprise.EnterpriseUiState
@@ -72,12 +73,16 @@ fun GanjVpnApp(
     telegramBusy: Boolean,
     telegramWaiting: Boolean,
     telegramErrorCode: String?,
+    currentAccount: CurrentAccount?,
+    accountIdentityLoading: Boolean,
+    accountIdentityErrorCode: String?,
     accountRefreshGeneration: Int,
     userPreferences: GanjUserPreferences,
     onTelegramLogin: () -> Unit,
     onTelegramCancel: () -> Unit,
     onTelegramFallback: () -> Unit,
     onTelegramLogout: () -> Unit,
+    onRetryAccountIdentity: () -> Unit,
     onThemePreferenceChanged: (GanjThemePreference) -> Unit,
     onReduceMotionChanged: (Boolean) -> Unit,
     onReduceTransparencyChanged: (Boolean) -> Unit,
@@ -384,10 +389,14 @@ fun GanjVpnApp(
                                         busy = telegramBusy,
                                         waitingForApproval = telegramWaiting,
                                         errorCode = telegramErrorCode,
+                                        currentAccount = currentAccount,
+                                        accountIdentityLoading = accountIdentityLoading,
+                                        accountIdentityErrorCode = accountIdentityErrorCode,
                                         syncFeedback = accountSyncFeedback,
                                         onLogin = onTelegramLogin,
                                         onCancelApproval = onTelegramCancel,
                                         onFallbackLogin = onTelegramFallback,
+                                        onRetryIdentity = onRetryAccountIdentity,
                                         onRetrySync = ::refreshLinkedAccount,
                                         onLogout = onTelegramLogout,
                                         modifier = Modifier.padding(
