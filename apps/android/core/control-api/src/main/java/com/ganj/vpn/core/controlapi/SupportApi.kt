@@ -35,9 +35,15 @@ data class SupportTicketDetail(
 
 interface SupportApi {
     fun tickets(): ApiResult<List<SupportTicket>>
-    fun createTicket(category: SupportCategory, priority: SupportPriority, subject: String, body: String): ApiResult<SupportTicket>
+    fun createTicket(
+        clientTicketId: String,
+        category: SupportCategory,
+        priority: SupportPriority,
+        subject: String,
+        body: String,
+    ): ApiResult<SupportTicket>
     fun ticket(ticketId: String): ApiResult<SupportTicketDetail>
-    fun reply(ticketId: String, body: String): ApiResult<SupportMessage>
+    fun reply(ticketId: String, clientMessageId: String, body: String): ApiResult<SupportMessage>
     fun reopen(ticketId: String): ApiResult<SupportTicket>
 }
 
@@ -67,17 +73,20 @@ internal class DefaultSupportApi(
     }
 
     override fun createTicket(
+        clientTicketId: String,
         category: SupportCategory,
         priority: SupportPriority,
         subject: String,
         body: String,
     ): ApiResult<SupportTicket> {
+        val requestId = clientTicketId.canonicalUuidOrNull()
+            ?: return validation("client_ticket_id", "invalid_client_ticket_id")
         val cleanSubject = subject.trim()
         val cleanBody = body.trim()
         if (cleanSubject.length !in 3..160) return validation("subject", "invalid_subject")
         if (cleanBody.length !in 10..5000) return validation("body", "invalid_body")
         val payload = JsonEncoder.objectValue(
-            "client_ticket_id" to UUID.randomUUID().toString(),
+            "client_ticket_id" to requestId,
             "category" to category.wire(),
             "priority" to priority.wire(),
             "subject" to cleanSubject,
@@ -98,12 +107,14 @@ internal class DefaultSupportApi(
         }
     }
 
-    override fun reply(ticketId: String, body: String): ApiResult<SupportMessage> {
+    override fun reply(ticketId: String, clientMessageId: String, body: String): ApiResult<SupportMessage> {
         val id = ticketId.canonicalUuidOrNull() ?: return validation("ticket_id", "invalid_ticket_id")
+        val messageId = clientMessageId.canonicalUuidOrNull()
+            ?: return validation("client_message_id", "invalid_client_message_id")
         val cleanBody = body.trim()
         if (cleanBody.length !in 1..8000) return validation("body", "invalid_body")
         val payload = JsonEncoder.objectValue(
-            "client_message_id" to UUID.randomUUID().toString(),
+            "client_message_id" to messageId,
             "body" to cleanBody,
         ).toByteArray(StandardCharsets.UTF_8)
         return executeJson(HttpMethod.POST, "/support/tickets/$id/messages", payload, ::mapMessage)
