@@ -11,11 +11,39 @@ These instructions apply to every AI agent, automated coding agent, and develope
 5. **`docs/17-repository-branch-pr-governance.fa.md`**
 6. The implementation and tests for the affected module.
 
-For Android UI work, also read:
+For **any Android UI/UX work**, the following order is mandatory and supersedes generic UI guidance:
 
-- `docs/15-android-ui-ux-brand-system.fa.md`
-- `docs/16-liquid-glass-first-design-standard.fa.md`
-- `design/tokens.json`
+1. **`docs/ui/UI_100_PERCENT_PROGRESS.fa.md`** — read the entire ledger first.
+2. `docs/15-android-ui-ux-brand-system.fa.md`
+3. `docs/16-liquid-glass-first-design-standard.fa.md`
+4. `design/tokens.json`
+5. Current runtime routes/screens, related open PRs/issues, and tests.
+
+## Mandatory UI progress protocol
+
+Every UI Agent MUST:
+
+- inspect the latest `main`, active branch and related PRs/issues before coding;
+- select work from unchecked `[ ]` leaf items in `docs/ui/UI_100_PERCENT_PROGRESS.fa.md`;
+- complete items one-by-one, including subpages, dialogs, bottom sheets, popups, loading, empty, offline, permission, error, success, retry, responsive and accessibility states;
+- update the ledger in the SAME PR/commit batch as the implementation;
+- change `[ ]` to `[x]` only when the leaf item satisfies the ledger Definition of Done;
+- never mark a parent item complete while any required child remains incomplete;
+- never use mock/placeholder/fake telemetry, wallet, transaction, account, server or billing data to claim completion;
+- never expose an action that has no real runtime/controller/backend handler unless it is explicitly documented as a non-interactive preview;
+- preserve fail-closed security/product behavior when wiring UI;
+- record remaining unchecked items and the honest completion percentage after each batch.
+
+Required UI batch summary format:
+
+```text
+UI Ledger sections touched: <IDs>
+Leaf items completed: <list>
+Remaining unchecked items in touched sections: <count/list>
+Overall UI completion: <N>% (100% forbidden until Final Gate is all checked)
+```
+
+**100% UI is forbidden to claim until every required Final 100% Release Gate checkbox in the ledger is checked with real build/device/runtime evidence.** Deleting checklist items to hide remaining work is prohibited. If product scope changes, update canonical scope docs first, then mark the ledger item as formally deferred with the scope decision; do not silently skip it.
 
 ## Repository governance is mandatory
 
@@ -47,4 +75,4 @@ The complete binding policy and checklists are in `docs/17-repository-branch-pr-
 
 ## Handoff rule
 
-Every contribution must leave the repository easier for the next agent to understand: focused PR, accurate Remaining Boundary, synchronized docs/contracts, and no unnecessary stale branch left behind.
+Every contribution must leave the repository easier for the next agent to understand: focused PR, accurate Remaining Boundary, synchronized docs/contracts, synchronized UI progress ledger for UI work, and no unnecessary stale branch left behind.
