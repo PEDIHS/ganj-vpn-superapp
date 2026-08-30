@@ -63,6 +63,23 @@ class TelegramAuthCoordinatorTest {
     }
 
     @Test
+    fun `app-side cancellation destroys binding material and cannot resume`() {
+        val gateway = FakeGateway(botStatus = TelegramBotApprovalState.APPROVED)
+        val flowStore = MemoryFlowStore(validBotFlow())
+        val coordinator = coordinator(gateway, flowStore)
+
+        val cancelled = coordinator.cancelPendingBotApproval()
+        val resumed = coordinator.resumeBotApproval()
+
+        assertTrue(cancelled is TelegramAuthResult.Cancelled)
+        assertTrue(flowStore.flow == null)
+        assertFalse(coordinator.hasPendingBotApproval())
+        assertEquals("auth.flow_missing_or_consumed", (resumed as TelegramAuthResult.Failed).code)
+        assertEquals(0, gateway.statusCount)
+        assertEquals(0, gateway.botExchangeCount)
+    }
+
+    @Test
     fun `approved Bot Approval exchanges once marks linked and clears flow`() {
         val gateway = FakeGateway(botStatus = TelegramBotApprovalState.APPROVED)
         val flowStore = MemoryFlowStore(validBotFlow())
