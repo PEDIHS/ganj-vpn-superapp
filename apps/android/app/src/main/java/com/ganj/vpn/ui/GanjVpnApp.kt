@@ -42,6 +42,7 @@ import kotlinx.coroutines.withContext
 private enum class GanjAccountSurface {
     PROFILE,
     SETTINGS,
+    SUBSCRIPTION_DETAILS,
 }
 
 @Composable
@@ -79,7 +80,7 @@ fun GanjVpnApp(
 
     BackHandler(
         enabled = selectedDestination == GanjDestination.Account &&
-            accountSurface == GanjAccountSurface.SETTINGS,
+            accountSurface != GanjAccountSurface.PROFILE,
     ) {
         accountSurface = GanjAccountSurface.PROFILE
     }
@@ -304,6 +305,24 @@ fun GanjVpnApp(
                                 modifier = Modifier.fillMaxSize(),
                             )
 
+                            GanjAccountSurface.SUBSCRIPTION_DETAILS -> {
+                                val service = state.selectedService
+                                if (service == null) {
+                                    accountSurface = GanjAccountSurface.PROFILE
+                                } else {
+                                    StitchSubscriptionDetailsScreen(
+                                        service = service,
+                                        onBack = { accountSurface = GanjAccountSurface.PROFILE },
+                                        onConnect = {
+                                            requestProfile(service.entitlementId)
+                                            selectedDestination = GanjDestination.Connect
+                                        },
+                                        onOpenStore = { selectedDestination = GanjDestination.Store },
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
+                            }
+
                             GanjAccountSurface.PROFILE -> Column(
                                 modifier = Modifier.fillMaxSize(),
                             ) {
@@ -325,6 +344,18 @@ fun GanjVpnApp(
                                         vertical = 2.dp,
                                     ),
                                 )
+                                state.selectedService?.let { service ->
+                                    StitchSubscriptionDetailsEntry(
+                                        service = service,
+                                        onClick = {
+                                            accountSurface = GanjAccountSurface.SUBSCRIPTION_DETAILS
+                                        },
+                                        modifier = Modifier.padding(
+                                            horizontal = responsiveHorizontalPadding(),
+                                            vertical = 2.dp,
+                                        ),
+                                    )
+                                }
                                 StitchProfileScreen(
                                     state = state,
                                     enterpriseState = enterpriseState,
