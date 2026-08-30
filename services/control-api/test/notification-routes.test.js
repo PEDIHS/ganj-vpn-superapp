@@ -71,6 +71,32 @@ test('GET /v1/notifications is owner scoped and returns unread count', async () 
   assert.deepEqual(calls[1].params, [principal.userId]);
 });
 
+test('invalid stored notification action id fails as server data corruption, not client validation', async () => {
+  const database = {
+    async query(sql) {
+      if (/count\(\*\)/.test(sql)) return { rowCount: 1, rows: [{ count: 1 }] };
+      return {
+        rowCount: 1,
+        rows: [{
+          id: '70000000-0000-4000-8000-000000000001',
+          kind: 'support_reply',
+          title: 'پاسخ پشتیبانی',
+          body: 'پاسخ جدید ثبت شده است.',
+          action: { type: 'open_support', id: 'not-a-uuid' },
+          read_at: null,
+          created_at: new Date('2026-08-30T08:59:00Z'),
+        }],
+      };
+    },
+  };
+  const route = routerWithDatabase(database);
+  const incoming = request('/v1/notifications');
+  await assert.rejects(
+    route({ request: incoming, url: new URL(incoming.url), requestId }),
+    (error) => error?.status === 500 && error?.code === 'notification_action_invalid',
+  );
+});
+
 test('marking a notification read cannot update another user notification', async () => {
   const database = {
     async query(sql, params) {
