@@ -19,7 +19,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ganj.vpn.R
 import com.ganj.vpn.composition.GanjComposition
+import com.ganj.vpn.composition.WalletCompositionRegistry
+import com.ganj.vpn.core.controlapi.ApiError
+import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.CurrentAccount
+import com.ganj.vpn.core.controlapi.WalletTransaction
 import com.ganj.vpn.enterprise.BugReportInput
 import com.ganj.vpn.enterprise.EnterpriseEvent
 import com.ganj.vpn.enterprise.EnterpriseUiState
@@ -46,6 +50,8 @@ private enum class GanjAccountSurface {
     PROFILE,
     SETTINGS,
     SUBSCRIPTION_DETAILS,
+    WALLET,
+    TRANSACTIONS,
 }
 
 internal sealed interface TelegramServiceSyncFeedback {
@@ -95,12 +101,21 @@ fun GanjVpnApp(
     val reducer = remember(composition) { composition.reducer }
     val enterpriseController = remember(composition) { composition.enterpriseController }
     val enterpriseReducer = remember(composition) { composition.enterpriseReducer }
+    val walletApi = remember(composition) { WalletCompositionRegistry.api(composition) }
     val scope = rememberCoroutineScope()
 
     var selectedDestination by remember { mutableStateOf(GanjDestination.Connect) }
     var accountSurface by remember { mutableStateOf(GanjAccountSurface.PROFILE) }
     var purchaseConfirmationPlan by remember { mutableStateOf<PlanUiModel?>(null) }
     var accountSyncFeedback by remember { mutableStateOf<TelegramServiceSyncFeedback?>(null) }
+    var walletState by remember(composition) {
+        mutableStateOf<WalletUiState>(if (telegramLinked) WalletUiState.Loading else WalletUiState.AuthRequired)
+    }
+    var walletTransactions by remember(composition) { mutableStateOf<List<WalletTransaction>>(emptyList()) }
+    var walletNextCursor by remember(composition) { mutableStateOf<String?>(null) }
+    var walletHasMore by remember(composition) { mutableStateOf(false) }
+    var walletLoadingMore by remember(composition) { mutableStateOf(false) }
+    var walletTransactionError by remember(composition) { mutableStateOf<String?>(null) }
     var state by remember(composition) { mutableStateOf(composition.restoreUiState()) }
     var enterpriseState by remember(composition) {
         mutableStateOf(composition.restoreEnterpriseState())
@@ -109,6 +124,7 @@ fun GanjVpnApp(
     var checkoutJob by remember { mutableStateOf<Job?>(null) }
     var connectionJob by remember { mutableStateOf<Job?>(null) }
     var enterpriseJob by remember { mutableStateOf<Job?>(null) }
+    var walletJob by remember { mutableStateOf<Job?>(null) }
 
     BackHandler(
         enabled = userPreferences.onboardingCompleted &&
@@ -126,6 +142,25 @@ fun GanjVpnApp(
     fun commitEnterprise(next: EnterpriseUiState) {
         composition.retainEnterpriseState(next)
         enterpriseState = next
+    }
+
+    fun walletFailure(error: ApiError): WalletUiState = when (error) {
+        is ApiError.AuthenticationRequired,
+        is ApiError.AuthenticationExpired -> WalletUiState.AuthRequired
+        is ApiError.Network -> WalletUiState.Error("اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.", true)
+        is ApiError.RateLimited -> WalletUiState.Error("درخواست‌های زیادی ارسال شده است. کمی بعد دوباره تلاش کنید.", true)
+        is ApiError.Server -> WalletUiState.Error("سرویس کیف پول موقتاً در دسترس نیست.", error.retryable)
+        is ApiError.Forbidden -> WalletUiState.Error("دسترسی این حساب به کیف پول محدود شده است.", false)
+        else -> WalletUiState.Error("اطلاعات کیف پول دریافت نشد.", true)
+    }
+
+    fun transactionFailure(error: ApiError): String = when (error) {
+        is ApiError.AuthenticationRequired,
+        is ApiError.AuthenticationExpired -> "نشست حساب منقضی شده است؛ دوباره وارد شوید."
+        is ApiError.Network -> "اتصال اینترنت را بررسی کنید."
+        is ApiError.RateLimited -> "درخواست‌های زیادی ارسال شده است؛ کمی بعد دوباره تلاش کنید."
+        is ApiError.Server -> "سرویس تراکنش‌ها موقتاً در دسترس نیست."
+        else -> "تراکنش‌ها دریافت نشدند."
     }
 
     fun refreshEnterprise() {
@@ -177,6 +212,71 @@ fun GanjVpnApp(
                     controller.refresh(loadingState)
                 },
             )
+        }
+    }
+
+    fun refreshWallet() {
+        walletJob?.cancel()
+        walletTransactionError = null
+        walletLoadingMore = false
+        if (!telegramLinked) {
+            walletState = WalletUiState.AuthRequired
+            walletTransactions = emptyList()
+            walletNextCursor = null
+            walletHasMore = false
+            return
+        }
+        val api = walletApi ?: run {
+            walletState = WalletUiState.Error("سرویس کیف پول در این نسخه فعال نیست.", false)
+            return
+        }
+        walletState = WalletUiState.Loading
+        walletJob = scope.launch {
+            val snapshot = withContext(Dispatchers.IO) { api.wallet() }
+            if (snapshot is ApiResult.Failure) {
+                walletState = walletFailure(snapshot.error)
+                return@launch
+            }
+            snapshot as ApiResult.Success
+            val page = withContext(Dispatchers.IO) { api.transactions(limit = 20) }
+            when (page) {
+                is ApiResult.Success -> {
+                    walletTransactions = page.value.items
+                    walletNextCursor = page.value.nextCursor
+                    walletHasMore = page.value.hasMore
+                    walletTransactionError = null
+                }
+                is ApiResult.Failure -> {
+                    walletTransactions = emptyList()
+                    walletNextCursor = null
+                    walletHasMore = false
+                    walletTransactionError = transactionFailure(page.error)
+                }
+            }
+            walletState = WalletUiState.Ready(
+                snapshot = snapshot.value,
+                recentTransactions = walletTransactions.take(5),
+            )
+        }
+    }
+
+    fun loadMoreTransactions() {
+        if (walletLoadingMore || !walletHasMore || walletNextCursor == null) return
+        val api = walletApi ?: return
+        walletLoadingMore = true
+        walletTransactionError = null
+        val cursor = walletNextCursor
+        walletJob = scope.launch {
+            when (val page = withContext(Dispatchers.IO) { api.transactions(cursor = cursor, limit = 20) }) {
+                is ApiResult.Success -> {
+                    val known = walletTransactions.asSequence().map { it.id }.toHashSet()
+                    walletTransactions = walletTransactions + page.value.items.filterNot { it.id in known }
+                    walletNextCursor = page.value.nextCursor
+                    walletHasMore = page.value.hasMore
+                }
+                is ApiResult.Failure -> walletTransactionError = transactionFailure(page.error)
+            }
+            walletLoadingMore = false
         }
     }
 
@@ -237,9 +337,23 @@ fun GanjVpnApp(
         refreshEnterprise()
     }
 
+    LaunchedEffect(telegramLinked) {
+        if (telegramLinked) {
+            refreshWallet()
+        } else {
+            walletJob?.cancel()
+            walletState = WalletUiState.AuthRequired
+            walletTransactions = emptyList()
+            walletNextCursor = null
+            walletHasMore = false
+            walletTransactionError = null
+        }
+    }
+
     LaunchedEffect(accountRefreshGeneration) {
         if (accountRefreshGeneration > 0) {
             refreshLinkedAccount()
+            if (telegramLinked) refreshWallet()
         }
     }
 
@@ -363,6 +477,26 @@ fun GanjVpnApp(
                                     modifier = Modifier.fillMaxSize(),
                                 )
 
+                                GanjAccountSurface.WALLET -> StitchWalletScreen(
+                                    state = walletState,
+                                    onBack = { accountSurface = GanjAccountSurface.PROFILE },
+                                    onRefresh = ::refreshWallet,
+                                    onOpenTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+
+                                GanjAccountSurface.TRANSACTIONS -> StitchTransactionsScreen(
+                                    transactions = walletTransactions,
+                                    loading = walletState is WalletUiState.Loading,
+                                    loadingMore = walletLoadingMore,
+                                    errorMessage = walletTransactionError,
+                                    hasMore = walletHasMore,
+                                    onBack = { accountSurface = GanjAccountSurface.PROFILE },
+                                    onRefresh = ::refreshWallet,
+                                    onLoadMore = ::loadMoreTransactions,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+
                                 GanjAccountSurface.SUBSCRIPTION_DETAILS -> {
                                     val service = state.selectedService
                                     if (service == null) {
@@ -404,6 +538,28 @@ fun GanjVpnApp(
                                             vertical = 12.dp,
                                         ),
                                     )
+                                    if (telegramLinked) {
+                                        StitchWalletEntry(
+                                            onClick = {
+                                                accountSurface = GanjAccountSurface.WALLET
+                                                refreshWallet()
+                                            },
+                                            modifier = Modifier.padding(
+                                                horizontal = responsiveHorizontalPadding(),
+                                                vertical = 2.dp,
+                                            ),
+                                        )
+                                        StitchTransactionsEntry(
+                                            onClick = {
+                                                accountSurface = GanjAccountSurface.TRANSACTIONS
+                                                if (walletTransactions.isEmpty()) refreshWallet()
+                                            },
+                                            modifier = Modifier.padding(
+                                                horizontal = responsiveHorizontalPadding(),
+                                                vertical = 2.dp,
+                                            ),
+                                        )
+                                    }
                                     StitchSettingsEntry(
                                         onClick = { accountSurface = GanjAccountSurface.SETTINGS },
                                         modifier = Modifier.padding(
