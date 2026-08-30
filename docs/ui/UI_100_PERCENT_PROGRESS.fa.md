@@ -1,6 +1,7 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **وضعیت رسمی UI در شروع این Ledger: 54٪**  
+> **وضعیت فعلی پس از Batch 2026-08-30/Auth-1: 56٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
@@ -102,10 +103,10 @@
 # 4) Telegram Login / Account Link — P0
 
 ## 4.1 Entry
-- [ ] Login with Telegram entry surface با Liquid design.
-- [ ] توضیح روشن «Free بدون Login قابل استفاده است» در جای درست.
-- [ ] Guest vs Linked account visual state.
-- [ ] CTA اصلی «ورود با تلگرام».
+- [x] Login with Telegram entry surface با Liquid design.
+- [x] توضیح روشن «Free بدون Login قابل استفاده است» در جای درست.
+- [x] Guest vs Linked account visual state.
+- [x] CTA اصلی «ورود با تلگرام».
 - [ ] Privacy/security copy کوتاه و غیرترسناک.
 
 ## 4.2 Bot Approval flow
@@ -124,14 +125,16 @@
 - [ ] Retry action.
 - [ ] Safe fallback OIDC entry فقط در جایگاه fallback.
 
+> **Batch Auth-1 note:** hardened OIDC/PKCE fallback، encrypted transient flow، one-shot callback، expiry/replay protection و HTTPS App-Link از PR #34 به‌صورت fresh-port وارد شده‌اند؛ چون Issue #39 هنوز Bot Approval primary را می‌خواهد، آیتم‌های این subsection عمداً Unticked مانده‌اند تا flow اصلی ربات واقعاً wire شود.
+
 ## 4.3 Linked account / session
-- [ ] Linked Telegram account card با Design جدید.
+- [x] Linked Telegram account card با Design جدید.
 - [ ] نمایش identity-safe account info بدون provider token.
 - [ ] Session expired surface.
 - [ ] Re-login flow.
-- [ ] Logout action.
-- [ ] Logout confirmation dialog.
-- [ ] Logout success state.
+- [x] Logout action.
+- [x] Logout confirmation dialog.
+- [x] Logout success state.
 - [ ] Logout failure/retry state.
 - [ ] Post-login My Services refresh feedback.
 
@@ -299,14 +302,14 @@
 - [x] Enterprise status/bug report/diagnostics integration.
 
 ## 10.2 Pending
-- [ ] Telegram linked/unlinked status integrated into Profile.
+- [x] Telegram linked/unlinked status integrated into Profile.
 - [ ] Wallet entry integrated into Profile.
 - [ ] Transactions entry integrated into Profile.
 - [ ] Settings entry integrated into Profile.
 - [ ] Devices entry integrated into Profile.
 - [ ] Notifications entry integrated into Profile.
 - [ ] Security/session status card.
-- [ ] Logout entry + confirmation.
+- [x] Logout entry + confirmation.
 - [ ] Logout all devices در صورت backend support.
 - [ ] Delete account flow در صورت policy/legal requirement.
 - [ ] Destructive action confirmation system.
@@ -544,8 +547,8 @@
 # 20) Popup / Dialog / Bottom Sheet / Overlay Component System
 
 ## 20.1 Common components
-- [ ] Standard Liquid Dialog component.
-- [ ] Destructive Confirmation Dialog.
+- [x] Standard Liquid Dialog component.
+- [x] Destructive Confirmation Dialog.
 - [ ] Warning Dialog.
 - [ ] Success Dialog.
 - [ ] Error Dialog.
@@ -565,7 +568,7 @@
 
 ## 20.2 Required concrete sheets/dialogs
 - [ ] Telegram Login pre-confirmation sheet.
-- [ ] Logout confirmation dialog.
+- [x] Logout confirmation dialog.
 - [ ] Revoke Device confirmation dialog.
 - [ ] Server Detail sheet.
 - [ ] Premium Server Upgrade sheet.
@@ -745,7 +748,7 @@
 
 # Progress Snapshot
 
-| Area | Baseline status (2026-08-30) |
+| Area | Current status (2026-08-30) |
 |---|---:|
 | Foundation / Brand / Main shell | High |
 | Home | High |
@@ -754,7 +757,7 @@
 | Store basic | High |
 | Profile basic | High |
 | Enterprise Bug/Diagnostics | High |
-| Telegram Login final UX | Low / P0 pending |
+| Telegram Login final UX | Partial — fallback hardened, Bot Approval P0 pending |
 | Wallet | Not implemented in new UI |
 | Transactions | Not implemented in new UI |
 | Settings | Not implemented in new UI |
@@ -767,9 +770,21 @@
 | Onboarding | Not finalized |
 | Referral/Promotions | Not finalized |
 | Full Support/Tickets | Partial |
-| Dialog/Bottom Sheet system | Partial |
+| Dialog/Bottom Sheet system | Partial — Liquid confirm dialog added |
 | Physical-device final QA | Pending |
-| **Overall** | **54%** |
+| **Overall** | **56%** |
+
+## Batch Log
+
+### 2026-08-30 — Auth-1 / Telegram fallback + Liquid account surface
+
+- Fresh-ported hardened PKCE/session/App-Link primitives from PR #34 without merging the stale branch.
+- Added encrypted transient Telegram auth flow vault and one-shot replay/expiry/state/redirect protections.
+- Added Runtime-wired Guest/Linked/Busy/Error account state into the Stitch Profile destination.
+- Added Liquid Telegram account card and real logout action.
+- Added reusable Liquid confirmation dialog and concrete logout confirmation.
+- Added coordinator unit tests for PKCE start, state mismatch/replay, expiry, redirect mismatch, one-shot success, failed exchange and logout.
+- **Remaining boundary:** Issue #39 Bot Approval is still the required primary login flow; the hardened OIDC/PKCE implementation remains fallback until Bot Approval is implemented and wired. CI/build/device evidence remains pending while GitHub Actions is quota-blocked.
 
 ## Mandatory update format after every Agent batch
 
