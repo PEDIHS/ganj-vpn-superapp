@@ -16,6 +16,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.ganj.vpn.composition.GanjCompositionOwner
 import com.ganj.vpn.composition.TelegramAuthResult
+import com.ganj.vpn.core.controlapi.ApiError
+import com.ganj.vpn.core.controlapi.ApiResult
+import com.ganj.vpn.core.controlapi.CurrentAccount
 import com.ganj.vpn.presentation.ConnectionEffectResult
 import com.ganj.vpn.presentation.UiFailure
 import com.ganj.vpn.presentation.UiFailureKind
@@ -44,6 +47,9 @@ class MainActivity : ComponentActivity() {
     private val telegramBusy = mutableStateOf(false)
     private val telegramWaiting = mutableStateOf(false)
     private val telegramErrorCode = mutableStateOf<String?>(null)
+    private val currentAccount = mutableStateOf<CurrentAccount?>(null)
+    private val accountIdentityLoading = mutableStateOf(false)
+    private val accountIdentityErrorCode = mutableStateOf<String?>(null)
     private val accountRefreshGeneration = mutableStateOf(0)
     private val userPreferences = mutableStateOf(GanjUserPreferences())
     private val vpnPermissionExplanationVisible = mutableStateOf(false)
@@ -103,12 +109,16 @@ class MainActivity : ComponentActivity() {
                     telegramBusy = telegramBusy.value,
                     telegramWaiting = telegramWaiting.value,
                     telegramErrorCode = telegramErrorCode.value,
+                    currentAccount = currentAccount.value,
+                    accountIdentityLoading = accountIdentityLoading.value,
+                    accountIdentityErrorCode = accountIdentityErrorCode.value,
                     accountRefreshGeneration = accountRefreshGeneration.value,
                     userPreferences = preferences,
                     onTelegramLogin = ::beginTelegramLogin,
                     onTelegramCancel = ::cancelTelegramApproval,
                     onTelegramFallback = ::beginTelegramOidcFallback,
                     onTelegramLogout = ::logoutTelegram,
+                    onRetryAccountIdentity = ::refreshCurrentAccount,
                     onThemePreferenceChanged = { theme ->
                         updateUserPreferences { it.copy(theme = theme) }
                     },
@@ -165,6 +175,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        if (telegramLinked.value) refreshCurrentAccount()
     }
 
     override fun onResume() {
@@ -186,6 +198,39 @@ class MainActivity : ComponentActivity() {
         if (userPreferencesStore.save(next)) {
             userPreferences.value = next
         }
+    }
+
+    private fun refreshCurrentAccount() {
+        if (!::owner.isInitialized || accountIdentityLoading.value) return
+        val accountCall = owner.currentAccount() ?: run {
+            accountIdentityErrorCode.value = "account.unavailable"
+            return
+        }
+        accountIdentityLoading.value = true
+        accountIdentityErrorCode.value = null
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { accountCall }
+            accountIdentityLoading.value = false
+            when (result) {
+                is ApiResult.Success -> {
+                    currentAccount.value = result.value
+                    telegramLinked.value = result.value.telegramLinked
+                    accountIdentityErrorCode.value = null
+                }
+                is ApiResult.Failure -> {
+                    accountIdentityErrorCode.value = accountIdentityErrorCode(result.error)
+                }
+            }
+        }
+    }
+
+    private fun accountIdentityErrorCode(error: ApiError): String = when (error) {
+        is ApiError.Network -> "account.offline"
+        is ApiError.AuthenticationRequired,
+        is ApiError.AuthenticationExpired -> "account.auth_required"
+        is ApiError.Forbidden -> if (error.code == "account_inactive") "account.inactive" else "account.unavailable"
+        is ApiError.NotFound -> if (error.code == "account_not_found") "account.not_found" else "account.unavailable"
+        else -> "account.unavailable"
     }
 
     private fun beginTelegramLogin() {
@@ -290,6 +335,7 @@ class MainActivity : ComponentActivity() {
                 telegramWaiting.value = false
                 telegramErrorCode.value = null
                 accountRefreshGeneration.value += 1
+                refreshCurrentAccount()
             }
             TelegramAuthResult.Waiting -> {
                 telegramWaiting.value = true
@@ -304,6 +350,8 @@ class MainActivity : ComponentActivity() {
                 telegramLinked.value = false
                 telegramWaiting.value = false
                 telegramErrorCode.value = null
+                currentAccount.value = null
+                accountIdentityErrorCode.value = null
             }
             is TelegramAuthResult.Failed -> {
                 telegramLinked.value = owner.telegramAuth?.isLinked() == true
@@ -330,6 +378,8 @@ class MainActivity : ComponentActivity() {
             telegramWaiting.value = false
             if (result is TelegramAuthResult.LoggedOut) {
                 accountRefreshGeneration.value += 1
+                currentAccount.value = null
+                accountIdentityErrorCode.value = null
             }
             applyTelegramResult(result)
         }
