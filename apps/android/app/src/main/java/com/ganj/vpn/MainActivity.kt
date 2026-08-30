@@ -202,16 +202,13 @@ class MainActivity : ComponentActivity() {
 
     private fun refreshCurrentAccount() {
         if (!::owner.isInitialized || accountIdentityLoading.value) return
-        val accountCall = owner.currentAccount() ?: run {
-            accountIdentityErrorCode.value = "account.unavailable"
-            return
-        }
         accountIdentityLoading.value = true
         accountIdentityErrorCode.value = null
         lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) { accountCall }
+            val result = withContext(Dispatchers.IO) { owner.currentAccount() }
             accountIdentityLoading.value = false
             when (result) {
+                null -> accountIdentityErrorCode.value = "account.unavailable"
                 is ApiResult.Success -> {
                     currentAccount.value = result.value
                     telegramLinked.value = result.value.telegramLinked
