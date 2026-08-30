@@ -14,16 +14,18 @@ These instructions apply to every AI agent, automated coding agent, and develope
 For **any Android UI/UX work**, the following order is mandatory and supersedes generic UI guidance:
 
 1. **`docs/ui/UI_100_PERCENT_PROGRESS.fa.md`** — read the entire ledger first.
-2. `docs/15-android-ui-ux-brand-system.fa.md`
-3. `docs/16-liquid-glass-first-design-standard.fa.md`
-4. `design/tokens.json`
-5. Current runtime routes/screens, related open PRs/issues, and tests.
+2. **Run `node scripts/ui-progress.mjs --sections` and treat its Sections 1–26 result as the only valid UI percentage.**
+3. `docs/15-android-ui-ux-brand-system.fa.md`
+4. `docs/16-liquid-glass-first-design-standard.fa.md`
+5. `design/tokens.json`
+6. Current runtime routes/screens, related open PRs/issues, and tests.
 
 ## Mandatory UI progress protocol
 
 Every UI Agent MUST:
 
 - inspect the latest `main`, active branch and related PRs/issues before coding;
+- run `node scripts/ui-progress.mjs --sections` before coding and again after updating the ledger;
 - select work from unchecked `[ ]` leaf items in `docs/ui/UI_100_PERCENT_PROGRESS.fa.md`;
 - complete items one-by-one, including subpages, dialogs, bottom sheets, popups, loading, empty, offline, permission, error, success, retry, responsive and accessibility states;
 - update the ledger in the SAME PR/commit batch as the implementation;
@@ -32,7 +34,17 @@ Every UI Agent MUST:
 - never use mock/placeholder/fake telemetry, wallet, transaction, account, server or billing data to claim completion;
 - never expose an action that has no real runtime/controller/backend handler unless it is explicitly documented as a non-interactive preview;
 - preserve fail-closed security/product behavior when wiring UI;
-- record remaining unchecked items and the honest completion percentage after each batch.
+- record remaining unchecked items and the **calculator-produced** completion percentage after each batch.
+
+### UI percentage formula — mandatory
+
+Manual or weighted UI percentages are prohibited. The repository calculator counts only executable checkbox items in Ledger Sections **1 through 26**:
+
+```text
+UI Progress = checked executable leaf items / all executable leaf items × 100
+```
+
+Section 0 process rules and Section 27 duplicated final release gates are not part of the progress percentage. An item may leave the denominator only after a documented canonical product-scope decision formally defers/removes it. External blockers such as physical-device QA remain in the denominator while required.
 
 Required UI batch summary format:
 
@@ -40,7 +52,7 @@ Required UI batch summary format:
 UI Ledger sections touched: <IDs>
 Leaf items completed: <list>
 Remaining unchecked items in touched sections: <count/list>
-Overall UI completion: <N>% (100% forbidden until Final Gate is all checked)
+Overall UI completion: <calculator output>% (100% forbidden until Final Gate is all checked)
 ```
 
 **100% UI is forbidden to claim until every required Final 100% Release Gate checkbox in the ledger is checked with real build/device/runtime evidence.** Deleting checklist items to hide remaining work is prohibited. If product scope changes, update canonical scope docs first, then mark the ledger item as formally deferred with the scope decision; do not silently skip it.
