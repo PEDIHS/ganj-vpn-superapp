@@ -103,7 +103,7 @@ class SupportApiTest {
     @Test
     fun `closed ticket conflict remains explicit`() {
         val transport = FakeTransport().apply {
-            enqueue(409, errorEnvelope(409, "support_ticket_closed", retryable = false))
+            enqueue(409, errorEnvelope("support_ticket_closed", retryable = false))
         }
         val api = DefaultSupportApi(transport, tokenProvider, AuthenticationEventSink.NONE)
 
