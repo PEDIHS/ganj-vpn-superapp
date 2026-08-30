@@ -1,4 +1,4 @@
-import { ApiError, meta, success } from './errors.js';
+import { ApiError, success } from './errors.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -46,8 +46,19 @@ function decodeCursor(value) {
   return { createdAt: parsed.toISOString(), id };
 }
 
+function safeMinorAmount(value) {
+  const amount = typeof value === 'number' ? value : Number(value);
+  if (!Number.isSafeInteger(amount) || amount < 0) {
+    throw new ApiError(500, 'wallet_amount_out_of_range', 'Wallet amount cannot be represented safely.');
+  }
+  return amount;
+}
+
 function money(amountMinor, currency) {
-  return { amount_minor: Number(amountMinor), currency };
+  if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) {
+    throw new ApiError(500, 'wallet_currency_invalid', 'Wallet currency is invalid.');
+  }
+  return { amount_minor: safeMinorAmount(amountMinor), currency };
 }
 
 function mapEntry(row) {
