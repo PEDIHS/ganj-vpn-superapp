@@ -65,6 +65,38 @@ class AuthSessionApiClientTest {
     }
 
     @Test
+    fun `current account uses bearer and maps only privacy-safe identity fields`() {
+        val transport = FakeTransport().apply {
+            enqueue(
+                200,
+                successEnvelope(
+                    """{
+                      "id":"00000000-0000-4000-8000-000000000010",
+                      "status":"active",
+                      "display_name":"کاربر گنج",
+                      "locale":"fa-IR",
+                      "telegram_linked":true,
+                      "telegram_username":"ganj_user"
+                    }""".trimIndent(),
+                ),
+            )
+        }
+        val api = DefaultAuthSessionApi(transport)
+
+        val result = api.currentAccount(TOKEN).requireSuccess()
+
+        assertEquals("00000000-0000-4000-8000-000000000010", result.value.id)
+        assertEquals("کاربر گنج", result.value.displayName)
+        assertEquals("fa-IR", result.value.locale)
+        assertTrue(result.value.telegramLinked)
+        assertEquals("ganj_user", result.value.telegramUsername)
+        assertEquals("/me", transport.requests.single().pathAndQuery)
+        assertEquals("Bearer header.payload.signature-value", transport.requests.single().headers["Authorization"])
+        assertFalse(result.value.toString().contains("کاربر گنج"))
+        assertFalse(result.value.toString().contains("ganj_user"))
+    }
+
+    @Test
     fun `Telegram start is bearer authenticated but exchange is public`() {
         val transport = FakeTransport().apply {
             enqueue(
@@ -81,7 +113,7 @@ class AuthSessionApiClientTest {
             accessToken = TOKEN,
             command = TelegramAuthorizationCommand(
                 codeChallenge = "c".repeat(43),
-                redirectUri = "ganjvpn://oauth/telegram",
+                redirectUri = "https://auth.ganj.example/ganj/telegram/callback",
             ),
         ).requireSuccess()
         assertEquals("s".repeat(43), authorization.value.state)
