@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -363,8 +362,8 @@ private fun SettingsDivider() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 2.dp)
-            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
-            .size(height = 1.dp, width = 1.dp),
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.14f)),
     )
 }
 
