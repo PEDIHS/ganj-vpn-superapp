@@ -4,6 +4,7 @@ import com.ganj.vpn.core.controlapi.SupportCategory
 import com.ganj.vpn.core.controlapi.SupportPriority
 import com.ganj.vpn.core.controlapi.SupportStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class GanjSupportUiTest {
@@ -24,5 +25,14 @@ class GanjSupportUiTest {
         SupportPriority.entries.forEach { priority ->
             assertEquals(false, supportPriorityLabel(priority).isBlank())
         }
+    }
+
+    @Test
+    fun `support notification target only accepts canonical ticket UUID`() {
+        val id = "70000000-0000-4000-8000-000000000001"
+        assertEquals(id, canonicalSupportTicketIdOrNull(id))
+        assertNull(canonicalSupportTicketIdOrNull(null))
+        assertNull(canonicalSupportTicketIdOrNull("not-a-ticket"))
+        assertNull(canonicalSupportTicketIdOrNull("70000000-0000-4000-8000-00000000000Z"))
     }
 }
