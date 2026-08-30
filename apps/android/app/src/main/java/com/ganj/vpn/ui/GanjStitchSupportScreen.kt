@@ -45,6 +45,7 @@ import com.ganj.vpn.core.controlapi.SupportSenderRole
 import com.ganj.vpn.core.controlapi.SupportStatus
 import com.ganj.vpn.core.controlapi.SupportTicket
 import com.ganj.vpn.core.controlapi.SupportTicketDetail
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -80,6 +81,8 @@ internal fun StitchSupportHub(
     var detailState by remember { mutableStateOf<SupportDetailState>(SupportDetailState.Loading) }
     var mutationBusy by remember { mutableStateOf(false) }
     var mutationError by remember { mutableStateOf<String?>(null) }
+    var replyDraft by rememberSaveable { mutableStateOf("") }
+    var replyClientId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
 
     fun mapError(error: ApiError): Pair<String, Boolean> = when (error) {
         is ApiError.AuthenticationRequired,
@@ -90,7 +93,7 @@ internal fun StitchSupportHub(
         is ApiError.NotFound -> "این درخواست پشتیبانی دیگر در دسترس نیست." to false
         is ApiError.Conflict -> when (error.code) {
             "support_ticket_closed" -> "این درخواست بسته شده است؛ برای ارسال پیام ابتدا آن را دوباره باز کنید." to false
-            "idempotency_conflict" -> "این پیام قبلاً با محتوای دیگری ثبت شده است. صفحه را به‌روزرسانی کنید." to true
+            "idempotency_conflict" -> "شناسه امن این درخواست قبلاً برای محتوای دیگری مصرف شده است. صفحه را به‌روزرسانی کنید." to true
             else -> "وضعیت درخواست تغییر کرده است؛ دوباره به‌روزرسانی کنید." to true
         }
         is ApiError.Validation -> when (error.reason) {
@@ -124,6 +127,11 @@ internal fun StitchSupportHub(
 
     fun openTicket(ticketId: String) {
         val active = api ?: return
+        val oldSurface = surface
+        if (oldSurface !is SupportSurface.Detail || oldSurface.ticketId != ticketId) {
+            replyDraft = ""
+            replyClientId = UUID.randomUUID().toString()
+        }
         surface = SupportSurface.Detail(ticketId)
         detailState = SupportDetailState.Loading
         mutationError = null
@@ -138,13 +146,23 @@ internal fun StitchSupportHub(
         }
     }
 
-    fun createTicket(category: SupportCategory, priority: SupportPriority, subject: String, body: String) {
+    fun createTicket(
+        clientTicketId: String,
+        category: SupportCategory,
+        priority: SupportPriority,
+        subject: String,
+        body: String,
+    ) {
         val active = api ?: return
         if (mutationBusy) return
         mutationBusy = true
         mutationError = null
         scope.launch {
-            when (val result = withContext(Dispatchers.IO) { active.createTicket(category, priority, subject, body) }) {
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    active.createTicket(clientTicketId, category, priority, subject, body)
+                }
+            ) {
                 is ApiResult.Success -> {
                     refreshTickets()
                     openTicket(result.value.id)
@@ -155,14 +173,22 @@ internal fun StitchSupportHub(
         }
     }
 
-    fun reply(ticketId: String, body: String) {
+    fun reply(ticketId: String) {
         val active = api ?: return
-        if (mutationBusy) return
+        val body = replyDraft.trim()
+        if (mutationBusy || body.isEmpty()) return
+        val clientMessageId = replyClientId
         mutationBusy = true
         mutationError = null
         scope.launch {
-            when (val result = withContext(Dispatchers.IO) { active.reply(ticketId, body) }) {
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    active.reply(ticketId, clientMessageId, body)
+                }
+            ) {
                 is ApiResult.Success -> {
+                    replyDraft = ""
+                    replyClientId = UUID.randomUUID().toString()
                     when (val refreshed = withContext(Dispatchers.IO) { active.ticket(ticketId) }) {
                         is ApiResult.Success -> detailState = SupportDetailState.Ready(refreshed.value)
                         is ApiResult.Failure -> {
@@ -234,12 +260,14 @@ internal fun StitchSupportHub(
             state = detailState,
             busy = mutationBusy,
             mutationError = mutationError,
+            replyText = replyDraft,
+            onReplyTextChange = { replyDraft = it.take(8000) },
             onBack = {
                 mutationError = null
                 surface = SupportSurface.Center
             },
             onRefresh = { openTicket(current.ticketId) },
-            onReply = { reply(current.ticketId, it) },
+            onReply = { reply(current.ticketId) },
             onReopen = { reopen(current.ticketId) },
             modifier = modifier,
         )
@@ -313,7 +341,11 @@ private fun SupportTicketRow(ticket: SupportTicket, onOpenTicket: (String) -> Un
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(isolateTechnicalLtr(ticket.publicCode), style = MaterialTheme.typography.labelSmall)
-            Text(isolateTechnicalLtr(ticket.updatedAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                isolateTechnicalLtr(ticket.updatedAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -323,9 +355,10 @@ private fun SupportNewTicketScreen(
     busy: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
-    onCreate: (SupportCategory, SupportPriority, String, String) -> Unit,
+    onCreate: (String, SupportCategory, SupportPriority, String, String) -> Unit,
     modifier: Modifier,
 ) {
+    var clientTicketId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     var category by rememberSaveable { mutableStateOf(SupportCategory.CONNECTION.name) }
     var priority by rememberSaveable { mutableStateOf(SupportPriority.NORMAL.name) }
     var subject by rememberSaveable { mutableStateOf("") }
@@ -345,7 +378,9 @@ private fun SupportNewTicketScreen(
         AccountBackAction(onBack)
         Text("دسته‌بندی", fontWeight = FontWeight.Bold)
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             SupportCategory.entries.forEach { option ->
@@ -395,7 +430,9 @@ private fun SupportNewTicketScreen(
             ContentCard(MaterialTheme.colorScheme.error) { Text(it) }
         }
         GanjLiquidAction(
-            onClick = { onCreate(selectedCategory, selectedPriority, subject.trim(), body.trim()) },
+            onClick = {
+                onCreate(clientTicketId, selectedCategory, selectedPriority, subject.trim(), body.trim())
+            },
             enabled = canSubmit,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -413,13 +450,14 @@ private fun SupportTicketDetailScreen(
     state: SupportDetailState,
     busy: Boolean,
     mutationError: String?,
+    replyText: String,
+    onReplyTextChange: (String) -> Unit,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
-    onReply: (String) -> Unit,
+    onReply: () -> Unit,
     onReopen: () -> Unit,
     modifier: Modifier,
 ) {
-    var replyText by rememberSaveable { mutableStateOf("") }
     Page(modifier.fillMaxSize()) {
         AppHeader("گفت‌وگوی پشتیبانی", "پیام‌های ثبت‌شده روی همین درخواست", onRefresh)
         AccountBackAction(onBack)
@@ -451,33 +489,35 @@ private fun SupportTicketDetailScreen(
                 if (state.detail.messages.isEmpty()) {
                     EmptyCard("پیامی وجود ندارد", "گفت‌وگوی این درخواست خالی است.", onRefresh)
                 } else {
-                    state.detail.messages.forEach(::SupportMessageCard)
+                    state.detail.messages.forEach { message -> SupportMessageCard(message) }
                 }
                 mutationError?.let { ContentCard(MaterialTheme.colorScheme.error) { Text(it) } }
                 if (ticket.status == SupportStatus.CLOSED || ticket.status == SupportStatus.RESOLVED) {
                     GanjLiquidAction(onClick = onReopen, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (busy) "در حال بازکردن…" else "باز کردن دوباره درخواست", modifier = Modifier.align(Alignment.Center), fontWeight = FontWeight.Bold)
+                        Text(
+                            if (busy) "در حال بازکردن…" else "باز کردن دوباره درخواست",
+                            modifier = Modifier.align(Alignment.Center),
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 } else {
                     SupportTextField(
                         value = replyText,
-                        onValueChange = { replyText = it.take(8000) },
+                        onValueChange = onReplyTextChange,
                         enabled = !busy,
                         label = "پاسخ شما",
                         minLines = 3,
                     )
                     GanjLiquidAction(
-                        onClick = {
-                            val value = replyText.trim()
-                            if (value.isNotEmpty()) {
-                                onReply(value)
-                                replyText = ""
-                            }
-                        },
+                        onClick = onReply,
                         enabled = !busy && replyText.trim().isNotEmpty(),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(if (busy) "در حال ارسال…" else "ارسال پاسخ", modifier = Modifier.align(Alignment.Center), fontWeight = FontWeight.Bold)
+                        Text(
+                            if (busy) "در حال ارسال…" else "ارسال پاسخ",
+                            modifier = Modifier.align(Alignment.Center),
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
             }
@@ -510,7 +550,11 @@ private fun SupportMessageCard(message: SupportMessage) {
                 fontWeight = FontWeight.Bold,
                 color = accent,
             )
-            Text(isolateTechnicalLtr(message.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                isolateTechnicalLtr(message.createdAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         Text(message.body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
     }
@@ -586,7 +630,7 @@ private fun supportStatusTone(status: SupportStatus): GanjStatusTone = when (sta
     SupportStatus.CLOSED -> GanjStatusTone.Neutral
 }
 
-private fun supportStatusLabel(status: SupportStatus): String = when (status) {
+internal fun supportStatusLabel(status: SupportStatus): String = when (status) {
     SupportStatus.OPEN -> "باز"
     SupportStatus.WAITING_USER -> "منتظر پاسخ شما"
     SupportStatus.WAITING_SUPPORT -> "منتظر پشتیبانی"
@@ -594,7 +638,7 @@ private fun supportStatusLabel(status: SupportStatus): String = when (status) {
     SupportStatus.CLOSED -> "بسته"
 }
 
-private fun supportCategoryLabel(category: SupportCategory): String = when (category) {
+internal fun supportCategoryLabel(category: SupportCategory): String = when (category) {
     SupportCategory.CONNECTION -> "اتصال"
     SupportCategory.BILLING -> "پرداخت"
     SupportCategory.ACCOUNT -> "حساب"
@@ -603,7 +647,7 @@ private fun supportCategoryLabel(category: SupportCategory): String = when (cate
     SupportCategory.OTHER -> "سایر"
 }
 
-private fun supportPriorityLabel(priority: SupportPriority): String = when (priority) {
+internal fun supportPriorityLabel(priority: SupportPriority): String = when (priority) {
     SupportPriority.URGENT -> "فوری"
     SupportPriority.HIGH -> "زیاد"
     SupportPriority.NORMAL -> "عادی"
