@@ -55,16 +55,16 @@ internal fun StitchTelegramAccountCard(
     var showLogoutConfirmation by remember { mutableStateOf(false) }
     val accent = if (linked) MaterialTheme.colorScheme.primary else TelegramBlue
     val title = when {
-        linked -> "حساب تلگرام متصل است"
         waitingForApproval -> "منتظر تأیید در ربات گنج"
+        linked -> "حساب تلگرام متصل است"
         else -> "ورود با تلگرام"
     }
     val description = when {
-        linked -> "سرویس‌های خریداری‌شده و حساب گنج با این نشست همگام می‌شوند."
         waitingForApproval -> "در ربات گنج درخواست ورود را تأیید کنید، سپس به برنامه برگردید. هیچ کد یا رمز تلگرامی از شما گرفته نمی‌شود."
+        linked -> "سرویس‌های خریداری‌شده و حساب گنج با این نشست همگام می‌شوند."
         else -> "برای استفاده از سرورهای رایگان نیازی به ورود نیست؛ برای سرویس‌های خریداری‌شده حساب تلگرام را متصل کنید."
     }
-    val showSafeFallback = !linked && !waitingForApproval && !busy &&
+    val showSafeFallback = !waitingForApproval && !busy &&
         errorCode != null && errorCode in TelegramFallbackErrors
     val requiresRelogin = errorCode == "auth.session_expired" ||
         syncFeedback is TelegramServiceSyncFeedback.AuthRequired
@@ -91,13 +91,13 @@ internal fun StitchTelegramAccountCard(
             ) {
                 Text(
                     text = when {
-                        linked -> "✓"
                         waitingForApproval -> "…"
+                        linked -> "✓"
                         else -> "TG"
                     },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (linked) AccountEmerald else TelegramBlue,
+                    color = if (linked && !waitingForApproval) AccountEmerald else TelegramBlue,
                 )
             }
 
@@ -120,19 +120,19 @@ internal fun StitchTelegramAccountCard(
 
             AccountStatusBadge(
                 text = when {
-                    linked -> "متصل"
                     waitingForApproval -> "در انتظار"
+                    linked -> "متصل"
                     else -> "مهمان"
                 },
-                positive = linked,
+                positive = linked && !waitingForApproval,
             )
         }
 
         if (busy) {
             GanjInlineStatusBanner(
                 message = when {
-                    linked -> "در حال به‌روزرسانی حساب…"
                     waitingForApproval -> "در حال بررسی نتیجه تأیید…"
+                    linked -> "در حال به‌روزرسانی حساب…"
                     else -> "در حال ساخت درخواست امن و باز کردن تلگرام…"
                 },
                 tone = AccountBannerTone.Info,
@@ -151,101 +151,127 @@ internal fun StitchTelegramAccountCard(
             )
         }
 
-        if (linked && errorCode == null) {
+        if (linked && !waitingForApproval && errorCode == null) {
             syncFeedback?.let { feedback ->
                 GanjInlineStatusBanner(
                     message = telegramServiceSyncMessage(feedback),
                     tone = when (feedback) {
                         TelegramServiceSyncFeedback.AuthRequired,
-                        is TelegramServiceSyncFeedback.Failed,
-                        -> AccountBannerTone.Error
+                        is TelegramServiceSyncFeedback.Failed -> AccountBannerTone.Error
                         else -> AccountBannerTone.Info
                     },
                 )
             }
         }
 
-        if (linked) {
-            if (requiresRelogin && !busy) {
-                AccountSecondaryAction(
-                    text = "ورود دوباره با تلگرام",
-                    enabled = true,
-                    onClick = { showLoginConfirmation = true },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            val failedSync = syncFeedback as? TelegramServiceSyncFeedback.Failed
-            if (errorCode == null && failedSync?.retryable == true && !busy) {
-                AccountSecondaryAction(
-                    text = "تلاش دوباره برای همگام‌سازی",
-                    enabled = true,
-                    onClick = onRetrySync,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            if (errorCode == "auth.logout_failed" && !busy) {
-                AccountSecondaryAction(
-                    text = "تلاش دوباره برای خروج",
-                    enabled = true,
-                    destructive = true,
-                    onClick = onLogout,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else {
-                AccountSecondaryAction(
-                    text = if (busy) "لطفاً صبر کنید…" else "خروج از حساب تلگرام",
+        when {
+            waitingForApproval -> {
+                GanjLiquidAction(
+                    onClick = onLogin,
                     enabled = !busy,
-                    destructive = true,
-                    onClick = { showLogoutConfirmation = true },
+                    accent = TelegramBlue,
+                    shapeRadius = 999.dp,
                     modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        } else {
-            GanjLiquidAction(
-                onClick = {
-                    if (waitingForApproval) onLogin() else showLoginConfirmation = true
-                },
-                enabled = !busy,
-                accent = TelegramBlue,
-                shapeRadius = 999.dp,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = when {
-                        busy && waitingForApproval -> "در حال بررسی…"
-                        busy -> "در حال باز کردن تلگرام…"
-                        waitingForApproval -> "بررسی وضعیت تأیید"
-                        else -> "ورود با تلگرام"
-                    },
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                )
+                ) {
+                    Text(
+                        text = if (busy) "در حال بررسی…" else "بررسی وضعیت تأیید",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                if (!busy) {
+                    AccountSecondaryAction(
+                        text = "لغو این درخواست",
+                        enabled = true,
+                        onClick = onCancelApproval,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
 
-            if (waitingForApproval && !busy) {
-                AccountSecondaryAction(
-                    text = "لغو این درخواست",
-                    enabled = true,
-                    onClick = onCancelApproval,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            linked -> {
+                if (requiresRelogin && !busy) {
+                    AccountSecondaryAction(
+                        text = "ورود دوباره با تلگرام",
+                        enabled = true,
+                        onClick = { showLoginConfirmation = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                val failedSync = syncFeedback as? TelegramServiceSyncFeedback.Failed
+                if (errorCode == null && failedSync?.retryable == true && !busy) {
+                    AccountSecondaryAction(
+                        text = "تلاش دوباره برای همگام‌سازی",
+                        enabled = true,
+                        onClick = onRetrySync,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                if (showSafeFallback) {
+                    GanjInlineStatusBanner(
+                        message = "ورود اصلی از طریق ربات موقتاً شروع نشد. برای تازه‌سازی نشست می‌توانید از ورود امن جایگزین استفاده کنید.",
+                        tone = AccountBannerTone.Info,
+                    )
+                    AccountSecondaryAction(
+                        text = "ورود جایگزین امن",
+                        enabled = !busy,
+                        onClick = onFallbackLogin,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                if (errorCode == "auth.logout_failed" && !busy) {
+                    AccountSecondaryAction(
+                        text = "تلاش دوباره برای خروج",
+                        enabled = true,
+                        destructive = true,
+                        onClick = onLogout,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    AccountSecondaryAction(
+                        text = if (busy) "لطفاً صبر کنید…" else "خروج از حساب تلگرام",
+                        enabled = !busy,
+                        destructive = true,
+                        onClick = { showLogoutConfirmation = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
 
-            if (showSafeFallback) {
-                GanjInlineStatusBanner(
-                    message = "اگر ورود از طریق ربات موقتاً در دسترس نیست، می‌توانید از ورود امن جایگزین استفاده کنید. این گزینه مسیر اصلی نیست.",
-                    tone = AccountBannerTone.Info,
-                )
-                AccountSecondaryAction(
-                    text = "ورود جایگزین امن",
-                    enabled = true,
-                    onClick = onFallbackLogin,
+            else -> {
+                GanjLiquidAction(
+                    onClick = { showLoginConfirmation = true },
+                    enabled = !busy,
+                    accent = TelegramBlue,
+                    shapeRadius = 999.dp,
                     modifier = Modifier.fillMaxWidth(),
-                )
+                ) {
+                    Text(
+                        text = if (busy) "در حال باز کردن تلگرام…" else "ورود با تلگرام",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+
+                if (showSafeFallback) {
+                    GanjInlineStatusBanner(
+                        message = "اگر ورود از طریق ربات موقتاً در دسترس نیست، می‌توانید از ورود امن جایگزین استفاده کنید. این گزینه مسیر اصلی نیست.",
+                        tone = AccountBannerTone.Info,
+                    )
+                    AccountSecondaryAction(
+                        text = "ورود جایگزین امن",
+                        enabled = true,
+                        onClick = onFallbackLogin,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
     }
