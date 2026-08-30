@@ -14,6 +14,7 @@ function databaseFor(repository) {
 
 function safeBody(value) {
   const body = requireString(value, 'body', { min: 1, max: 8000 }).trim();
+  if (body.length < 1) throw new ApiError(400, 'invalid_request', 'Support message body cannot be blank.');
   if (SECRET_LIKE.test(body)) {
     throw new ApiError(400, 'sensitive_content_rejected', 'Support message appears to contain private connection material.');
   }
