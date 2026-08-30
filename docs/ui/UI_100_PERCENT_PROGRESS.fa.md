@@ -1,7 +1,7 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **وضعیت رسمی UI در شروع این Ledger: 54٪**  
-> **وضعیت فعلی پس از Batch 2026-08-30/Auth-3: 70٪**  
+> **وضعیت فعلی پس از Batch 2026-08-30/Auth-4: 71٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
@@ -129,7 +129,7 @@
 
 ## 4.3 Linked account / session
 - [x] Linked Telegram account card با Design جدید.
-- [ ] نمایش identity-safe account info بدون provider token.
+- [x] نمایش identity-safe account info بدون provider token.
 - [x] Session expired surface.
 - [x] Re-login flow.
 - [x] Logout action.
@@ -137,6 +137,8 @@
 - [x] Logout success state.
 - [x] Logout failure/retry state.
 - [x] Post-login My Services refresh feedback.
+
+> **Batch Auth-4 note:** `/v1/me` اکنون در Control API runtime و Android به‌صورت authenticated و fail-closed وصل است. UI فقط `display_name` و در صورت وجود `telegram_username` را نمایش می‌دهد؛ Telegram provider subject، provider credential، token و account UUID در UI نمایش داده نمی‌شوند. پاسخ معتبر سرور marker نمایشی Linked را reconcile می‌کند، ولی خطای شبکه marker/session را به‌صورت جعلی پاک نمی‌کند.
 
 ## 4.4 Auth QA
 - [ ] Process recreation وسط login.
@@ -763,7 +765,7 @@
 | Store basic | High |
 | Profile basic | High |
 | Enterprise Bug/Diagnostics | High |
-| Telegram Login final UX | High — Bot Approval primary + cancel + guarded fallback + re-login + real service-refresh feedback wired; real Bot/device E2E pending |
+| Telegram Login final UX | High — Bot Approval primary + cancel + guarded fallback + re-login + authoritative account identity + real service-refresh feedback wired; real Bot/device E2E pending |
 | Wallet | Runtime API pending; UI intentionally not faked |
 | Transactions | Runtime API pending; UI intentionally not faked |
 | Settings | Partial — real persisted Theme + accessibility settings wired |
@@ -778,9 +780,22 @@
 | Full Support/Tickets | Partial |
 | Dialog/Bottom Sheet system | Partial — Liquid confirm + purchase/VPN/auth dialogs added |
 | Physical-device final QA | Pending |
-| **Overall** | **70%** |
+| **Overall** | **71%** |
 
 ## Batch Log
+
+### 2026-08-30 — Auth-4 / authoritative privacy-safe account identity
+
+- Added authenticated `/v1/me` runtime routing backed by the same `control_users` account row updated by AuthSession/Bot Approval linking.
+- Production response is privacy-minimized: provider subject and provider credentials are never returned; current account UUID is transport-only and is not rendered in Compose UI.
+- Added Android `CurrentAccount` contract plus bearer-authenticated `/me` client mapping with redacted `toString()` behavior.
+- Wired account identity through `AndroidAuthSessionManager` → `GanjCompositionOwner` → `MainActivity` → `GanjVpnApp` → `StitchTelegramAccountCard`.
+- Linked UI now shows only real `display_name` and, if the backend actually provides it, normalized `@telegram_username`; no identifier is fabricated when username is unavailable.
+- Added Loading / Offline / AuthRequired / Inactive / NotFound / Retry identity states without clearing a valid session on transient network failure.
+- Fixed account lookup I/O so `/me` is executed only on `Dispatchers.IO`, not the Android main thread.
+- Authenticated `/me` success now reconciles the presentation-only linked marker persistently; network/server failures do not mutate it.
+- Added backend privacy/fail-closed tests, Android API mapping/redaction tests, UI identity normalization tests and coordinator reconciliation regression coverage.
+- **Remaining boundary:** Auth process recreation, App-closed/foreground deep-link callback QA, double-tap visual idempotency, TalkBack, 360–430dp physical-device QA and real staging Bot approval E2E remain open. GitHub Actions build evidence also remains external until jobs actually receive a runner.
 
 ### 2026-08-30 — Auth-3 / relogin + retryable logout + service-refresh feedback
 
@@ -794,7 +809,7 @@
 - Added post-login `/services` refresh feedback driven only by real `ContentState`: syncing, truthful service count, empty, auth-required and retryable/non-retryable failure.
 - Added explicit retry for failed service synchronization and regression tests for relogin marker preservation, cancellation, logout failure and service-sync feedback mapping.
 - Fixed the real Compose compile mismatch where `GanjVpnApp` passed service-sync feedback to a `StitchTelegramAccountCard` signature that had not yet accepted it.
-- **Remaining boundary:** `/v1/me` is still not implemented in the inspected Control API runtime, so identity-safe Telegram username/display-name remains intentionally absent. Real Ganj Bot/staging migration, process-death/deep-link/device/accessibility QA and GitHub Actions build evidence also remain open.
+- **Remaining boundary:** authoritative identity-safe account info moved to Auth-4. Real Ganj Bot/staging migration, process-death/deep-link/device/accessibility QA and GitHub Actions build evidence remain open.
 
 ### 2026-08-30 — Auth-2 / Telegram Bot Approval primary
 
@@ -817,7 +832,7 @@
 - Added Liquid Telegram account card and real logout action.
 - Added reusable Liquid confirmation dialog and concrete logout confirmation.
 - Added coordinator unit tests for PKCE start, state mismatch/replay, expiry, redirect mismatch, one-shot success, failed exchange and logout.
-- **Remaining boundary:** superseded by Auth-2/Auth-3 for the primary flow; OIDC/PKCE remains fallback, while real Bot/device E2E and CI evidence remain external gates.
+- **Remaining boundary:** superseded by Auth-2/Auth-3/Auth-4 for the primary flow; OIDC/PKCE remains fallback, while real Bot/device E2E and CI evidence remain external gates.
 
 ### 2026-08-30 — Settings-1 / persisted appearance + accessibility
 
@@ -865,9 +880,9 @@ Agent باید انتهای PR/commit summary این چهار خط را به‌�
 
 ```text
 UI Ledger sections touched: 4, 10, 26
-Leaf items completed: Cancelled Bot flow; safe fallback OIDC entry; Re-login flow; Logout failure/retry; Post-login My Services refresh feedback
-Remaining unchecked items in touched sections: identity-safe account info (/me runtime missing); Auth QA/device gates; broader runtime-integration audit
-Overall UI completion: 70% (100% forbidden until Final Gate is all checked)
+Leaf items completed: identity-safe account info without provider token
+Remaining unchecked items in touched sections: Auth QA/device gates; Profile wallet/transactions/devices/notifications/security surfaces; broader runtime-integration audit
+Overall UI completion: 71% (100% forbidden until Final Gate is all checked)
 ```
 
 این Ledger باید همراه کد تکامل پیدا کند؛ حذف checkbox برای پنهان‌کردن کار باقی‌مانده ممنوع است. اگر Scope رسمی تغییر کرد، ابتدا Scope canonical docs اصلاح شود و سپس آیتم با دلیل مشخص `Deferred by product scope` شود؛ هیچ Agentی حق ندارد مستقل از Product Scope آیتم را نادیده بگیرد.
