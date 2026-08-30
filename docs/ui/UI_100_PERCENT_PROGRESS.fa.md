@@ -398,7 +398,7 @@
 ## 13.2 Pending states/surfaces
 - [x] VPN permission explanation pre-surface.
 - [x] Permission denied guidance.
-- [x] Permanent-denial platform review — `VpnService.prepare()` has no app-level permanent-denial state; no fake Android Settings redirect is shown.
+- [x] Permanent-denial platform review — `VpnService.prepare()` has no app-level permanent-denial state analogous to runtime permissions, so no fake Settings redirect is exposed.
 - [ ] Connecting overlay/state polish.
 - [ ] Reconnecting/recovery surface.
 - [ ] Connection timeout state.
