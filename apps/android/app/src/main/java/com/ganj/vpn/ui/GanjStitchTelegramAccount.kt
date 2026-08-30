@@ -32,6 +32,10 @@ import androidx.compose.ui.window.Dialog
 private val TelegramBlue = Color(0xFF229ED9)
 private val AccountEmerald = Color(0xFF72FCB6)
 private val AccountGold = Color(0xFFD5A63A)
+private val TelegramFallbackErrors = setOf(
+    "auth.bot_approval_unavailable",
+    "auth.bot_approval_start_failed",
+)
 
 @Composable
 internal fun StitchTelegramAccountCard(
@@ -40,6 +44,8 @@ internal fun StitchTelegramAccountCard(
     waitingForApproval: Boolean,
     errorCode: String?,
     onLogin: () -> Unit,
+    onCancelApproval: () -> Unit,
+    onFallbackLogin: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -56,6 +62,7 @@ internal fun StitchTelegramAccountCard(
         waitingForApproval -> "در ربات گنج درخواست ورود را تأیید کنید، سپس به برنامه برگردید. هیچ کد یا رمز تلگرامی از شما گرفته نمی‌شود."
         else -> "برای استفاده از سرورهای رایگان نیازی به ورود نیست؛ برای سرویس‌های خریداری‌شده حساب تلگرام را متصل کنید."
     }
+    val showSafeFallback = !linked && !waitingForApproval && !busy && errorCode in TelegramFallbackErrors
 
     GanjGlassSurface(
         role = GanjGlassRole.Prominent,
@@ -135,7 +142,7 @@ internal fun StitchTelegramAccountCard(
         errorCode?.let { code ->
             GanjInlineStatusBanner(
                 message = telegramAuthErrorMessage(code),
-                tone = AccountBannerTone.Error,
+                tone = if (code == "auth.bot_approval_cancelled") AccountBannerTone.Info else AccountBannerTone.Error,
             )
         }
 
@@ -168,6 +175,28 @@ internal fun StitchTelegramAccountCard(
                     color = Color.White,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
+                )
+            }
+
+            if (waitingForApproval && !busy) {
+                AccountSecondaryAction(
+                    text = "لغو این درخواست",
+                    enabled = true,
+                    onClick = onCancelApproval,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            if (showSafeFallback) {
+                GanjInlineStatusBanner(
+                    message = "اگر ورود از طریق ربات موقتاً در دسترس نیست، می‌توانید از ورود امن جایگزین استفاده کنید. این گزینه مسیر اصلی نیست.",
+                    tone = AccountBannerTone.Info,
+                )
+                AccountSecondaryAction(
+                    text = "ورود جایگزین امن",
+                    enabled = true,
+                    onClick = onFallbackLogin,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
@@ -347,6 +376,7 @@ internal fun telegramAuthErrorMessage(code: String): String = when (code) {
     "auth.bot_approval_wrong_device" -> "این درخواست متعلق به این دستگاه نیست یا دیگر معتبر نیست."
     "auth.bot_approval_binding_mismatch" -> "اعتبارسنجی امنیتی درخواست ورود ناموفق بود. ورود را دوباره شروع کنید."
     "auth.bot_approval_not_pending" -> "درخواست فعالی برای تأیید در ربات وجود ندارد."
+    "auth.bot_approval_cancelled" -> "درخواست ورود در این دستگاه لغو شد. برای ورود، یک درخواست جدید بسازید."
     "auth.session_expired" -> "نشست امن دستگاه منقضی شده است. ورود را دوباره شروع کنید."
     "auth.telegram_start_failed" -> "شروع ورود جایگزین تلگرام انجام نشد. اتصال اینترنت را بررسی کنید."
     "auth.flow_persistence_failed" -> "ذخیره امن درخواست ورود انجام نشد. دوباره تلاش کنید."
@@ -358,7 +388,7 @@ internal fun telegramAuthErrorMessage(code: String): String = when (code) {
     "auth.flow_clear_failed" -> "پاک‌سازی امن درخواست ورود انجام نشد. دوباره تلاش کنید."
     "auth.telegram_exchange_failed" -> "تکمیل ورود جایگزین تلگرام انجام نشد. دوباره تلاش کنید."
     "auth.logout_failed" -> "خروج کامل از نشست انجام نشد. وضعیت شبکه را بررسی کنید."
-    "auth.telegram_launch_failed" -> "باز کردن ربات گنج در تلگرام ممکن نشد."
+    "auth.telegram_launch_failed" -> "باز کردن مسیر ورود تلگرام ممکن نشد."
     "auth.unavailable" -> "سرویس ورود در این نسخه در دسترس نیست."
     else -> "ورود تلگرام با خطا روبه‌رو شد. دوباره تلاش کنید."
 }
