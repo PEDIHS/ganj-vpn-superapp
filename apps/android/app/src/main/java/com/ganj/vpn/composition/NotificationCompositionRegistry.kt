@@ -5,17 +5,23 @@ import java.util.WeakHashMap
 
 internal object NotificationCompositionRegistry {
     private val values = WeakHashMap<GanjComposition, NotificationApi>()
+    private var current: NotificationApi? = null
 
     @Synchronized
     fun bind(composition: GanjComposition, api: NotificationApi) {
         values[composition] = api
+        current = api
     }
 
     @Synchronized
     fun api(composition: GanjComposition): NotificationApi? = values[composition]
 
     @Synchronized
+    fun currentApi(): NotificationApi? = current
+
+    @Synchronized
     fun unbind(composition: GanjComposition) {
-        values.remove(composition)
+        val removed = values.remove(composition)
+        if (removed != null && current === removed) current = values.values.lastOrNull()
     }
 }
