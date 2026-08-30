@@ -1,32 +1,39 @@
 package com.ganj.vpn.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ganj.vpn.core.controlapi.Money
@@ -47,6 +54,11 @@ internal sealed interface WalletUiState {
     data object AuthRequired : WalletUiState
     data class Error(val message: String, val retryable: Boolean) : WalletUiState
 }
+
+internal fun filterWalletTransactions(
+    transactions: List<WalletTransaction>,
+    type: WalletTransactionType?,
+): List<WalletTransaction> = if (type == null) transactions else transactions.filter { it.type == type }
 
 @Composable
 internal fun StitchWalletEntry(
@@ -168,9 +180,7 @@ internal fun StitchWalletScreen(
                 )
             }
             is WalletUiState.Ready -> {
-                item {
-                    WalletBalanceCard(state.snapshot)
-                }
+                item { WalletBalanceCard(state.snapshot) }
                 item {
                     GanjGlassSurface(
                         role = GanjGlassRole.Dense,
@@ -224,12 +234,10 @@ internal fun StitchWalletScreen(
                     }
                 } else {
                     items(state.recentTransactions.take(5), key = { it.id }) { transaction ->
-                        WalletTransactionRow(transaction)
+                        WalletTransactionRow(transaction = transaction)
                     }
                 }
-                item {
-                    WalletTextAction("به‌روزرسانی موجودی", onRefresh)
-                }
+                item { WalletTextAction("به‌روزرسانی موجودی", onRefresh) }
             }
         }
     }
@@ -247,6 +255,27 @@ internal fun StitchTransactionsScreen(
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var selectedTypeName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedType = selectedTypeName?.let { value ->
+        WalletTransactionType.entries.firstOrNull { it.name == value }
+    }
+    val selectedTransaction = selectedTransactionId?.let { id -> transactions.firstOrNull { it.id == id } }
+
+    BackHandler(enabled = selectedTransaction != null) {
+        selectedTransactionId = null
+    }
+
+    if (selectedTransaction != null) {
+        StitchTransactionDetailScreen(
+            transaction = selectedTransaction,
+            onBack = { selectedTransactionId = null },
+            modifier = modifier,
+        )
+        return
+    }
+
+    val visibleTransactions = filterWalletTransactions(transactions, selectedType)
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -263,6 +292,15 @@ internal fun StitchTransactionsScreen(
                 subtitle = "گردش واقعی کیف پول",
                 onBack = onBack,
             )
+        }
+
+        if (transactions.isNotEmpty()) {
+            item {
+                WalletTransactionFilters(
+                    selectedType = selectedType,
+                    onSelected = { type -> selectedTypeName = type?.name },
+                )
+            }
         }
 
         if (loading && transactions.isEmpty()) {
@@ -285,9 +323,21 @@ internal fun StitchTransactionsScreen(
                     onAction = onRefresh,
                 )
             }
+        } else if (visibleTransactions.isEmpty()) {
+            item {
+                WalletMessageCard(
+                    title = "نتیجه‌ای برای این فیلتر نیست",
+                    body = "این نوع تراکنش در داده‌های دریافت‌شده وجود ندارد.",
+                    action = "نمایش همه",
+                    onAction = { selectedTypeName = null },
+                )
+            }
         } else {
-            items(transactions, key = { it.id }) { transaction ->
-                WalletTransactionRow(transaction)
+            items(visibleTransactions, key = { it.id }) { transaction ->
+                WalletTransactionRow(
+                    transaction = transaction,
+                    onClick = { selectedTransactionId = transaction.id },
+                )
             }
             if (errorMessage != null) {
                 item {
@@ -309,6 +359,160 @@ internal fun StitchTransactionsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun WalletTransactionFilters(
+    selectedType: WalletTransactionType?,
+    onSelected: (WalletTransactionType?) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        WalletFilterChip(
+            label = "همه",
+            selected = selectedType == null,
+            onClick = { onSelected(null) },
+        )
+        WalletTransactionType.entries.forEach { type ->
+            WalletFilterChip(
+                label = transactionTitle(type),
+                selected = selectedType == type,
+                onClick = { onSelected(type) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun WalletFilterChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val accent = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+    Box(
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .background(accent.copy(alpha = if (selected) 0.16f else 0.06f))
+            .border(1.dp, accent.copy(alpha = if (selected) 0.55f else 0.22f), RoundedCornerShape(999.dp))
+            .clickable(role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun StitchTransactionDetailScreen(
+    transaction: WalletTransaction,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val clipboard = LocalClipboardManager.current
+    var copiedReference by rememberSaveable(transaction.id) { mutableStateOf(false) }
+    val credit = transaction.direction == WalletTransactionDirection.CREDIT
+    val accent = if (credit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = responsiveHorizontalPadding(),
+            end = responsiveHorizontalPadding(),
+            top = 18.dp,
+            bottom = 28.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item {
+            WalletHeader(
+                title = "جزئیات تراکنش",
+                subtitle = transactionTitle(transaction.type),
+                onBack = onBack,
+            )
+        }
+        item {
+            GanjGlassSurface(
+                role = GanjGlassRole.Regular,
+                accent = accent,
+                modifier = Modifier.fillMaxWidth(),
+                shapeRadius = 28.dp,
+                padding = PaddingValues(20.dp),
+            ) {
+                Text(
+                    if (credit) "واریز به کیف پول" else "برداشت از کیف پول",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    (if (credit) "+" else "−") + formatMoney(transaction.amount),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                    color = accent,
+                )
+                WalletDetailValue("مانده بعد از تراکنش", formatMoney(transaction.balanceAfter))
+                WalletDetailValue("تاریخ ثبت", formatTransactionDate(transaction.createdAt))
+            }
+        }
+        item {
+            GanjGlassSurface(
+                role = GanjGlassRole.Dense,
+                accent = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth(),
+                shapeRadius = 22.dp,
+                padding = PaddingValues(16.dp),
+            ) {
+                WalletDetailValue("نوع", transactionTitle(transaction.type))
+                transaction.referenceType?.takeIf(String::isNotBlank)?.let {
+                    WalletDetailValue("نوع مرجع", it)
+                }
+                transaction.referenceId?.takeIf(String::isNotBlank)?.let { reference ->
+                    WalletDetailValue("شناسه مرجع", reference)
+                    WalletTextAction(if (copiedReference) "مرجع کپی شد" else "کپی شناسه مرجع") {
+                        clipboard.setText(AnnotatedString(reference))
+                        copiedReference = true
+                    }
+                }
+                transaction.description?.takeIf(String::isNotBlank)?.let {
+                    WalletDetailValue("توضیحات", it)
+                }
+            }
+        }
+        item {
+            Text(
+                "این صفحه فقط اطلاعات ثبت‌شده در دفتر واقعی کیف پول را نمایش می‌دهد؛ وضعیت پرداخت یا روش پرداختی که در contract موجود نیست حدس زده نمی‌شود.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WalletDetailValue(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
@@ -341,13 +545,18 @@ private fun WalletBalanceCard(snapshot: WalletSnapshot) {
 }
 
 @Composable
-private fun WalletTransactionRow(transaction: WalletTransaction) {
+private fun WalletTransactionRow(
+    transaction: WalletTransaction,
+    onClick: (() -> Unit)? = null,
+) {
     val credit = transaction.direction == WalletTransactionDirection.CREDIT
     val accent = if (credit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
     GanjGlassSurface(
         role = GanjGlassRole.Dense,
         accent = accent,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
         shapeRadius = 20.dp,
         padding = PaddingValues(horizontal = 15.dp, vertical = 13.dp),
     ) {
@@ -380,7 +589,7 @@ private fun WalletTransactionRow(transaction: WalletTransaction) {
                     )
                 }
                 Text(
-                    transaction.createdAt.replace('T', ' ').substringBefore('.').removeSuffix("Z").toPersianDigits(),
+                    formatTransactionDate(transaction.createdAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -500,6 +709,9 @@ private fun transactionTitle(type: WalletTransactionType): String = when (type) 
     WalletTransactionType.ADJUSTMENT -> "اصلاح موجودی"
     WalletTransactionType.REVERSAL -> "برگشت تراکنش"
 }
+
+private fun formatTransactionDate(value: String): String =
+    value.replace('T', ' ').substringBefore('.').removeSuffix("Z").toPersianDigits()
 
 private fun formatMoney(money: Money): String {
     val grouped = NumberFormat.getIntegerInstance(Locale.US).format(money.amountMinor)
