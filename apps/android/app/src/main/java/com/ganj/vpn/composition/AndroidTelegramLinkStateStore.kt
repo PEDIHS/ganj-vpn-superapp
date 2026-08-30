@@ -11,8 +11,13 @@ internal class AndroidTelegramLinkStateStore(context: Context) : TelegramLinkSta
     override fun isLinked(): Boolean = prefs.getBoolean(ENTRY, false)
 
     override fun setLinked(linked: Boolean): Result<Unit> = runCatching {
+        val previous = isLinked()
         check(prefs.edit().putBoolean(ENTRY, linked).commit()) {
             "Telegram linked-state persistence failed"
+        }
+        if (previous != linked) {
+            // The authoritative account behind the bearer session changed; force a fresh owner-scoped count.
+            NotificationUnreadRegistry.resetForAccountBoundary()
         }
     }
 
