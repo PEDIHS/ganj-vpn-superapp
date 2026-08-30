@@ -24,6 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +44,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ganj.vpn.R
+import com.ganj.vpn.composition.NotificationCompositionRegistry
+import com.ganj.vpn.core.controlapi.ApiError
+import com.ganj.vpn.core.controlapi.ApiResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal enum class GanjDestination(@StringRes val labelRes: Int) {
     Home(R.string.nav_home),
@@ -67,6 +75,20 @@ internal fun GanjLiquidBottomNavigation(
     val horizontalPadding = GanjResponsivePolicy
         .stitchNavigationHorizontalPaddingDp(windowWidthDp)
         .dp
+    val unreadCount by GanjNotificationUnreadRegistry.count.collectAsState()
+    val notificationApi = NotificationCompositionRegistry.currentApi()
+
+    LaunchedEffect(notificationApi) {
+        val active = notificationApi ?: return@LaunchedEffect
+        when (val result = withContext(Dispatchers.IO) { active.notifications(limit = 1) }) {
+            is ApiResult.Success -> GanjNotificationUnreadRegistry.update(result.value.unreadCount)
+            is ApiResult.Failure -> if (
+                result.error is ApiError.AuthenticationRequired || result.error is ApiError.AuthenticationExpired
+            ) {
+                GanjNotificationUnreadRegistry.clear()
+            }
+        }
+    }
 
     Box(
         modifier = modifier
@@ -103,6 +125,12 @@ internal fun GanjLiquidBottomNavigation(
                         destination = destination,
                         selected = destination == selectedDestination,
                         showLabel = showAllLabels || destination == selectedDestination,
+                        badgeText = if (destination == GanjDestination.Account) {
+                            notificationBadgeText(unreadCount ?: 0)
+                        } else {
+                            null
+                        },
+                        unreadCount = if (destination == GanjDestination.Account) unreadCount ?: 0 else 0,
                         onClick = { onDestinationSelected(destination) },
                         modifier = Modifier.weight(1f),
                     )
@@ -123,6 +151,8 @@ private fun GanjNavigationItem(
     destination: GanjDestination,
     selected: Boolean,
     showLabel: Boolean,
+    badgeText: String?,
+    unreadCount: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -139,11 +169,16 @@ private fun GanjNavigationItem(
         animationSpec = spring(dampingRatio = 0.80f, stiffness = 560f),
         label = "navItemOffset",
     ).value
-    val description = UiAccessibilityPolicy.destinationDescription(
+    val baseDescription = UiAccessibilityPolicy.destinationDescription(
         label = label,
         selected = selected,
         selectedSuffix = stringResource(R.string.a11y_selected),
     )
+    val description = if (unreadCount > 0) {
+        "$baseDescription، ${unreadCount.toPersianDigits()} اعلان خوانده‌نشده"
+    } else {
+        baseDescription
+    }
 
     Box(
         modifier = modifier
@@ -167,11 +202,32 @@ private fun GanjNavigationItem(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            GanjNavigationIcon(
-                destination = destination,
-                tint = tint,
-                modifier = Modifier.size(if (selected) 22.dp else 21.dp),
-            )
+            Box(contentAlignment = Alignment.Center) {
+                GanjNavigationIcon(
+                    destination = destination,
+                    tint = tint,
+                    modifier = Modifier.size(if (selected) 22.dp else 21.dp),
+                )
+                if (badgeText != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 10.dp, y = (-7).dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(MaterialTheme.colorScheme.error)
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = badgeText,
+                            color = MaterialTheme.colorScheme.onError,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
             if (showLabel) {
                 Spacer(Modifier.height(3.dp))
                 Text(
