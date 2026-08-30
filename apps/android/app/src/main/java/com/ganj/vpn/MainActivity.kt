@@ -20,8 +20,8 @@ import com.ganj.vpn.presentation.ConnectionEffectResult
 import com.ganj.vpn.presentation.UiFailure
 import com.ganj.vpn.presentation.UiFailureKind
 import com.ganj.vpn.ui.AndroidGanjUserPreferencesStore
+import com.ganj.vpn.ui.GanjLiquidConfirmDialog
 import com.ganj.vpn.ui.GanjTheme
-import com.ganj.vpn.ui.GanjThemePreference
 import com.ganj.vpn.ui.GanjUserPreferences
 import com.ganj.vpn.ui.GanjVpnApp
 import com.ganj.vpn.ui.resolvedGanjDarkTheme
@@ -36,6 +36,7 @@ import kotlin.coroutines.resume
 
 class MainActivity : ComponentActivity() {
     private var vpnPermissionContinuation: CancellableContinuation<Boolean>? = null
+    private var vpnPermissionExplanationContinuation: CancellableContinuation<Boolean>? = null
     private lateinit var owner: GanjCompositionOwner
     private lateinit var userPreferencesStore: AndroidGanjUserPreferencesStore
 
@@ -44,14 +45,18 @@ class MainActivity : ComponentActivity() {
     private val telegramErrorCode = mutableStateOf<String?>(null)
     private val accountRefreshGeneration = mutableStateOf(0)
     private val userPreferences = mutableStateOf(GanjUserPreferences())
+    private val vpnPermissionExplanationVisible = mutableStateOf(false)
+    private val vpnPermissionDeniedVisible = mutableStateOf(false)
 
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
+        val granted = result.resultCode == Activity.RESULT_OK
         val continuation = vpnPermissionContinuation
         vpnPermissionContinuation = null
+        if (!granted) vpnPermissionDeniedVisible.value = true
         if (continuation?.isActive == true) {
-            continuation.resume(result.resultCode == Activity.RESULT_OK)
+            continuation.resume(granted)
         }
     }
 
@@ -125,6 +130,28 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                 )
+
+                if (vpnPermissionExplanationVisible.value) {
+                    GanjLiquidConfirmDialog(
+                        title = "اجازه اتصال VPN",
+                        body = "برای ساخت تونل امن، Android باید اجازه VPN را تأیید کند. گنج VPN به محتوای شخصی شما دسترسی اضافه‌ای درخواست نمی‌کند و صفحه بعدی متعلق به خود Android است.",
+                        confirmText = "ادامه",
+                        dismissText = "فعلاً نه",
+                        onConfirm = { completeVpnPermissionExplanation(true) },
+                        onDismiss = { completeVpnPermissionExplanation(false) },
+                    )
+                }
+
+                if (vpnPermissionDeniedVisible.value) {
+                    GanjLiquidConfirmDialog(
+                        title = "اجازه VPN داده نشد",
+                        body = "بدون تأیید مجوز VPN، اتصال شروع نمی‌شود. هر زمان آماده بودید دوباره دکمه اتصال را بزنید و درخواست Android را تأیید کنید.",
+                        confirmText = "متوجه شدم",
+                        dismissText = "بستن",
+                        onConfirm = { vpnPermissionDeniedVisible.value = false },
+                        onDismiss = { vpnPermissionDeniedVisible.value = false },
+                    )
+                }
             }
         }
     }
@@ -217,7 +244,35 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun ensureVpnPermission(): Boolean {
         val request: Intent = VpnService.prepare(this) ?: return true
-        return suspendCancellableCoroutine { continuation ->
+        if (!awaitVpnPermissionExplanation()) return false
+        return awaitSystemVpnPermission(request)
+    }
+
+    private suspend fun awaitVpnPermissionExplanation(): Boolean =
+        suspendCancellableCoroutine { continuation ->
+            if (vpnPermissionExplanationContinuation != null || vpnPermissionContinuation != null) {
+                continuation.resume(false)
+                return@suspendCancellableCoroutine
+            }
+            vpnPermissionExplanationContinuation = continuation
+            vpnPermissionExplanationVisible.value = true
+            continuation.invokeOnCancellation {
+                if (vpnPermissionExplanationContinuation === continuation) {
+                    vpnPermissionExplanationContinuation = null
+                    vpnPermissionExplanationVisible.value = false
+                }
+            }
+        }
+
+    private fun completeVpnPermissionExplanation(accepted: Boolean) {
+        vpnPermissionExplanationVisible.value = false
+        val continuation = vpnPermissionExplanationContinuation
+        vpnPermissionExplanationContinuation = null
+        if (continuation?.isActive == true) continuation.resume(accepted)
+    }
+
+    private suspend fun awaitSystemVpnPermission(request: Intent): Boolean =
+        suspendCancellableCoroutine { continuation ->
             if (vpnPermissionContinuation != null) {
                 continuation.resume(false)
                 return@suspendCancellableCoroutine
@@ -230,12 +285,16 @@ class MainActivity : ComponentActivity() {
             }
             vpnPermissionLauncher.launch(request)
         }
-    }
 
     override fun onDestroy() {
-        val continuation = vpnPermissionContinuation
+        val explanation = vpnPermissionExplanationContinuation
+        vpnPermissionExplanationContinuation = null
+        vpnPermissionExplanationVisible.value = false
+        if (explanation?.isActive == true) explanation.resume(false)
+
+        val permission = vpnPermissionContinuation
         vpnPermissionContinuation = null
-        if (continuation?.isActive == true) continuation.resume(false)
+        if (permission?.isActive == true) permission.resume(false)
         super.onDestroy()
     }
 }
