@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.ganj.vpn.core.controlapi.AndroidKeystoreSessionVault
+import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.AuthSessionApiFactory
+import com.ganj.vpn.core.controlapi.CurrentAccount
 import com.ganj.vpn.core.deviceidentity.AndroidDeviceIdentity
 import com.ganj.vpn.presentation.ConnectionProfileContextProvider
 import com.ganj.vpn.vpn.AndroidVpnSessionRevocationSink
@@ -13,7 +15,10 @@ import java.net.URI
 class GanjCompositionOwner internal constructor(
     val composition: GanjComposition,
     internal val telegramAuth: TelegramAuthCoordinator?,
+    private val accountSession: AndroidAuthSessionManager?,
 ) : ViewModel() {
+    internal fun currentAccount(): ApiResult<CurrentAccount>? = accountSession?.currentAccount()
+
     override fun onCleared() {
         composition.close()
     }
@@ -36,6 +41,7 @@ class GanjCompositionOwner internal constructor(
                         cryptoProvider = deviceIdentity,
                     ),
                     telegramAuth = null,
+                    accountSession = null,
                 ) as T
             }
 
@@ -62,6 +68,7 @@ class GanjCompositionOwner internal constructor(
             return GanjCompositionOwner(
                 composition = composition,
                 telegramAuth = telegramAuth,
+                accountSession = sessionManager,
             ) as T
         }
 
