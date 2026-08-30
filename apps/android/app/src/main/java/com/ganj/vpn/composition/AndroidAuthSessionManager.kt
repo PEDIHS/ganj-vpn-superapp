@@ -118,11 +118,24 @@ internal class AndroidAuthSessionManager(
         }
     }
 
+    /**
+     * A retryable remote failure must not destroy the only credential that can revoke that session.
+     * We therefore keep the local vault intact for network/server failures and clear it only after
+     * confirmed logout or when the server already considers the credential invalid/expired.
+     */
     override fun logout(): Boolean = synchronized(lock) {
-        val token = vault.restore()?.accessToken
-        val remote = token?.let { api.logout(it) }
-        val localCleared = invalidateSessionLocked().isSuccess
-        localCleared && (remote == null || remote is ApiResult.Success)
+        val current = vault.restore()
+            ?: return@synchronized invalidateSessionLocked().isSuccess
+
+        when (val remote = api.logout(current.accessToken)) {
+            is ApiResult.Success -> invalidateSessionLocked().isSuccess
+            is ApiResult.Failure -> when (remote.error) {
+                is ApiError.AuthenticationRequired,
+                is ApiError.AuthenticationExpired,
+                -> invalidateSessionLocked().isSuccess
+                else -> false
+            }
+        }
     }
 
     override fun onAuthenticationExpired(requestId: String?) {
