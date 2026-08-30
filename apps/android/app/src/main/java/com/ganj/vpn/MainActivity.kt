@@ -326,7 +326,9 @@ class MainActivity : ComponentActivity() {
             telegramBusy.value = false
             telegramLinked.value = auth.isLinked()
             telegramWaiting.value = false
-            accountRefreshGeneration.value += 1
+            if (result is TelegramAuthResult.LoggedOut) {
+                accountRefreshGeneration.value += 1
+            }
             applyTelegramResult(result)
         }
     }
