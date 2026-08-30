@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.ganj.vpn.composition.NotificationCompositionRegistry
+import com.ganj.vpn.composition.NotificationUnreadRegistry
 import com.ganj.vpn.core.controlapi.ApiError
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.NotificationActionType
@@ -73,7 +74,7 @@ internal fun StitchNotificationHub(
             when (val result = withContext(Dispatchers.IO) { active.notifications(limit = 30) }) {
                 is ApiResult.Success -> {
                     nextCursor = result.value.nextCursor
-                    GanjNotificationUnreadRegistry.update(result.value.unreadCount)
+                    NotificationUnreadRegistry.update(result.value.unreadCount)
                     state = NotificationUiState.Ready(
                         items = result.value.items,
                         unreadCount = result.value.unreadCount,
@@ -85,7 +86,7 @@ internal fun StitchNotificationHub(
                 is ApiResult.Failure -> {
                     val (message, retryable) = errorMessage(result.error)
                     val authFailure = result.error is ApiError.AuthenticationRequired || result.error is ApiError.AuthenticationExpired
-                    if (authFailure) GanjNotificationUnreadRegistry.clear()
+                    if (authFailure) NotificationUnreadRegistry.clear()
                     state = if (authFailure) {
                         NotificationUiState.AuthRequired
                     } else {
@@ -109,7 +110,7 @@ internal fun StitchNotificationHub(
                     val known = current.items.asSequence().map { it.id }.toHashSet()
                     val merged = current.items + result.value.items.filterNot { it.id in known }
                     nextCursor = result.value.nextCursor
-                    GanjNotificationUnreadRegistry.update(result.value.unreadCount)
+                    NotificationUnreadRegistry.update(result.value.unreadCount)
                     state = current.copy(
                         items = merged,
                         unreadCount = result.value.unreadCount,
@@ -135,7 +136,7 @@ internal fun StitchNotificationHub(
                 is ApiResult.Success -> {
                     val current = state as? NotificationUiState.Ready ?: return@launch
                     val nextUnreadCount = (current.unreadCount - 1).coerceAtLeast(0)
-                    GanjNotificationUnreadRegistry.update(nextUnreadCount)
+                    NotificationUnreadRegistry.update(nextUnreadCount)
                     state = current.copy(
                         items = current.items.map { if (it.id == item.id) it.copy(read = true) else it },
                         unreadCount = nextUnreadCount,
@@ -152,7 +153,7 @@ internal fun StitchNotificationHub(
             when (withContext(Dispatchers.IO) { active.markAllRead() }) {
                 is ApiResult.Success -> {
                     val current = state as? NotificationUiState.Ready ?: return@launch
-                    GanjNotificationUnreadRegistry.update(0)
+                    NotificationUnreadRegistry.update(0)
                     state = current.copy(items = current.items.map { it.copy(read = true) }, unreadCount = 0)
                 }
                 is ApiResult.Failure -> actionMessage = "خواندن همه اعلان‌ها ذخیره نشد."
