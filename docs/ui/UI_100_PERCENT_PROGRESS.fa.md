@@ -1,7 +1,7 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **وضعیت رسمی UI در شروع این Ledger: 54٪**  
-> **وضعیت فعلی پس از Batch 2026-08-30/Auth-4: 71٪**  
+> **وضعیت فعلی پس از Batch 2026-08-30/Wallet-1: 74٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
@@ -153,16 +153,16 @@
 # 5) Wallet — Direct Commerce
 
 ## 5.1 Wallet overview
-- [ ] Wallet screen.
-- [ ] Current balance card.
+- [x] Wallet screen.
+- [x] Current balance card.
 - [ ] Available balance vs pending balance در صورت contract.
 - [ ] Add Balance CTA.
-- [ ] Recent transactions preview.
-- [ ] Balance refresh action/state.
-- [ ] Wallet Loading state.
-- [ ] Wallet Empty state.
-- [ ] Wallet Offline/Error state.
-- [ ] Wallet disabled/unavailable state.
+- [x] Recent transactions preview.
+- [x] Balance refresh action/state.
+- [x] Wallet Loading state.
+- [x] Wallet Empty state.
+- [x] Wallet Offline/Error state.
+- [x] Wallet disabled/unavailable state.
 
 ## 5.2 Add Balance / Top-up
 - [ ] Add Balance screen/sheet.
@@ -183,33 +183,35 @@
 - [ ] Post-payment wallet refresh.
 - [ ] Duplicate top-up protection feedback.
 
-> **Runtime note:** OpenAPI برای `/wallet` و `/wallet/transactions` contract دارد، اما Control API runtime فعلی هنوز این routeها را اجرا نمی‌کند؛ بنابراین UI کیف پول تا زمان runtime wiring عمداً fake نمی‌شود.
+> **Batch Wallet-1 note:** Wallet دیگر placeholder نیست. migration واقعی `control_wallets` + immutable owner-scoped `control_wallet_ledger` اضافه شده، routeهای authenticated `/v1/wallet` و `/v1/wallet/transactions` در Runtime mount شده‌اند، Android client با token refresh و strict mapping وصل است و Liquid Wallet/Transactions مستقیماً همین داده را نمایش می‌دهند. Top-up write flow عمداً تا اتصال Provider واقعی غیرفعال مانده و هیچ balance یا تراکنش ساختگی در UI وجود ندارد.
 
 ---
 
 # 6) Transactions
 
-- [ ] Transaction History screen.
-- [ ] Transaction row component.
-- [ ] Purchase transaction visual type.
-- [ ] Wallet top-up transaction visual type.
-- [ ] Refund transaction visual type.
-- [ ] Adjustment transaction visual type.
+- [x] Transaction History screen.
+- [x] Transaction row component.
+- [x] Purchase transaction visual type.
+- [x] Wallet top-up transaction visual type.
+- [x] Refund transaction visual type.
+- [x] Adjustment transaction visual type.
 - [ ] Failed transaction visual type.
 - [ ] Pending transaction visual type.
 - [ ] Filter by transaction type.
 - [ ] Filter by status.
 - [ ] Filter/date range UX در صورت contract.
-- [ ] Pagination/infinite loading.
-- [ ] Empty state.
+- [x] Pagination/infinite loading.
+- [x] Empty state.
 - [ ] Loading skeleton.
-- [ ] Error/retry state.
+- [x] Error/retry state.
 - [ ] Transaction Detail bottom sheet/page.
 - [ ] Amount, date, status, reference/order id.
 - [ ] Payment method/source.
-- [ ] Description/reason.
+- [x] Description/reason.
 - [ ] Copy reference action با feedback.
 - [ ] Receipt/detail link در صورت موجود بودن.
+
+> **Batch Wallet-1 note:** transaction source اکنون یک posted immutable ledger است؛ به همین دلیل Pending/Failed status تا زمانی که قرارداد جداگانه pending-operation/payment وجود نداشته باشد جعل نمی‌شود. صفحه فعلی amount/date/reference/description را در row نشان می‌دهد، اما Detail page، copy-reference، type/status/date filters و payment-source هنوز باز هستند.
 
 ---
 
@@ -311,8 +313,8 @@
 
 ## 10.2 Pending
 - [x] Telegram linked/unlinked status integrated into Profile.
-- [ ] Wallet entry integrated into Profile.
-- [ ] Transactions entry integrated into Profile.
+- [x] Wallet entry integrated into Profile.
+- [x] Transactions entry integrated into Profile.
 - [x] Settings entry integrated into Profile.
 - [ ] Devices entry integrated into Profile.
 - [ ] Notifications entry integrated into Profile.
@@ -766,8 +768,8 @@
 | Profile basic | High |
 | Enterprise Bug/Diagnostics | High |
 | Telegram Login final UX | High — Bot Approval primary + cancel + guarded fallback + re-login + authoritative account identity + real service-refresh feedback wired; real Bot/device E2E pending |
-| Wallet | Runtime API pending; UI intentionally not faked |
-| Transactions | Runtime API pending; UI intentionally not faked |
+| Wallet | Partial/High — real DB/runtime/Android/Liquid read flow complete; top-up write/provider flow pending |
+| Transactions | Partial/High — real immutable ledger, pagination and history UI wired; detail/filter/payment-source states pending |
 | Settings | Partial — real persisted Theme + accessibility settings wired |
 | Devices | Runtime API pending; UI intentionally not faked |
 | Notifications | Runtime API pending; UI intentionally not faked |
@@ -780,9 +782,21 @@
 | Full Support/Tickets | Partial |
 | Dialog/Bottom Sheet system | Partial — Liquid confirm + purchase/VPN/auth dialogs added |
 | Physical-device final QA | Pending |
-| **Overall** | **71%** |
+| **Overall** | **74%** |
 
 ## Batch Log
+
+### 2026-08-30 — Wallet-1 / real balance + immutable ledger read flow
+
+- Added PostgreSQL `control_wallets` and immutable owner-scoped `control_wallet_ledger` schema with backfill and automatic wallet creation for new users.
+- Added authenticated `/v1/wallet` and cursor-paginated `/v1/wallet/transactions` runtime routes; malformed cursors and uninitialized wallets fail closed.
+- Monetary DB values are checked for safe integer representation before JSON conversion; invalid currencies/unsafe amounts fail closed instead of silently losing precision.
+- Added backend tests for owner-scoped balance, missing-wallet failure, pagination, privacy-minimized transaction mapping and malformed cursor rejection.
+- Added Android `WalletApi` with authenticated token refresh, strict UUID/currency/timestamp/cursor mapping, redacted transport boundaries and tests for balance/ledger mapping plus fail-closed unknown transaction types.
+- Bound Wallet API to the app composition lifecycle without mixing Wallet state into VPN/catalog presentation state.
+- Added Liquid Wallet and Transactions screens, real balance, recent transactions, full history, pagination, empty/loading/error/retry states and Profile entries visible only for linked accounts.
+- Transaction rows support posted top-up/purchase/refund/adjustment/reversal ledger types and display real amount, resulting balance, timestamp, optional reference and description.
+- **Remaining boundary:** top-up/provider write flow, pending-balance contract, transaction detail/copy/filter/payment-source surfaces, canonical Wallet OpenAPI schema expansion, device QA and CI build evidence remain open. No fake balance/top-up/payment state is shown.
 
 ### 2026-08-30 — Auth-4 / authoritative privacy-safe account identity
 
@@ -844,7 +858,7 @@
 - Added a Liquid radio selector, accessible switch/toggle rows with `Role.Switch`, and minimum touch targets.
 - Added real app version/build display from `BuildConfig`.
 - Added pure policy unit tests for theme resolution and system accessibility precedence.
-- **Remaining boundary:** connection settings, privacy settings, legal/support links and device QA are still open. Wallet/Transactions remain blocked on runtime routes even though OpenAPI contracts exist; no fake balance/ledger is shown.
+- **Remaining boundary:** connection settings, privacy settings, legal/support links and device QA are still open. Wallet/Transactions read flow moved to Wallet-1; top-up/provider writes remain open and no fake balance/ledger is shown.
 
 ### 2026-08-30 — Subscription-1 / real service details
 
@@ -879,10 +893,10 @@
 Agent باید انتهای PR/commit summary این چهار خط را به‌روز کند:
 
 ```text
-UI Ledger sections touched: 4, 10, 26
-Leaf items completed: identity-safe account info without provider token
-Remaining unchecked items in touched sections: Auth QA/device gates; Profile wallet/transactions/devices/notifications/security surfaces; broader runtime-integration audit
-Overall UI completion: 71% (100% forbidden until Final Gate is all checked)
+UI Ledger sections touched: 5, 6, 10, 26
+Leaf items completed: real Wallet screen/balance/recent transactions/refresh/loading/empty/offline states; transaction history/rows/types/pagination/error states; Wallet + Transactions Profile entries
+Remaining unchecked items in touched sections: top-up/provider writes; pending balance; transaction detail/filter/payment-source/copy; device/notification/security surfaces; final runtime audit
+Overall UI completion: 74% (100% forbidden until Final Gate is all checked)
 ```
 
 این Ledger باید همراه کد تکامل پیدا کند؛ حذف checkbox برای پنهان‌کردن کار باقی‌مانده ممنوع است. اگر Scope رسمی تغییر کرد، ابتدا Scope canonical docs اصلاح شود و سپس آیتم با دلیل مشخص `Deferred by product scope` شود؛ هیچ Agentی حق ندارد مستقل از Product Scope آیتم را نادیده بگیرد.
