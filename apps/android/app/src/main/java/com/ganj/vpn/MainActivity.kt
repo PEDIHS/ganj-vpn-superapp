@@ -19,8 +19,13 @@ import com.ganj.vpn.composition.TelegramAuthResult
 import com.ganj.vpn.presentation.ConnectionEffectResult
 import com.ganj.vpn.presentation.UiFailure
 import com.ganj.vpn.presentation.UiFailureKind
+import com.ganj.vpn.ui.AndroidGanjUserPreferencesStore
 import com.ganj.vpn.ui.GanjTheme
+import com.ganj.vpn.ui.GanjThemePreference
+import com.ganj.vpn.ui.GanjUserPreferences
 import com.ganj.vpn.ui.GanjVpnApp
+import com.ganj.vpn.ui.resolvedGanjDarkTheme
+import com.ganj.vpn.ui.resolvedGanjVisualEffectsPolicy
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -32,11 +37,13 @@ import kotlin.coroutines.resume
 class MainActivity : ComponentActivity() {
     private var vpnPermissionContinuation: CancellableContinuation<Boolean>? = null
     private lateinit var owner: GanjCompositionOwner
+    private lateinit var userPreferencesStore: AndroidGanjUserPreferencesStore
 
     private val telegramLinked = mutableStateOf(false)
     private val telegramBusy = mutableStateOf(false)
     private val telegramErrorCode = mutableStateOf<String?>(null)
     private val accountRefreshGeneration = mutableStateOf(0)
+    private val userPreferences = mutableStateOf(GanjUserPreferences())
 
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -61,6 +68,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        userPreferencesStore = AndroidGanjUserPreferencesStore(application)
+        userPreferences.value = userPreferencesStore.restore()
+
         owner = ViewModelProvider(
             this,
             GanjCompositionOwner.Factory(
@@ -75,15 +85,29 @@ class MainActivity : ComponentActivity() {
 
         val composition = owner.composition
         setContent {
-            GanjTheme {
+            val preferences = userPreferences.value
+            GanjTheme(
+                darkTheme = resolvedGanjDarkTheme(preferences),
+                visualEffectsPolicy = resolvedGanjVisualEffectsPolicy(preferences),
+            ) {
                 GanjVpnApp(
                     composition = composition,
                     telegramLinked = telegramLinked.value,
                     telegramBusy = telegramBusy.value,
                     telegramErrorCode = telegramErrorCode.value,
                     accountRefreshGeneration = accountRefreshGeneration.value,
+                    userPreferences = preferences,
                     onTelegramLogin = ::beginTelegramLogin,
                     onTelegramLogout = ::logoutTelegram,
+                    onThemePreferenceChanged = { theme ->
+                        updateUserPreferences { it.copy(theme = theme) }
+                    },
+                    onReduceMotionChanged = { enabled ->
+                        updateUserPreferences { it.copy(reduceMotion = enabled) }
+                    },
+                    onReduceTransparencyChanged = { enabled ->
+                        updateUserPreferences { it.copy(reduceTransparency = enabled) }
+                    },
                     onLaunchGooglePlay = { handle ->
                         composition.launchGooglePlayCheckout(this@MainActivity, handle)
                     },
@@ -109,6 +133,14 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleTelegramIntent(intent)
+    }
+
+    private fun updateUserPreferences(transform: (GanjUserPreferences) -> GanjUserPreferences) {
+        val next = transform(userPreferences.value)
+        if (next == userPreferences.value) return
+        if (userPreferencesStore.save(next)) {
+            userPreferences.value = next
+        }
     }
 
     private fun beginTelegramLogin() {
