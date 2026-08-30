@@ -213,7 +213,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun beginTelegramOidcFallback() {
-        if (telegramBusy.value || telegramLinked.value) return
+        if (telegramBusy.value) return
         val auth = owner.telegramAuth ?: run {
             telegramErrorCode.value = "auth.unavailable"
             return
@@ -245,7 +245,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun resumeTelegramApproval() {
-        if (telegramBusy.value || telegramLinked.value || !::owner.isInitialized) return
+        if (telegramBusy.value || !::owner.isInitialized) return
         val auth = owner.telegramAuth ?: return
         if (!auth.hasPendingBotApproval()) return
 
@@ -260,7 +260,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun cancelTelegramApproval() {
-        if (telegramBusy.value || telegramLinked.value || !::owner.isInitialized) return
+        if (telegramBusy.value || !::owner.isInitialized) return
         val auth = owner.telegramAuth ?: return
         val result = auth.cancelPendingBotApproval()
         applyTelegramResult(result)
@@ -296,6 +296,7 @@ class MainActivity : ComponentActivity() {
                 telegramErrorCode.value = null
             }
             TelegramAuthResult.Cancelled -> {
+                telegramLinked.value = owner.telegramAuth?.isLinked() == true
                 telegramWaiting.value = false
                 telegramErrorCode.value = "auth.bot_approval_cancelled"
             }
@@ -305,6 +306,7 @@ class MainActivity : ComponentActivity() {
                 telegramErrorCode.value = null
             }
             is TelegramAuthResult.Failed -> {
+                telegramLinked.value = owner.telegramAuth?.isLinked() == true
                 telegramWaiting.value = owner.telegramAuth?.hasPendingBotApproval() == true
                 telegramErrorCode.value = result.code
             }
