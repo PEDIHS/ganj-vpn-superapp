@@ -1,7 +1,7 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **وضعیت رسمی UI در شروع این Ledger: 54٪**  
-> **وضعیت فعلی پس از Batch 2026-08-30/Connect-Checkout-1: 62٪**  
+> **وضعیت فعلی پس از Batch 2026-08-30/Onboarding-1: 65٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
@@ -226,7 +226,7 @@
 - [ ] Network change behavior Wi-Fi ↔ Cellular.
 - [ ] Startup/reboot behavior در صورت supported.
 - [ ] DNS options فقط اگر runtime contract واقعی expose شود.
-- [ ] Protocol preference فقط اگر contract واقعی expose شود.
+- [ ] Protocol preference فقط اگر runtime contract واقعی expose شود.
 
 ## 7.3 Appearance
 - [x] Theme: System / Light / Dark.
@@ -472,19 +472,19 @@
 
 # 16) First Run / Onboarding
 
-- [ ] Welcome screen.
-- [ ] Brand/value proposition کوتاه.
-- [ ] Free access explanation.
-- [ ] Premium explanation بدون dark pattern.
-- [ ] Privacy summary.
-- [ ] Continue as Guest / Start Free path.
-- [ ] Optional Login with Telegram path.
-- [ ] VPN permission preparation step فقط قبل از نیاز واقعی.
-- [ ] First server selection guidance.
-- [ ] First connection guidance.
-- [ ] Skip policy.
-- [ ] Onboarding completed persistence.
-- [ ] Re-show onboarding/help entry در صورت نیاز.
+- [x] Welcome screen.
+- [x] Brand/value proposition کوتاه.
+- [x] Free access explanation.
+- [x] Premium explanation بدون dark pattern.
+- [x] Privacy summary.
+- [x] Continue as Guest / Start Free path.
+- [ ] Optional Login with Telegram path. (تا Bot Approval primary واقعی عمداً باز می‌ماند.)
+- [x] VPN permission preparation step فقط قبل از نیاز واقعی.
+- [x] First server selection guidance.
+- [x] First connection guidance.
+- [x] Skip policy.
+- [x] Onboarding completed persistence.
+- [x] Re-show onboarding/help entry در Settings.
 - [ ] 360–430dp + accessibility QA.
 
 ---
@@ -773,12 +773,12 @@
 | Advanced server UX | Partial |
 | Connect micro-states | Partial — permission preflow + denial guidance complete |
 | Purchase micro-flows | Partial — confirmation gate added |
-| Onboarding | Not finalized |
+| Onboarding | High — first-run/skip/persistence/replay complete; Bot Approval CTA + device QA pending |
 | Referral/Promotions | Not finalized |
 | Full Support/Tickets | Partial |
 | Dialog/Bottom Sheet system | Partial — Liquid confirm + purchase/VPN dialogs added |
 | Physical-device final QA | Pending |
-| **Overall** | **62%** |
+| **Overall** | **65%** |
 
 ## Batch Log
 
@@ -821,6 +821,16 @@
 - Added a real Liquid purchase confirmation before invoking the existing checkout controller/provider flow.
 - Purchase confirmation does not fabricate price conversion; Provider remains authoritative for final payable amount/terms.
 - **Remaining boundary:** reconnect/timeout/network-change/tunnel-recovery detail states and richer billing-provider states still require their real runtime contracts/state mappings.
+
+### 2026-08-30 — Onboarding-1 / first-run guest flow
+
+- Added a three-step Liquid first-run experience using the official Ganj logo and existing responsive policy.
+- Added clear Free-without-login guidance, Premium positioning and privacy summary without fabricated limits or fake telemetry.
+- Added first server-selection and first-connection guidance tied to the real VPN permission model.
+- Added `Start Free` and explicit Skip behavior; both persist completion in app-local preferences.
+- Added a Settings action to replay onboarding at any time.
+- Forced Update/Maintenance remain higher-priority gates than onboarding.
+- **Remaining boundary:** optional Telegram login CTA stays intentionally open until Bot Approval (#39) is the true primary login path; physical-device/accessibility QA is also pending.
 
 ## Mandatory update format after every Agent batch
 
