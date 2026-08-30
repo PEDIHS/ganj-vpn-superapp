@@ -35,7 +35,14 @@ internal class AndroidTelegramAuthFlowVault(context: Context) : TelegramAuthFlow
     }
 
     private fun encode(flow: TelegramAuthFlow): ByteArray {
-        val fields = listOf(flow.state, flow.codeVerifier, flow.redirectUri, flow.expiresAt)
+        val fields = listOf(
+            flow.state,
+            flow.codeVerifier,
+            flow.redirectUri,
+            flow.expiresAt,
+            flow.mode.name,
+            flow.requestId.orEmpty(),
+        )
         val encoded = fields.map { it.toByteArray(Charsets.UTF_8) }
         val size = 4 + encoded.sumOf { 4 + it.size }
         return ByteBuffer.allocate(size).apply {
@@ -47,16 +54,39 @@ internal class AndroidTelegramAuthFlowVault(context: Context) : TelegramAuthFlow
     private fun decode(bytes: ByteArray): TelegramAuthFlow {
         try {
             val buffer = ByteBuffer.wrap(bytes)
-            require(buffer.int == 4)
-            val fields = (0 until 4).map {
+            val count = buffer.int
+            require(count == LEGACY_FIELD_COUNT || count == FIELD_COUNT)
+            val fields = (0 until count).map { index ->
                 val size = buffer.int
-                require(size in 1..4096 && size <= buffer.remaining())
+                val minimum = if (count == FIELD_COUNT && index == 5) 0 else 1
+                require(size in minimum..4096 && size <= buffer.remaining())
                 ByteArray(size).also(buffer::get).let { raw ->
                     try { raw.toString(Charsets.UTF_8) } finally { raw.fill(0) }
                 }
             }
             require(!buffer.hasRemaining())
-            return TelegramAuthFlow(fields[0], fields[1], fields[2], fields[3])
+            if (count == LEGACY_FIELD_COUNT) {
+                return TelegramAuthFlow(
+                    state = fields[0],
+                    codeVerifier = fields[1],
+                    redirectUri = fields[2],
+                    expiresAt = fields[3],
+                    mode = TelegramAuthFlowMode.OIDC_FALLBACK,
+                    requestId = null,
+                )
+            }
+            val mode = TelegramAuthFlowMode.entries.firstOrNull { it.name == fields[4] }
+                ?: throw IllegalArgumentException("Unknown Telegram auth flow mode")
+            val requestId = fields[5].takeIf(String::isNotBlank)
+            if (mode == TelegramAuthFlowMode.BOT_APPROVAL) require(!requestId.isNullOrBlank())
+            return TelegramAuthFlow(
+                state = fields[0],
+                codeVerifier = fields[1],
+                redirectUri = fields[2],
+                expiresAt = fields[3],
+                mode = mode,
+                requestId = requestId,
+            )
         } finally {
             bytes.fill(0)
         }
@@ -119,6 +149,8 @@ internal class AndroidTelegramAuthFlowVault(context: Context) : TelegramAuthFlow
         const val ENTRY = "flow"
         const val KEY_ALIAS = "ganj.telegram.auth.flow.v1"
         const val TRANSFORMATION = "AES/GCM/NoPadding"
+        const val LEGACY_FIELD_COUNT = 4
+        const val FIELD_COUNT = 6
         val AAD = "ganj-telegram-auth-flow-v1".toByteArray(Charsets.US_ASCII)
     }
 }
