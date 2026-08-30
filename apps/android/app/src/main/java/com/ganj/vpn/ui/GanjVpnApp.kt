@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ganj.vpn.R
+import com.ganj.vpn.composition.DeviceCompositionRegistry
 import com.ganj.vpn.composition.GanjComposition
 import com.ganj.vpn.composition.WalletCompositionRegistry
 import com.ganj.vpn.core.controlapi.ApiError
@@ -52,6 +53,7 @@ private enum class GanjAccountSurface {
     SUBSCRIPTION_DETAILS,
     WALLET,
     TRANSACTIONS,
+    DEVICES,
 }
 
 internal sealed interface TelegramServiceSyncFeedback {
@@ -102,6 +104,7 @@ fun GanjVpnApp(
     val enterpriseController = remember(composition) { composition.enterpriseController }
     val enterpriseReducer = remember(composition) { composition.enterpriseReducer }
     val walletApi = remember(composition) { WalletCompositionRegistry.api(composition) }
+    val deviceApi = remember(composition) { DeviceCompositionRegistry.api(composition) }
     val scope = rememberCoroutineScope()
 
     var selectedDestination by remember { mutableStateOf(GanjDestination.Connect) }
@@ -116,6 +119,11 @@ fun GanjVpnApp(
     var walletHasMore by remember(composition) { mutableStateOf(false) }
     var walletLoadingMore by remember(composition) { mutableStateOf(false) }
     var walletTransactionError by remember(composition) { mutableStateOf<String?>(null) }
+    var devicesState by remember(composition) {
+        mutableStateOf<DevicesUiState>(if (telegramLinked) DevicesUiState.Loading else DevicesUiState.AuthRequired)
+    }
+    var revokingDeviceId by remember(composition) { mutableStateOf<String?>(null) }
+    var deviceRevokeError by remember(composition) { mutableStateOf<String?>(null) }
     var state by remember(composition) { mutableStateOf(composition.restoreUiState()) }
     var enterpriseState by remember(composition) {
         mutableStateOf(composition.restoreEnterpriseState())
@@ -125,6 +133,7 @@ fun GanjVpnApp(
     var connectionJob by remember { mutableStateOf<Job?>(null) }
     var enterpriseJob by remember { mutableStateOf<Job?>(null) }
     var walletJob by remember { mutableStateOf<Job?>(null) }
+    var deviceJob by remember { mutableStateOf<Job?>(null) }
 
     BackHandler(
         enabled = userPreferences.onboardingCompleted &&
@@ -161,6 +170,31 @@ fun GanjVpnApp(
         is ApiError.RateLimited -> "درخواست‌های زیادی ارسال شده است؛ کمی بعد دوباره تلاش کنید."
         is ApiError.Server -> "سرویس تراکنش‌ها موقتاً در دسترس نیست."
         else -> "تراکنش‌ها دریافت نشدند."
+    }
+
+    fun devicesFailure(error: ApiError): DevicesUiState = when (error) {
+        is ApiError.AuthenticationRequired,
+        is ApiError.AuthenticationExpired -> DevicesUiState.AuthRequired
+        is ApiError.Network -> DevicesUiState.Error("اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.", true)
+        is ApiError.RateLimited -> DevicesUiState.Error("درخواست‌های زیادی ارسال شده است. کمی بعد دوباره تلاش کنید.", true)
+        is ApiError.Server -> DevicesUiState.Error("سرویس مدیریت دستگاه‌ها موقتاً در دسترس نیست.", error.retryable)
+        is ApiError.Forbidden -> DevicesUiState.Error("دسترسی این حساب به مدیریت دستگاه‌ها محدود شده است.", false)
+        else -> DevicesUiState.Error("فهرست دستگاه‌ها دریافت نشد.", true)
+    }
+
+    fun revokeFailure(error: ApiError): String = when (error) {
+        is ApiError.Conflict -> if (error.code == "cannot_revoke_current_device") {
+            "دستگاه فعلی از داخل همین نشست قابل حذف نیست."
+        } else {
+            "وضعیت دستگاه تغییر کرده است؛ فهرست را به‌روزرسانی کنید."
+        }
+        is ApiError.AuthenticationRequired,
+        is ApiError.AuthenticationExpired -> "نشست حساب منقضی شده است؛ دوباره وارد شوید."
+        is ApiError.NotFound -> "این دستگاه دیگر روی حساب وجود ندارد."
+        is ApiError.Network -> "اتصال اینترنت را بررسی کنید."
+        is ApiError.RateLimited -> "درخواست‌های زیادی ارسال شده است؛ کمی بعد دوباره تلاش کنید."
+        is ApiError.Server -> "لغو دسترسی دستگاه موقتاً انجام نشد."
+        else -> "لغو دسترسی دستگاه انجام نشد."
     }
 
     fun refreshEnterprise() {
@@ -280,6 +314,50 @@ fun GanjVpnApp(
         }
     }
 
+    fun refreshDevices() {
+        deviceJob?.cancel()
+        revokingDeviceId = null
+        deviceRevokeError = null
+        if (!telegramLinked) {
+            devicesState = DevicesUiState.AuthRequired
+            return
+        }
+        val api = deviceApi ?: run {
+            devicesState = DevicesUiState.Error("سرویس مدیریت دستگاه‌ها در این نسخه فعال نیست.", false)
+            return
+        }
+        devicesState = DevicesUiState.Loading
+        deviceJob = scope.launch {
+            devicesState = when (val result = withContext(Dispatchers.IO) { api.devices() }) {
+                is ApiResult.Success -> DevicesUiState.Ready(result.value)
+                is ApiResult.Failure -> devicesFailure(result.error)
+            }
+        }
+    }
+
+    fun revokeDevice(deviceId: String) {
+        if (revokingDeviceId != null) return
+        val api = deviceApi ?: run {
+            deviceRevokeError = "سرویس مدیریت دستگاه‌ها در دسترس نیست."
+            return
+        }
+        deviceJob?.cancel()
+        revokingDeviceId = deviceId
+        deviceRevokeError = null
+        deviceJob = scope.launch {
+            when (val result = withContext(Dispatchers.IO) { api.revoke(deviceId) }) {
+                is ApiResult.Success -> {
+                    when (val refreshed = withContext(Dispatchers.IO) { api.devices() }) {
+                        is ApiResult.Success -> devicesState = DevicesUiState.Ready(refreshed.value)
+                        is ApiResult.Failure -> devicesState = devicesFailure(refreshed.error)
+                    }
+                }
+                is ApiResult.Failure -> deviceRevokeError = revokeFailure(result.error)
+            }
+            revokingDeviceId = null
+        }
+    }
+
     fun refreshLinkedAccount() {
         refreshJob?.cancel()
         commit(reducer.reduce(state, GanjUiEvent.RefreshRequested))
@@ -340,6 +418,7 @@ fun GanjVpnApp(
     LaunchedEffect(telegramLinked) {
         if (telegramLinked) {
             refreshWallet()
+            refreshDevices()
         } else {
             walletJob?.cancel()
             walletState = WalletUiState.AuthRequired
@@ -347,13 +426,20 @@ fun GanjVpnApp(
             walletNextCursor = null
             walletHasMore = false
             walletTransactionError = null
+            deviceJob?.cancel()
+            devicesState = DevicesUiState.AuthRequired
+            revokingDeviceId = null
+            deviceRevokeError = null
         }
     }
 
     LaunchedEffect(accountRefreshGeneration) {
         if (accountRefreshGeneration > 0) {
             refreshLinkedAccount()
-            if (telegramLinked) refreshWallet()
+            if (telegramLinked) {
+                refreshWallet()
+                refreshDevices()
+            }
         }
     }
 
@@ -497,6 +583,16 @@ fun GanjVpnApp(
                                     modifier = Modifier.fillMaxSize(),
                                 )
 
+                                GanjAccountSurface.DEVICES -> StitchDevicesScreen(
+                                    state = devicesState,
+                                    revokingDeviceId = revokingDeviceId,
+                                    revokeError = deviceRevokeError,
+                                    onBack = { accountSurface = GanjAccountSurface.PROFILE },
+                                    onRefresh = ::refreshDevices,
+                                    onRevoke = ::revokeDevice,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+
                                 GanjAccountSurface.SUBSCRIPTION_DETAILS -> {
                                     val service = state.selectedService
                                     if (service == null) {
@@ -553,6 +649,16 @@ fun GanjVpnApp(
                                             onClick = {
                                                 accountSurface = GanjAccountSurface.TRANSACTIONS
                                                 if (walletTransactions.isEmpty()) refreshWallet()
+                                            },
+                                            modifier = Modifier.padding(
+                                                horizontal = responsiveHorizontalPadding(),
+                                                vertical = 2.dp,
+                                            ),
+                                        )
+                                        StitchDevicesEntry(
+                                            onClick = {
+                                                accountSurface = GanjAccountSurface.DEVICES
+                                                refreshDevices()
                                             },
                                             modifier = Modifier.padding(
                                                 horizontal = responsiveHorizontalPadding(),
