@@ -11,6 +11,8 @@ import com.ganj.vpn.core.controlapi.DeviceApi
 import com.ganj.vpn.core.controlapi.DeviceApiFactory
 import com.ganj.vpn.core.controlapi.NotificationApi
 import com.ganj.vpn.core.controlapi.NotificationApiFactory
+import com.ganj.vpn.core.controlapi.SupportApi
+import com.ganj.vpn.core.controlapi.SupportApiFactory
 import com.ganj.vpn.core.controlapi.WalletApi
 import com.ganj.vpn.core.controlapi.WalletApiFactory
 import com.ganj.vpn.core.controlapi.WalletSnapshot
@@ -27,6 +29,7 @@ class GanjCompositionOwner internal constructor(
     private val walletApi: WalletApi?,
     private val deviceApi: DeviceApi?,
     private val notificationApi: NotificationApi?,
+    private val supportApi: SupportApi?,
 ) : ViewModel() {
     internal fun currentAccount(): ApiResult<CurrentAccount>? = accountSession?.currentAccount()
     internal fun wallet(): ApiResult<WalletSnapshot>? = walletApi?.wallet()
@@ -34,6 +37,7 @@ class GanjCompositionOwner internal constructor(
         walletApi?.transactions(cursor = cursor)
 
     override fun onCleared() {
+        SupportCompositionRegistry.unbind(composition)
         NotificationCompositionRegistry.unbind(composition)
         DeviceCompositionRegistry.unbind(composition)
         WalletCompositionRegistry.unbind(composition)
@@ -62,6 +66,7 @@ class GanjCompositionOwner internal constructor(
                     walletApi = null,
                     deviceApi = null,
                     notificationApi = null,
+                    supportApi = null,
                 ) as T
             }
 
@@ -88,9 +93,11 @@ class GanjCompositionOwner internal constructor(
             val walletApi = WalletApiFactory.create(endpoint, sessionManager)
             val deviceApi = DeviceApiFactory.create(endpoint, sessionManager)
             val notificationApi = NotificationApiFactory.create(endpoint, sessionManager)
+            val supportApi = SupportApiFactory.create(endpoint, sessionManager)
             WalletCompositionRegistry.bind(composition, walletApi)
             DeviceCompositionRegistry.bind(composition, deviceApi)
             NotificationCompositionRegistry.bind(composition, notificationApi)
+            SupportCompositionRegistry.bind(composition, supportApi)
             return GanjCompositionOwner(
                 composition = composition,
                 telegramAuth = telegramAuth,
@@ -98,6 +105,7 @@ class GanjCompositionOwner internal constructor(
                 walletApi = walletApi,
                 deviceApi = deviceApi,
                 notificationApi = notificationApi,
+                supportApi = supportApi,
             ) as T
         }
 
