@@ -48,6 +48,7 @@ internal fun StitchSettingsScreen(
 ) {
     var showNotificationHub by remember { mutableStateOf(false) }
     var showSupportHub by remember { mutableStateOf(false) }
+    var showPrivacyCenter by remember { mutableStateOf(false) }
     var supportDeepLinkTicketId by remember { mutableStateOf<String?>(null) }
 
     supportDeepLinkTicketId?.let { ticketId ->
@@ -89,6 +90,17 @@ internal fun StitchSettingsScreen(
         )
         return
     }
+    if (showPrivacyCenter) {
+        StitchPrivacyCenter(
+            onBack = { showPrivacyCenter = false },
+            onOpenSecuritySupport = {
+                showPrivacyCenter = false
+                showSupportHub = true
+            },
+            modifier = modifier,
+        )
+        return
+    }
 
     Column(
         modifier = modifier
@@ -110,7 +122,7 @@ internal fun StitchSettingsScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    text = "ظاهر، اعلان‌ها، پشتیبانی و دسترس‌پذیری برنامه",
+                    text = "ظاهر، اعلان‌ها، حریم خصوصی، پشتیبانی و دسترس‌پذیری",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -129,6 +141,21 @@ internal fun StitchSettingsScreen(
                 title = "مرکز اعلان و تنظیمات",
                 description = "اعلان‌های حساب، سرویس، امنیت و انتخاب دسته‌بندی‌ها",
                 onClick = { showNotificationHub = true },
+            )
+        }
+
+        SettingsSectionTitle("حریم خصوصی")
+        GanjGlassSurface(
+            role = GanjGlassRole.Regular,
+            accent = MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.fillMaxWidth(),
+            shapeRadius = 24.dp,
+            padding = PaddingValues(16.dp),
+        ) {
+            SettingsActionRow(
+                title = "حریم خصوصی و ایمنی داده",
+                description = "چه داده‌هایی مجازند، چه چیزهایی هرگز جمع‌آوری نمی‌شوند و مسیر گزارش امنیتی",
+                onClick = { showPrivacyCenter = true },
             )
         }
 
@@ -289,7 +316,7 @@ internal fun StitchSettingsEntry(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "ظاهر، اعلان‌ها، پشتیبانی و دسترس‌پذیری",
+                text = "ظاهر، اعلان‌ها، حریم خصوصی، پشتیبانی و دسترس‌پذیری",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
