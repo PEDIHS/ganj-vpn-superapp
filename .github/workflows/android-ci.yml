@@ -105,7 +105,7 @@ jobs:
             > app/build/reports/release-runtime-dependencies.txt
 
       - name: Generate source and dependency SBOM
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.2
         with:
           path: apps/android
           format: spdx-json
