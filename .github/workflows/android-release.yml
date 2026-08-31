@@ -160,7 +160,7 @@ jobs:
             bash .github/scripts/build-pinned-libxray.sh "$RUNNER_TEMP/pinned-libxray"
 
       - name: Generate libXray SPDX SBOM
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.2
         with:
           path: ${{ runner.temp }}/pinned-libxray/evidence
           format: spdx-json
@@ -353,7 +353,7 @@ jobs:
             > app/build/reports/release-runtime-dependencies.txt
 
       - name: Generate SPDX release SBOM
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.2
         with:
           path: apps/android
           format: spdx-json
