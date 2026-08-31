@@ -249,7 +249,7 @@ jobs:
           cache-read-only: true
 
       - name: Download pinned official libXray build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: pinned-official-libxray-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/pinned-libxray
@@ -451,7 +451,7 @@ jobs:
           java-version: "17"
 
       - name: Download immutable signing input
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: android-signing-input-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/release-input
@@ -633,7 +633,7 @@ jobs:
           persist-credentials: false
 
       - name: Download the signed and attested release
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ganj-vpn-android-${{ needs.preflight.outputs.version }}-${{ inputs.stage }}-${{ github.sha }}
           path: ${{ runner.temp }}/play-release
