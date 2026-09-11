@@ -1,0 +1,59 @@
+services:
+  control-api:
+    image: ${CONTROL_API_IMAGE:?CONTROL_API_IMAGE is required}
+    container_name: ganj-control-api
+    network_mode: host
+    restart: unless-stopped
+    env_file:
+      - /opt/ganj-vpn/secrets/control-api.env
+    environment:
+      NODE_ENV: production
+      HOST: 127.0.0.1
+      PORT: "8080"
+      CONTROL_API_ADAPTER_MODE: production
+    volumes:
+      - /opt/ganj-vpn/secrets/runtime:/run/secrets/ganj:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  legacy-sync:
+    image: ${CONTROL_API_IMAGE:?CONTROL_API_IMAGE is required}
+    container_name: ganj-legacy-sync
+    network_mode: host
+    restart: unless-stopped
+    command: ["node", "src/legacy-runner.js"]
+    env_file:
+      - /opt/ganj-vpn/secrets/control-api.env
+      - /opt/ganj-vpn/secrets/legacy-sync.env
+    environment:
+      NODE_ENV: production
+      LEGACY_SYNC_MODE: loop
+      LEGACY_SYNC_INTERVAL_SECONDS: "300"
+      LEGACY_SOURCE_KEY: ganj-bot-primary
+    volumes:
+      - /opt/ganj-vpn/secrets/runtime:/run/secrets/ganj:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      control-api:
+        condition: service_healthy
