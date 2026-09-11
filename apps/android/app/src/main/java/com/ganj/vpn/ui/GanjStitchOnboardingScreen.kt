@@ -37,6 +37,9 @@ import com.ganj.vpn.R
 
 @Composable
 internal fun StitchOnboardingScreen(
+    telegramLinked: Boolean,
+    telegramBusy: Boolean,
+    onTelegramLogin: () -> Unit,
     onComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -101,6 +104,14 @@ internal fun StitchOnboardingScreen(
             )
         }
 
+        if (step == 0) {
+            OnboardingTelegramAction(
+                linked = telegramLinked,
+                busy = telegramBusy,
+                onClick = onTelegramLogin,
+            )
+        }
+
         if (!lastStep) {
             Box(
                 modifier = Modifier
@@ -118,6 +129,48 @@ internal fun StitchOnboardingScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun OnboardingTelegramAction(
+    linked: Boolean,
+    busy: Boolean,
+    onClick: () -> Unit,
+) {
+    val enabled = !linked && !busy
+    val title = when {
+        linked -> "حساب تلگرام متصل است"
+        busy -> "در حال باز کردن تلگرام…"
+        else -> "ورود اختیاری با تلگرام"
+    }
+    val body = if (linked) {
+        "سرویس‌های خریداری‌شده حساب شما بعد از پایان راهنما همگام می‌شوند."
+    } else {
+        "فقط برای بازیابی سرویس‌های خریداری‌شده؛ استفاده رایگان همچنان بدون ورود ممکن است."
+    }
+
+    GanjGlassSurface(
+        role = GanjGlassRole.Regular,
+        accent = if (linked) MaterialTheme.colorScheme.primary else GanjGold,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        shapeRadius = 20.dp,
+        padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = if (linked) MaterialTheme.colorScheme.primary else GanjGold,
+        )
+        Text(
+            text = body,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -140,7 +193,7 @@ private fun OnboardingWelcomeCard() {
         )
         OnboardingPoint(
             title = "حساب تلگرام اختیاری است",
-            body = "برای سرویس‌های خریداری‌شده می‌توانید بعداً از بخش پروفایل حساب تلگرام خود را متصل کنید.",
+            body = "برای سرویس‌های خریداری‌شده می‌توانید همین‌جا یا بعداً از بخش پروفایل حساب تلگرام خود را متصل کنید.",
         )
     }
 }
