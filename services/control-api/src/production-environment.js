@@ -1,8 +1,10 @@
 import { readFile, stat } from 'node:fs/promises';
 
 const FILE_BINDINGS = Object.freeze([
+  ['DATABASE_URL_FILE', 'DATABASE_URL'],
   ['AUTH_SESSION_SIGNING_PRIVATE_JWK_FILE', 'AUTH_SESSION_SIGNING_PRIVATE_JWK'],
   ['TELEGRAM_OIDC_CLIENT_SECRET_FILE', 'TELEGRAM_OIDC_CLIENT_SECRET'],
+  ['GANJ_BOT_APPROVAL_SECRET_FILE', 'GANJ_BOT_APPROVAL_SECRET'],
 ]);
 
 async function readSecretFile(path, name) {

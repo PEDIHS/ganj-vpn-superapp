@@ -1,4 +1,5 @@
 import { createAdminAwareApplication } from './admin-aware-application.js';
+import { createBotApprovalApplication } from './bot-approval-application.js';
 import { createHttpServer } from './http.js';
 import { createLegacyAdminApplication, LegacyAdminReadModel } from './legacy-admin-routes.js';
 import { withOperationalReadiness } from './operational-application.js';
@@ -17,10 +18,17 @@ const legacyAdminApplication = typeof runtime.repository?.database === 'function
       readModel: new LegacyAdminReadModel(runtime.repository),
     })
   : adminApplication;
-const application = withOperationalReadiness(
+const operationalApplication = withOperationalReadiness(
   legacyAdminApplication,
   { repository: runtime.repository },
 );
+const application = environment.GANJ_BOT_USERNAME && environment.GANJ_BOT_APPROVAL_SECRET
+  ? createBotApprovalApplication({
+      baseApplication: operationalApplication,
+      runtime,
+      environment,
+    })
+  : operationalApplication;
 const port = Number(environment.PORT ?? 8080);
 const host = environment.HOST ?? '127.0.0.1';
 const server = createHttpServer(application);
@@ -31,6 +39,7 @@ server.listen(port, host, () => {
     host,
     port,
     adapter_mode: environment.CONTROL_API_ADAPTER_MODE ?? 'production',
+    telegram_bot_approval: Boolean(environment.GANJ_BOT_USERNAME && environment.GANJ_BOT_APPROVAL_SECRET),
   });
 });
 

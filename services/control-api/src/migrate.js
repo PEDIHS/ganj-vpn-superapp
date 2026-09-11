@@ -2,14 +2,19 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadProductionEnvironment } from './production-environment.js';
 
-if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for migrations.');
+const environment = await loadProductionEnvironment(process.env);
+if (!environment.DATABASE_URL) throw new Error('DATABASE_URL is required for migrations.');
+if (environment.NODE_ENV === 'production' && environment.MIGRATIONS_INCLUDE_TEST_SEED === 'true') {
+  throw new Error('Test seed migrations are forbidden in production.');
+}
 const { Pool } = await import('pg');
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: environment.DATABASE_URL,
   max: 1,
   connectionTimeoutMillis: 5_000,
-  ssl: process.env.DATABASE_SSL === 'require' ? { rejectUnauthorized: true } : undefined,
+  ssl: environment.DATABASE_SSL === 'require' ? { rejectUnauthorized: true } : undefined,
   application_name: 'ganj-vpn-control-api-migrator',
 });
 const migrationsDirectory = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
