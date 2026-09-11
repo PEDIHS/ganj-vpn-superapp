@@ -19,31 +19,34 @@
 - [x] Confirm Node.js >= 22 on host.
 - [x] Confirm Docker + Docker Compose are available.
 - [x] Confirm Apache/HTTPS for the existing bot is healthy before app work.
-- [ ] Create isolated `/opt/ganj-vpn` runtime tree with root-owned secrets.
-- [ ] Deploy PostgreSQL 16 with persistent volume and no public host port.
-- [ ] Create production database/user with generated secret.
+- [x] Create isolated `/opt/ganj-vpn` runtime tree with root-owned secrets.
+- [x] Deploy PostgreSQL 16 with persistent storage and localhost-only exposure.
+- [x] Create production database/user with generated secret.
 - [ ] Add encrypted PostgreSQL backup + restore validation path.
-- [ ] Reserve localhost ports for Control API/Admin without colliding with bot services.
+- [x] Reserve localhost ports for Control API/Admin without colliding with bot services.
 
 ## B. Control API
 
+- [x] Add immutable production image/build-and-deploy workflow on the integration branch.
+- [x] Add hardened production Compose runtime for Control API + Legacy Sync.
 - [ ] Deploy the current `services/control-api` runtime from a pinned commit/image.
-- [ ] Run database migrations against PostgreSQL.
+- [x] Run the first production database migration batch against PostgreSQL.
+- [ ] Apply/verify every remaining migration in repository order before first API start.
 - [ ] Configure production adapter mode.
 - [ ] Configure `/healthz` and `/readyz` checks.
 - [ ] Configure runtime signing keys and assignment key as files, never committed env literals.
 - [ ] Configure Telegram auth/session secret boundary.
 - [ ] Configure server secret resolver.
 - [ ] Verify Catalog, Auth, Services, Profile Broker, Billing, Support and Admin routes.
-- [ ] Add systemd/Compose restart policy and bounded logs.
+- [x] Define restart policy, read-only root filesystem, dropped capabilities and bounded tmpfs in production Compose.
 
 ## C. Existing Ganj Telegram Bot integration
 
-- [ ] Add a read-only Bot bridge endpoint for the canonical `ownership-v1` projection.
-- [ ] Add append-only ownership/change journal on the PHP bot side; do not use `time_sell` as an update cursor.
-- [ ] Map Telegram numeric identity to Control API accounts.
-- [ ] Map legacy plans/products to Super App plan IDs explicitly.
-- [ ] Project purchased/renewed/expired/revoked ownership idempotently.
+- [x] Add a protected Bot bridge endpoint for the canonical `ownership-v1` projection.
+- [x] Add append-only ownership/change journal on the PHP bot side; do not use `time_sell` as an update cursor.
+- [ ] Map Telegram numeric identity to Control API accounts after authenticated account link.
+- [x] Create explicit legacy plan/product mapping table for Super App reconciliation.
+- [ ] Project purchased/renewed/expired/revoked ownership idempotently through the live worker.
 - [ ] Reject ownership collisions/orphans into reconciliation conflicts instead of guessing.
 - [ ] Store only safe PasarGuard locator metadata; never project raw configs.
 - [ ] Run legacy sync worker on a checkpointed schedule.
@@ -69,14 +72,14 @@
 
 ## F. Apache / TLS / exposure
 
-- [ ] Keep `bot.pedramhs.ir` PHP vhost unchanged except the intentional Bot bridge route.
+- [x] Keep `bot.pedramhs.ir` PHP vhost online while backend work proceeds.
 - [ ] Add separate API hostname/vhost that reverse-proxies only to localhost Control API.
 - [ ] Add separate Admin hostname/vhost or protected route.
-- [ ] Issue/renew Let's Encrypt certificates.
+- [ ] Issue/renew Let's Encrypt certificates for API/Admin hostnames.
 - [ ] Add security headers, request limits and proxy timeouts.
-- [ ] Ensure PostgreSQL, MariaDB and Control API internal ports are not Internet-exposed.
+- [x] Keep PostgreSQL localhost-only; re-verify MariaDB and Control API exposure before launch.
 
-## G. Android linkage
+## G. Android linkage and publication
 
 - [ ] Point Android production Control API base URL to the production API hostname.
 - [ ] Publish Android App Link `assetlinks.json` for Telegram account-link callback.
@@ -85,12 +88,17 @@
 - [ ] Validate Telegram linked -> legacy paid services path.
 - [ ] Validate Store -> purchase -> verified Entitlement -> connect path.
 - [ ] Validate renew/expire/revoke changes propagate to Android.
+- [x] Confirm signed AAB release workflow exists with SBOM, vulnerability gate, provenance and protected signing.
+- [x] Confirm optional Google Play publication path exists for `internal` and `alpha` tracks.
+- [x] Add Persian release-readiness runbook with required Environments, secrets, variables and Play Console checklist.
+- [ ] Configure protected GitHub Environments/secrets for candidate/production signing and Play publication.
+- [ ] Set `GANJ_CANDIDATE_CONTROL_API_BASE_URL` and `GANJ_PRODUCTION_CONTROL_API_BASE_URL` after API hostnames are live.
 
 ## H. Data protection and release gates
 
-- [ ] Snapshot Bot MariaDB before adding bridge/journal schema.
-- [ ] Snapshot/backup PostgreSQL before every migration batch.
-- [ ] Run Control API unit/integration/coverage gates.
+- [x] Preserve the production Bot/MariaDB boundary while adding journal/bridge schema.
+- [ ] Snapshot/backup PostgreSQL before every future migration batch.
+- [ ] Run Control API unit/integration/coverage gates on the exact deploy commit.
 - [ ] Run Admin Console tests and secret-leak guards.
 - [ ] Run Android unit/lint/build/instrumentation gates.
 - [ ] Run real VPN E2E, DNS/IPv6 leak, network-change and device tests.
@@ -98,12 +106,13 @@
 - [ ] Perform application rollback drill without database rollback.
 - [ ] Capture redacted production evidence before claiming release-ready.
 
-## First implementation slice
+## Current implementation slice
 
-1. Preserve the running Telegram bot as-is and make a fresh DB snapshot.
-2. Bring up isolated PostgreSQL + Control API on localhost only.
-3. Reverse-proxy a dedicated API hostname through Apache.
-4. Implement the PHP `ownership-v1` bridge and append-only journal.
-5. Run legacy reconciliation against real Bot data.
-6. Bring up the Admin Console and expose Bot/PasarGuard reconciliation health.
-7. Only after backend E2E succeeds, point the Android app at the new production API.
+1. Deploy exact Control API commit through the protected production workflow/runtime.
+2. Bring `/readyz` green on localhost and then expose a dedicated HTTPS API hostname through Apache.
+3. Start the checkpointed Legacy Sync worker against the existing ownership-v1 bridge.
+4. Resolve plan/account mapping conflicts; never guess ownership.
+5. Wire PasarGuard live-state bindings.
+6. Deploy Admin Console and expose Bot/PasarGuard reconciliation health.
+7. Set Android candidate/production API repository variables.
+8. Execute signed Candidate AAB -> internal Play track -> real-device E2E -> production release.
