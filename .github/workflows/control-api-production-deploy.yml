@@ -1,0 +1,158 @@
+name: Control API production deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, tag or branch to deploy
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ganj-control-api-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build immutable Control API image
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      artifact_name: ${{ steps.meta.outputs.artifact_name }}
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Guard repository contents
+        shell: bash
+        run: bash .github/scripts/repository-guard.sh
+
+      - name: Build production image
+        id: meta
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          short_sha="${GITHUB_SHA::12}"
+          image_tag="ganj-control-api:${short_sha}"
+          artifact_name="ganj-control-api-${short_sha}"
+          docker build --pull --file services/control-api/Dockerfile --tag "$image_tag" services/control-api
+          printf 'image_tag=%s\n' "$image_tag" >> "$GITHUB_OUTPUT"
+          printf 'artifact_name=%s\n' "$artifact_name" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/control-api-release"
+          docker save "$image_tag" | gzip -9 > "$RUNNER_TEMP/control-api-release/image.tar.gz"
+          cp ops/production/compose.control-api.yml "$RUNNER_TEMP/control-api-release/compose.control-api.yml"
+          printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/control-api-release/commit.sha"
+          sha256sum "$RUNNER_TEMP/control-api-release/image.tar.gz" > "$RUNNER_TEMP/control-api-release/image.tar.gz.sha256"
+
+      - name: Upload immutable deployment bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: ${{ runner.temp }}/control-api-release/**
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    name: Deploy to Ganj production server
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ganj-production
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Download immutable deployment bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: ${{ runner.temp }}/control-api-release
+
+      - name: Validate SSH deployment configuration
+        shell: bash
+        env:
+          GANJ_PROD_SSH_HOST: ${{ secrets.GANJ_PROD_SSH_HOST }}
+          GANJ_PROD_SSH_USER: ${{ secrets.GANJ_PROD_SSH_USER }}
+          GANJ_PROD_SSH_PRIVATE_KEY: ${{ secrets.GANJ_PROD_SSH_PRIVATE_KEY }}
+          GANJ_PROD_SSH_HOST_KEY: ${{ secrets.GANJ_PROD_SSH_HOST_KEY }}
+        run: |
+          set -Eeuo pipefail
+          : "${GANJ_PROD_SSH_HOST:?Missing production SSH host}"
+          : "${GANJ_PROD_SSH_USER:?Missing production SSH user}"
+          : "${GANJ_PROD_SSH_PRIVATE_KEY:?Missing production SSH private key}"
+          : "${GANJ_PROD_SSH_HOST_KEY:?Missing pinned production SSH host key}"
+          install -d -m 0700 "$HOME/.ssh"
+          printf '%s\n' "$GANJ_PROD_SSH_PRIVATE_KEY" > "$HOME/.ssh/ganj_deploy"
+          chmod 0600 "$HOME/.ssh/ganj_deploy"
+          printf '%s\n' "$GANJ_PROD_SSH_HOST_KEY" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/known_hosts"
+
+      - name: Copy release bundle to production
+        shell: bash
+        env:
+          GANJ_PROD_SSH_HOST: ${{ secrets.GANJ_PROD_SSH_HOST }}
+          GANJ_PROD_SSH_USER: ${{ secrets.GANJ_PROD_SSH_USER }}
+        run: |
+          set -Eeuo pipefail
+          release_dir="/opt/ganj-vpn/releases/${GITHUB_SHA}"
+          ssh -i "$HOME/.ssh/ganj_deploy" -o BatchMode=yes "$GANJ_PROD_SSH_USER@$GANJ_PROD_SSH_HOST" \
+            "install -d -m 0750 '$release_dir'"
+          scp -i "$HOME/.ssh/ganj_deploy" -o BatchMode=yes \
+            "$RUNNER_TEMP/control-api-release/image.tar.gz" \
+            "$RUNNER_TEMP/control-api-release/image.tar.gz.sha256" \
+            "$RUNNER_TEMP/control-api-release/compose.control-api.yml" \
+            "$RUNNER_TEMP/control-api-release/commit.sha" \
+            "$GANJ_PROD_SSH_USER@$GANJ_PROD_SSH_HOST:$release_dir/"
+
+      - name: Activate release and verify readiness
+        shell: bash
+        env:
+          GANJ_PROD_SSH_HOST: ${{ secrets.GANJ_PROD_SSH_HOST }}
+          GANJ_PROD_SSH_USER: ${{ secrets.GANJ_PROD_SSH_USER }}
+          CONTROL_API_IMAGE: ${{ needs.build.outputs.image_tag }}
+        run: |
+          set -Eeuo pipefail
+          release_dir="/opt/ganj-vpn/releases/${GITHUB_SHA}"
+          ssh -i "$HOME/.ssh/ganj_deploy" -o BatchMode=yes "$GANJ_PROD_SSH_USER@$GANJ_PROD_SSH_HOST" \
+            "GITHUB_SHA='$GITHUB_SHA' CONTROL_API_IMAGE='$CONTROL_API_IMAGE' RELEASE_DIR='$release_dir' bash -se" <<'REMOTE'
+          set -Eeuo pipefail
+          : "${GITHUB_SHA:?}"
+          : "${CONTROL_API_IMAGE:?}"
+          : "${RELEASE_DIR:?}"
+          test -s /opt/ganj-vpn/secrets/control-api.env
+          test -s /opt/ganj-vpn/secrets/legacy-sync.env
+          test -d /opt/ganj-vpn/secrets/runtime
+          cd "$RELEASE_DIR"
+          sha256sum -c image.tar.gz.sha256
+          docker load < image.tar.gz
+          install -m 0644 compose.control-api.yml /opt/ganj-vpn/compose.control-api.yml
+          printf 'CONTROL_API_IMAGE=%s\n' "$CONTROL_API_IMAGE" > /opt/ganj-vpn/release.env
+          cd /opt/ganj-vpn
+          docker compose --env-file release.env -f compose.control-api.yml up -d --remove-orphans
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8080/readyz >/dev/null; then
+              printf '%s\n' "$GITHUB_SHA" > /opt/ganj-vpn/CURRENT_CONTROL_API_COMMIT
+              docker image prune -f >/dev/null
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose --env-file release.env -f compose.control-api.yml ps
+          docker logs --tail 200 ganj-control-api || true
+          exit 1
+          REMOTE
+
+      - name: Remove ephemeral SSH key
+        if: always()
+        shell: bash
+        run: rm -f "$HOME/.ssh/ganj_deploy"
