@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -37,13 +38,21 @@ internal fun GanjSettingsSwitchRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 68.dp)
+            .semantics(mergeDescendants = true) {
+                stateDescription = when {
+                    !enabled && checked -> "روشن، غیرفعال"
+                    !enabled -> "خاموش، غیرفعال"
+                    checked -> "روشن"
+                    else -> "خاموش"
+                }
+                if (!enabled) disabled()
+            }
             .toggleable(
                 value = checked,
                 enabled = enabled,
                 role = Role.Switch,
                 onValueChange = onCheckedChange,
             )
-            .semantics { stateDescription = if (checked) "روشن" else "خاموش" }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -71,8 +80,8 @@ internal fun GanjSettingsSwitchRow(
                 .background(track.copy(alpha = if (enabled) 0.86f else 0.42f))
                 .border(
                     1.dp,
-                    if (checked) MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-                    else MaterialTheme.colorScheme.outline.copy(alpha = 0.30f),
+                    if (checked) MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 0.72f else 0.34f)
+                    else MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 0.30f else 0.18f),
                     RoundedCornerShape(999.dp),
                 )
                 .padding(3.dp),
@@ -82,7 +91,10 @@ internal fun GanjSettingsSwitchRow(
                     .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
                     .size(24.dp)
                     .clip(CircleShape)
-                    .background(if (checked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface),
+                    .background(
+                        if (checked) MaterialTheme.colorScheme.onPrimary.copy(alpha = if (enabled) 1f else 0.62f)
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.62f),
+                    ),
             )
         }
     }
