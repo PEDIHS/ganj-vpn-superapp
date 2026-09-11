@@ -6,6 +6,7 @@ import { createGanjBotProjectionSource } from './adapters/ganj-bot-projection-so
 import { LegacySubscriptionReconciler } from './legacy-reconciliation.js';
 import { LegacyReconciliationWorker } from './legacy-worker.js';
 import { ControlApiUpstreamBindingSink, LegacyProjectionPipeline } from './legacy-upstream-binding.js';
+import { loadProductionEnvironment } from './production-environment.js';
 
 async function privateToken(path, name) {
   if (!path) throw new Error(`${name} is required.`);
@@ -36,6 +37,7 @@ async function createBindingSink(environment) {
 }
 
 export async function createLegacyRunner(environment = process.env) {
+  environment = await loadProductionEnvironment(environment);
   const sourceKey = environment.LEGACY_SOURCE_KEY ?? 'ganj-bot-primary';
   if (!/^[A-Za-z0-9._:-]{1,128}$/.test(sourceKey)) throw new Error('LEGACY_SOURCE_KEY is invalid.');
   const base = await createDataAdapter({ environment });
