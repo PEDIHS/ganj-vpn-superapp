@@ -20,6 +20,42 @@ import androidx.compose.ui.window.Dialog
 internal enum class GanjMessageTone { Info, Success, Warning, Error }
 
 @Composable
+internal fun GanjInfoDialog(
+    title: String,
+    body: String,
+    actionText: String,
+    onAction: () -> Unit,
+    onDismiss: () -> Unit,
+) = GanjLiquidMessageDialog(GanjMessageTone.Info, title, body, actionText, onAction, onDismiss)
+
+@Composable
+internal fun GanjSuccessDialog(
+    title: String,
+    body: String,
+    actionText: String,
+    onAction: () -> Unit,
+    onDismiss: () -> Unit,
+) = GanjLiquidMessageDialog(GanjMessageTone.Success, title, body, actionText, onAction, onDismiss)
+
+@Composable
+internal fun GanjWarningDialog(
+    title: String,
+    body: String,
+    actionText: String,
+    onAction: () -> Unit,
+    onDismiss: () -> Unit,
+) = GanjLiquidMessageDialog(GanjMessageTone.Warning, title, body, actionText, onAction, onDismiss)
+
+@Composable
+internal fun GanjErrorDialog(
+    title: String,
+    body: String,
+    actionText: String,
+    onAction: () -> Unit,
+    onDismiss: () -> Unit,
+) = GanjLiquidMessageDialog(GanjMessageTone.Error, title, body, actionText, onAction, onDismiss)
+
+@Composable
 internal fun GanjLiquidMessageDialog(
     tone: GanjMessageTone,
     title: String,
@@ -144,7 +180,12 @@ internal fun GanjFullScreenBlockingState(
                     modifier = Modifier.align(Alignment.Center),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = when (statusTone) {
+                        GanjStatusTone.Warning,
+                        GanjStatusTone.Premium -> MaterialTheme.colorScheme.onSecondary
+                        GanjStatusTone.Danger -> MaterialTheme.colorScheme.onError
+                        else -> MaterialTheme.colorScheme.onPrimary
+                    },
                 )
             }
         }
