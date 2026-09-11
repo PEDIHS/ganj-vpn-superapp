@@ -1,0 +1,24 @@
+[Unit]
+Description=Ganj VPN Control API
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ganj-api
+Group=ganj-api
+WorkingDirectory=/opt/ganj-vpn/current
+EnvironmentFile=/opt/ganj-vpn/secrets/control-api.env
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictSUIDSGID=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

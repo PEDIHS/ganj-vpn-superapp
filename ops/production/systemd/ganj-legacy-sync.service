@@ -1,0 +1,21 @@
+[Unit]
+Description=Ganj VPN Legacy Subscription Sync
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ganj-api
+Group=ganj-api
+WorkingDirectory=/opt/ganj-vpn/current
+EnvironmentFile=/opt/ganj-vpn/secrets/control-api.env
+EnvironmentFile=/opt/ganj-vpn/secrets/legacy-sync.env
+ExecStart=/usr/bin/node src/legacy-runner.js
+TimeoutStartSec=240
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictSUIDSGID=true
+UMask=0077
