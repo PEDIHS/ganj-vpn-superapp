@@ -488,6 +488,9 @@ fun GanjVpnApp(
 
             else -> if (!userPreferences.onboardingCompleted) {
                 StitchOnboardingScreen(
+                    telegramLinked = telegramLinked,
+                    telegramBusy = telegramBusy,
+                    onTelegramLogin = onTelegramLogin,
                     onComplete = onOnboardingCompleted,
                     modifier = Modifier.fillMaxSize(),
                 )
