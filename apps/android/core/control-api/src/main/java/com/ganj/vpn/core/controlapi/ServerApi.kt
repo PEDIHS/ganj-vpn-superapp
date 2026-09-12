@@ -16,7 +16,7 @@ data class ConnectionServer(
 )
 
 interface ServerApi {
-    fun servers(): ApiResult<List<ConnectionServer>>
+    fun servers(serviceId: String? = null): ApiResult<List<ConnectionServer>>
 }
 
 object ServerApiFactory {
@@ -40,14 +40,20 @@ internal class DefaultServerApi(
     private val tokenProvider: AuthTokenProvider,
     private val authenticationEvents: AuthenticationEventSink,
 ) : ServerApi {
-    override fun servers(): ApiResult<List<ConnectionServer>> {
+    override fun servers(serviceId: String?): ApiResult<List<ConnectionServer>> {
         val token = tokenProvider.currentAccessToken()
             ?: return ApiResult.Failure(ApiError.AuthenticationRequired())
+        val path = when {
+            serviceId == null -> "/servers"
+            runCatching { UUID.fromString(serviceId).toString() }.getOrNull() == serviceId.lowercase() ->
+                "/servers?service_id=$serviceId"
+            else -> return ApiResult.Failure(ApiError.Validation(field = "service_id", reason = "invalid_uuid"))
+        }
         return when (
             val result = transport.execute(
                 HttpRequest(
                     method = HttpMethod.GET,
-                    pathAndQuery = "/servers",
+                    pathAndQuery = path,
                     headers = mapOf("Authorization" to token.authorizationValue()),
                 ),
             )
