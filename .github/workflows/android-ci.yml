@@ -13,7 +13,7 @@ on:
       - ".github/scripts/build-pinned-libxray.sh"
       - ".github/scripts/verify-libxray-embedding.sh"
   push:
-    branches: [main]
+    branches: [main, ui/stitch-persian-liquid-v1]
     paths:
       - "apps/android/**"
       - "UPSTREAM.lock.json"
@@ -27,7 +27,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.ref }}
@@ -103,6 +103,29 @@ jobs:
             exit 1
           fi
           sha256sum "$apk" > "$apk.sha256"
+
+      - name: Publish rolling Alpha release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/ui/stitch-persian-liquid-v1'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
+          cp "$apk" ganj-vpn-alpha-arm64.apk
+          sha256sum ganj-vpn-alpha-arm64.apk > ganj-vpn-alpha-arm64.apk.sha256
+          if gh release view alpha-latest >/dev/null 2>&1; then
+            gh release upload alpha-latest \
+              ganj-vpn-alpha-arm64.apk \
+              ganj-vpn-alpha-arm64.apk.sha256 \
+              --clobber
+          else
+            gh release create alpha-latest \
+              ganj-vpn-alpha-arm64.apk \
+              ganj-vpn-alpha-arm64.apk.sha256 \
+              --title "Ganj VPN Alpha" \
+              --notes "Rolling ARM64 Alpha build verified by Android CI."
+          fi
 
       - name: Capture release dependency graph
         working-directory: apps/android
