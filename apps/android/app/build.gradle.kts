@@ -9,6 +9,7 @@ val controlApiBaseUrl = providers.gradleProperty("GANJ_CONTROL_API_BASE_URL").or
 val telegramRedirectUri = providers.gradleProperty("GANJ_TELEGRAM_REDIRECT_URI")
     .orElse("https://auth.invalid/ganj/telegram/callback")
     .get()
+val alphaArm64Only = providers.gradleProperty("GANJ_ALPHA_ARM64_ONLY").orElse("false").get().toBoolean()
 val escapedControlApiBaseUrl = controlApiBaseUrl
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")
@@ -35,6 +36,11 @@ android {
         buildConfigField("String", "TELEGRAM_REDIRECT_URI", "\"$escapedTelegramRedirectUri\"")
         manifestPlaceholders["telegramAuthHost"] = telegramRedirect.host
         manifestPlaceholders["telegramAuthPath"] = telegramRedirectPath
+        if (alphaArm64Only) {
+            ndk {
+                abiFilters += "arm64-v8a"
+            }
+        }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
