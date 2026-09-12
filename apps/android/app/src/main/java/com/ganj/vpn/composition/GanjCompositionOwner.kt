@@ -11,6 +11,7 @@ import com.ganj.vpn.core.controlapi.DeviceApi
 import com.ganj.vpn.core.controlapi.DeviceApiFactory
 import com.ganj.vpn.core.controlapi.NotificationApi
 import com.ganj.vpn.core.controlapi.NotificationApiFactory
+import com.ganj.vpn.core.controlapi.ServerApiFactory
 import com.ganj.vpn.core.controlapi.SupportApi
 import com.ganj.vpn.core.controlapi.SupportApiFactory
 import com.ganj.vpn.core.controlapi.WalletApi
@@ -18,7 +19,6 @@ import com.ganj.vpn.core.controlapi.WalletApiFactory
 import com.ganj.vpn.core.controlapi.WalletSnapshot
 import com.ganj.vpn.core.controlapi.WalletTransactionPage
 import com.ganj.vpn.core.deviceidentity.AndroidDeviceIdentity
-import com.ganj.vpn.presentation.ConnectionProfileContextProvider
 import com.ganj.vpn.vpn.AndroidVpnSessionRevocationSink
 import java.net.URI
 
@@ -37,6 +37,7 @@ class GanjCompositionOwner internal constructor(
         walletApi?.transactions(cursor = cursor)
 
     override fun onCleared() {
+        ConnectionServerCompositionRegistry.unbind(composition)
         SupportCompositionRegistry.unbind(composition)
         NotificationCompositionRegistry.unbind(composition)
         DeviceCompositionRegistry.unbind(composition)
@@ -76,12 +77,16 @@ class GanjCompositionOwner internal constructor(
                 identity = deviceIdentity,
                 sessionRevocationSink = AndroidVpnSessionRevocationSink(application),
             )
+            val serverContext = LiveConnectionProfileContextProvider(
+                serverApi = ServerApiFactory.create(endpoint, sessionManager),
+                identity = deviceIdentity,
+            )
             val composition = GanjCompositionFactory.create(
                 application = application,
                 endpoint = endpoint,
                 tokenProvider = sessionManager,
                 currentUser = sessionManager,
-                connectionContext = ConnectionProfileContextProvider { null },
+                connectionContext = serverContext,
                 cryptoProvider = deviceIdentity,
             )
             val telegramAuth = TelegramAuthCoordinator(
@@ -94,6 +99,7 @@ class GanjCompositionOwner internal constructor(
             val deviceApi = DeviceApiFactory.create(endpoint, sessionManager)
             val notificationApi = NotificationApiFactory.create(endpoint, sessionManager)
             val supportApi = SupportApiFactory.create(endpoint, sessionManager)
+            ConnectionServerCompositionRegistry.bind(composition, serverContext)
             WalletCompositionRegistry.bind(composition, walletApi)
             DeviceCompositionRegistry.bind(composition, deviceApi)
             NotificationCompositionRegistry.bind(composition, notificationApi)
