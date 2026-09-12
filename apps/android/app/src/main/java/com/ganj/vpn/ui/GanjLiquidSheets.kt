@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -29,6 +30,7 @@ internal data class GanjSheetOption<T>(
     val enabled: Boolean = true,
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun GanjLiquidBottomSheet(
     title: String,
