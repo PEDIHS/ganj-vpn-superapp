@@ -32,7 +32,7 @@ jobs:
         working-directory: apps/android
         run: >-
           gradle --no-daemon :app:assembleDebug
-          -PGANJ_CONTROL_API_BASE_URL=https://bot.pedramhs.ir/app-api/
+          -PGANJ_CONTROL_API_BASE_URL=https://bot.pedramhs.ir/app-api/v1/
           -PGANJ_TELEGRAM_REDIRECT_URI=https://bot.pedramhs.ir/app-auth/telegram/callback
           -PGANJ_ALPHA_ARM64_ONLY=false
       - name: Enable KVM
