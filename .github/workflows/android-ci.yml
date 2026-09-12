@@ -55,7 +55,7 @@ jobs:
         -Dorg.gradle.daemon=false
         -Dorg.gradle.logging.stacktrace=all
         -Dkotlin.incremental=false
-      GANJ_ALPHA_CONTROL_API_BASE_URL: https://bot.pedramhs.ir/app-api/
+      GANJ_ALPHA_CONTROL_API_BASE_URL: https://bot.pedramhs.ir/app-api/v1/
       GANJ_ALPHA_TELEGRAM_REDIRECT_URI: https://bot.pedramhs.ir/app-auth/telegram/callback
     steps:
       - name: Check out source
@@ -84,6 +84,12 @@ jobs:
           gradle-version: "9.4.1"
           cache-provider: basic
           cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Enforce Alpha API version prefix
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$GANJ_ALPHA_CONTROL_API_BASE_URL" = "https://bot.pedramhs.ir/app-api/v1/"
 
       - name: Enforce subscription-only production surface
         working-directory: .
