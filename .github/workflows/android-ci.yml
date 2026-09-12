@@ -78,24 +78,30 @@ jobs:
         shell: bash
         run: bash .github/scripts/android-product-guard.sh
 
-      - name: Run unit tests, debug and release lint, and trusted debug build
+      - name: Run unit tests, debug and release lint, and trusted ARM64 alpha build
         working-directory: apps/android
         shell: bash
         run: >-
           gradle --no-daemon --stacktrace --warning-mode all
           -PGANJ_CONTROL_API_BASE_URL="$GANJ_ALPHA_CONTROL_API_BASE_URL"
           -PGANJ_TELEGRAM_REDIRECT_URI="$GANJ_ALPHA_TELEGRAM_REDIRECT_URI"
+          -PGANJ_ALPHA_ARM64_ONLY=true
           testDebugUnitTest
           lintDebug
           lintRelease
           :app:assembleDebug
 
-      - name: Verify generated debug APK
+      - name: Verify generated Telegram Alpha APK
         shell: bash
         run: |
           set -Eeuo pipefail
           apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
           bash .github/scripts/android-artifact-guard.sh "$apk"
+          size="$(stat -c '%s' "$apk")"
+          if (( size > 52428800 )); then
+            printf 'Telegram Alpha APK exceeds the 50 MiB Bot API upload limit: %s bytes\n' "$size" >&2
+            exit 1
+          fi
           sha256sum "$apk" > "$apk.sha256"
 
       - name: Capture release dependency graph
