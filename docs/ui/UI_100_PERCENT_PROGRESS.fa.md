@@ -797,6 +797,7 @@
 - Launcher/splash layer now references the vector directly, not through a bitmap-only inflater.
 - Version is 0.3.1-alpha / code 4. Startup execution becomes a prerequisite of Android CI and rolling publication; PR builds no longer overwrite the release.
 - UI Ledger sections touched: 1, 16, 25. Leaf items completed: none; official-artwork item reopened. Runtime regression results remain pending until CI completes.
+- Runtime smoke passed on API 24 and 35 at `5b4267d`, but screenshot review caught transparent canvas gradients exposing the dark splash window underneath Light-theme text. Canvas tints now composite over the active theme background, with opacity/contrast unit regressions and Light/Dark runtime screenshots. Final rerun remains pending.
 - Remaining boundary: approved original logo, physical-device startup/Login/VPN E2E, responsive/TalkBack and all other unchecked QA items remain open.
 - Overall UI completion: 196/492 = 39.8% (calculator output; no final UI claim).
 
