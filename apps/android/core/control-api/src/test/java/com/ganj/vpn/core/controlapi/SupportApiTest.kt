@@ -181,7 +181,9 @@ class SupportApiTest {
         )
 
         assertTrue(result is ApiResult.Failure)
-        assertTrue((result as ApiResult.Failure).error is ApiError.Conflict)
-        assertEquals("support_ticket_closed", result.error.code)
+        val failure = result as ApiResult.Failure
+        assertTrue(failure.error is ApiError.Conflict)
+        val conflict = failure.error as ApiError.Conflict
+        assertEquals("support_ticket_closed", conflict.code)
     }
 }
