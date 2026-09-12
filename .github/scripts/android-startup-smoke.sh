@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 mkdir -p startup-evidence
+fixture_pid=""
 capture() {
+  if [[ -n "$fixture_pid" ]]; then kill "$fixture_pid" 2>/dev/null || true; fi
   adb logcat -d -b crash > startup-evidence/crash.txt || true
   # Isolated guest emulator only: expose startup failures in CI logs.
   if grep -E 'FATAL EXCEPTION|Fatal signal' startup-evidence/crash.txt; then
@@ -31,6 +33,13 @@ done
 adb logcat -d -b crash > startup-evidence/crash.txt
 ! grep -E 'FATAL EXCEPTION|Fatal signal' startup-evidence/crash.txt
 adb install -r apps/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+python3 .github/scripts/vless-tun-fixture.py > startup-evidence/fixture.log 2>&1 &
+fixture_pid=$!
+for attempt in {1..30}; do
+  if grep -q 'fixture ready' startup-evidence/fixture.log; then break; fi
+  sleep 0.1
+done
+grep -q 'fixture ready' startup-evidence/fixture.log
 adb shell am instrument -w -r com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner > startup-evidence/instrumentation.txt
 cat startup-evidence/instrumentation.txt
 grep -E '^OK \([1-9][0-9]* tests?\)' startup-evidence/instrumentation.txt
