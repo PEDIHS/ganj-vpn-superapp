@@ -47,16 +47,6 @@ android {
     }
 
     buildTypes {
-        debug {
-            if (alphaArm64Only) {
-                isMinifyEnabled = true
-                isShrinkResources = true
-                proguardFiles(
-                    getDefaultProguardFile("proguard-android-optimize.txt"),
-                    "proguard-rules.pro",
-                )
-            }
-        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -99,7 +89,6 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")
 }
