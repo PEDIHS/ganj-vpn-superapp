@@ -14,6 +14,17 @@ import libXray.LibXray
 
 class XrayRuntimeTest {
     @Test
+    fun `latency config includes only authorized proxy with no TUN or direct bypass`() {
+        profile().use { profile ->
+            val json = XrayConfigCompiler().compileProbe(profile).consume()
+            assertTrue(json.contains("\"protocol\":\"vless\""))
+            assertFalse(json.contains("inbounds"))
+            assertFalse(json.contains("freedom"))
+            assertFalse(json.contains("xray.tun.fd"))
+        }
+    }
+
+    @Test
     fun `recreated bridges replace protection delegate without accumulating native controllers`() {
         val first = ReflectiveLibXrayBridge(javaClass.classLoader!!)
         assertTrue(first.installSocketProtector(SocketProtector { it == 90 }).success)

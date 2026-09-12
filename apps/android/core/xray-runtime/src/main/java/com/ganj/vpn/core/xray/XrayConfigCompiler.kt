@@ -9,6 +9,14 @@ import com.ganj.vpn.core.vpn.VpnProtocol
 class XrayConfigCompiler(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    fun compileProbe(profile: ProvisionedProfile): SensitiveXrayConfig {
+        check(!profile.isExpired(clock()))
+        return profile.useCredential { credential ->
+            val proxy = outbound(profile, credential, streamSettings(profile.transport, profile.security))
+            SensitiveXrayConfig("{\"log\":{\"loglevel\":\"none\"},\"outbounds\":[$proxy]}")
+        }
+    }
+
     fun compile(
         profile: ProvisionedProfile,
         tunFileDescriptor: Int,

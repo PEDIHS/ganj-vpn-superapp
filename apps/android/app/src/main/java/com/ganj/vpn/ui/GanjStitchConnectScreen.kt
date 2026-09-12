@@ -28,6 +28,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import com.ganj.vpn.composition.ConnectionServerCompositionRegistry
+import com.ganj.vpn.core.controlapi.ApiResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,10 +77,34 @@ internal fun StitchConnectionScreen(
     onOpenServers: () -> Unit,
     onOpenStore: () -> Unit,
     onRetry: () -> Unit,
+    onProbe: suspend (String, String) -> Long? = { _, _ -> null },
     modifier: Modifier = Modifier,
 ) {
     val connection = state.connection
     val service = state.selectedService
+    val scope = rememberCoroutineScope()
+    val serverController = remember { ConnectionServerCompositionRegistry.currentController() }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var ping by remember { mutableStateOf<Long?>(null) }
+    var pingBusy by remember { mutableStateOf(false) }
+    var smartBusy by remember { mutableStateOf(false) }
+    var smartFailure by remember { mutableStateOf(false) }
+    val runtimeServer = state.runtimeConnection.serverId
+    val runtimeService = state.runtimeConnection.serviceId
+    LaunchedEffect(runtimeServer, runtimeService, state.runtimeConnection.phase, lifecycle) {
+        ping = null
+        pingBusy = false
+        if (state.runtimeConnection.phase != com.ganj.vpn.core.vpn.ConnectionPhase.CONNECTED ||
+            runtimeService == null || runtimeServer == null) return@LaunchedEffect
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (isActive) {
+                pingBusy = true
+                ping = onProbe(runtimeService, runtimeServer)
+                pingBusy = false
+                delay(15_000)
+            }
+        }
+    }
     val visualState = when (state.runtimeConnection.phase) {
         com.ganj.vpn.core.vpn.ConnectionPhase.RECONNECTING -> GanjConnectionVisualState.Reconnecting
         com.ganj.vpn.core.vpn.ConnectionPhase.DISCONNECTING -> GanjConnectionVisualState.Connecting
@@ -95,13 +134,36 @@ internal fun StitchConnectionScreen(
             },
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
-        StitchMetricsCard()
+        StitchMetricsCard(ping, pingBusy)
+        if (smartBusy || smartFailure) Text(
+            if (smartBusy) "در حال سنجش و انتخاب سریع‌ترین کانفیگ…" else "هیچ کانفیگی پاسخ نداد؛ سرورها را بررسی کنید.",
+            style = MaterialTheme.typography.bodySmall,
+        )
         StitchSelectedServerCard(service = service, onOpenServers = onOpenServers)
         StitchSmartConnectCard(
-            enabled = service?.isActive == true,
+            enabled = service?.isActive == true && !smartBusy,
             onClick = {
-                service?.takeIf { it.isActive }?.let { onConnect(it.entitlementId) }
-                    ?: onOpenServers()
+                val selected = service?.takeIf { it.isActive }
+                val controller = serverController
+                if (selected == null || controller == null) onOpenServers()
+                else if (!smartBusy) scope.launch {
+                    smartBusy = true
+                    smartFailure = false
+                    try {
+                        val servers = (withContext(Dispatchers.IO) {
+                            controller.servers(selected.entitlementId)
+                        } as? ApiResult.Success)?.value.orEmpty()
+                        val measured = servers.mapNotNull { server ->
+                            onProbe(selected.entitlementId, server.id)?.let { server.id to it }
+                        }
+                        val best = measured.minByOrNull { it.second }
+                        if (best == null) smartFailure = true
+                        else {
+                            controller.selectServer(best.first)
+                            onConnect(selected.entitlementId)
+                        }
+                    } finally { smartBusy = false }
+                }
             },
         )
         StitchPremiumCard(premium = hasPremium, onOpenStore = onOpenStore)
@@ -385,7 +447,7 @@ private fun StitchConnectOrb(
 }
 
 @Composable
-private fun StitchMetricsCard() {
+private fun StitchMetricsCard(ping: Long?, measuring: Boolean) {
     GanjGlassSurface(
         role = GanjGlassRole.Dense,
         accent = MaterialTheme.colorScheme.primary,
@@ -399,7 +461,7 @@ private fun StitchMetricsCard() {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StitchMetric(label = "پینگ", value = "—", unit = "ms", highlight = true)
+            StitchMetric(label = "پینگ کانفیگ", value = if (measuring) "…" else ping?.toString() ?: "—", unit = "ms", highlight = true)
             StitchMetricDivider()
             StitchMetric(label = "دانلود", value = "—", unit = "Mbps")
             StitchMetricDivider()

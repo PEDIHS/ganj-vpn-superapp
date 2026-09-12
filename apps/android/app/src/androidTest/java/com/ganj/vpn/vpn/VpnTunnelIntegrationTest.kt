@@ -10,6 +10,8 @@ import androidx.test.uiautomator.Until
 import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.vpn.ProvisionedProfile
 import com.ganj.vpn.core.vpn.VpnProtocol
+import com.ganj.vpn.core.xray.ReflectiveLibXrayBridge
+import com.ganj.vpn.core.xray.XrayConfigCompiler
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlinx.coroutines.runBlocking
@@ -45,6 +47,14 @@ class VpnTunnelIntegrationTest {
             try {
                 val started = client.connect(ConnectionRequest(fixtureProfile()))
                 assertTrue(started.exceptionOrNull()?.message ?: "TUN start failed", started.isSuccess)
+                val latency = fixtureProfile().use { profile ->
+                    XrayConfigCompiler().compileProbe(profile).use { config ->
+                        ReflectiveLibXrayBridge(context.classLoader).probe(
+                            config, context.noBackupFilesDir, "http://198.18.0.1:18080/ganj-tun-check",
+                        )
+                    }
+                }
+                assertNotNull("real proxy latency must be measured without stopping VPN", latency)
                 Socket().use { socket ->
                     socket.soTimeout = 8_000
                     // Benchmark-only destination has no listening server in Android or the host.

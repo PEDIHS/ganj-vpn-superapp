@@ -946,6 +946,14 @@
 
 ## Mandatory update format after every Agent batch
 
+### 2026-09-12 — Connection/proxy latency checkpoint
+
+- Added server-authorized native Xray HTTP latency, streamed per-config results, explicit no-response state, and foreground-only 15-second refresh for the connected config.
+- Smart Connect measures eligible configs and chooses the fastest successful result; no synthetic latency or connection success is shown.
+- Cancelled stale service/server requests; switching active configs retains the TUN, and underlying-network callbacks exclude the VPN itself.
+- Added isolated emulator checks for OS consent denial/approval, real VLESS traffic through Android TUN, latency beside an active tunnel, disconnect and reconnect. CI results and physical-device QA are still pending for this batch.
+- UI Ledger sections touched: 5, 6, 20; leaf items completed: none pending validation; overall: 196/492 = 39.8%.
+
 Agent باید انتهای PR/commit summary این چهار خط را به‌روز کند:
 
 ```text

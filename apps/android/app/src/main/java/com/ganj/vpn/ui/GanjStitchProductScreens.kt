@@ -48,6 +48,9 @@ import com.ganj.vpn.presentation.PlanUiModel
 import com.ganj.vpn.presentation.ServiceUiModel
 import com.ganj.vpn.presentation.UiTier
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -215,6 +218,7 @@ internal fun StitchServersScreen(
     onSelectService: (String) -> Unit,
     onConnect: (String) -> Unit,
     onRetry: () -> Unit,
+    onProbe: suspend (String, String) -> Long? = { _, _ -> null },
     modifier: Modifier = Modifier,
 ) {
     var query by remember { mutableStateOf("") }
@@ -223,6 +227,27 @@ internal fun StitchServersScreen(
     var serverState by remember { mutableStateOf<ServiceServersUiState>(ServiceServersUiState.Idle) }
     var selectedServerId by remember { mutableStateOf(serverController?.selectedServerId()) }
     var loadedServiceId by remember { mutableStateOf<String?>(null) }
+    var loadJob by remember { mutableStateOf<Job?>(null) }
+    var probeJob by remember { mutableStateOf<Job?>(null) }
+    var latencies by remember { mutableStateOf<Map<String, Long?>>(emptyMap()) }
+    var measuring by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    fun probeServers(serviceId: String, servers: List<ConnectionServer>) {
+        probeJob?.cancel()
+        latencies = emptyMap()
+        measuring = servers.map { it.id }.toSet()
+        probeJob = scope.launch {
+            coroutineScope {
+                servers.forEach { server -> launch {
+                    val latency = onProbe(serviceId, server.id)
+                    if (isActive && loadedServiceId == serviceId) {
+                        latencies = latencies + (server.id to latency)
+                        measuring = measuring - server.id
+                    }
+                } }
+            }
+        }
+    }
 
     val services = state.serviceItems.filter { service ->
         query.isBlank() || service.displayName.contains(query, ignoreCase = true)
@@ -230,6 +255,10 @@ internal fun StitchServersScreen(
     val selectedService = state.selectedService
 
     fun loadServers(entitlementId: String) {
+        loadJob?.cancel()
+        probeJob?.cancel()
+        latencies = emptyMap()
+        measuring = emptySet()
         loadedServiceId = entitlementId
         selectedServerId = null
         serverController?.selectServer(null)
@@ -239,11 +268,14 @@ internal fun StitchServersScreen(
             return
         }
         serverState = ServiceServersUiState.Loading
-        scope.launch {
-            serverState = when (val result = withContext(Dispatchers.IO) { active.servers(entitlementId) }) {
+        loadJob = scope.launch {
+            val result = withContext(Dispatchers.IO) { active.servers(entitlementId) }
+            if (!isActive || loadedServiceId != entitlementId) return@launch
+            serverState = when (result) {
                 is ApiResult.Success -> if (result.value.isEmpty()) ServiceServersUiState.Empty else ServiceServersUiState.Ready(result.value)
                 is ApiResult.Failure -> ServiceServersUiState.Error("دریافت سرورهای این سرویس انجام نشد. دوباره تلاش کنید.")
             }
+            if (result is ApiResult.Success) probeServers(entitlementId, result.value)
         }
     }
 
@@ -251,6 +283,13 @@ internal fun StitchServersScreen(
         val selected = selectedService
         if (selected?.isActive == true && loadedServiceId != selected.entitlementId) {
             loadServers(selected.entitlementId)
+        } else if (selected?.isActive != true) {
+            loadJob?.cancel()
+            probeJob?.cancel()
+            loadedServiceId = null
+            serverState = ServiceServersUiState.Idle
+            selectedServerId = null
+            serverController?.selectServer(null)
         }
     }
 
@@ -355,10 +394,24 @@ internal fun StitchServersScreen(
                     serverState.message,
                 ) { loadServers(selectedService.entitlementId) }
                 is ServiceServersUiState.Ready -> {
+                    StitchMiniAction(
+                        text = if (measuring.isEmpty()) "تست دوباره پینگ کانفیگ‌ها" else "در حال تست کانفیگ‌ها…",
+                        accent = MaterialTheme.colorScheme.primary,
+                        onClick = {
+                            if (measuring.isEmpty()) probeServers(selectedService.entitlementId, serverState.items)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     serverState.items.forEach { server ->
                         StitchConnectionServerRow(
                             server = server,
                             selected = server.id == selectedServerId,
+                            latencyLabel = when {
+                                server.id in measuring -> "در حال سنجش…"
+                                latencies[server.id] != null -> "${latencies[server.id]} ms"
+                                latencies.containsKey(server.id) -> "پاسخ دریافت نشد"
+                                else -> "سنجیده نشده"
+                            },
                             onClick = {
                                 serverController?.selectServer(server.id)
                                 selectedServerId = server.id
@@ -716,6 +769,7 @@ private fun StitchServiceRow(
 private fun StitchConnectionServerRow(
     server: ConnectionServer,
     selected: Boolean,
+    latencyLabel: String,
     onClick: () -> Unit,
 ) {
     GanjGlassSurface(
@@ -752,6 +806,7 @@ private fun StitchConnectionServerRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 val protocolLabel = server.protocols.joinToString(" / ") { it.name.uppercase() }
+                Text(latencyLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 Text(
                     text = listOfNotNull(
                         server.city?.takeIf { it.isNotBlank() },

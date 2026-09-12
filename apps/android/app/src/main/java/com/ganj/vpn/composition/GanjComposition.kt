@@ -74,6 +74,7 @@ class GanjComposition internal constructor(
     private val actionVault: CheckoutActionVault,
     private val connectionEffects: ConnectionEffectExecutor,
     private val connectionActions: ConnectionActionVault,
+    private val latencyProber: com.ganj.vpn.presentation.ConnectionLatencyProber,
 ) : Closeable {
     @Volatile
     private var retainedUiState: GanjUiState = GanjUiState()
@@ -107,6 +108,8 @@ class GanjComposition internal constructor(
         connectionEffects.execute(handle)
 
     suspend fun disconnectVpn(): Result<Unit> = connectionEffects.disconnect()
+
+    suspend fun probeServer(serviceId: String, serverId: String): Long? = latencyProber.probe(serviceId, serverId)
 
     override fun close() {
         purchaseEvents.close()
@@ -243,6 +246,9 @@ object GanjCompositionFactory {
             actionVault = actionVault,
             connectionEffects = ConnectionEffectExecutor(connectionActions, api.profileBroker, tunnelConnector),
             connectionActions = connectionActions,
+            latencyProber = com.ganj.vpn.presentation.ConnectionLatencyProber(
+                repository, api.profileBroker, currentUser, connectionContext, tunnelConnector,
+            ),
         )
     }
 

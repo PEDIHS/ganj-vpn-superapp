@@ -2,6 +2,9 @@ package com.ganj.vpn.core.xray
 
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
+import java.io.File
+import org.json.JSONObject
+import org.json.JSONArray
 
 fun interface SocketProtector {
     fun protect(fileDescriptor: Int): Boolean
@@ -67,6 +70,28 @@ class ReflectiveLibXrayBridge(
             }?.invoke(null)
         }
         return stopped
+    }
+
+    /** Separate native instance: never stops/reconfigures the active VPN core. */
+    fun probe(config: SensitiveXrayConfig, privateDirectory: File, targetUrl: String = "https://www.gstatic.com/generate_204"): Long? {
+        val file = File.createTempFile("probe-", ".json", privateDirectory)
+        return try {
+            check(file.setReadable(false, false) && file.setWritable(false, false))
+            check(file.setReadable(true, true) && file.setWritable(true, true))
+            file.writeText(config.consume())
+            val item = JSONObject().put("configPath", file.absolutePath).put("outboundTag", "proxy")
+            val payload = JSONObject().put("configs", JSONArray().put(item)).put("timeout", 5).put("url", targetUrl)
+            val request = JSONObject().put("apiVersion", 1).put("method", "pingBatch").put("payload", payload)
+            val response = JSONObject(invokeMethod().invoke(null, request.toString()) as String)
+            if (!response.optBoolean("success")) return null
+            val result = response.optJSONObject("data")?.optJSONArray("results")?.optJSONObject(0) ?: return null
+            if (result.optBoolean("success")) result.optLong("delay", -1).takeIf { it >= 0 } else null
+        } catch (_: Exception) {
+            null
+        } finally {
+            file.delete()
+            config.close()
+        }
     }
 
     private fun invoke(

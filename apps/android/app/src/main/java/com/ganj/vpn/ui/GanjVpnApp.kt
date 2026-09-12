@@ -534,6 +534,7 @@ fun GanjVpnApp(
 
                             GanjDestination.Servers -> StitchServersScreen(
                                 state = state,
+                                onProbe = composition::probeServer,
                                 onSelectService = {
                                     commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
                                 },
@@ -546,6 +547,7 @@ fun GanjVpnApp(
 
                             GanjDestination.Connect -> StitchConnectionScreen(
                                 state = state,
+                                onProbe = composition::probeServer,
                                 onConnect = ::requestProfile,
                                 onDisconnect = ::disconnectTunnel,
                                 onOpenServers = { selectedDestination = GanjDestination.Servers },

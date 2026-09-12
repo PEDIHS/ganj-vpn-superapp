@@ -37,20 +37,29 @@ internal class LiveConnectionProfileContextProvider(
     override fun selectedServerId(): String? = selectedServerId
 
     override fun forEntitlement(entitlementId: String): ConnectionProfileContext? {
-        val publicIdentity = identity.publicIdentity().getOrNull() ?: return null
         val available = (serverApi.servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
         if (available.isEmpty()) return null
         val selected = selectedServerId?.let { id -> available.firstOrNull { it.id == id } }
             ?: available.first()
         selectedServerId = selected.id
+        return signedContext(entitlementId, selected.id)
+    }
 
+    override fun forServer(entitlementId: String, serverId: String): ConnectionProfileContext? {
+        val available = (serverApi.servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
+        if (available.none { it.id == serverId }) return null
+        return signedContext(entitlementId, serverId)
+    }
+
+    private fun signedContext(entitlementId: String, serverId: String): ConnectionProfileContext? {
+        val publicIdentity = identity.publicIdentity().getOrNull() ?: return null
         val clientNonce = UUID.randomUUID().toString().replace("-", "")
         val proofNonce = UUID.randomUUID().toString().replace("-", "")
         val path = connectionProfileProofPath(entitlementId)
         val unsignedBody = buildString(160) {
             append("{\"client_nonce\":\"").append(clientNonce)
             append("\",\"device_id\":\"").append(publicIdentity.installationId)
-            append("\",\"server_id\":\"").append(selected.id).append("\"}")
+            append("\",\"server_id\":\"").append(serverId).append("\"}")
         }.toByteArray(StandardCharsets.UTF_8)
         val request = DeviceProofRequest.create(
             method = "POST",
@@ -62,7 +71,7 @@ internal class LiveConnectionProfileContextProvider(
         val proof = identity.sign(request).getOrNull()?.compactValue() ?: return null
         return ConnectionProfileContext(
             deviceId = publicIdentity.installationId,
-            serverId = selected.id,
+            serverId = serverId,
             clientNonce = clientNonce,
             deviceProof = proof,
         )

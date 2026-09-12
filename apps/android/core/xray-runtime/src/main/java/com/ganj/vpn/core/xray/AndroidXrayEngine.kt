@@ -35,6 +35,8 @@ class AndroidXrayEngine(
 
     override fun currentState(): ConnectionState = state.get()
 
+    fun hasTunnel(): Boolean = tunnel != null
+
     override fun connect(request: ConnectionRequest): Result<Unit> = start(request, reconnect = false)
 
     override fun reconnect(request: ConnectionRequest): Result<Unit> = start(request, reconnect = true)

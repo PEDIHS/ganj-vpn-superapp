@@ -43,6 +43,16 @@ class AndroidVpnTunnelClient(context: Context) : TunnelConnector {
         Result.failure(IllegalStateException("vpn.service_disconnect_failed"))
     }
 
+    override suspend fun probe(profile: com.ganj.vpn.core.vpn.ProvisionedProfile): Long? = try {
+        withBoundService { it.probe(profile) }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    } finally {
+        profile.close()
+    }
+
     private suspend fun <T> withBoundService(block: suspend (GanjVpnService.LocalBinder) -> T): T {
         val bound = withTimeoutOrNull(10_000) { withContext(Dispatchers.Main.immediate) { bind() } }
             ?: error("vpn.service_bind_timeout")

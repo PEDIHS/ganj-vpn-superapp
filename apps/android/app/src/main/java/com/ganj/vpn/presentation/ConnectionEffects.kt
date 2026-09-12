@@ -76,6 +76,7 @@ class InMemoryConnectionActionVault(
 interface TunnelConnector {
     suspend fun connect(request: ConnectionRequest): Result<Unit>
     suspend fun disconnect(): Result<Unit>
+    suspend fun probe(profile: com.ganj.vpn.core.vpn.ProvisionedProfile): Long? = null
 }
 
 sealed interface ConnectionEffectResult {
