@@ -30,3 +30,8 @@ for attempt in 1 2; do
 done
 adb logcat -d -b crash > startup-evidence/crash.txt
 ! grep -E 'FATAL EXCEPTION|Fatal signal' startup-evidence/crash.txt
+adb install -r apps/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w -r com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner > startup-evidence/instrumentation.txt
+cat startup-evidence/instrumentation.txt
+grep -E '^OK \([1-9][0-9]* tests?\)' startup-evidence/instrumentation.txt
+! grep -E 'FAILURES|INSTRUMENTATION_FAILED|Process crashed' startup-evidence/instrumentation.txt

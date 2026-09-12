@@ -1,0 +1,48 @@
+name: Pinned Android VPN runtime
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/cache@v4
+        id: native-cache
+        with:
+          path: ${{ runner.temp }}/pinned-libxray
+          key: ganj-libxray-linux-v1-${{ hashFiles('UPSTREAM.lock.json', '.github/scripts/build-pinned-libxray.sh') }}
+      - uses: actions/setup-go@v6
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        with:
+          go-version: "1.26.3"
+          cache: false
+      - uses: actions/setup-java@v5
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v4
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        with:
+          cmdline-tools-version: "14742923"
+      - name: Build official runtime using the repository source and toolchain pins
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        run: |
+          sdkmanager "platforms;android-21" "build-tools;36.0.0" "ndk;29.0.14206865"
+          ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/29.0.14206865" bash .github/scripts/build-pinned-libxray.sh "$RUNNER_TEMP/pinned-libxray"
+      - name: Verify cached or freshly built provenance
+        run: |
+          cmp UPSTREAM.lock.json "$RUNNER_TEMP/pinned-libxray/evidence/UPSTREAM.lock.json"
+          cd "$RUNNER_TEMP/pinned-libxray/evidence"
+          sha256sum -c SHA256SUMS
+          test "$(sha256sum libXray.aar | cut -d ' ' -f 1)" = "$(jq -r .aarSha256 libxray-provenance.json)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: alpha-pinned-libxray
+          path: ${{ runner.temp }}/pinned-libxray/
+          retention-days: 7
