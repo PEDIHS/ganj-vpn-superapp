@@ -1,0 +1,58 @@
+name: Alpha APK Export
+
+on:
+  push:
+    branches:
+      - ui/stitch-persian-liquid-v1
+    paths:
+      - .github/workflows/alpha-export.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ARTIFACT_ID: "10295648269"
+      RELEASE_TAG: "alpha-bf9e3f1"
+      APK_SHA: "bf9e3f1be5e1c996b4630f3590e1298dd3b1e86f"
+    steps:
+      - name: Download verified Android artifact
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          curl --fail --location \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            --output /tmp/ganj-alpha.zip
+          mkdir -p /tmp/ganj-alpha
+          unzip -q /tmp/ganj-alpha.zip -d /tmp/ganj-alpha
+          expected="$(awk '{print $1}' /tmp/ganj-alpha/app-debug.apk.sha256)"
+          actual="$(sha256sum /tmp/ganj-alpha/app-debug.apk | awk '{print $1}')"
+          test "$expected" = "$actual"
+          cp /tmp/ganj-alpha/app-debug.apk /tmp/ganj-vpn-alpha-arm64.apk
+          printf '%s  %s\n' "$actual" ganj-vpn-alpha-arm64.apk > /tmp/ganj-vpn-alpha-arm64.apk.sha256
+          test "$(stat -c '%s' /tmp/ganj-vpn-alpha-arm64.apk)" -le 52428800
+      - name: Publish Alpha prerelease
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" \
+              /tmp/ganj-vpn-alpha-arm64.apk \
+              /tmp/ganj-vpn-alpha-arm64.apk.sha256 \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$RELEASE_TAG" \
+              /tmp/ganj-vpn-alpha-arm64.apk \
+              /tmp/ganj-vpn-alpha-arm64.apk.sha256 \
+              --prerelease \
+              --target "$APK_SHA" \
+              --title "Ganj VPN Alpha 0.3.0 ARM64 (bf9e3f1)" \
+              --notes "ARM64 Android Alpha build. Unminified runtime, compressed native libraries, CI verified under the Telegram Bot API file-size limit." \
+              --repo "$GITHUB_REPOSITORY"
+          fi
