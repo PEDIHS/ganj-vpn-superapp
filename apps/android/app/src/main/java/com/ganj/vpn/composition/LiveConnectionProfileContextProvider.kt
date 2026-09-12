@@ -78,6 +78,9 @@ internal object ConnectionServerCompositionRegistry {
     fun controller(composition: GanjComposition): ConnectionServerController? = values[composition]
 
     @Synchronized
+    fun currentController(): ConnectionServerController? = values.values.firstOrNull()
+
+    @Synchronized
     fun unbind(composition: GanjComposition) {
         values.remove(composition)
     }

@@ -24,9 +24,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,12 +38,18 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ganj.vpn.composition.ConnectionServerCompositionRegistry
+import com.ganj.vpn.core.controlapi.ApiResult
+import com.ganj.vpn.core.controlapi.ConnectionServer
 import com.ganj.vpn.presentation.CheckoutUiState
 import com.ganj.vpn.presentation.ContentState
 import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.PlanUiModel
 import com.ganj.vpn.presentation.ServiceUiModel
 import com.ganj.vpn.presentation.UiTier
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val StitchProductGold = Color(0xFFD5A63A)
 private val StitchProductGoldBright = Color(0xFFF0CD70)
@@ -104,7 +112,7 @@ internal fun StitchHomeScreen(
                     modifier = Modifier.weight(1f),
                 )
                 StitchMiniAction(
-                    text = "انتخاب سرور",
+                    text = "انتخاب سرویس",
                     accent = MaterialTheme.colorScheme.secondary,
                     onClick = onOpenServers,
                     modifier = Modifier.weight(1f),
@@ -119,7 +127,7 @@ internal fun StitchHomeScreen(
         ) {
             StitchQuickCard(
                 icon = StitchQuickIcon.SERVERS,
-                title = "سرورها",
+                title = "سرویس‌های من",
                 subtitle = "${activeServices.size.toPersianDigits()} سرویس فعال",
                 onClick = onOpenServers,
                 modifier = Modifier.weight(1f),
@@ -193,7 +201,13 @@ internal fun StitchHomeScreen(
     }
 }
 
-private enum class ServerFilter { ALL, FREE, PREMIUM }
+internal sealed interface ServiceServersUiState {
+    data object Idle : ServiceServersUiState
+    data object Loading : ServiceServersUiState
+    data object Empty : ServiceServersUiState
+    data class Ready(val items: List<ConnectionServer>) : ServiceServersUiState
+    data class Error(val message: String) : ServiceServersUiState
+}
 
 @Composable
 internal fun StitchServersScreen(
@@ -204,26 +218,48 @@ internal fun StitchServersScreen(
     modifier: Modifier = Modifier,
 ) {
     var query by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf(ServerFilter.ALL) }
+    val scope = rememberCoroutineScope()
+    val serverController = remember { ConnectionServerCompositionRegistry.currentController() }
+    var serverState by remember { mutableStateOf<ServiceServersUiState>(ServiceServersUiState.Idle) }
+    var selectedServerId by remember { mutableStateOf(serverController?.selectedServerId()) }
+    var loadedServiceId by remember { mutableStateOf<String?>(null) }
 
     val services = state.serviceItems.filter { service ->
-        val matchesQuery = query.isBlank() ||
-            service.displayName.contains(query, ignoreCase = true) ||
-            service.countryCode.orEmpty().contains(query, ignoreCase = true) ||
-            serverCountry(service.countryCode).contains(query, ignoreCase = true)
-        val matchesFilter = when (filter) {
-            ServerFilter.ALL -> true
-            ServerFilter.FREE -> service.tier == UiTier.FREE
-            ServerFilter.PREMIUM -> service.tier != UiTier.FREE
+        query.isBlank() || service.displayName.contains(query, ignoreCase = true)
+    }
+    val selectedService = state.selectedService
+
+    fun loadServers(entitlementId: String) {
+        loadedServiceId = entitlementId
+        selectedServerId = null
+        serverController?.selectServer(null)
+        val active = serverController
+        if (active == null) {
+            serverState = ServiceServersUiState.Error("سرویس دریافت سرورها در این نسخه آماده نیست.")
+            return
         }
-        matchesQuery && matchesFilter
+        serverState = ServiceServersUiState.Loading
+        scope.launch {
+            serverState = when (val result = withContext(Dispatchers.IO) { active.servers(entitlementId) }) {
+                is ApiResult.Success -> if (result.value.isEmpty()) ServiceServersUiState.Empty else ServiceServersUiState.Ready(result.value)
+                is ApiResult.Failure -> ServiceServersUiState.Error("دریافت سرورهای این سرویس انجام نشد. دوباره تلاش کنید.")
+            }
+        }
+    }
+
+    LaunchedEffect(selectedService?.entitlementId, selectedService?.isActive) {
+        val selected = selectedService
+        if (selected?.isActive == true && loadedServiceId != selected.entitlementId) {
+            loadServers(selected.entitlementId)
+        }
     }
 
     StitchPage(modifier) {
         StitchSimpleHeader(
-            title = "سرورها",
-            subtitle = "انتخاب بهترین سرویس فعال برای اتصال",
-            badge = "${state.serviceItems.size.toPersianDigits()} سرور",
+            title = "سرویس‌های من",
+            subtitle = "اشتراک‌های همگام‌شده از ربات گنج",
+            badge = "${state.serviceItems.count { it.isActive }.toPersianDigits()} فعال",
+            goldBadge = state.serviceItems.any { it.isActive },
         )
 
         OutlinedTextField(
@@ -231,9 +267,7 @@ internal fun StitchServersScreen(
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            placeholder = {
-                Text("جستجوی کشور یا سرور", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            },
+            placeholder = { Text("جستجوی سرویس", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             shape = RoundedCornerShape(18.dp),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
@@ -243,89 +277,12 @@ internal fun StitchServersScreen(
             ),
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            StitchFilterChip("همه", filter == ServerFilter.ALL) { filter = ServerFilter.ALL }
-            StitchFilterChip("رایگان", filter == ServerFilter.FREE) { filter = ServerFilter.FREE }
-            StitchFilterChip("پریمیوم", filter == ServerFilter.PREMIUM, gold = true) {
-                filter = ServerFilter.PREMIUM
-            }
-        }
-
-        GanjGlassSurface(
-            role = GanjGlassRole.Prominent,
-            accent = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    role = Role.Button,
-                    enabled = state.selectedService?.isActive == true,
-                    onClick = {
-                        state.selectedService?.takeIf { it.isActive }?.let { onConnect(it.entitlementId) }
-                    },
-                ),
-            shapeRadius = 22.dp,
-            padding = PaddingValues(16.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(11.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
-                            .border(
-                                1.dp,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.26f),
-                                RoundedCornerShape(14.dp),
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        GanjNavigationIcon(
-                            destination = GanjDestination.Connect,
-                            tint = StitchProductEmerald,
-                            modifier = Modifier.size(23.dp),
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "اتصال هوشمند",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = StitchProductEmerald,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = state.selectedService?.displayName ?: "ابتدا یک سرویس را از لیست انتخاب کنید",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                StitchPill(
-                    text = "اتصال",
-                    onClick = {
-                        state.selectedService?.takeIf { it.isActive }?.let { onConnect(it.entitlementId) }
-                    },
-                )
-            }
-        }
-
-        StitchSectionLabel("فهرست سرورها")
+        StitchSectionLabel("اشتراک‌های من")
         when (val content = state.services) {
-            ContentState.Loading -> LoadingCard("در حال دریافت سرورها")
+            ContentState.Loading -> LoadingCard("در حال دریافت سرویس‌های شما")
             ContentState.Empty -> EmptyCard(
-                "سروری پیدا نشد",
-                "برای دریافت دوباره فهرست سرورها تلاش کنید.",
+                "سرویس فعالی پیدا نشد",
+                "اشتراک‌های فعال ربات گنج پس از همگام‌سازی اینجا نمایش داده می‌شوند.",
                 onRetry,
             )
             ContentState.AuthRequired -> AuthCard(onRetry)
@@ -336,18 +293,90 @@ internal fun StitchServersScreen(
                         role = GanjGlassRole.Dense,
                         accent = MaterialTheme.colorScheme.outline,
                         modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("نتیجه‌ای با این فیلتر پیدا نشد", fontWeight = FontWeight.SemiBold)
-                    }
+                    ) { Text("سرویسی با این عبارت پیدا نشد", fontWeight = FontWeight.SemiBold) }
                 } else {
                     services.forEach { service ->
-                        StitchServerRow(
+                        StitchServiceRow(
                             service = service,
                             selected = service.entitlementId == state.selectedEntitlementId,
                             onClick = {
                                 onSelectService(service.entitlementId)
-                                if (service.isActive) onConnect(service.entitlementId)
+                                if (service.isActive) loadServers(service.entitlementId)
                             },
+                        )
+                    }
+                }
+            }
+        }
+
+        StitchSectionLabel("سرورهای سرویس انتخاب‌شده")
+        if (selectedService == null) {
+            GanjGlassSurface(
+                role = GanjGlassRole.Dense,
+                accent = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("ابتدا یکی از سرویس‌های خود را انتخاب کنید.") }
+        } else if (!selectedService.isActive) {
+            GanjGlassSurface(
+                role = GanjGlassRole.Dense,
+                accent = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("این سرویس فعال نیست و امکان دریافت سرورهای اتصال را ندارد.") }
+        } else {
+            GanjGlassSurface(
+                role = GanjGlassRole.Prominent,
+                accent = StitchProductGold,
+                modifier = Modifier.fillMaxWidth(),
+                shapeRadius = 22.dp,
+                padding = PaddingValues(16.dp),
+            ) {
+                Text(
+                    text = selectedService.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = StitchProductGoldBright,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "فقط کانفیگ‌های متعلق به همین اشتراک نمایش داده می‌شوند.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            when (serverState) {
+                ServiceServersUiState.Idle -> LoadingCard("در حال آماده‌سازی سرورهای سرویس")
+                ServiceServersUiState.Loading -> LoadingCard("در حال دریافت کانفیگ‌های همین سرویس")
+                ServiceServersUiState.Empty -> EmptyCard(
+                    "کانفیگی برای این سرویس پیدا نشد",
+                    "فهرست اتصال را دوباره از ربات گنج دریافت کنید.",
+                ) { loadServers(selectedService.entitlementId) }
+                is ServiceServersUiState.Error -> EmptyCard(
+                    "دریافت سرورها انجام نشد",
+                    serverState.message,
+                ) { loadServers(selectedService.entitlementId) }
+                is ServiceServersUiState.Ready -> {
+                    serverState.items.forEach { server ->
+                        StitchConnectionServerRow(
+                            server = server,
+                            selected = server.id == selectedServerId,
+                            onClick = {
+                                serverController?.selectServer(server.id)
+                                selectedServerId = server.id
+                            },
+                        )
+                    }
+                    if (selectedServerId == null) {
+                        Text(
+                            text = "برای اتصال یکی از سرورها را انتخاب کنید.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        StitchMiniAction(
+                            text = "اتصال با سرور انتخاب‌شده",
+                            accent = MaterialTheme.colorScheme.primary,
+                            onClick = { onConnect(selectedService.entitlementId) },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
@@ -640,7 +669,7 @@ private fun StitchFilterChip(
 }
 
 @Composable
-private fun StitchServerRow(
+private fun StitchServiceRow(
     service: ServiceUiModel,
     selected: Boolean,
     onClick: () -> Unit,
@@ -649,7 +678,9 @@ private fun StitchServerRow(
     GanjGlassSurface(
         role = if (selected) GanjGlassRole.Prominent else GanjGlassRole.Dense,
         accent = if (premium) StitchProductGold else MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick),
         shapeRadius = 20.dp,
         padding = PaddingValues(14.dp),
     ) {
@@ -658,49 +689,86 @@ private fun StitchServerRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(serverFlag(service.countryCode), style = MaterialTheme.typography.titleMedium)
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = service.displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = "${serverCountry(service.countryCode)} • ${if (premium) "پریمیوم" else "رایگان"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Column(horizontalAlignment = Alignment.End) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = persianTechnicalMetric("—", "ms"),
-                    color = StitchProductEmerald,
-                    style = MaterialTheme.typography.labelMedium,
+                    text = service.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = if (selected) "انتخاب‌شده" else if (service.isActive) "آماده" else serviceStatusText(service.status),
-                    color = if (selected) StitchProductEmerald else MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
+                    text = "${if (premium) "VIP / پریمیوم" else "رایگان"} • ${serviceStatusText(service.status)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            StitchStaticPill(
+                text = if (selected) "انتخاب‌شده" else if (service.isActive) "انتخاب" else serviceStatusText(service.status),
+                gold = premium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StitchConnectionServerRow(
+    server: ConnectionServer,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    GanjGlassSurface(
+        role = if (selected) GanjGlassRole.Prominent else GanjGlassRole.Dense,
+        accent = if (selected) StitchProductEmerald else MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick),
+        shapeRadius = 20.dp,
+        padding = PaddingValues(14.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(serverFlag(server.countryCode), style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = server.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val protocolLabel = server.protocols.joinToString(" / ") { it.name.uppercase() }
+                Text(
+                    text = listOfNotNull(
+                        server.city?.takeIf { it.isNotBlank() },
+                        serverCountry(server.countryCode).takeUnless { it == "جهانی" },
+                        protocolLabel,
+                    ).joinToString(" • "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = if (selected) "✓" else "‹",
+                color = if (selected) StitchProductEmerald else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }

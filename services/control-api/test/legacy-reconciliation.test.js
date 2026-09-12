@@ -226,6 +226,36 @@ test('unlinked Telegram customer becomes an operator conflict without entitlemen
   assert.equal(typeof detail.telegram_subject_digest, 'string');
 });
 
+test('an unlinked-customer conflict is retried after Telegram linking without a new event id', async () => {
+  const repository = new FakeLegacyRepository();
+  repository.users.clear();
+  const service = reconciler(repository);
+
+  const first = await service.reconcile(event());
+  assert.equal(first.conflictCode, 'legacy_customer_unlinked');
+  repository.users.set('telegram-subject-42', { id: USER_ID });
+
+  const retried = await service.reconcile(event());
+  assert.equal(retried.outcome, 'applied');
+  assert.equal(retried.replay, false);
+  assert.equal(repository.services.size, 1);
+});
+
+test('a missing-plan conflict is retried after an operator adds the plan mapping', async () => {
+  const repository = new FakeLegacyRepository();
+  repository.plans.clear();
+  const service = reconciler(repository);
+
+  const first = await service.reconcile(event());
+  assert.equal(first.conflictCode, 'legacy_plan_mapping_missing');
+  repository.plans.set('premium-30d', { id: PLAN_ID, tier: 'premium' });
+
+  const retried = await service.reconcile(event());
+  assert.equal(retried.outcome, 'applied');
+  assert.equal(retried.replay, false);
+  assert.equal(repository.services.size, 1);
+});
+
 test('existing customer mapping to another user is not silently overwritten', async () => {
   const repository = new FakeLegacyRepository();
   repository.customerMappings.set('ganj-primary-bot:tg-customer-42', {
