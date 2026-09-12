@@ -66,7 +66,11 @@ internal fun StitchConnectionScreen(
 ) {
     val connection = state.connection
     val service = state.selectedService
-    val visualState = connection.toStitchVisualState(service)
+    val visualState = when (state.runtimeConnection.phase) {
+        com.ganj.vpn.core.vpn.ConnectionPhase.RECONNECTING -> GanjConnectionVisualState.Reconnecting
+        com.ganj.vpn.core.vpn.ConnectionPhase.DISCONNECTING -> GanjConnectionVisualState.Connecting
+        else -> connection.toStitchVisualState(service)
+    }
     val hasPremium = state.serviceItems.any {
         it.isActive && (it.tier == UiTier.PREMIUM || it.tier == UiTier.VIP)
     }

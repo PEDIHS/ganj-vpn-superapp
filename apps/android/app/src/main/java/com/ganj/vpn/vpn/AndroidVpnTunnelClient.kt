@@ -10,100 +10,82 @@ import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.presentation.TunnelConnector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-class AndroidVpnTunnelClient(
-    context: Context,
-) : TunnelConnector {
+class AndroidVpnTunnelClient(context: Context) : TunnelConnector {
     private val applicationContext = context.applicationContext
 
-    override suspend fun connect(request: ConnectionRequest): Result<Unit> {
-        val started = runCatching {
-            val intent = Intent(applicationContext, GanjVpnService::class.java)
-                .setAction(GanjVpnService.ACTION_PREPARE)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                applicationContext.startForegroundService(intent)
-            } else {
-                applicationContext.startService(intent)
-            }
-        }
-        if (started.isFailure) return Result.failure(
-            started.exceptionOrNull() ?: IllegalStateException("vpn.service_start_failed"),
-        )
+    override suspend fun connect(request: ConnectionRequest): Result<Unit> = try {
+        val intent = Intent(applicationContext, GanjVpnService::class.java)
+            .setAction(GanjVpnService.ACTION_PREPARE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) applicationContext.startForegroundService(intent)
+        else applicationContext.startService(intent)
+        withBoundService { it.connect(request) }
+    } catch (cancelled: CancellationException) {
+        applicationContext.stopService(Intent(applicationContext, GanjVpnService::class.java))
+        throw cancelled
+    } catch (_: Exception) {
+        applicationContext.stopService(Intent(applicationContext, GanjVpnService::class.java))
+        Result.failure(IllegalStateException("vpn.service_start_failed"))
+    }
 
-        val bound = try {
-            withContext(Dispatchers.Main.immediate) { bind() }
-        } catch (cancelled: CancellationException) {
-            runCatching { applicationContext.stopService(Intent(applicationContext, GanjVpnService::class.java)) }
-            throw cancelled
-        } catch (error: RuntimeException) {
-            runCatching { applicationContext.stopService(Intent(applicationContext, GanjVpnService::class.java)) }
-            return Result.failure(error)
-        }
+    override suspend fun disconnect(): Result<Unit> = try {
+        // Wait for core stop and TUN close, not merely delivery of a service Intent.
+        withBoundService { it.disconnect() }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        Result.failure(IllegalStateException("vpn.service_disconnect_failed"))
+    }
+
+    private suspend fun <T> withBoundService(block: suspend (GanjVpnService.LocalBinder) -> T): T {
+        val bound = withTimeoutOrNull(10_000) { withContext(Dispatchers.Main.immediate) { bind() } }
+            ?: error("vpn.service_bind_timeout")
         return try {
-            withContext(Dispatchers.IO) { bound.binder.connect(request) }
+            block(bound.binder)
         } finally {
-            withContext(Dispatchers.Main.immediate) {
+            // Cancellation must not skip unbinding and leak the service/activity.
+            withContext(NonCancellable + Dispatchers.Main.immediate) {
                 runCatching { applicationContext.unbindService(bound.connection) }
             }
         }
     }
 
-    override suspend fun disconnect(): Result<Unit> = withContext(Dispatchers.Main.immediate) {
-        runCatching {
-            applicationContext.startService(
-                Intent(applicationContext, GanjVpnService::class.java)
-                    .setAction(GanjVpnService.ACTION_DISCONNECT),
-            )
-        }.map { Unit }
-    }
-
     private suspend fun bind(): BoundService = suspendCancellableCoroutine { continuation ->
         var registered = false
-        val connection = object : ServiceConnection {
+        lateinit var connection: ServiceConnection
+        fun fail(code: String) {
+            if (registered) {
+                runCatching { applicationContext.unbindService(connection) }
+                registered = false
+            }
+            if (continuation.isActive) continuation.resumeWithException(IllegalStateException(code))
+        }
+        connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
                 val binder = service as? GanjVpnService.LocalBinder
-                if (binder == null) {
-                    if (continuation.isActive) {
-                        continuation.resumeWithException(IllegalStateException("vpn.invalid_service_binder"))
-                    }
-                    return
-                }
-                if (continuation.isActive) continuation.resume(BoundService(binder, this))
+                if (binder == null) fail("vpn.invalid_service_binder")
+                else if (continuation.isActive) continuation.resume(BoundService(binder, this))
             }
-
-            override fun onServiceDisconnected(name: ComponentName?) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(IllegalStateException("vpn.service_disconnected"))
-                }
-            }
-
-            override fun onNullBinding(name: ComponentName?) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(IllegalStateException("vpn.service_binding_rejected"))
-                }
-            }
+            override fun onServiceDisconnected(name: ComponentName?) = fail("vpn.service_disconnected")
+            override fun onNullBinding(name: ComponentName?) = fail("vpn.service_binding_rejected")
+            override fun onBindingDied(name: ComponentName?) = fail("vpn.service_binding_died")
         }
         registered = applicationContext.bindService(
-            Intent(applicationContext, GanjVpnService::class.java)
-                .setAction(GanjVpnService.ACTION_LOCAL_BIND),
+            Intent(applicationContext, GanjVpnService::class.java).setAction(GanjVpnService.ACTION_LOCAL_BIND),
             connection,
             Context.BIND_AUTO_CREATE,
         )
-        if (!registered) {
-            continuation.resumeWithException(IllegalStateException("vpn.service_bind_failed"))
-            return@suspendCancellableCoroutine
-        }
+        if (!registered) fail("vpn.service_bind_failed")
         continuation.invokeOnCancellation {
             if (registered) runCatching { applicationContext.unbindService(connection) }
         }
     }
 
-    private data class BoundService(
-        val binder: GanjVpnService.LocalBinder,
-        val connection: ServiceConnection,
-    )
+    private data class BoundService(val binder: GanjVpnService.LocalBinder, val connection: ServiceConnection)
 }

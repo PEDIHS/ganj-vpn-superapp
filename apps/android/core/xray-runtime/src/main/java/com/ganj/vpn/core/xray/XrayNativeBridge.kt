@@ -19,9 +19,6 @@ interface XrayNativeBridge {
 class ReflectiveLibXrayBridge(
     private val classLoader: ClassLoader = ReflectiveLibXrayBridge::class.java.classLoader!!,
 ) : XrayNativeBridge {
-    @Volatile
-    private var socketCallback: Any? = null
-
     private val bridgeClass: Class<*> by lazy {
         listOf("libXray.LibXRay", "libXray.LibXray")
             .firstNotNullOfOrNull { runCatching { classLoader.loadClass(it) }.getOrNull() }
@@ -34,15 +31,25 @@ class ReflectiveLibXrayBridge(
         } ?: error("libXray socket-protection API is unavailable")
         val callbackType = register.parameterTypes.single()
         require(callbackType.isInterface) { "libXray socket callback is not an interface" }
-        val callback = Proxy.newProxyInstance(classLoader, arrayOf(callbackType)) { _, method, arguments ->
-            proxyCallback(method, arguments, protector)
+        // Upstream registration appends: a callback per connection leaves stale rejectors behind.
+        // Register once per native class and atomically replace only its current delegate.
+        val state = synchronized(protectionStates) {
+            protectionStates.getOrPut(bridgeClass) { ProtectionState() }
         }
-        register.invoke(null, callback)
+        val callback = synchronized(state) {
+            state.protector = protector
+            state.callback ?: Proxy.newProxyInstance(classLoader, arrayOf(callbackType)) { proxy, method, arguments ->
+                if (method.name == "equals") proxy === arguments?.firstOrNull()
+                else proxyCallback(method, arguments, SocketProtector { fd -> state.protector?.protect(fd) == true })
+            }.also {
+                register.invoke(null, it)
+                state.callback = it
+            }
+        }
         val setDns = bridgeClass.methods.firstOrNull {
             it.name.equals("setDNS", ignoreCase = true) && it.parameterTypes.size == 2
         } ?: error("libXray protected DNS API is unavailable")
         setDns.invoke(null, callback, PROTECTED_DNS)
-        socketCallback = callback
         NativeCallResult(true)
     }.getOrElse { NativeCallResult(false, "xray.socket_protection_unavailable") }
 
@@ -59,7 +66,6 @@ class ReflectiveLibXrayBridge(
                 it.name.equals("resetDNS", ignoreCase = true) && it.parameterTypes.isEmpty()
             }?.invoke(null)
         }
-        socketCallback = null
         return stopped
     }
 
@@ -113,7 +119,13 @@ class ReflectiveLibXrayBridge(
     }
 
     private companion object {
+        val protectionStates = java.util.WeakHashMap<Class<*>, ProtectionState>()
         const val PROTECTED_DNS = "1.1.1.1:53"
         val SUCCESS_PATTERN = Regex("\\\"success\\\"\\s*:\\s*true")
+    }
+
+    private class ProtectionState {
+        @Volatile var protector: SocketProtector? = null
+        var callback: Any? = null
     }
 }

@@ -789,6 +789,14 @@
 
 ## Batch Log
 
+### 2026-09-12 — Connection runtime checkpoint
+
+- Fixed packaged native API mismatch, accumulated socket-protection callbacks, and duplicate-connect teardown.
+- Disconnect now awaits the privileged service's actual result; binding timeout, binding death and cancellation cleanup are handled.
+- UI receives live service state including reconnect/error/revocation/process-restoration; an active permission/launch handle is preserved so observation cannot cancel its own connection coroutine.
+- Added native instrumentation and regression tests. Full TUN traffic/config probing and physical-device consent remain pending at this checkpoint; no new leaf checkbox is claimed.
+- UI Ledger sections touched: 13, 25, 26. Remaining unchecked leaves unchanged; calculator: 196/492 = 39.8%.
+
 ### 2026-09-12 — Alpha startup crash repair
 
 - Reproduced immediate first-launch crash on API 35: `ResourceResolutionException` in `StitchOnboardingScreen` loading `ganj_logo_official.png`.

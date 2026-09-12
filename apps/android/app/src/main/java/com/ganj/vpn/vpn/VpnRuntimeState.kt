@@ -1,0 +1,12 @@
+package com.ganj.vpn.vpn
+
+import com.ganj.vpn.core.vpn.ConnectionState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/** In-process, credential-free state of the privileged service. */
+internal object VpnRuntimeState {
+    private val mutable = MutableStateFlow(ConnectionState())
+    val state = mutable.asStateFlow()
+    fun publish(value: ConnectionState) { mutable.value = value }
+}

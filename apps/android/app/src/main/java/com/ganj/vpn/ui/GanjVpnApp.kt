@@ -1,4 +1,5 @@
 package com.ganj.vpn.ui
+import kotlinx.coroutines.flow.collect
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
@@ -413,6 +414,12 @@ fun GanjVpnApp(
     LaunchedEffect(composition) {
         refresh()
         refreshEnterprise()
+    }
+
+    LaunchedEffect(composition, "vpn-runtime") {
+        com.ganj.vpn.vpn.VpnRuntimeState.state.collect { runtime ->
+            commit(com.ganj.vpn.presentation.reconcileVpnState(state, runtime))
+        }
     }
 
     LaunchedEffect(telegramLinked) {

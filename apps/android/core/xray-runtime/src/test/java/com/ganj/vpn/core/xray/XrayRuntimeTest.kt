@@ -14,6 +14,33 @@ import libXray.LibXray
 
 class XrayRuntimeTest {
     @Test
+    fun `recreated bridges replace protection delegate without accumulating native controllers`() {
+        val first = ReflectiveLibXrayBridge(javaClass.classLoader!!)
+        assertTrue(first.installSocketProtector(SocketProtector { it == 90 }).success)
+        val registrations = LibXray.registrationCount
+        assertTrue(first.stop().success)
+        val second = ReflectiveLibXrayBridge(javaClass.classLoader!!)
+        assertTrue(second.installSocketProtector(SocketProtector { it == 91 }).success)
+        assertEquals(registrations, LibXray.registrationCount)
+        assertTrue(LibXray.protect(91))
+        assertFalse(LibXray.protect(90))
+        assertTrue(second.stop().success)
+    }
+
+    @Test
+    fun `duplicate connect leaves the active tunnel intact`() {
+        val platform = FakePlatform()
+        val native = FakeNative()
+        val engine = AndroidXrayEngine(platform, native, clock = { 1_000L })
+        assertTrue(engine.connect(ConnectionRequest(profile(expiresAt = 10_000L))).isSuccess)
+        assertTrue(engine.connect(ConnectionRequest(profile(expiresAt = 10_000L))).isFailure)
+        assertEquals(ConnectionPhase.CONNECTED, engine.currentState().phase)
+        assertFalse(platform.tunnelClosed)
+        assertEquals(0, native.stopCalls)
+        engine.close()
+    }
+
+    @Test
     fun `official libxray bridge uses protected DNS and pinned configJSON contract`() {
         LibXray.resetObservations()
         val bridge = ReflectiveLibXrayBridge(javaClass.classLoader!!)

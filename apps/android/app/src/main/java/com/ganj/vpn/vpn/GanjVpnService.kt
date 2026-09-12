@@ -90,6 +90,12 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        serviceScope.launch {
+            while (isActive) {
+                VpnRuntimeState.publish(engine.currentState())
+                delay(250)
+            }
+        }
         networkCallbackRegistered = runCatching {
             connectivityManager.registerDefaultNetworkCallback(networkCallback)
             true
@@ -199,6 +205,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         reconnectJob = null
         if (clearRecovery) recoveryStore.clear()
         engine.disconnect()
+        VpnRuntimeState.publish(engine.currentState())
         stopForeground(STOP_FOREGROUND_REMOVE)
         if (startId == null) stopSelf() else stopSelf(startId)
     }
@@ -235,6 +242,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         }
         serviceScope.cancel()
         engine.close()
+        VpnRuntimeState.publish(engine.currentState())
         super.onDestroy()
     }
 
