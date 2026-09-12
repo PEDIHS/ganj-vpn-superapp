@@ -12,6 +12,7 @@ on:
       - ".github/workflows/android-release.yml"
       - ".github/scripts/android-product-guard.sh"
       - ".github/scripts/android-artifact-guard.sh"
+      - ".github/scripts/*apk-png.py"
       - ".github/scripts/build-pinned-libxray.sh"
       - ".github/scripts/verify-libxray-embedding.sh"
   push:
@@ -26,6 +27,7 @@ on:
       - ".github/workflows/android-release.yml"
       - ".github/scripts/android-product-guard.sh"
       - ".github/scripts/android-artifact-guard.sh"
+      - ".github/scripts/*apk-png.py"
       - ".github/scripts/build-pinned-libxray.sh"
       - ".github/scripts/verify-libxray-embedding.sh"
   workflow_dispatch:
