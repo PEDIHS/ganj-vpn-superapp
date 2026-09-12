@@ -89,8 +89,7 @@ test('live profile rejects invalid proof and insecure or malformed connection po
 
 test('live router ignores unrelated paths and optional source can remain disabled', async () => {
   const disabled = createLiveConnectionRouter({ auth: {}, repository: {}, connectionSource: null });
-  const request = new Request('https://api.example.test/v1/servers');
-  assert.equal(await disabled({ request, url: new URL(request.url), principal: {}, requestId: V }), null);
+  assert.equal(disabled, null);
   const active = makeRoute();
   assert.equal(await invoke(active, 'GET', '/v1/other'), null);
 });
