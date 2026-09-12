@@ -17,6 +17,9 @@ internal interface ConnectionServerController {
     fun selectedServerId(): String?
 }
 
+internal fun connectionProfileProofPath(entitlementId: String): String =
+    "/v1/services/$entitlementId/connection-profile"
+
 internal class LiveConnectionProfileContextProvider(
     private val serverApi: ServerApi,
     private val identity: AndroidDeviceIdentity,
@@ -43,7 +46,7 @@ internal class LiveConnectionProfileContextProvider(
 
         val clientNonce = UUID.randomUUID().toString().replace("-", "")
         val proofNonce = UUID.randomUUID().toString().replace("-", "")
-        val path = "/services/$entitlementId/connection-profile"
+        val path = connectionProfileProofPath(entitlementId)
         val unsignedBody = buildString(160) {
             append("{\"client_nonce\":\"").append(clientNonce)
             append("\",\"device_id\":\"").append(publicIdentity.installationId)
