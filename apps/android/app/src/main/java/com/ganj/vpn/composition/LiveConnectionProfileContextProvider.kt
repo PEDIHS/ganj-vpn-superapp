@@ -12,7 +12,7 @@ import java.util.UUID
 import java.util.WeakHashMap
 
 internal interface ConnectionServerController {
-    fun servers(): ApiResult<List<ConnectionServer>>
+    fun servers(entitlementId: String? = null): ApiResult<List<ConnectionServer>>
     fun selectServer(serverId: String?)
     fun selectedServerId(): String?
 }
@@ -25,7 +25,7 @@ internal class LiveConnectionProfileContextProvider(
     @Volatile
     private var selectedServerId: String? = null
 
-    override fun servers(): ApiResult<List<ConnectionServer>> = serverApi.servers()
+    override fun servers(entitlementId: String?): ApiResult<List<ConnectionServer>> = serverApi.servers(entitlementId)
 
     override fun selectServer(serverId: String?) {
         selectedServerId = serverId
@@ -35,7 +35,7 @@ internal class LiveConnectionProfileContextProvider(
 
     override fun forEntitlement(entitlementId: String): ConnectionProfileContext? {
         val publicIdentity = identity.publicIdentity().getOrNull() ?: return null
-        val available = (serverApi.servers() as? ApiResult.Success)?.value.orEmpty()
+        val available = (serverApi.servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
         if (available.isEmpty()) return null
         val selected = selectedServerId?.let { id -> available.firstOrNull { it.id == id } }
             ?: available.first()
