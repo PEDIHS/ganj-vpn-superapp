@@ -125,7 +125,14 @@ export function createLiveConnectionRouter({ auth, repository, connectionSource,
   return async function liveConnectionRouter({ request, url, principal, requestId }) {
     if (request.method === 'GET' && url.pathname === '/v1/servers') {
       const now = clock();
-      const services = (await repository.listServices(principal.userId)).filter((service) => isUsable(service, now));
+      const requestedServiceId = url.searchParams.get('service_id');
+      let services;
+      if (requestedServiceId) {
+        const requested = await ownedService(repository, principal.userId, requestedServiceId);
+        services = isUsable(requested, now) ? [requested] : [];
+      } else {
+        services = (await repository.listServices(principal.userId)).filter((service) => isUsable(service, now));
+      }
       const tier = url.searchParams.get('tier');
       const country = url.searchParams.get('country');
       const protocol = url.searchParams.get('protocol');
