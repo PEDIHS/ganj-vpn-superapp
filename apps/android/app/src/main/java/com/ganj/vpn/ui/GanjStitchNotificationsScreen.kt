@@ -159,6 +159,7 @@ private fun NotificationToolbar(
 @Composable
 private fun NotificationCard(item: UserNotification, onClick: () -> Unit) {
     val tone = notificationTone(item.kind)
+    val action = item.action
     val accent = when (tone) {
         GanjStatusTone.Positive -> MaterialTheme.colorScheme.primary
         GanjStatusTone.Warning -> GanjWarning
@@ -199,9 +200,9 @@ private fun NotificationCard(item: UserNotification, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (item.action != null) {
+        if (action != null) {
             Text(
-                text = notificationActionLabel(item.action.type),
+                text = notificationActionLabel(action.type),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
