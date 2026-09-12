@@ -7,6 +7,8 @@ on:
       - "UPSTREAM.lock.json"
       - ".github/gradle/**"
       - ".github/workflows/android-ci.yml"
+      - ".github/workflows/android-startup-smoke.yml"
+      - ".github/scripts/android-startup-smoke.sh"
       - ".github/workflows/android-release.yml"
       - ".github/scripts/android-product-guard.sh"
       - ".github/scripts/android-artifact-guard.sh"
@@ -19,6 +21,8 @@ on:
       - "UPSTREAM.lock.json"
       - ".github/gradle/**"
       - ".github/workflows/android-ci.yml"
+      - ".github/workflows/android-startup-smoke.yml"
+      - ".github/scripts/android-startup-smoke.sh"
       - ".github/workflows/android-release.yml"
       - ".github/scripts/android-product-guard.sh"
       - ".github/scripts/android-artifact-guard.sh"
@@ -34,7 +38,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  startup:
+    uses: ./.github/workflows/android-startup-smoke.yml
+    permissions:
+      contents: read
+
   verify:
+    needs: startup
     name: Test, lint and build
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -104,33 +114,6 @@ jobs:
           fi
           sha256sum "$apk" > "$apk.sha256"
 
-      - name: Publish rolling Alpha release
-        if: >-
-          (github.event_name == 'push' && github.ref == 'refs/heads/ui/stitch-persian-liquid-v1') ||
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository &&
-           github.head_ref == 'ui/stitch-persian-liquid-v1')
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
-          cp "$apk" ganj-vpn-alpha-arm64.apk
-          sha256sum ganj-vpn-alpha-arm64.apk > ganj-vpn-alpha-arm64.apk.sha256
-          if gh release view alpha-latest >/dev/null 2>&1; then
-            gh release upload alpha-latest \
-              ganj-vpn-alpha-arm64.apk \
-              ganj-vpn-alpha-arm64.apk.sha256 \
-              --clobber
-          else
-            gh release create alpha-latest \
-              ganj-vpn-alpha-arm64.apk \
-              ganj-vpn-alpha-arm64.apk.sha256 \
-              --title "Ganj VPN Alpha" \
-              --notes "Rolling ARM64 Alpha build verified by Android CI."
-          fi
-
       - name: Capture release dependency graph
         working-directory: apps/android
         shell: bash
@@ -157,6 +140,32 @@ jobs:
           sbom="apps/android/app/build/reports/ganj-vpn-android.spdx.json"
           test -s "$sbom"
           jq -e '.spdxVersion and (.packages | length > 0)' "$sbom" >/dev/null
+
+      - name: Publish rolling Alpha release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/ui/stitch-persian-liquid-v1'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
+          cp "$apk" ganj-vpn-alpha-arm64.apk
+          sha256sum ganj-vpn-alpha-arm64.apk > ganj-vpn-alpha-arm64.apk.sha256
+          printf 'Source: %s\nRun: %s/%s/actions/runs/%s\nStartup smoke (API 24/35), tests, lint, size guard and SBOM passed. ARM64 physical-device VPN testing remains pending.\n' "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > alpha-release-notes.txt
+          if gh release view alpha-latest >/dev/null 2>&1; then
+            gh release upload alpha-latest \
+              ganj-vpn-alpha-arm64.apk \
+              ganj-vpn-alpha-arm64.apk.sha256 \
+              --clobber
+            gh release edit alpha-latest --title "Ganj VPN 0.3.1-alpha" --notes-file alpha-release-notes.txt
+          else
+            gh release create alpha-latest \
+              ganj-vpn-alpha-arm64.apk \
+              ganj-vpn-alpha-arm64.apk.sha256 \
+              --target "$GITHUB_SHA" \
+              --title "Ganj VPN 0.3.1-alpha" \
+              --notes-file alpha-release-notes.txt
+          fi
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7

@@ -3,6 +3,10 @@ set -Eeuo pipefail
 mkdir -p startup-evidence
 capture() {
   adb logcat -d -b crash > startup-evidence/crash.txt || true
+  # Isolated guest emulator only: expose startup failures in CI logs.
+  if grep -E 'FATAL EXCEPTION|Fatal signal' startup-evidence/crash.txt; then
+    sed -n '1,140p' startup-evidence/crash.txt
+  fi
   adb shell dumpsys activity activities > startup-evidence/activities.txt || true
   adb exec-out screencap -p > startup-evidence/screen.png || true
 }

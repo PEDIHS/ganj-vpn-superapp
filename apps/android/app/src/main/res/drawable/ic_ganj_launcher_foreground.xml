@@ -2,10 +2,7 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:width="76dp"
-        android:height="91dp"
-        android:gravity="center">
-        <bitmap
-            android:src="@drawable/ganj_logo_official"
-            android:gravity="fill" />
-    </item>
+        android:height="76dp"
+        android:gravity="center"
+        android:drawable="@drawable/ganj_logo_official" />
 </layer-list>

@@ -30,8 +30,8 @@ android {
         applicationId = "com.ganj.vpn"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.3.1-alpha"
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
         buildConfigField("String", "TELEGRAM_REDIRECT_URI", "\"$escapedTelegramRedirectUri\"")
         manifestPlaceholders["telegramAuthHost"] = telegramRedirect.host

@@ -53,7 +53,7 @@
 - [x] Emerald + Refined Gold + neutral Liquid Glass palette.
 - [x] Theme-aware Premium/Warning contrast.
 - [x] Persian-tuned typography scale با letter-spacing صفر برای فارسی.
-- [x] Official Ganj logo در launcher/splash/header/connect/profile.
+- [ ] Official Ganj logo در launcher/splash/header/connect/profile. (Alpha 0.3.1: truncated PNG replaced by existing shield-vector fallback; approved original artwork still required.)
 - [x] Android window chrome و Android 12+ splash surface.
 - [x] Persian numeral helpers.
 - [x] Unicode BiDi isolation برای IP/protocol/latency/technical values.
@@ -788,6 +788,17 @@
 | **Overall (strict checkbox formula)** | **196 / 491 = 39.9%** |
 
 ## Batch Log
+
+### 2026-09-12 — Alpha startup crash repair
+
+- Reproduced immediate first-launch crash on API 35: `ResourceResolutionException` in `StitchOnboardingScreen` loading `ganj_logo_official.png`.
+- Source PNG is 12,619 bytes but its IDAT chunk declares 26,802 bytes; no IEND exists. Build/lint alone did not detect decode failure.
+- Removed the broken raster from the APK; reused the existing shield-vector geometry with the existing Emerald token. This is a temporary Alpha fallback, not a replacement official brand design.
+- Launcher/splash layer now references the vector directly, not through a bitmap-only inflater.
+- Version is 0.3.1-alpha / code 4. Startup execution becomes a prerequisite of Android CI and rolling publication; PR builds no longer overwrite the release.
+- UI Ledger sections touched: 1, 16, 25. Leaf items completed: none; official-artwork item reopened. Runtime regression results remain pending until CI completes.
+- Remaining boundary: approved original logo, physical-device startup/Login/VPN E2E, responsive/TalkBack and all other unchecked QA items remain open.
+- Overall UI completion: 196/492 = 39.8% (calculator output; no final UI claim).
 
 ### 2026-08-30 — Notifications-1 / real inbox + preferences + Android permission UX
 

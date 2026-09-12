@@ -1,18 +1,15 @@
 name: Android startup smoke
 on:
-  push:
-    branches: [ui/stitch-persian-liquid-v1]
-    paths: ["apps/android/**", ".github/workflows/android-startup-smoke.yml", ".github/scripts/android-startup-smoke.sh"]
-  pull_request:
-    paths: ["apps/android/**", ".github/workflows/android-startup-smoke.yml", ".github/scripts/android-startup-smoke.sh"]
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: android-startup-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   startup:
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [24, 35]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -44,9 +41,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Launch twice and require a live resumed Activity
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
-          api-level: 35
+          api-level: ${{ matrix.api }}
           target: google_apis
           arch: x86_64
           disable-animations: true
@@ -54,7 +51,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: startup-evidence-${{ github.sha }}
+          name: startup-evidence-api-${{ matrix.api }}-${{ github.sha }}
           path: startup-evidence/
           if-no-files-found: warn
           retention-days: 7
