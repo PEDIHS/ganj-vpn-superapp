@@ -26,7 +26,7 @@ test('Bot Approval contract preserves state PKCE and owner-bound response shapes
   assert.match(openapi, /required: \[request_id, status, expires_at\]/);
   assert.match(openapi, /status: \{ type: string, enum: \[pending, approved, denied, consumed, expired\] \}/);
   assert.match(openapi, /required: \[request_id, state, code_verifier\]/);
-  assert.match(openapi, /pattern: '\^\[A-Za-z0-9_\.~-\]\+\$'/);
+  assert.match(openapi, /pattern: '\^\[A-Za-z0-9\._~-\]\+\$'/);
 });
 
 test('internal Bot decision contract is HMAC-authenticated and not an end-user bearer route', () => {
