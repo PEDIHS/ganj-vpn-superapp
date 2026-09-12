@@ -192,12 +192,13 @@ internal fun StitchNotificationHub(
     }
 
     fun handleAction(item: UserNotification) {
-        when (item.action?.type) {
+        val action = item.action
+        when (action?.type) {
             NotificationActionType.OPEN_SETTINGS -> {
                 surface = NotificationHubSurface.PREFERENCES
                 refreshPreferences()
             }
-            NotificationActionType.OPEN_SUPPORT -> onOpenSupport(item.action.id)
+            NotificationActionType.OPEN_SUPPORT -> onOpenSupport(action.id)
             null -> Unit
             else -> actionMessage = "این اعلان خوانده شد. مقصد داخلی آن در مرحله بعدی مسیریابی اپ یکپارچه می‌شود."
         }
