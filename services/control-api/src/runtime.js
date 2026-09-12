@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { createTestAuthAdapter } from './adapters/test-auth.js';
 import { createTestAuthSessionAdapter } from './adapters/test-auth-session.js';
 import { createBotApprovalAdapter, createTestBotApprovalAdapter } from './adapters/bot-approval.js';
+import { createLegacyBotConnectionSource } from './adapters/legacy-bot-connections.js';
 import { createTestPurchaseVerifier } from './adapters/test-purchase-verifier.js';
 import { createTestTelegramAuthAdapter } from './adapters/test-telegram-auth.js';
 import { FIXTURES, InMemoryRepository, createSeed } from './repository.js';
@@ -42,6 +43,7 @@ export async function createRuntime(environment = process.env) {
       }),
       authSession: createTestAuthSessionAdapter(),
       botApproval: createTestBotApprovalAdapter({ environment }),
+      connectionSource: null,
       purchaseVerifier: createTestPurchaseVerifier({
         approvedTokens: { [purchaseToken]: 'ganj.premium.30d' },
       }),
@@ -74,11 +76,15 @@ export async function createRuntime(environment = process.env) {
     ? await createBotApprovalAdapter({ environment })
     : null;
   const controlPlaneRepository = withAdminControlPlaneRepository(repository);
+  const connectionSource = environment.GANJ_BOT_CONNECTION_RESOLVER_URL && environment.GANJ_BOT_CONNECTION_RESOLVER_TOKEN
+    ? createLegacyBotConnectionSource({ environment, repository: controlPlaneRepository })
+    : null;
   return {
     repository: controlPlaneRepository,
     auth,
     authSession,
     botApproval,
+    connectionSource,
     purchaseVerifier,
     telegramAuth,
     playNotifications,
