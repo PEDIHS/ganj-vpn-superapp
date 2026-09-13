@@ -7,6 +7,7 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
 import com.ganj.vpn.core.vpn.ConnectionRequest
+import com.ganj.vpn.presentation.ActiveTunnelProbe
 import com.ganj.vpn.presentation.TunnelConnector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +53,9 @@ class AndroidVpnTunnelClient(context: Context) : TunnelConnector {
     } finally {
         profile.close()
     }
+
+    override suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
+        withBoundService { it.probeActive(serviceId, serverId) }
 
     private suspend fun <T> withBoundService(block: suspend (GanjVpnService.LocalBinder) -> T): T {
         val bound = withTimeoutOrNull(10_000) { withContext(Dispatchers.Main.immediate) { bind() } }

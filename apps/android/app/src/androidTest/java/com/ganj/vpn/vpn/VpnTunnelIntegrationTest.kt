@@ -13,8 +13,7 @@ import com.ganj.vpn.core.vpn.ConnectionPhase
 import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.vpn.ProvisionedProfile
 import com.ganj.vpn.core.vpn.VpnProtocol
-import com.ganj.vpn.core.xray.ReflectiveLibXrayBridge
-import com.ganj.vpn.core.xray.XrayConfigCompiler
+import com.ganj.vpn.presentation.ActiveTunnelProbe
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlinx.coroutines.runBlocking
@@ -57,14 +56,11 @@ class VpnTunnelIntegrationTest {
                 val started = client.connect(ConnectionRequest(fixtureProfile()))
                 assertTrue(started.exceptionOrNull()?.message ?: "TUN start failed", started.isSuccess)
                 println("VPN test: native TUN started")
-                val latency = fixtureProfile().use { profile ->
-                    XrayConfigCompiler().compileProbe(profile).use { config ->
-                        ReflectiveLibXrayBridge(context.classLoader).probe(
-                            config, context.noBackupFilesDir, "http://198.18.0.1:18080/ganj-tun-check",
-                        )
-                    }
+                val latency = when (val active = client.probeActive(SERVICE_ID, SERVER_ID)) {
+                    is ActiveTunnelProbe.Measured -> active.latencyMillis
+                    ActiveTunnelProbe.NotActive -> null
                 }
-                assertNotNull("real proxy latency must be measured without stopping VPN", latency)
+                assertNotNull("active VPN profile must measure latency without issuing another lease", latency)
                 println("VPN test: native proxy latency passed")
                 assertTrue("switching config must retain a working TUN", client.connect(ConnectionRequest(fixtureProfile())).isSuccess)
                 Socket().use { socket ->
@@ -105,12 +101,17 @@ class VpnTunnelIntegrationTest {
 
     private fun fixtureProfile() = ProvisionedProfile(
         profileId = "10000000-0000-4000-8000-000000000001",
-        serviceId = "20000000-0000-4000-8000-000000000001",
-        serverId = "30000000-0000-4000-8000-000000000001",
+        serviceId = SERVICE_ID,
+        serverId = SERVER_ID,
         endpoint = "10.0.2.2",
         port = 18081,
         protocol = VpnProtocol.VLESS,
         credential = "40000000-0000-4000-8000-000000000001".encodeToByteArray(),
         expiresAtEpochMillis = System.currentTimeMillis() + 120_000,
     )
+
+    private companion object {
+        const val SERVICE_ID = "20000000-0000-4000-8000-000000000001"
+        const val SERVER_ID = "30000000-0000-4000-8000-000000000001"
+    }
 }

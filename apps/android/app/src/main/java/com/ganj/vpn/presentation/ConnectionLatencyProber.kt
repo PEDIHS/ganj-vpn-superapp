@@ -25,6 +25,10 @@ class ConnectionLatencyProber(
     suspend fun probe(serviceId: String, serverId: String): Long? = permits.withPermit {
         withContext(Dispatchers.IO) {
             try {
+                when (val active = tunnel.probeActive(serviceId, serverId)) {
+                    is ActiveTunnelProbe.Measured -> return@withContext active.latencyMillis
+                    ActiveTunnelProbe.NotActive -> Unit
+                }
                 val user = currentUser.currentUserId()?.takeIf(String::isNotBlank) ?: return@withContext null
                 val proof = context.forServer(serviceId, serverId) ?: return@withContext null
                 val response = repository.prepareConnection(ConnectionProfileCommand(

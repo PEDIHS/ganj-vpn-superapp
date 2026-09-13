@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import com.ganj.vpn.MainActivity
+import com.ganj.vpn.presentation.ActiveTunnelProbe
 import com.ganj.vpn.R
 import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.vpn.ConnectionState
@@ -271,20 +272,46 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         super.onDestroy()
     }
 
-    inner class LocalBinder internal constructor() : Binder() {
-        suspend fun probe(profile: ProvisionedProfile): Long? = withContext(Dispatchers.IO) {
-            try {
-                val native = ReflectiveLibXrayBridge(applicationContext.classLoader)
-                if (!native.installSocketProtector(SocketProtector { fd ->
-                        fd >= 0 && (!engine.hasTunnel() || protect(fd))
-                    }).success) return@withContext null
+    private fun probeProfile(profile: ProvisionedProfile): Long? {
+        return try {
+            val native = ReflectiveLibXrayBridge(applicationContext.classLoader)
+            val installed = native.installSocketProtector(SocketProtector { fd ->
+                fd >= 0 && (!engine.hasTunnel() || protect(fd))
+            })
+            if (!installed.success) null else {
                 XrayConfigCompiler().compileProbe(profile).use { config ->
                     native.probe(config, noBackupFilesDir)
                 }
-            } finally {
-                profile.close()
             }
+        } finally {
+            profile.close()
         }
+    }
+
+
+    inner class LocalBinder internal constructor() : Binder() {
+        suspend fun probe(profile: ProvisionedProfile): Long? = withContext(Dispatchers.IO) {
+            probeProfile(profile)
+        }
+
+        suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
+            withContext(Dispatchers.IO) {
+                val state = engine.currentState()
+                if (
+                    state.phase != ConnectionPhase.CONNECTED ||
+                    state.serviceId != serviceId ||
+                    state.serverId != serverId ||
+                    !engine.hasTunnel()
+                ) return@withContext ActiveTunnelProbe.NotActive
+
+                val restored = recoveryStore.restore().getOrNull()
+                    ?: return@withContext ActiveTunnelProbe.Measured(null)
+                if (restored.serviceId != serviceId || restored.serverId != serverId) {
+                    restored.close()
+                    return@withContext ActiveTunnelProbe.Measured(null)
+                }
+                ActiveTunnelProbe.Measured(probeProfile(restored))
+            }
 
         suspend fun connect(request: ConnectionRequest): Result<Unit> = withContext(Dispatchers.IO) {
             reconnectCoordinator.invalidate()

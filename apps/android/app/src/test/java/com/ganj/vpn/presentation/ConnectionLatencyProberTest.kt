@@ -12,6 +12,26 @@ import org.junit.Test
 
 class ConnectionLatencyProberTest {
     @Test
+    fun `active tunnel latency bypasses a new one time lease`() = runBlocking {
+        val fixture = Fixture(activeProbe = ActiveTunnelProbe.Measured(41L))
+        assertEquals(41L, fixture.prober.probe(SERVICE, SERVER))
+        assertEquals(1, fixture.activeProbes)
+        assertEquals(0, fixture.requests)
+        assertEquals(0, fixture.provisions)
+        assertEquals(0, fixture.probes)
+    }
+
+    @Test
+    fun `failed active tunnel latency does not issue a replacement lease`() = runBlocking {
+        val fixture = Fixture(activeProbe = ActiveTunnelProbe.Measured(null))
+        assertNull(fixture.prober.probe(SERVICE, SERVER))
+        assertEquals(1, fixture.activeProbes)
+        assertEquals(0, fixture.requests)
+        assertEquals(0, fixture.provisions)
+        assertEquals(0, fixture.probes)
+    }
+
+    @Test
     fun `unauthorized server never requests a lease or probes`() = runBlocking {
         val fixture = Fixture(authorized = false)
         assertNull(fixture.prober.probe(SERVICE, SERVER))
@@ -45,10 +65,16 @@ class ConnectionLatencyProberTest {
         assertTrue(runCatching { fixture.profile.useCredential { it } }.isFailure)
     }
 
-    private class Fixture(authorized: Boolean = true, leaseServer: String = SERVER, cancelProbe: Boolean = false) {
+    private class Fixture(
+        authorized: Boolean = true,
+        leaseServer: String = SERVER,
+        cancelProbe: Boolean = false,
+        private val activeProbe: ActiveTunnelProbe = ActiveTunnelProbe.NotActive,
+    ) {
         var requests = 0
         var provisions = 0
         var probes = 0
+        var activeProbes = 0
         var command: ConnectionProfileCommand? = null
         var binding: ProfileProvisioningBinding? = null
         val profile = ProvisionedProfile(PROFILE, SERVICE, SERVER, "test.invalid", 443, VpnProtocol.VLESS,
@@ -77,6 +103,10 @@ class ConnectionLatencyProberTest {
         }, object : TunnelConnector {
             override suspend fun connect(request: ConnectionRequest): Result<Unit> = error("probe must not start VPN")
             override suspend fun disconnect(): Result<Unit> = error("probe must not stop VPN")
+            override suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe {
+                activeProbes++
+                return activeProbe
+            }
             override suspend fun probe(profile: ProvisionedProfile): Long? {
                 probes++
                 if (cancelProbe) throw CancellationException("test cancellation")
