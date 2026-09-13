@@ -281,7 +281,11 @@ class GanjVpnService : VpnService(), TunnelPlatform {
             })
             if (!installed.success) null else {
                 XrayConfigCompiler().compileProbe(profile).use { config ->
-                    native.probe(config, noBackupFilesDir)
+                    if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
+                        native.probe(config, noBackupFilesDir, NATIVE_FIXTURE_PROBE_URL)
+                    } else {
+                        native.probe(config, noBackupFilesDir)
+                    }
                 }
             }
         } finally {
@@ -428,6 +432,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         const val ACTION_DISCONNECT = "com.ganj.vpn.action.DISCONNECT"
         private const val NOTIFICATION_CHANNEL_ID = "ganj_vpn_connection"
         private const val NOTIFICATION_ID = 4201
+        private const val NATIVE_FIXTURE_PROBE_URL = "http://198.18.0.1:18080/ganj-tun-check"
         private const val IPV4_CLIENT_ADDRESS = "10.111.222.2"
         private const val IPV4_PREFIX_LENGTH = 32
         private const val IPV4_DEFAULT_ROUTE = "0.0.0.0"
