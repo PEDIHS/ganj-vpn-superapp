@@ -1,7 +1,7 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
 
 > **Baseline تاریخی هنگام ایجاد Ledger: 54٪ برآورد قدیمی — دیگر معیار پیشرفت نیست.**  
-> **وضعیت سخت‌گیرانه فعلی پس از Batch 2026-08-30/Notifications-1: 196 / 491 = 39.9٪**  
+> **وضعیت سخت‌گیرانه فعلی پس از ممیزی اتصال 2026-09-13: 196 / 492 = 39.8٪**  
 > **هدف: 100٪ واقعی، نه صرفاً تکمیل ۵ تب اصلی.**  
 > آخرین ممیزی مبنا: 2026-08-30 — branch: `ui/stitch-persian-liquid-v1`
 
@@ -955,16 +955,16 @@
 - Added server-authorized native Xray HTTP latency, streamed per-config results, explicit no-response state, and foreground-only 15-second refresh for the connected config.
 - Smart Connect measures eligible configs and chooses the fastest successful result; no synthetic latency or connection success is shown.
 - Cancelled stale service/server requests; switching active configs retains the TUN, and underlying-network callbacks exclude the VPN itself.
-- Added isolated emulator checks for OS consent denial/approval, real VLESS traffic through Android TUN, latency beside an active tunnel, disconnect and reconnect. CI results and physical-device QA are still pending for this batch.
+- Isolated API 24/35 emulator checks now pass for OS consent denial/approval, real VLESS traffic through Android TUN, latency beside an active tunnel, config switching, disconnect and reconnect (`d5eca590`, run `34782966933`). Physical-device QA remains pending.
 - UI Ledger sections touched: 5, 6, 20; leaf items completed: none pending validation; overall: 196/492 = 39.8%.
 
 Agent باید انتهای PR/commit summary این چهار خط را به‌روز کند:
 
 ```text
-UI Ledger sections touched: 9, 20
-Leaf items completed: Notification Center/read-unread/kinds/empty-loading-error/read-actions/preferences/category toggles/Android permission pre-prompt/settings guidance
-Remaining unchecked items in touched sections: global unread badge; push delivery; full internal action routing; remaining common overlay system; physical-device QA
-Overall UI completion: 196/491 = 39.9% (calculator formula; 100% forbidden until Final Gate is all checked)
+UI Ledger sections touched: 5, 6, 20
+Leaf items completed: none; native connection and latency implementation verified in emulators
+Remaining unchecked items in touched sections: physical-device/account end-to-end QA and remaining final UI gates
+Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until Final Gate is all checked)
 ```
 
 این Ledger باید همراه کد تکامل پیدا کند؛ حذف checkbox برای پنهان‌کردن کار باقی‌مانده ممنوع است. اگر Scope رسمی تغییر کرد، ابتدا Scope canonical docs اصلاح شود و سپس آیتم با دلیل مشخص `Deferred by product scope` شود؛ هیچ Agentی حق ندارد مستقل از Product Scope آیتم را نادیده بگیرد.

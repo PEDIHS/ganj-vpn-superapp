@@ -23,6 +23,8 @@ Baseline verified: Alpha 0.3.4, `ce1d46a`, SHA-256 `b078403343b2057f9c88a1041b6a
 
 ## Remaining release gate
 
+- `d5eca59074c67bb9a854795fa9c56bea3bc84083`, run `34782966933`: both API 24 and API 35 now pass cold startup and full native instrumentation, including OS denial/approval, proxy latency beside the active VPN, TUN-to-VLESS traffic, live config replacement and reconnect. Final ARM64 unit/lint/artifact gates and server deployment are pending.
+
 - API 35 root cause captured on `91055c3`: upstream TUN config omitted `name`, causing `GetAvailableTunName()` to call `net.Interfaces()` and fail with `netlinkrib: permission denied` on modern Android. Compiler now provides an explicit logical name; Android's already-established TUN FD remains the real interface. This requires no extra device privilege or runtime permission.
 - Network-state permission is declared by the Control API library; static-analysis fallback now passes.
 

@@ -59,7 +59,10 @@ class ConnectionLatencyProberTest {
             command = args!![0] as ConnectionProfileCommand
             val constructor = ConnectionProfileLease::class.java.declaredConstructors.single { it.parameterTypes.size == 4 }
                 .apply { isAccessible = true }
-            ApiResult.Success(constructor.newInstance(PROFILE, leaseServer, "2027-01-01T00:00:00Z", "test-handle") as ConnectionProfileLease)
+            ApiResult.Success(
+                constructor.newInstance(PROFILE, leaseServer, "2027-01-01T00:00:00Z", "test-handle") as ConnectionProfileLease,
+                ResponseMetadata("fixture-request", "2026-09-13T00:00:00Z"),
+            )
         } as ControlApiRepository
         val prober = ConnectionLatencyProber(repository, object : ConnectionProfileBroker {
             override fun provision(lease: ConnectionProfileLease, binding: ProfileProvisioningBinding): ProfileProvisioningResult {
