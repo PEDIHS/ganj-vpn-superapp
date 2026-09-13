@@ -68,7 +68,11 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     private val engine by lazy {
         AndroidXrayEngine(
             platform = this,
-            native = ReflectiveLibXrayBridge(applicationContext.classLoader),
+            native = ReflectiveLibXrayBridge(applicationContext.classLoader) { response ->
+                if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
+                    android.util.Log.e("GanjNativeFixture", response)
+                }
+            },
         )
     }
 

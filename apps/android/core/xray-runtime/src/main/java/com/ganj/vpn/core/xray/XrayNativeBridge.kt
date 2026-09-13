@@ -21,6 +21,7 @@ interface XrayNativeBridge {
 /** Thin adapter for the gomobile class generated from the pinned XTLS/libXray source. */
 class ReflectiveLibXrayBridge(
     private val classLoader: ClassLoader = ReflectiveLibXrayBridge::class.java.classLoader!!,
+    private val fixtureFailureObserver: (String) -> Unit = {},
 ) : XrayNativeBridge {
     private val bridgeClass: Class<*> by lazy {
         listOf("libXray.LibXRay", "libXray.LibXray")
@@ -107,7 +108,10 @@ class ReflectiveLibXrayBridge(
         val response = invokeMethod().invoke(null, request) as? String
             ?: return NativeCallResult(false, "xray.invalid_native_response")
         if (SUCCESS_PATTERN.containsMatchIn(response)) NativeCallResult(true)
-        else NativeCallResult(false, "xray.native_rejected")
+        else {
+            fixtureFailureObserver(response)
+            NativeCallResult(false, "xray.native_rejected")
+        }
     }.getOrElse { NativeCallResult(false, "xray.native_call_failed") }
 
     private fun invokeMethod(): Method = bridgeClass.methods.firstOrNull {

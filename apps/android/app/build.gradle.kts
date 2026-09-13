@@ -10,6 +10,8 @@ val telegramRedirectUri = providers.gradleProperty("GANJ_TELEGRAM_REDIRECT_URI")
     .orElse("https://auth.invalid/ganj/telegram/callback")
     .get()
 val alphaArm64Only = providers.gradleProperty("GANJ_ALPHA_ARM64_ONLY").orElse("false").get().toBoolean()
+val nativeFixtureDiagnostics = providers.gradleProperty("GANJ_NATIVE_FIXTURE_DIAGNOSTICS").orElse("false").get().toBoolean()
+require(!alphaArm64Only || !nativeFixtureDiagnostics) { "Native fixture diagnostics must never ship in Alpha" }
 val controlApiUri = controlApiBaseUrl.takeIf { it.isNotBlank() }?.let(::URI)
 controlApiUri?.let { uri ->
     require(uri.scheme == "https" && !uri.host.isNullOrBlank()) {
@@ -44,6 +46,7 @@ android {
         targetSdk = 36
         versionCode = 8
         versionName = "0.3.5-alpha"
+        buildConfigField("boolean", "NATIVE_FIXTURE_DIAGNOSTICS", nativeFixtureDiagnostics.toString())
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
         buildConfigField("String", "TELEGRAM_REDIRECT_URI", "\"$escapedTelegramRedirectUri\"")
         manifestPlaceholders["telegramAuthHost"] = telegramRedirect.host

@@ -43,6 +43,7 @@ jobs:
           -PGANJ_CONTROL_API_BASE_URL=https://bot.pedramhs.ir/app-api/v1/
           -PGANJ_TELEGRAM_REDIRECT_URI=https://bot.pedramhs.ir/app-auth/telegram/callback
           -PGANJ_ALPHA_ARM64_ONLY=false
+          -PGANJ_NATIVE_FIXTURE_DIAGNOSTICS=true
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
