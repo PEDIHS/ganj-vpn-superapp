@@ -18,6 +18,7 @@ import com.ganj.vpn.MainActivity
 import com.ganj.vpn.presentation.ActiveTunnelProbe
 import com.ganj.vpn.R
 import com.ganj.vpn.core.vpn.ConnectionRequest
+import com.ganj.vpn.core.vpn.ConnectionPhase
 import com.ganj.vpn.core.vpn.ConnectionState
 import com.ganj.vpn.core.vpn.ProvisionedProfile
 import com.ganj.vpn.core.xray.XrayConfigCompiler
