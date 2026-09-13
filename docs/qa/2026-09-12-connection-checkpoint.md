@@ -23,4 +23,9 @@ Baseline verified: Alpha 0.3.4, `ce1d46a`, SHA-256 `b078403343b2057f9c88a1041b6a
 
 ## Remaining release gate
 
+- API 35 root cause captured on `91055c3`: upstream TUN config omitted `name`, causing `GetAvailableTunName()` to call `net.Interfaces()` and fail with `netlinkrib: permission denied` on modern Android. Compiler now provides an explicit logical name; Android's already-established TUN FD remains the real interface. This requires no extra device privilege or runtime permission.
+- Network-state permission is declared by the Control API library; static-analysis fallback now passes.
+
+- Commit `b2a6f5a32ce61855463c843d3ae7abb222247aab`, Android CI run `34752657598`: API 24 passed both instrumentation tests, including real OS consent, native profile latency, TUN traffic, config switching, two disconnect/connect cycles. API 35 rejected native startup and remains under investigation. This is not yet a release approval.
+
 - Deploy only a verified final ARM64 APK; physical user-device Telegram/service/VPN E2E remains a separate gate.

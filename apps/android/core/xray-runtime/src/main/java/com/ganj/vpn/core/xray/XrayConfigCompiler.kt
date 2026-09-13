@@ -30,7 +30,9 @@ class XrayConfigCompiler(
             val stream = streamSettings(profile.transport, profile.security)
             val outbound = outbound(profile, credential, stream)
             SensitiveXrayConfig(
-                """{"env":{"xray.tun.fd":"$tunFileDescriptor"},"log":{"loglevel":"warning"},"dns":{"servers":["1.1.1.1","8.8.8.8"]},"inbounds":[{"tag":"ganj-tun","protocol":"tun","settings":{"mtu":$mtu}}],"outbounds":[$outbound,{"tag":"direct","protocol":"freedom"},{"tag":"blocked","protocol":"blackhole"}],"routing":{"domainStrategy":"IPIfNonMatch","rules":[]}}""",
+                // Android supplies the actual interface through its FD. An explicit logical name
+                // avoids upstream's net.Interfaces auto-naming, forbidden by modern Android.
+                """{"env":{"xray.tun.fd":"$tunFileDescriptor"},"log":{"loglevel":"warning"},"dns":{"servers":["1.1.1.1","8.8.8.8"]},"inbounds":[{"tag":"ganj-tun","protocol":"tun","settings":{"name":"ganj-tun","desc":"Ganj VPN","mtu":$mtu}}],"outbounds":[$outbound,{"tag":"direct","protocol":"freedom"},{"tag":"blocked","protocol":"blackhole"}],"routing":{"domainStrategy":"IPIfNonMatch","rules":[]}}""",
             )
         }
     }

@@ -85,6 +85,7 @@ class XrayRuntimeTest {
         val json = sensitive.consume()
         assertTrue(json.contains("\"xray.tun.fd\":\"42\""))
         assertTrue(json.contains("\"protocol\":\"tun\""))
+        assertTrue("explicit TUN name prevents forbidden Android netlink enumeration", json.contains("\"name\":\"ganj-tun\""))
         assertTrue(json.contains("\"protocol\":\"vless\""))
         assertTrue(json.contains("\"security\":\"reality\""))
         assertTrue(json.contains("\"network\":\"grpc\""))
