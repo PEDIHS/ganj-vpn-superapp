@@ -10,10 +10,16 @@ Baseline verified: Alpha 0.3.4, `ce1d46a`, SHA-256 `b078403343b2057f9c88a1041b6a
 - Added an Android instrumentation check against the actual packaged native classes, in addition to startup screenshots. Unit-test stand-ins cannot validate native API presence.
 - Candidate version: 0.3.5-alpha / 8. Build and native instrumentation remain pending until CI completes.
 
-## Next checkpoints
+## Checkpoint 2: connection lifecycle and real config latency
 
-- Fix accumulated native socket-protector callbacks across reconnects; upstream registration appends callbacks.
-- Await actual VPN service disconnect completion and reconcile UI with live service state.
-- Verify Android VPN consent and a real TUN-to-VLESS traffic path in an isolated emulator fixture.
-- Measure config latency through each authorized provisioned outbound, publish only numeric/status results to UI, cancel stale work and avoid exposing profiles.
+- Fixed accumulated native socket-protector callbacks across reconnects; upstream registration appends callbacks.
+- Disconnect awaits the actual binder operation; UI reconciles with the live foreground service.
+- Network callbacks exclude VPN networks. Config switching uses core reconnect over the existing TUN.
+- OS consent is requested before fetching an expiring connection lease. Denial remains retryable.
+- Per-config latency uses pinned native `pingBatch` with only the authenticated proxy outbound. No TCP-only or synthetic result is shown. Temporary native input is private, owner-only and removed in `finally`; profile credentials are destroyed.
+- Config-list probes update individually with bounded concurrency; active-config latency refreshes every 15 seconds only while the connection screen is resumed. Smart Connect chooses the fastest successful measurement.
+- Added fail-closed/cancellation probe tests and emulator consent/TUN/VLESS/probe/disconnect/reconnect checks. Packaged socket/DNS contract and cold startup have passed; complete TUN test is still pending.
+
+## Remaining release gate
+
 - Deploy only a verified final ARM64 APK; physical user-device Telegram/service/VPN E2E remains a separate gate.

@@ -38,6 +38,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.ganj.vpn.composition.ConnectionServerCompositionRegistry
 import com.ganj.vpn.core.controlapi.ApiResult
+import com.ganj.vpn.core.controlapi.ConnectionServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
@@ -91,6 +92,16 @@ internal fun StitchConnectionScreen(
     var smartFailure by remember { mutableStateOf(false) }
     val runtimeServer = state.runtimeConnection.serverId
     val runtimeService = state.runtimeConnection.serviceId
+    val displayServerId = runtimeServer ?: serverController?.selectedServerId()
+    val displayServiceId = runtimeService ?: service?.entitlementId
+    var displayedServer by remember { mutableStateOf<ConnectionServer?>(null) }
+    LaunchedEffect(displayServerId, displayServiceId) {
+        displayedServer = null
+        if (displayServiceId != null && displayServerId != null && serverController != null) {
+            val available = withContext(Dispatchers.IO) { serverController.servers(displayServiceId) }
+            displayedServer = (available as? ApiResult.Success)?.value?.firstOrNull { it.id == displayServerId }
+        }
+    }
     LaunchedEffect(runtimeServer, runtimeService, state.runtimeConnection.phase, lifecycle) {
         ping = null
         pingBusy = false
@@ -139,7 +150,7 @@ internal fun StitchConnectionScreen(
             if (smartBusy) "در حال سنجش و انتخاب سریع‌ترین کانفیگ…" else "هیچ کانفیگی پاسخ نداد؛ سرورها را بررسی کنید.",
             style = MaterialTheme.typography.bodySmall,
         )
-        StitchSelectedServerCard(service = service, onOpenServers = onOpenServers)
+        StitchSelectedServerCard(server = displayedServer, ping = ping, onOpenServers = onOpenServers)
         StitchSmartConnectCard(
             enabled = service?.isActive == true && !smartBusy,
             onClick = {
@@ -509,7 +520,7 @@ private fun StitchMetricDivider() {
 }
 
 @Composable
-private fun StitchSelectedServerCard(service: ServiceUiModel?, onOpenServers: () -> Unit) {
+private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, onOpenServers: () -> Unit) {
     GanjGlassSurface(
         role = GanjGlassRole.Dense,
         accent = MaterialTheme.colorScheme.primary,
@@ -535,7 +546,7 @@ private fun StitchSelectedServerCard(service: ServiceUiModel?, onOpenServers: ()
                         .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.30f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = countryEmoji(service?.countryCode), style = MaterialTheme.typography.titleLarge)
+                    Text(text = countryEmoji(server?.countryCode), style = MaterialTheme.typography.titleLarge)
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -544,7 +555,7 @@ private fun StitchSelectedServerCard(service: ServiceUiModel?, onOpenServers: ()
                         color = StitchEmeraldGlow,
                     )
                     Text(
-                        text = service?.displayName ?: "هنوز سروری انتخاب نشده",
+                        text = server?.name ?: "هنوز سروری انتخاب نشده",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
@@ -552,7 +563,7 @@ private fun StitchSelectedServerCard(service: ServiceUiModel?, onOpenServers: ()
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = service?.let { "${countryName(it.countryCode)} • ${tierPersian(it.tier)}" }
+                        text = server?.let { "${countryName(it.countryCode)} • ${it.protocols.joinToString(" / ") { protocol -> protocol.name }}" }
                             ?: "برای انتخاب سرور وارد فهرست سرورها شوید",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -566,7 +577,7 @@ private fun StitchSelectedServerCard(service: ServiceUiModel?, onOpenServers: ()
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = persianTechnicalMetric("—", "ms"),
+                    text = persianTechnicalMetric(ping?.toString() ?: "—", "ms"),
                     color = StitchEmeraldGlow,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,

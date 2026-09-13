@@ -35,12 +35,12 @@ class VpnTunnelIntegrationTest {
         // Exercise the real OS denial followed by approval in this isolated emulator.
         val permission = VpnService.prepare(context)
         assertNotNull("fresh emulator must require VPN consent", permission)
-        activity.onActivity { it.startActivity(permission!!) }
+        activity.onActivity { it.startActivityForResult(permission!!, 47159) }
         assertTrue(device.wait(Until.hasObject(By.res("android", "button2")), 10_000))
         device.findObject(By.res("android", "button2")).click()
         device.waitForIdle()
         assertNotNull(VpnService.prepare(context))
-        activity.onActivity { it.startActivity(VpnService.prepare(it)!!) }
+        activity.onActivity { it.startActivityForResult(VpnService.prepare(it)!!, 47159) }
         assertTrue(device.wait(Until.hasObject(By.res("android", "button1")), 10_000))
         device.findObject(By.res("android", "button1")).click()
         device.waitForIdle()
@@ -59,6 +59,7 @@ class VpnTunnelIntegrationTest {
                     }
                 }
                 assertNotNull("real proxy latency must be measured without stopping VPN", latency)
+                assertTrue("switching config must retain a working TUN", client.connect(ConnectionRequest(fixtureProfile())).isSuccess)
                 Socket().use { socket ->
                     socket.soTimeout = 8_000
                     // Benchmark-only destination has no listening server in Android or the host.
