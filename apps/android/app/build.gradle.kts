@@ -81,6 +81,8 @@ android {
 
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        // Preserve the audited native bytes so artifact verification matches the official AAR.
+        jniLibs.keepDebugSymbols += "**/libgojni.so"
         if (alphaArm64Only) {
             jniLibs.useLegacyPackaging = true
         }

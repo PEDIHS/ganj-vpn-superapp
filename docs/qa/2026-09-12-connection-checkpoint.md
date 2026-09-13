@@ -19,6 +19,7 @@ Baseline verified: Alpha 0.3.4, `ce1d46a`, SHA-256 `b078403343b2057f9c88a1041b6a
 - Per-config latency uses pinned native `pingBatch` with only the authenticated proxy outbound. No TCP-only or synthetic result is shown. Temporary native input is private, owner-only and removed in `finally`; profile credentials are destroyed.
 - Config-list probes update individually with bounded concurrency; active-config latency refreshes every 15 seconds only while the connection screen is resumed. Smart Connect chooses the fastest successful measurement.
 - Added fail-closed/cancellation probe tests and emulator consent/TUN/VLESS/probe/disconnect/reconnect checks. Packaged socket/DNS contract and cold startup have passed; complete TUN test is still pending.
+- API 24 has now passed real OS denial/approval and native TUN startup. The native latency request reached the loopback VLESS fixture; updated that fixture to support libXray's actual HEAD measurement request as well as the GET traffic marker.
 
 ## Remaining release gate
 

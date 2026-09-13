@@ -28,10 +28,11 @@ class Fixture(socketserver.BaseRequestHandler):
             while b"\r\n\r\n" not in request:
                 request += self.exact(1)
                 assert len(request) <= 4096
-            assert request.startswith(b"GET /ganj-tun-check ")
+            assert request.startswith((b"GET /ganj-tun-check ", b"HEAD /ganj-tun-check "))
             body = b"ganj-tun-vless-roundtrip-ok"
             self.request.sendall(b"\x00\x00HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: "
-                                 + str(len(body)).encode() + b"\r\n\r\n" + body)
+                                 + str(len(body)).encode() + b"\r\n\r\n"
+                                 + (body if request.startswith(b"GET ") else b""))
             print("TUN VLESS roundtrip served", flush=True)
         except (AssertionError, ConnectionError, OSError):
             print("Rejected invalid or timed-out test request", flush=True)
