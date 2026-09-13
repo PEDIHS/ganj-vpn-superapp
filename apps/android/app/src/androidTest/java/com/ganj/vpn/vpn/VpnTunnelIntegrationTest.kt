@@ -3,6 +3,8 @@ package com.ganj.vpn.vpn
 import android.content.Intent
 import android.net.VpnService
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.core.app.ActivityScenario
+import com.ganj.vpn.MainActivity
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
@@ -28,15 +30,17 @@ class VpnTunnelIntegrationTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
+        val activity = ActivityScenario.launch(MainActivity::class.java)
+        try {
         // Exercise the real OS denial followed by approval in this isolated emulator.
         val permission = VpnService.prepare(context)
         assertNotNull("fresh emulator must require VPN consent", permission)
-        context.startActivity(permission!!.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        activity.onActivity { it.startActivity(permission!!) }
         assertTrue(device.wait(Until.hasObject(By.res("android", "button2")), 10_000))
         device.findObject(By.res("android", "button2")).click()
         device.waitForIdle()
         assertNotNull(VpnService.prepare(context))
-        context.startActivity(VpnService.prepare(context)!!.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        activity.onActivity { it.startActivity(VpnService.prepare(it)!!) }
         assertTrue(device.wait(Until.hasObject(By.res("android", "button1")), 10_000))
         device.findObject(By.res("android", "button1")).click()
         device.waitForIdle()
@@ -68,6 +72,7 @@ class VpnTunnelIntegrationTest {
                 assertTrue("disconnect must finish successfully", client.disconnect().isSuccess)
             }
         }
+        } finally { activity.close() }
     }
 
     private fun fixtureProfile() = ProvisionedProfile(

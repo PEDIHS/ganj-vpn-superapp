@@ -43,6 +43,8 @@ import com.ganj.vpn.presentation.GanjUiEvent
 import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.PlanUiModel
 import com.ganj.vpn.presentation.ServiceUiModel
+import com.ganj.vpn.presentation.UiFailure
+import com.ganj.vpn.presentation.UiFailureKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -99,6 +101,7 @@ fun GanjVpnApp(
     onRestartOnboarding: () -> Unit,
     onLaunchGooglePlay: suspend (CheckoutActionHandle) -> CheckoutEffectResult,
     onLaunchVpn: suspend (ConnectionActionHandle) -> ConnectionEffectResult,
+    onPrepareVpnPermission: suspend () -> Boolean = { true },
 ) {
     val controller = remember(composition) { composition.controller }
     val reducer = remember(composition) { composition.reducer }
@@ -396,6 +399,14 @@ fun GanjVpnApp(
         commit(reducer.reduce(state, GanjUiEvent.ConnectionRequested(entitlementId)))
         val pendingState = state
         connectionJob = scope.launch {
+            // Ask before issuing a short-lived encrypted lease: time in the OS dialog must not
+            // expire the profile before its first use.
+            if (!onPrepareVpnPermission()) {
+                commit(controller.onConnectionEffectResult(state, entitlementId,
+                    ConnectionEffectResult.Failed(UiFailure(UiFailureKind.CONFIGURATION, "connection.permission_denied", true)),
+                ))
+                return@launch
+            }
             commit(
                 withContext(Dispatchers.IO) {
                     controller.prepareConnection(pendingState, entitlementId)

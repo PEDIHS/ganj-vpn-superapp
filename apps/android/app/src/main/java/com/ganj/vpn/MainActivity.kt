@@ -150,6 +150,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     },
+                    onPrepareVpnPermission = { ensureVpnPermission() },
                 )
 
                 if (vpnPermissionExplanationVisible.value) {

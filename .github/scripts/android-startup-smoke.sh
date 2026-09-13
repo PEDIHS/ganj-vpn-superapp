@@ -5,6 +5,9 @@ fixture_pid=""
 capture() {
   if [[ -n "$fixture_pid" ]]; then kill "$fixture_pid" 2>/dev/null || true; fi
   adb logcat -d -b crash > startup-evidence/crash.txt || true
+  adb logcat -d > startup-evidence/emulator-logcat.txt || true
+  adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+  adb pull /sdcard/window.xml startup-evidence/window.xml >/dev/null 2>&1 || true
   # Isolated guest emulator only: expose startup failures in CI logs.
   if grep -E 'FATAL EXCEPTION|Fatal signal' startup-evidence/crash.txt; then
     sed -n '1,140p' startup-evidence/crash.txt

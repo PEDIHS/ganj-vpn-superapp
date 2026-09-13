@@ -948,6 +948,8 @@
 
 ### 2026-09-12 — Connection/proxy latency checkpoint
 
+- 2026-09-13: obtain OS VPN consent before requesting the expiring profile; emulator test launches a foreground Activity before the system consent dialog.
+
 - Added server-authorized native Xray HTTP latency, streamed per-config results, explicit no-response state, and foreground-only 15-second refresh for the connected config.
 - Smart Connect measures eligible configs and chooses the fastest successful result; no synthetic latency or connection success is shown.
 - Cancelled stale service/server requests; switching active configs retains the TUN, and underlying-network callbacks exclude the VPN itself.
