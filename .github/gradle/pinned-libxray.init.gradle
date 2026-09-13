@@ -10,9 +10,10 @@ settingsEvaluated { settings ->
         throw new GradleException("Pinned libXray repository does not exist")
     }
 
-    settings.dependencyResolutionManagement.repositories.exclusiveContent {
+    def repositories = settings.dependencyResolutionManagement.repositories
+    repositories.exclusiveContent {
         forRepository {
-            maven {
+            repositories.maven {
                 name = "ganjPinnedOfficialLibXray"
                 url = repositoryDirectory.toURI()
                 metadataSources {
@@ -26,3 +27,4 @@ settingsEvaluated { settings ->
         }
     }
 }
+

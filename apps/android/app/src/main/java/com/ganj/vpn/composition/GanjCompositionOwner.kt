@@ -4,50 +4,115 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.ganj.vpn.core.controlapi.AndroidKeystoreSessionVault
+import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.AuthSessionApiFactory
+import com.ganj.vpn.core.controlapi.CurrentAccount
+import com.ganj.vpn.core.controlapi.DeviceApi
+import com.ganj.vpn.core.controlapi.DeviceApiFactory
+import com.ganj.vpn.core.controlapi.NotificationApi
+import com.ganj.vpn.core.controlapi.NotificationApiFactory
+import com.ganj.vpn.core.controlapi.ServerApiFactory
+import com.ganj.vpn.core.controlapi.SupportApi
+import com.ganj.vpn.core.controlapi.SupportApiFactory
+import com.ganj.vpn.core.controlapi.WalletApi
+import com.ganj.vpn.core.controlapi.WalletApiFactory
+import com.ganj.vpn.core.controlapi.WalletSnapshot
+import com.ganj.vpn.core.controlapi.WalletTransactionPage
 import com.ganj.vpn.core.deviceidentity.AndroidDeviceIdentity
-import com.ganj.vpn.presentation.ConnectionProfileContextProvider
 import com.ganj.vpn.vpn.AndroidVpnSessionRevocationSink
 import java.net.URI
 
 class GanjCompositionOwner internal constructor(
     val composition: GanjComposition,
+    internal val telegramAuth: TelegramAuthCoordinator?,
+    private val accountSession: AndroidAuthSessionManager?,
+    private val walletApi: WalletApi?,
+    private val deviceApi: DeviceApi?,
+    private val notificationApi: NotificationApi?,
+    private val supportApi: SupportApi?,
 ) : ViewModel() {
+    internal fun currentAccount(): ApiResult<CurrentAccount>? = accountSession?.currentAccount()
+    internal fun wallet(): ApiResult<WalletSnapshot>? = walletApi?.wallet()
+    internal fun walletTransactions(cursor: String? = null): ApiResult<WalletTransactionPage>? =
+        walletApi?.transactions(cursor = cursor)
+
     override fun onCleared() {
+        ConnectionServerCompositionRegistry.unbind(composition)
+        SupportCompositionRegistry.unbind(composition)
+        NotificationCompositionRegistry.unbind(composition)
+        DeviceCompositionRegistry.unbind(composition)
+        WalletCompositionRegistry.unbind(composition)
         composition.close()
     }
 
     class Factory(
         private val application: Application,
         private val endpoint: String,
+        private val telegramRedirectUri: String,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(GanjCompositionOwner::class.java))
             val deviceIdentity = AndroidDeviceIdentity.create(application)
-            val composition = if (endpoint.isValidControlApiEndpoint()) {
-                val sessionManager = AndroidAuthSessionManager(
-                    api = AuthSessionApiFactory.create(endpoint),
-                    vault = AndroidKeystoreSessionVault(application),
-                    identity = deviceIdentity,
-                    sessionRevocationSink = AndroidVpnSessionRevocationSink(application),
-                )
-                GanjCompositionFactory.create(
-                    application = application,
-                    endpoint = endpoint,
-                    tokenProvider = sessionManager,
-                    currentUser = sessionManager,
-                    connectionContext = ConnectionProfileContextProvider { null },
-                    cryptoProvider = deviceIdentity,
-                )
-            } else {
-                GanjCompositionFactory.failClosed(
-                    application = application,
-                    endpoint = endpoint,
-                    cryptoProvider = deviceIdentity,
-                )
+
+            if (!endpoint.isValidControlApiEndpoint()) {
+                return GanjCompositionOwner(
+                    composition = GanjCompositionFactory.failClosed(
+                        application = application,
+                        endpoint = endpoint,
+                        cryptoProvider = deviceIdentity,
+                    ),
+                    telegramAuth = null,
+                    accountSession = null,
+                    walletApi = null,
+                    deviceApi = null,
+                    notificationApi = null,
+                    supportApi = null,
+                ) as T
             }
-            return GanjCompositionOwner(composition) as T
+
+            val sessionManager = AndroidAuthSessionManager(
+                api = AuthSessionApiFactory.create(endpoint),
+                vault = AndroidKeystoreSessionVault(application),
+                identity = deviceIdentity,
+                sessionRevocationSink = AndroidVpnSessionRevocationSink(application),
+            )
+            val serverContext = LiveConnectionProfileContextProvider(
+                serverApi = ServerApiFactory.create(endpoint, sessionManager),
+                identity = deviceIdentity,
+            )
+            val composition = GanjCompositionFactory.create(
+                application = application,
+                endpoint = endpoint,
+                tokenProvider = sessionManager,
+                currentUser = sessionManager,
+                connectionContext = serverContext,
+                cryptoProvider = deviceIdentity,
+            )
+            val telegramAuth = TelegramAuthCoordinator(
+                session = sessionManager,
+                store = AndroidTelegramAuthFlowVault(application),
+                linkState = AndroidTelegramLinkStateStore(application),
+                redirectUri = telegramRedirectUri,
+            )
+            val walletApi = WalletApiFactory.create(endpoint, sessionManager)
+            val deviceApi = DeviceApiFactory.create(endpoint, sessionManager)
+            val notificationApi = NotificationApiFactory.create(endpoint, sessionManager)
+            val supportApi = SupportApiFactory.create(endpoint, sessionManager)
+            ConnectionServerCompositionRegistry.bind(composition, serverContext)
+            WalletCompositionRegistry.bind(composition, walletApi)
+            DeviceCompositionRegistry.bind(composition, deviceApi)
+            NotificationCompositionRegistry.bind(composition, notificationApi)
+            SupportCompositionRegistry.bind(composition, supportApi)
+            return GanjCompositionOwner(
+                composition = composition,
+                telegramAuth = telegramAuth,
+                accountSession = sessionManager,
+                walletApi = walletApi,
+                deviceApi = deviceApi,
+                notificationApi = notificationApi,
+                supportApi = supportApi,
+            ) as T
         }
 
         private fun String.isValidControlApiEndpoint(): Boolean = runCatching {

@@ -3,6 +3,7 @@ import { ApiError } from './errors.js';
 
 const ALLOWED_STATUSES = new Set(['pending', 'active', 'disabled', 'expired', 'revoked']);
 const ALLOWED_PROTOCOLS = new Set(['vless', 'vmess', 'trojan', 'shadowsocks']);
+const RETRYABLE_CONFLICTS = new Set(['legacy_customer_unlinked', 'legacy_plan_mapping_missing']);
 
 function requiredString(value, field, max = 512) {
   if (typeof value !== 'string' || value.length < 1 || value.length > max) {
@@ -128,20 +129,24 @@ export class LegacySubscriptionReconciler {
 
     return this.repository.transaction(async () => {
       const priorEvent = await this.repository.findLegacyReconciliationEvent(event.sourceKey, event.eventId);
-      if (priorEvent) {
-        if (priorEvent.payloadFingerprint !== event.payloadFingerprint) {
-          throw new ApiError(409, 'legacy_event_replay_conflict', 'Legacy event ID was reused with different content.');
-        }
+      if (priorEvent?.payloadFingerprint !== undefined && priorEvent.payloadFingerprint !== event.payloadFingerprint) {
+        throw new ApiError(409, 'legacy_event_replay_conflict', 'Legacy event ID was reused with different content.');
+      }
+      const retryableConflict = priorEvent?.processingStatus === 'conflict'
+        && RETRYABLE_CONFLICTS.has(priorEvent.errorCode);
+      if (priorEvent && !retryableConflict) {
         return { outcome: priorEvent.processingStatus, replay: true, serviceId: priorEvent.controlServiceId ?? null };
       }
 
-      await this.repository.recordLegacyReconciliationEvent({
-        sourceKey: event.sourceKey,
-        eventId: event.eventId,
-        payloadFingerprint: event.payloadFingerprint,
-        externalServiceId: event.externalServiceId,
-        receivedAt: now.toISOString(),
-      });
+      if (!priorEvent) {
+        await this.repository.recordLegacyReconciliationEvent({
+          sourceKey: event.sourceKey,
+          eventId: event.eventId,
+          payloadFingerprint: event.payloadFingerprint,
+          externalServiceId: event.externalServiceId,
+          receivedAt: now.toISOString(),
+        });
+      }
 
       const user = await this.repository.findUserByTelegramSubject(event.telegramSubject);
       if (!user) {

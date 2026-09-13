@@ -2,6 +2,9 @@ package com.ganj.vpn.core.xray
 
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
+import java.io.File
+import org.json.JSONObject
+import org.json.JSONArray
 
 fun interface SocketProtector {
     fun protect(fileDescriptor: Int): Boolean
@@ -18,10 +21,8 @@ interface XrayNativeBridge {
 /** Thin adapter for the gomobile class generated from the pinned XTLS/libXray source. */
 class ReflectiveLibXrayBridge(
     private val classLoader: ClassLoader = ReflectiveLibXrayBridge::class.java.classLoader!!,
+    private val fixtureFailureObserver: (String) -> Unit = {},
 ) : XrayNativeBridge {
-    @Volatile
-    private var socketCallback: Any? = null
-
     private val bridgeClass: Class<*> by lazy {
         listOf("libXray.LibXRay", "libXray.LibXray")
             .firstNotNullOfOrNull { runCatching { classLoader.loadClass(it) }.getOrNull() }
@@ -34,15 +35,25 @@ class ReflectiveLibXrayBridge(
         } ?: error("libXray socket-protection API is unavailable")
         val callbackType = register.parameterTypes.single()
         require(callbackType.isInterface) { "libXray socket callback is not an interface" }
-        val callback = Proxy.newProxyInstance(classLoader, arrayOf(callbackType)) { _, method, arguments ->
-            proxyCallback(method, arguments, protector)
+        // Upstream registration appends: a callback per connection leaves stale rejectors behind.
+        // Register once per native class and atomically replace only its current delegate.
+        val state = synchronized(protectionStates) {
+            protectionStates.getOrPut(bridgeClass) { ProtectionState() }
         }
-        register.invoke(null, callback)
+        val callback = synchronized(state) {
+            state.protector = protector
+            state.callback ?: Proxy.newProxyInstance(classLoader, arrayOf(callbackType)) { proxy, method, arguments ->
+                if (method.name == "equals") proxy === arguments?.firstOrNull()
+                else proxyCallback(method, arguments, SocketProtector { fd -> state.protector?.protect(fd) == true })
+            }.also {
+                register.invoke(null, it)
+                state.callback = it
+            }
+        }
         val setDns = bridgeClass.methods.firstOrNull {
             it.name.equals("setDNS", ignoreCase = true) && it.parameterTypes.size == 2
         } ?: error("libXray protected DNS API is unavailable")
         setDns.invoke(null, callback, PROTECTED_DNS)
-        socketCallback = callback
         NativeCallResult(true)
     }.getOrElse { NativeCallResult(false, "xray.socket_protection_unavailable") }
 
@@ -59,8 +70,29 @@ class ReflectiveLibXrayBridge(
                 it.name.equals("resetDNS", ignoreCase = true) && it.parameterTypes.isEmpty()
             }?.invoke(null)
         }
-        socketCallback = null
         return stopped
+    }
+
+    /** Separate native instance: never stops/reconfigures the active VPN core. */
+    fun probe(config: SensitiveXrayConfig, privateDirectory: File, targetUrl: String = "https://www.gstatic.com/generate_204"): Long? {
+        val file = File.createTempFile("probe-", ".json", privateDirectory)
+        return try {
+            check(file.setReadable(false, false) && file.setWritable(false, false))
+            check(file.setReadable(true, true) && file.setWritable(true, true))
+            file.writeText(config.consume())
+            val item = JSONObject().put("configPath", file.absolutePath).put("outboundTag", "proxy")
+            val payload = JSONObject().put("configs", JSONArray().put(item)).put("timeout", 5).put("url", targetUrl)
+            val request = JSONObject().put("apiVersion", 1).put("method", "pingBatch").put("payload", payload)
+            val response = JSONObject(invokeMethod().invoke(null, request.toString()) as String)
+            if (!response.optBoolean("success")) return null
+            val result = response.optJSONObject("data")?.optJSONArray("results")?.optJSONObject(0) ?: return null
+            if (result.optBoolean("success")) result.optLong("delay", -1).takeIf { it >= 0 } else null
+        } catch (_: Exception) {
+            null
+        } finally {
+            file.delete()
+            config.close()
+        }
     }
 
     private fun invoke(
@@ -76,7 +108,10 @@ class ReflectiveLibXrayBridge(
         val response = invokeMethod().invoke(null, request) as? String
             ?: return NativeCallResult(false, "xray.invalid_native_response")
         if (SUCCESS_PATTERN.containsMatchIn(response)) NativeCallResult(true)
-        else NativeCallResult(false, "xray.native_rejected")
+        else {
+            fixtureFailureObserver(response)
+            NativeCallResult(false, "xray.native_rejected")
+        }
     }.getOrElse { NativeCallResult(false, "xray.native_call_failed") }
 
     private fun invokeMethod(): Method = bridgeClass.methods.firstOrNull {
@@ -113,7 +148,13 @@ class ReflectiveLibXrayBridge(
     }
 
     private companion object {
+        val protectionStates = java.util.WeakHashMap<Class<*>, ProtectionState>()
         const val PROTECTED_DNS = "1.1.1.1:53"
         val SUCCESS_PATTERN = Regex("\\\"success\\\"\\s*:\\s*true")
+    }
+
+    private class ProtectionState {
+        @Volatile var protector: SocketProtector? = null
+        var callback: Any? = null
     }
 }

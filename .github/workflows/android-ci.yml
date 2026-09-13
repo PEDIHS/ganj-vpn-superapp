@@ -7,34 +7,56 @@ on:
       - "UPSTREAM.lock.json"
       - ".github/gradle/**"
       - ".github/workflows/android-ci.yml"
+      - ".github/workflows/android-startup-smoke.yml"
+      - ".github/workflows/android-native.yml"
+      - ".github/scripts/android-startup-smoke.sh"
+      - ".github/scripts/vless-tun-fixture.py"
       - ".github/workflows/android-release.yml"
       - ".github/scripts/android-product-guard.sh"
       - ".github/scripts/android-artifact-guard.sh"
+      - ".github/scripts/*apk-png.py"
       - ".github/scripts/build-pinned-libxray.sh"
       - ".github/scripts/verify-libxray-embedding.sh"
   push:
-    branches: [main]
+    branches: [main, ui/stitch-persian-liquid-v1]
     paths:
       - "apps/android/**"
       - "UPSTREAM.lock.json"
       - ".github/gradle/**"
       - ".github/workflows/android-ci.yml"
+      - ".github/workflows/android-startup-smoke.yml"
+      - ".github/workflows/android-native.yml"
+      - ".github/scripts/android-startup-smoke.sh"
+      - ".github/scripts/vless-tun-fixture.py"
       - ".github/workflows/android-release.yml"
       - ".github/scripts/android-product-guard.sh"
       - ".github/scripts/android-artifact-guard.sh"
+      - ".github/scripts/*apk-png.py"
       - ".github/scripts/build-pinned-libxray.sh"
       - ".github/scripts/verify-libxray-embedding.sh"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  native:
+    uses: ./.github/workflows/android-native.yml
+    permissions:
+      contents: read
+
+  startup:
+    needs: native
+    uses: ./.github/workflows/android-startup-smoke.yml
+    permissions:
+      contents: read
+
   verify:
+    needs: startup
     name: Test, lint and build
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -43,6 +65,8 @@ jobs:
         -Dorg.gradle.daemon=false
         -Dorg.gradle.logging.stacktrace=all
         -Dkotlin.incremental=false
+      GANJ_ALPHA_CONTROL_API_BASE_URL: https://bot.pedramhs.ir/app-api/v1/
+      GANJ_ALPHA_TELEGRAM_REDIRECT_URI: https://bot.pedramhs.ir/app-auth/telegram/callback
     steps:
       - name: Check out source
         uses: actions/checkout@v6
@@ -71,27 +95,56 @@ jobs:
           cache-provider: basic
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
+      - name: Enforce Alpha API version prefix
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$GANJ_ALPHA_CONTROL_API_BASE_URL" = "https://bot.pedramhs.ir/app-api/v1/"
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: alpha-pinned-libxray
+          path: ${{ runner.temp }}/pinned-libxray
+
+      - name: Configure verified native runtime
+        run: |
+          cmp UPSTREAM.lock.json "$RUNNER_TEMP/pinned-libxray/evidence/UPSTREAM.lock.json"
+          (cd "$RUNNER_TEMP/pinned-libxray/evidence" && sha256sum -c SHA256SUMS)
+          echo "GANJ_PINNED_LIBXRAY_REPOSITORY=$RUNNER_TEMP/pinned-libxray/maven" >> "$GITHUB_ENV"
+
       - name: Enforce subscription-only production surface
         working-directory: .
         shell: bash
         run: bash .github/scripts/android-product-guard.sh
 
-      - name: Run unit tests, debug and release lint, and trusted debug build
+      - name: Run unit tests, debug and release lint, and trusted ARM64 alpha build
         working-directory: apps/android
         shell: bash
         run: >-
-          gradle --no-daemon --stacktrace --warning-mode all
+          gradle --no-daemon --stacktrace --warning-mode all --init-script ../../.github/gradle/pinned-libxray.init.gradle
+          -PGANJ_CONTROL_API_BASE_URL="$GANJ_ALPHA_CONTROL_API_BASE_URL"
+          -PGANJ_TELEGRAM_REDIRECT_URI="$GANJ_ALPHA_TELEGRAM_REDIRECT_URI"
+          -PGANJ_ALPHA_ARM64_ONLY=true
           testDebugUnitTest
           lintDebug
           lintRelease
           :app:assembleDebug
 
-      - name: Verify generated debug APK
+      - name: Verify generated Telegram Alpha APK
         shell: bash
         run: |
           set -Eeuo pipefail
           apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
           bash .github/scripts/android-artifact-guard.sh "$apk"
+          native_library="$(jq -r '.libXray.androidArtifact.nativeLibrary' UPSTREAM.lock.json)"
+          expected_native="$(unzip -p "$RUNNER_TEMP/pinned-libxray/evidence/libXray.aar" "jni/arm64-v8a/$native_library" | sha256sum | cut -d ' ' -f 1)"
+          packaged_native="$(unzip -p "$apk" "lib/arm64-v8a/$native_library" | sha256sum | cut -d ' ' -f 1)"
+          test "$expected_native" = "$packaged_native"
+          size="$(stat -c '%s' "$apk")"
+          if (( size > 52428800 )); then
+            printf 'Telegram Alpha APK exceeds the 50 MiB Bot API upload limit: %s bytes\n' "$size" >&2
+            exit 1
+          fi
           sha256sum "$apk" > "$apk.sha256"
 
       - name: Capture release dependency graph
@@ -100,7 +153,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p app/build/reports
-          gradle --no-daemon --console=plain \
+          gradle --no-daemon --console=plain --init-script ../../.github/gradle/pinned-libxray.init.gradle \
             :app:dependencies --configuration releaseRuntimeClasspath \
             > app/build/reports/release-runtime-dependencies.txt
 
@@ -120,6 +173,33 @@ jobs:
           sbom="apps/android/app/build/reports/ganj-vpn-android.spdx.json"
           test -s "$sbom"
           jq -e '.spdxVersion and (.packages | length > 0)' "$sbom" >/dev/null
+
+      - name: Publish rolling Alpha release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/ui/stitch-persian-liquid-v1'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
+          version="$(jq -er '.elements[0].versionName' apps/android/app/build/outputs/apk/debug/output-metadata.json)"
+          cp "$apk" ganj-vpn-alpha-arm64.apk
+          sha256sum ganj-vpn-alpha-arm64.apk > ganj-vpn-alpha-arm64.apk.sha256
+          printf 'Source: %s\nRun: %s/%s/actions/runs/%s\nStartup smoke (API 24/35), tests, lint, size guard and SBOM passed. ARM64 physical-device VPN testing remains pending.\n' "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > alpha-release-notes.txt
+          if gh release view alpha-latest >/dev/null 2>&1; then
+            gh release upload alpha-latest \
+              ganj-vpn-alpha-arm64.apk \
+              ganj-vpn-alpha-arm64.apk.sha256 \
+              --clobber
+            gh release edit alpha-latest --title "Ganj VPN $version" --notes-file alpha-release-notes.txt
+          else
+            gh release create alpha-latest \
+              ganj-vpn-alpha-arm64.apk \
+              ganj-vpn-alpha-arm64.apk.sha256 \
+              --target "$GITHUB_SHA" \
+              --title "Ganj VPN $version" \
+              --notes-file alpha-release-notes.txt
+          fi
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7

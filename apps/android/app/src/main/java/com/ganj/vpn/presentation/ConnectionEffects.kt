@@ -73,9 +73,17 @@ class InMemoryConnectionActionVault(
     }
 }
 
+sealed interface ActiveTunnelProbe {
+    data object NotActive : ActiveTunnelProbe
+    data class Measured(val latencyMillis: Long?) : ActiveTunnelProbe
+}
+
 interface TunnelConnector {
     suspend fun connect(request: ConnectionRequest): Result<Unit>
     suspend fun disconnect(): Result<Unit>
+    suspend fun probe(profile: com.ganj.vpn.core.vpn.ProvisionedProfile): Long? = null
+    suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
+        ActiveTunnelProbe.NotActive
 }
 
 sealed interface ConnectionEffectResult {

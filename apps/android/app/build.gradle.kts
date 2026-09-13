@@ -1,12 +1,40 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
 val controlApiBaseUrl = providers.gradleProperty("GANJ_CONTROL_API_BASE_URL").orElse("").get()
+val telegramRedirectUri = providers.gradleProperty("GANJ_TELEGRAM_REDIRECT_URI")
+    .orElse("https://auth.invalid/ganj/telegram/callback")
+    .get()
+val alphaArm64Only = providers.gradleProperty("GANJ_ALPHA_ARM64_ONLY").orElse("false").get().toBoolean()
+val nativeFixtureDiagnostics = providers.gradleProperty("GANJ_NATIVE_FIXTURE_DIAGNOSTICS").orElse("false").get().toBoolean()
+require(!alphaArm64Only || !nativeFixtureDiagnostics) { "Native fixture diagnostics must never ship in Alpha" }
+val controlApiUri = controlApiBaseUrl.takeIf { it.isNotBlank() }?.let(::URI)
+controlApiUri?.let { uri ->
+    require(uri.scheme == "https" && !uri.host.isNullOrBlank()) {
+        "GANJ_CONTROL_API_BASE_URL must be an absolute HTTPS URI"
+    }
+    require(uri.userInfo == null && uri.query == null && uri.fragment == null) {
+        "GANJ_CONTROL_API_BASE_URL cannot contain credentials, query or fragment"
+    }
+    require(uri.path.endsWith("/v1/")) {
+        "GANJ_CONTROL_API_BASE_URL must end with /v1/"
+    }
+}
 val escapedControlApiBaseUrl = controlApiBaseUrl
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")
+val escapedTelegramRedirectUri = telegramRedirectUri
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+val telegramRedirect = URI(telegramRedirectUri)
+require(telegramRedirect.scheme == "https" && !telegramRedirect.host.isNullOrBlank()) {
+    "GANJ_TELEGRAM_REDIRECT_URI must be an absolute HTTPS URI"
+}
+val telegramRedirectPath: String = telegramRedirect.rawPath?.takeIf { it.isNotBlank() } ?: "/"
 
 android {
     namespace = "com.ganj.vpn"
@@ -16,9 +44,18 @@ android {
         applicationId = "com.ganj.vpn"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 8
+        versionName = "0.3.5-alpha"
+        buildConfigField("boolean", "NATIVE_FIXTURE_DIAGNOSTICS", nativeFixtureDiagnostics.toString())
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
+        buildConfigField("String", "TELEGRAM_REDIRECT_URI", "\"$escapedTelegramRedirectUri\"")
+        manifestPlaceholders["telegramAuthHost"] = telegramRedirect.host
+        manifestPlaceholders["telegramAuthPath"] = telegramRedirectPath
+        if (alphaArm64Only) {
+            ndk {
+                abiFilters += "arm64-v8a"
+            }
+        }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -45,7 +82,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    packaging.resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    packaging {
+        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        // Preserve the audited native bytes so artifact verification matches the official AAR.
+        jniLibs.keepDebugSymbols += "**/libgojni.so"
+        if (alphaArm64Only) {
+            jniLibs.useLegacyPackaging = true
+        }
+    }
 }
 
 dependencies {
@@ -59,14 +103,18 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.10.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")
 }

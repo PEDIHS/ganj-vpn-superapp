@@ -8,7 +8,10 @@ if [[ ! -d "$android_main" ]]; then
   exit 1
 fi
 
-forbidden_api_pattern='(ClipboardManager|ACTION_OPEN_DOCUMENT|ACTION_GET_CONTENT|ActivityResultContracts\.GetContent|BarcodeScanner|QRCodeReader|mockSubscriptionState|mockPurchasedService|mockServers|import(Config|Profile)|manual(Config|Profile)|startsWith\("(vless|vmess|trojan|shadowsocks|ss)://)'
+# Clipboard writes are allowed for ordinary product UX such as copying a transaction
+# reference. Clipboard reads are blocked because they can become a manual VPN-config
+# import path. Keep the rest of the import/parser denylist fail-closed.
+forbidden_api_pattern='(getPrimaryClip|hasPrimaryClip|clipboard\.(getText|hasText)\(|ACTION_OPEN_DOCUMENT|ACTION_GET_CONTENT|ActivityResultContracts\.GetContent|BarcodeScanner|QRCodeReader|mockSubscriptionState|mockPurchasedService|mockServers|import(Config|Profile)|manual(Config|Profile)|startsWith\("(vless|vmess|trojan|shadowsocks|ss)://)'
 # Exact scheme literals are allowed only as privacy-redaction denylist values. A URI with payload is
 # always blocked, as are parser/import entry points covered by forbidden_api_pattern above.
 forbidden_uri_pattern='(vless|vmess|trojan|shadowsocks|ss)://[^"[:space:]]{4,}'

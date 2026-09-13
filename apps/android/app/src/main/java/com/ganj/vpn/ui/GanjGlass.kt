@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,19 @@ internal object GanjLiquidGlassPolicy {
     const val PerformanceTieringRequired = true
 }
 
+// Blend ambient tints over the active theme, never over the platform splash window.
+// Transparent gradient stops previously revealed its dark background in Light mode.
+internal fun ganjCanvasColors(
+    background: Color,
+    primary: Color,
+    tertiary: Color,
+    ambientEffects: Boolean,
+): List<Color> = listOf(
+    primary.copy(alpha = if (ambientEffects) 0.14f else 0.055f).compositeOver(background),
+    tertiary.copy(alpha = if (ambientEffects) 0.035f else 0f).compositeOver(background),
+    background,
+)
+
 @Composable
 internal fun GanjLiquidCanvas(
     modifier: Modifier = Modifier,
@@ -54,17 +68,16 @@ internal fun GanjLiquidCanvas(
 ) {
     val colors = MaterialTheme.colorScheme
     val effects = LocalGanjVisualEffectsPolicy.current
-    val primaryAlpha = if (effects.ambientBackgroundEffects) 0.14f else 0.055f
-    val tertiaryAlpha = if (effects.ambientBackgroundEffects) 0.035f else 0f
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(
                 Brush.radialGradient(
-                    colors = listOf(
-                        colors.primary.copy(alpha = primaryAlpha),
-                        colors.tertiary.copy(alpha = tertiaryAlpha),
-                        colors.background,
+                    colors = ganjCanvasColors(
+                        background = colors.background,
+                        primary = colors.primary,
+                        tertiary = colors.tertiary,
+                        ambientEffects = effects.ambientBackgroundEffects,
                     ),
                     radius = if (effects.ambientBackgroundEffects) 1150f else 760f,
                 ),

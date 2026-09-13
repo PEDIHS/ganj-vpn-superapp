@@ -35,6 +35,24 @@ class AuthSessionCredentials(
         "AuthSessionCredentials(userId=$userId, deviceId=$deviceId, accessToken=[REDACTED], refreshToken=[REDACTED])"
 }
 
+class CurrentAccount(
+    val id: String,
+    val displayName: String?,
+    val locale: String,
+    val telegramLinked: Boolean,
+    val telegramUsername: String?,
+) {
+    init {
+        requireCanonicalUuid(id, "id")
+        require(locale.length in 2..16 && locale.none(Char::isISOControl))
+        require(displayName == null || (displayName.length in 1..256 && displayName.none(Char::isISOControl)))
+        require(telegramUsername == null || (telegramUsername.length in 1..64 && telegramUsername.none(Char::isISOControl)))
+    }
+
+    override fun toString(): String =
+        "CurrentAccount(id=$id, telegramLinked=$telegramLinked, displayName=[REDACTED], telegramUsername=[REDACTED])"
+}
+
 interface SessionCredentialVault : AuthTokenProvider {
     fun currentUserId(): String?
     fun currentDeviceId(): String?
@@ -73,14 +91,14 @@ data class RefreshSessionCommand(
     }
 }
 
+/** OIDC fallback contract. Bot Approval must be preferred by product UI. */
 data class TelegramAuthorizationCommand(
     val codeChallenge: String,
     val redirectUri: String,
 ) {
     init {
         require(codeChallenge.matches(BASE64URL_32_BYTES))
-        require(redirectUri.length in 12..2048)
-        require(!redirectUri.contains('\n') && !redirectUri.contains('\r'))
+        requireSafeRedirectUri(redirectUri)
     }
 }
 
@@ -104,14 +122,92 @@ data class TelegramExchangeCommand(
     init {
         require(code.length in 8..2048)
         require(state.length in 32..512)
-        require(codeVerifier.length in 43..128)
-        require(codeVerifier.matches(Regex("^[A-Za-z0-9._~-]+$")))
+        requirePkceVerifier(codeVerifier)
     }
+}
+
+data class TelegramBotApprovalCommand(
+    val codeChallenge: String,
+    val redirectUri: String,
+) {
+    init {
+        require(codeChallenge.matches(BASE64URL_32_BYTES))
+        requireSafeRedirectUri(redirectUri)
+    }
+}
+
+data class TelegramBotApprovalRequest(
+    val requestId: String,
+    val botUrl: String,
+    val state: String,
+    val expiresAt: String,
+) {
+    init {
+        requireCanonicalUuid(requestId, "requestId")
+        require(botUrl.startsWith("https://t.me/"))
+        require(state.matches(BASE64URL_32_BYTES))
+        requireUtcTimestamp(expiresAt, "expiresAt")
+    }
+
+    override fun toString(): String =
+        "TelegramBotApprovalRequest(requestId=$requestId, botUrl=[REDACTED], state=[REDACTED], expiresAt=$expiresAt)"
+}
+
+enum class TelegramBotApprovalState {
+    PENDING,
+    APPROVED,
+    DENIED,
+    CONSUMED,
+    EXPIRED,
+}
+
+data class TelegramBotApprovalStatus(
+    val requestId: String,
+    val state: TelegramBotApprovalState,
+    val expiresAt: String,
+) {
+    init {
+        requireCanonicalUuid(requestId, "requestId")
+        requireUtcTimestamp(expiresAt, "expiresAt")
+    }
+}
+
+data class TelegramBotApprovalExchangeCommand(
+    val requestId: String,
+    val state: String,
+    val codeVerifier: String,
+) {
+    init {
+        requireCanonicalUuid(requestId, "requestId")
+        require(state.matches(BASE64URL_32_BYTES))
+        requirePkceVerifier(codeVerifier)
+    }
+
+    override fun toString(): String =
+        "TelegramBotApprovalExchangeCommand(requestId=$requestId, state=[REDACTED], codeVerifier=[REDACTED])"
 }
 
 interface AuthSessionApi {
     fun createGuest(command: GuestSessionCommand): ApiResult<AuthSessionCredentials>
     fun refresh(command: RefreshSessionCommand): ApiResult<AuthSessionCredentials>
+    fun currentAccount(accessToken: AccessToken): ApiResult<CurrentAccount>
+
+    fun beginTelegramBotApproval(
+        accessToken: AccessToken,
+        command: TelegramBotApprovalCommand,
+    ): ApiResult<TelegramBotApprovalRequest>
+
+    fun telegramBotApprovalStatus(
+        accessToken: AccessToken,
+        requestId: String,
+    ): ApiResult<TelegramBotApprovalStatus>
+
+    fun exchangeTelegramBotApproval(
+        accessToken: AccessToken,
+        command: TelegramBotApprovalExchangeCommand,
+    ): ApiResult<AuthSessionCredentials>
+
+    /** Hardened OIDC/PKCE fallback; not the primary product login path. */
     fun beginTelegram(accessToken: AccessToken, command: TelegramAuthorizationCommand): ApiResult<TelegramAuthorization>
     fun exchangeTelegram(command: TelegramExchangeCommand): ApiResult<AuthSessionCredentials>
     fun logout(accessToken: AccessToken): ApiResult<Boolean>
@@ -125,6 +221,7 @@ object AuthSessionApiFactory {
 
 private val KEY_VERSION = Regex("^v[1-9][0-9]{0,8}$")
 private val BASE64URL_32_BYTES = Regex("^[A-Za-z0-9_-]{43}$")
+private val PKCE_VERIFIER = Regex("^[A-Za-z0-9._~-]{43,128}$")
 private val UTC_TIMESTAMP = Regex(
     "^[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,9})?Z$",
 )
@@ -137,4 +234,14 @@ private fun requireCanonicalUuid(value: String, field: String) {
 
 private fun requireUtcTimestamp(value: String, field: String) {
     require(value.matches(UTC_TIMESTAMP)) { "$field must be an RFC 3339 UTC timestamp" }
+}
+
+private fun requirePkceVerifier(value: String) {
+    require(value.matches(PKCE_VERIFIER)) { "codeVerifier format is invalid" }
+}
+
+private fun requireSafeRedirectUri(value: String) {
+    require(value.length in 12..2048)
+    require(value.startsWith("https://"))
+    require(!value.contains('\n') && !value.contains('\r') && !value.contains('#'))
 }

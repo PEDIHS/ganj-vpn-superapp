@@ -35,4 +35,28 @@ class GanjResponsivePolicyTest {
         assertEquals(GanjWidthClass.Wide, GanjResponsivePolicy.widthClass(720))
         assertEquals(28, GanjResponsivePolicy.horizontalPagePaddingDp(720))
     }
+
+    @Test
+    fun stitchReferenceWidths_keepExpectedPageGutters() {
+        assertEquals(18, GanjResponsivePolicy.stitchHorizontalPaddingDp(360))
+        assertEquals(20, GanjResponsivePolicy.stitchHorizontalPaddingDp(390))
+        assertEquals(22, GanjResponsivePolicy.stitchHorizontalPaddingDp(412))
+        assertEquals(22, GanjResponsivePolicy.stitchHorizontalPaddingDp(430))
+    }
+
+    @Test
+    fun stitchConnectOrb_scalesAcrossReferencePhones() {
+        assertEquals(180, GanjResponsivePolicy.stitchConnectOrbSizeDp(360))
+        assertEquals(198, GanjResponsivePolicy.stitchConnectOrbSizeDp(390))
+        assertEquals(212, GanjResponsivePolicy.stitchConnectOrbSizeDp(412))
+        assertEquals(212, GanjResponsivePolicy.stitchConnectOrbSizeDp(430))
+    }
+
+    @Test
+    fun stitchNavigationPadding_scalesWithoutChangingArchitecture() {
+        assertEquals(8, GanjResponsivePolicy.stitchNavigationHorizontalPaddingDp(360))
+        assertEquals(12, GanjResponsivePolicy.stitchNavigationHorizontalPaddingDp(390))
+        assertEquals(14, GanjResponsivePolicy.stitchNavigationHorizontalPaddingDp(412))
+        assertEquals(14, GanjResponsivePolicy.stitchNavigationHorizontalPaddingDp(430))
+    }
 }
