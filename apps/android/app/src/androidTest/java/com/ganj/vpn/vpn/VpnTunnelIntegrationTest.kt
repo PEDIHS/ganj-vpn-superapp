@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import com.ganj.vpn.core.vpn.ConnectionPhase
 import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.vpn.ProvisionedProfile
 import com.ganj.vpn.core.vpn.VpnProtocol
@@ -51,7 +52,7 @@ class VpnTunnelIntegrationTest {
         println("VPN test: OS denial and approval passed")
 
         val client = AndroidVpnTunnelClient(context)
-        repeat(2) {
+        repeat(2) { iteration ->
             try {
                 val started = client.connect(ConnectionRequest(fixtureProfile()))
                 assertTrue(started.exceptionOrNull()?.message ?: "TUN start failed", started.isSuccess)
@@ -77,8 +78,22 @@ class VpnTunnelIntegrationTest {
                     println("VPN test: TUN traffic and config switch passed")
                 }
             } finally {
-                assertTrue("disconnect must finish successfully", client.disconnect().isSuccess)
-                println("VPN test: disconnect passed")
+                if (iteration == 0) {
+                    assertTrue("disconnect must finish successfully", client.disconnect().isSuccess)
+                    println("VPN test: binder disconnect passed")
+                } else {
+                    context.startService(
+                        Intent(context, GanjVpnService::class.java)
+                            .setAction(GanjVpnService.ACTION_DISCONNECT),
+                    )
+                    withTimeout(10_000) {
+                        while (
+                            VpnRuntimeState.state.value.phase != ConnectionPhase.DISCONNECTED ||
+                            VpnRuntimeState.tunnelActive
+                        ) delay(100)
+                    }
+                    println("VPN test: notification disconnect passed")
+                }
             }
         }
         } catch (failure: Throwable) {

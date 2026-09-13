@@ -128,7 +128,12 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         when (intent?.action) {
             ACTION_PREPARE -> startForeground(NOTIFICATION_ID, connectionNotification())
             ACTION_DISCONNECT -> {
-                terminateDesiredConnection(clearRecovery = true)
+                // Notification/service commands are delivered on the main thread. Native Xray
+                // shutdown and recovery-store cleanup may block, so keep teardown on the service
+                // IO scope just like binder-driven disconnects.
+                serviceScope.launch {
+                    terminateDesiredConnection(clearRecovery = true, startId = startId)
+                }
                 return START_NOT_STICKY
             }
             null -> {
