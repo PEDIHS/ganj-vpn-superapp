@@ -73,7 +73,7 @@ class ConnectionLatencyProberTest {
         }, CurrentUserIdProvider { USER }, object : ConnectionProfileContextProvider {
             override fun forEntitlement(entitlementId: String): ConnectionProfileContext? = error("probe must not change current selection")
             override fun forServer(entitlementId: String, serverId: String): ConnectionProfileContext? =
-                if (authorized) ConnectionProfileContext(DEVICE, serverId, "nonce", "proof") else null
+                if (authorized) ConnectionProfileContext(DEVICE, serverId, "n".repeat(32), "p".repeat(64)) else null
         }, object : TunnelConnector {
             override suspend fun connect(request: ConnectionRequest): Result<Unit> = error("probe must not start VPN")
             override suspend fun disconnect(): Result<Unit> = error("probe must not stop VPN")
