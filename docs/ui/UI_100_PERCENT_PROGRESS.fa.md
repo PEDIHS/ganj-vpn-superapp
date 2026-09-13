@@ -950,6 +950,7 @@
 
 - 2026-09-13: obtain OS VPN consent before requesting the expiring profile; emulator test launches a foreground Activity before the system consent dialog.
 - Connection card now resolves the actual selected/connected server metadata instead of labeling the subscription name as a server; the measured latency is reused on that card.
+- Control API HTTPS uses an underlying network while our own TUN is held, allowing authorized config replacement even when the selected proxy stops responding; other app traffic remains routed through the VPN.
 
 - Added server-authorized native Xray HTTP latency, streamed per-config results, explicit no-response state, and foreground-only 15-second refresh for the connected config.
 - Smart Connect measures eligible configs and chooses the fastest successful result; no synthetic latency or connection success is shown.

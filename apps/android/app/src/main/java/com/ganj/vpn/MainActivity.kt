@@ -79,6 +79,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        com.ganj.vpn.core.controlapi.ControlApiNetworkRouting.install(application) {
+            com.ganj.vpn.vpn.VpnRuntimeState.tunnelActive
+        }
 
         userPreferencesStore = AndroidGanjUserPreferencesStore(application)
         userPreferences.value = userPreferencesStore.restore()

@@ -17,6 +17,8 @@ import com.ganj.vpn.core.xray.XrayConfigCompiler
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -38,19 +40,22 @@ class VpnTunnelIntegrationTest {
         activity.onActivity { it.startActivityForResult(permission!!, 47159) }
         assertTrue(device.wait(Until.hasObject(By.res("android", "button2")), 10_000))
         device.findObject(By.res("android", "button2")).click()
-        device.waitForIdle()
+        assertTrue("denied dialog must close before opening another", device.wait(Until.gone(By.pkg("com.android.vpndialogs")), 10_000))
         assertNotNull(VpnService.prepare(context))
         activity.onActivity { it.startActivityForResult(VpnService.prepare(it)!!, 47159) }
         assertTrue(device.wait(Until.hasObject(By.res("android", "button1")), 10_000))
         device.findObject(By.res("android", "button1")).click()
-        device.waitForIdle()
+        assertTrue("approved dialog must close", device.wait(Until.gone(By.pkg("com.android.vpndialogs")), 10_000))
+        withTimeout(10_000) { while (VpnService.prepare(context) != null) delay(100) }
         assertNull(VpnService.prepare(context))
+        println("VPN test: OS denial and approval passed")
 
         val client = AndroidVpnTunnelClient(context)
         repeat(2) {
             try {
                 val started = client.connect(ConnectionRequest(fixtureProfile()))
                 assertTrue(started.exceptionOrNull()?.message ?: "TUN start failed", started.isSuccess)
+                println("VPN test: native TUN started")
                 val latency = fixtureProfile().use { profile ->
                     XrayConfigCompiler().compileProbe(profile).use { config ->
                         ReflectiveLibXrayBridge(context.classLoader).probe(
@@ -59,6 +64,7 @@ class VpnTunnelIntegrationTest {
                     }
                 }
                 assertNotNull("real proxy latency must be measured without stopping VPN", latency)
+                println("VPN test: native proxy latency passed")
                 assertTrue("switching config must retain a working TUN", client.connect(ConnectionRequest(fixtureProfile())).isSuccess)
                 Socket().use { socket ->
                     socket.soTimeout = 8_000
@@ -68,11 +74,17 @@ class VpnTunnelIntegrationTest {
                     socket.getOutputStream().write("GET /ganj-tun-check HTTP/1.1\r\nHost: test.invalid\r\nConnection: close\r\n\r\n".toByteArray())
                     val response = socket.getInputStream().bufferedReader().readText()
                     assertTrue(response.contains("ganj-tun-vless-roundtrip-ok"))
+                    println("VPN test: TUN traffic and config switch passed")
                 }
             } finally {
                 assertTrue("disconnect must finish successfully", client.disconnect().isSuccess)
+                println("VPN test: disconnect passed")
             }
         }
+        } catch (failure: Throwable) {
+            device.takeScreenshot(java.io.File(context.cacheDir, "vpn-failure.png"))
+            device.dumpWindowHierarchy(java.io.File(context.cacheDir, "vpn-failure.xml"))
+            throw failure
         } finally { activity.close() }
     }
 

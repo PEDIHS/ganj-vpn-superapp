@@ -6,6 +6,8 @@ capture() {
   if [[ -n "$fixture_pid" ]]; then kill "$fixture_pid" 2>/dev/null || true; fi
   adb logcat -d -b crash > startup-evidence/crash.txt || true
   adb logcat -d > startup-evidence/emulator-logcat.txt || true
+  adb exec-out run-as com.ganj.vpn cat cache/vpn-failure.png > startup-evidence/vpn-failure.png 2>/dev/null || true
+  adb exec-out run-as com.ganj.vpn cat cache/vpn-failure.xml > startup-evidence/vpn-failure.xml 2>/dev/null || true
   adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
   adb pull /sdcard/window.xml startup-evidence/window.xml >/dev/null 2>&1 || true
   # Isolated guest emulator only: expose startup failures in CI logs.
@@ -43,7 +45,6 @@ for attempt in {1..30}; do
   sleep 0.1
 done
 grep -q 'fixture ready' startup-evidence/fixture.log
-adb shell am instrument -w -r com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner > startup-evidence/instrumentation.txt
-cat startup-evidence/instrumentation.txt
+timeout 180 adb shell am instrument -w -r com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner | tee startup-evidence/instrumentation.txt
 grep -E '^OK \([1-9][0-9]* tests?\)' startup-evidence/instrumentation.txt
 ! grep -E 'FAILURES|INSTRUMENTATION_FAILED|Process crashed' startup-evidence/instrumentation.txt

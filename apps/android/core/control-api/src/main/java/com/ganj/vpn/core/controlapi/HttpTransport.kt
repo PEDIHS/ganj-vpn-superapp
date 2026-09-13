@@ -64,7 +64,7 @@ internal class UrlConnectionTransport(
                 "Request cannot escape the configured API origin"
             }
             require(resolved.path.startsWith(baseUri.path)) { "Request cannot escape the configured API base path" }
-            val activeConnection = resolved.toURL().openConnection() as HttpURLConnection
+            val activeConnection = ControlApiNetworkRouting.openConnection(resolved.toURL()) as HttpURLConnection
             connection = activeConnection
             require(activeConnection is HttpsURLConnection) { "Control API requires TLS" }
             activeConnection.instanceFollowRedirects = false

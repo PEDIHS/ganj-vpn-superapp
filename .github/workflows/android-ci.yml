@@ -134,6 +134,10 @@ jobs:
           set -Eeuo pipefail
           apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
           bash .github/scripts/android-artifact-guard.sh "$apk"
+          native_library="$(jq -r '.libXray.androidArtifact.nativeLibrary' UPSTREAM.lock.json)"
+          expected_native="$(unzip -p "$RUNNER_TEMP/pinned-libxray/evidence/libXray.aar" "jni/arm64-v8a/$native_library" | sha256sum | cut -d ' ' -f 1)"
+          packaged_native="$(unzip -p "$apk" "lib/arm64-v8a/$native_library" | sha256sum | cut -d ' ' -f 1)"
+          test "$expected_native" = "$packaged_native"
           size="$(stat -c '%s' "$apk")"
           if (( size > 52428800 )); then
             printf 'Telegram Alpha APK exceeds the 50 MiB Bot API upload limit: %s bytes\n' "$size" >&2
@@ -176,6 +180,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
+          version="$(jq -er '.elements[0].versionName' apps/android/app/build/outputs/apk/debug/output-metadata.json)"
           cp "$apk" ganj-vpn-alpha-arm64.apk
           sha256sum ganj-vpn-alpha-arm64.apk > ganj-vpn-alpha-arm64.apk.sha256
           printf 'Source: %s\nRun: %s/%s/actions/runs/%s\nStartup smoke (API 24/35), tests, lint, size guard and SBOM passed. ARM64 physical-device VPN testing remains pending.\n' "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > alpha-release-notes.txt
@@ -184,13 +189,13 @@ jobs:
               ganj-vpn-alpha-arm64.apk \
               ganj-vpn-alpha-arm64.apk.sha256 \
               --clobber
-            gh release edit alpha-latest --title "Ganj VPN 0.3.1-alpha" --notes-file alpha-release-notes.txt
+            gh release edit alpha-latest --title "Ganj VPN $version" --notes-file alpha-release-notes.txt
           else
             gh release create alpha-latest \
               ganj-vpn-alpha-arm64.apk \
               ganj-vpn-alpha-arm64.apk.sha256 \
               --target "$GITHUB_SHA" \
-              --title "Ganj VPN 0.3.1-alpha" \
+              --title "Ganj VPN $version" \
               --notes-file alpha-release-notes.txt
           fi
 

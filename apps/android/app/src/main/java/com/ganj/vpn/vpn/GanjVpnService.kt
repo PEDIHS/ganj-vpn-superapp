@@ -101,7 +101,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         createNotificationChannel()
         serviceScope.launch {
             while (isActive) {
-                VpnRuntimeState.publish(engine.currentState())
+                VpnRuntimeState.publish(engine.currentState(), engine.hasTunnel())
                 delay(250)
             }
         }
@@ -238,6 +238,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setBlocking(true)
         val descriptor = requireNotNull(builder.establish()) { "vpn.tun_permission_missing" }
+        VpnRuntimeState.publish(engine.currentState(), hasTunnel = true)
         ParcelTunnelDevice(descriptor)
     }
 

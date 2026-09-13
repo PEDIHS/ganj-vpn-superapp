@@ -8,5 +8,10 @@ import kotlinx.coroutines.flow.asStateFlow
 internal object VpnRuntimeState {
     private val mutable = MutableStateFlow(ConnectionState())
     val state = mutable.asStateFlow()
-    fun publish(value: ConnectionState) { mutable.value = value }
+    @Volatile var tunnelActive = false
+        private set
+    fun publish(value: ConnectionState, hasTunnel: Boolean = false) {
+        tunnelActive = hasTunnel
+        mutable.value = value
+    }
 }
