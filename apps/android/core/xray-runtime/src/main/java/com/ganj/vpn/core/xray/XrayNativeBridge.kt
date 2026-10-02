@@ -116,9 +116,14 @@ class ReflectiveLibXrayBridge(
                 val result = response.optJSONObject("data")?.optJSONArray("results")?.optJSONObject(0)
                     ?: return@measure NativeProbeResult.Failed("probe.native_failed")
                 // Upstream omits delay when it is exactly zero; success still makes it a valid measurement.
-                val delay = result.optLong("delay", 0)
+                val delay = if (!result.has("delay")) 0L else (result.opt("delay") as? Number)?.toLong()
+                    ?: return@measure NativeProbeResult.Failed("probe.native_failed")
                 if (result.optBoolean("success") && delay >= 0) NativeProbeResult.Measured(delay)
-                else NativeProbeResult.Failed(NativeFailureClassifier.probe(result.optString("error")))
+                else {
+                    val raw = result.optString("error")
+                    val startup = NativeFailureClassifier.startup(raw)
+                    NativeProbeResult.Failed(if (startup == "xray.config_invalid") startup else NativeFailureClassifier.probe(raw))
+                }
             }
         } catch (error: Exception) {
             NativeProbeResult.Failed(NativeFailureClassifier.probe(error))

@@ -364,7 +364,8 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 connection.useCaches = false
                 connection.setRequestProperty("Cache-Control", "no-store")
                 connection.setRequestProperty("Connection", "close")
-                if (connection.responseCode in 200..399) {
+                // Like libXray, a received HTTP response measures latency even when the target denies access.
+                if (connection.responseCode in 100..599) {
                     NativeProbeResult.Measured((SystemClock.elapsedRealtime() - started).coerceAtLeast(0L))
                 } else NativeProbeResult.Failed("probe.http_failed")
             } finally { connection?.disconnect() }

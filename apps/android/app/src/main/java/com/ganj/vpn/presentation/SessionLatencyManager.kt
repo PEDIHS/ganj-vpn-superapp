@@ -35,8 +35,10 @@ class SessionLatencyManager(
     private var generation = 0L
 
     fun startAutomatic(serviceId: String, servers: suspend () -> List<String>) {
-        if (!automaticStarted.compareAndSet(false, true)) return
-        val expected = synchronized(lock) { generation }
+        val expected = synchronized(lock) {
+            if (!automaticStarted.compareAndSet(false, true)) return
+            generation
+        }
         scope.launch {
             val ids = try { servers() } catch (cancelled: CancellationException) {
                 throw cancelled

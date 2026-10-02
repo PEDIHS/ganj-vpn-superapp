@@ -427,8 +427,9 @@ fun GanjVpnApp(
         refreshEnterprise()
     }
 
-    LaunchedEffect(composition, telegramLinked, state.selectedService?.entitlementId, state.selectedService?.isActive) {
-        val selected = state.selectedService
+    val entryService = state.selectedService?.takeIf { it.isActive } ?: state.serviceItems.firstOrNull { it.isActive }
+    LaunchedEffect(composition, telegramLinked, entryService?.entitlementId) {
+        val selected = entryService
         if (telegramLinked && selected?.isActive == true) {
             composition.latency.startAutomatic(selected.entitlementId) {
                 val servers = com.ganj.vpn.composition.ConnectionServerCompositionRegistry.currentController()
@@ -778,4 +779,3 @@ fun GanjVpnApp(
         )
     }
 }
-
