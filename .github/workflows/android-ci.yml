@@ -174,33 +174,6 @@ jobs:
           test -s "$sbom"
           jq -e '.spdxVersion and (.packages | length > 0)' "$sbom" >/dev/null
 
-      - name: Publish rolling Alpha release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/ui/stitch-persian-liquid-v1'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
-          version="$(jq -er '.elements[0].versionName' apps/android/app/build/outputs/apk/debug/output-metadata.json)"
-          cp "$apk" ganj-vpn-alpha-arm64.apk
-          sha256sum ganj-vpn-alpha-arm64.apk > ganj-vpn-alpha-arm64.apk.sha256
-          printf 'Source: %s\nRun: %s/%s/actions/runs/%s\nStartup smoke (API 24/35), tests, lint, size guard and SBOM passed. ARM64 physical-device VPN testing remains pending.\n' "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > alpha-release-notes.txt
-          if gh release view alpha-latest >/dev/null 2>&1; then
-            gh release upload alpha-latest \
-              ganj-vpn-alpha-arm64.apk \
-              ganj-vpn-alpha-arm64.apk.sha256 \
-              --clobber
-            gh release edit alpha-latest --title "Ganj VPN $version" --notes-file alpha-release-notes.txt
-          else
-            gh release create alpha-latest \
-              ganj-vpn-alpha-arm64.apk \
-              ganj-vpn-alpha-arm64.apk.sha256 \
-              --target "$GITHUB_SHA" \
-              --title "Ganj VPN $version" \
-              --notes-file alpha-release-notes.txt
-          fi
-
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
@@ -221,3 +194,144 @@ jobs:
             apps/android/**/build/test-results/**
           if-no-files-found: warn
           retention-days: 14
+
+  sign_alpha:
+    name: Sign and publish rolling Alpha APK
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/ui/stitch-persian-liquid-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: android-candidate
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Check out exact Alpha source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Java signing tools
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: "14742923"
+
+      - name: Install APK signing tools
+        shell: bash
+        run: sdkmanager "build-tools;36.0.0"
+
+      - name: Download verified Alpha APK
+        uses: actions/download-artifact@v7
+        with:
+          name: ganj-vpn-debug-${{ github.sha }}
+          path: ${{ runner.temp }}/alpha-input
+
+      - name: Sign Alpha with protected stable key
+        shell: bash
+        env:
+          GANJ_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          GANJ_UPLOAD_KEYSTORE_SHA256: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_SHA256 }}
+          GANJ_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          GANJ_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          GANJ_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+          GANJ_EXPECTED_UPLOAD_CERT_SHA256: ${{ vars.ANDROID_UPLOAD_CERT_SHA256 }}
+        run: |
+          set -Eeuo pipefail
+          : "${GANJ_UPLOAD_KEYSTORE_B64:?Missing protected Android upload keystore}"
+          : "${GANJ_UPLOAD_KEYSTORE_SHA256:?Missing protected keystore checksum}"
+          : "${GANJ_UPLOAD_STORE_PASSWORD:?Missing protected keystore password}"
+          : "${GANJ_UPLOAD_KEY_ALIAS:?Missing protected upload key alias}"
+          : "${GANJ_UPLOAD_KEY_PASSWORD:?Missing protected upload key password}"
+          : "${GANJ_EXPECTED_UPLOAD_CERT_SHA256:?Missing expected upload certificate fingerprint}"
+
+          input="$RUNNER_TEMP/alpha-input/app-debug.apk"
+          output="$RUNNER_TEMP/alpha-output"
+          keystore="$RUNNER_TEMP/android-upload-keystore.jks"
+          signed="$output/ganj-vpn-alpha-arm64.apk"
+          install -d -m 0700 "$output"
+          trap 'truncate -s 0 "$keystore" 2>/dev/null || true; rm -f "$keystore"' EXIT
+
+          printf '%s' "$GANJ_UPLOAD_KEYSTORE_B64" | base64 --decode > "$keystore"
+          chmod 0600 "$keystore"
+
+          normalize_sha256() { tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]'; }
+          expected_keystore_sha="$(printf '%s' "$GANJ_UPLOAD_KEYSTORE_SHA256" | normalize_sha256)"
+          actual_keystore_sha="$(sha256sum "$keystore" | cut -d ' ' -f 1)"
+          test "$actual_keystore_sha" = "$expected_keystore_sha"
+
+          expected_cert_sha="$(printf '%s' "$GANJ_EXPECTED_UPLOAD_CERT_SHA256" | normalize_sha256)"
+          actual_cert_sha="$(
+            keytool -exportcert \
+              -keystore "$keystore" \
+              -storepass:env GANJ_UPLOAD_STORE_PASSWORD \
+              -alias "$GANJ_UPLOAD_KEY_ALIAS" |
+              sha256sum | cut -d ' ' -f 1
+          )"
+          test "$actual_cert_sha" = "$expected_cert_sha"
+
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" sign \
+            --ks "$keystore" \
+            --ks-key-alias "$GANJ_UPLOAD_KEY_ALIAS" \
+            --ks-pass env:GANJ_UPLOAD_STORE_PASSWORD \
+            --key-pass env:GANJ_UPLOAD_KEY_PASSWORD \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out "$signed" \
+            "$input"
+
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$signed"
+          bash .github/scripts/android-artifact-guard.sh "$signed"
+          size="$(stat -c '%s' "$signed")"
+          if (( size > 52428800 )); then
+            printf 'Signed Telegram Alpha APK exceeds 50 MiB: %s bytes\n' "$size" >&2
+            exit 1
+          fi
+          sha256sum "$signed" > "$signed.sha256"
+          printf '%s\n' "$actual_cert_sha" > "$output/signing-cert-sha256.txt"
+
+      - name: Publish stable-signed rolling Alpha
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          output="$RUNNER_TEMP/alpha-output"
+          version="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)"[[:space:]]*$/\1/p' apps/android/app/build.gradle.kts)"
+          test -n "$version"
+          printf 'Source: %s\nRun: %s/%s/actions/runs/%s\nStable protected APK signing enabled. Startup smoke (API 24/35), tests, lint, size guard and SBOM passed.\n' "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > "$output/alpha-release-notes.txt"
+          if gh release view alpha-latest >/dev/null 2>&1; then
+            gh release upload alpha-latest \
+              "$output/ganj-vpn-alpha-arm64.apk" \
+              "$output/ganj-vpn-alpha-arm64.apk.sha256" \
+              "$output/signing-cert-sha256.txt" \
+              --clobber
+            gh release edit alpha-latest --title "Ganj VPN $version" --notes-file "$output/alpha-release-notes.txt"
+          else
+            gh release create alpha-latest \
+              "$output/ganj-vpn-alpha-arm64.apk" \
+              "$output/ganj-vpn-alpha-arm64.apk.sha256" \
+              "$output/signing-cert-sha256.txt" \
+              --target "$GITHUB_SHA" \
+              --title "Ganj VPN $version" \
+              --notes-file "$output/alpha-release-notes.txt"
+          fi
+
+      - name: Upload stable-signed Alpha evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: ganj-vpn-alpha-signed-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/alpha-output/ganj-vpn-alpha-arm64.apk
+            ${{ runner.temp }}/alpha-output/ganj-vpn-alpha-arm64.apk.sha256
+            ${{ runner.temp }}/alpha-output/signing-cert-sha256.txt
+          if-no-files-found: error
+          retention-days: 30
+
