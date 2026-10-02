@@ -88,8 +88,8 @@ class ReflectiveLibXrayBridge(
         return stopped
     }
 
-    /** Separate native instance: never stops/reconfigures the active VPN core. */
-    fun probe(config: SensitiveXrayConfig, privateDirectory: File, targetUrl: String = "https://www.gstatic.com/generate_204"): Long? {
+    /** Offline native probe. Caller must serialize it against the managed VPN core on v26.7.28. */
+    fun probe(config: SensitiveXrayConfig, privateDirectory: File, targetUrl: String = "https://cp.cloudflare.com/"): Long? {
         val file = File.createTempFile("probe-", ".json", privateDirectory)
         return try {
             check(file.setReadable(false, false) && file.setWritable(false, false))
@@ -174,3 +174,5 @@ class ReflectiveLibXrayBridge(
         var callback: Any? = null
     }
 }
+
+[executed on device: pedram2 (cbf92ea2-36fe-4909-b025-f508c0a2544d)]
