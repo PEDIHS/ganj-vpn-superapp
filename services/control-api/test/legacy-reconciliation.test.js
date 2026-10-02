@@ -162,6 +162,9 @@ test('active legacy service creates exactly one projected entitlement', async ()
   assert.deepEqual(service.allowed_protocols, ['trojan', 'vless']);
   assert.equal(repository.projections.size, 1);
   assert.equal(repository.audit.length, 1);
+  assert.equal(repository.audit[0].actorSubject, 'system:legacy-reconciler');
+  assert.equal(repository.audit[0].resourceType, 'service');
+  assert.equal(repository.audit[0].outcome, 'success');
   assert.equal(JSON.stringify(repository.audit).includes('legacy-service-9001'), false);
 });
 
