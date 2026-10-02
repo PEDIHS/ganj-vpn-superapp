@@ -8,6 +8,7 @@ import com.ganj.vpn.core.controlapi.ProfileProvisioningResult
 import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.vpn.ProvisionedProfile
 import com.ganj.vpn.core.vpn.VpnProtocol
+import com.ganj.vpn.core.xray.VpnRuntimeException
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.startCoroutine
@@ -71,6 +72,20 @@ class ConnectionEffectsTest {
         assertEquals("connection.tunnel_start_failed", result.failure.messageKey)
         val destroyed = runCatching { issued.useCredential { it } }.exceptionOrNull()
         assertTrue(destroyed is IllegalStateException)
+    }
+
+    @Test
+    fun coreStoppedImmediatelyYieldsSpecificFailure() {
+        val vault = vault()
+        val executor = ConnectionEffectExecutor(
+            vault,
+            FakeBroker { ProfileProvisioningResult.Success(profile()) },
+            FakeTunnel(connectResult = Result.failure(VpnRuntimeException("xray.core_not_running"))),
+        )
+        val result = runSuspend { executor.execute(vault.store(lease(), binding())) }
+        val failure = (result as ConnectionEffectResult.Failed).failure
+        assertEquals("connection.native_core_not_running", failure.messageKey)
+        assertTrue(failure.retryable)
     }
 
     private fun vault() = InMemoryConnectionActionVault(
