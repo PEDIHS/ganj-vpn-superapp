@@ -20,13 +20,14 @@ class ConnectionLatencyProber(
     private val context: ConnectionProfileContextProvider,
     private val tunnel: TunnelConnector,
 ) {
-    private val permits = Semaphore(2)
+    private val permits = Semaphore(1)
 
     suspend fun probe(serviceId: String, serverId: String): Long? = permits.withPermit {
         withContext(Dispatchers.IO) {
             try {
                 when (val active = tunnel.probeActive(serviceId, serverId)) {
                     is ActiveTunnelProbe.Measured -> return@withContext active.latencyMillis
+                    ActiveTunnelProbe.OtherTunnelActive -> return@withContext null
                     ActiveTunnelProbe.NotActive -> Unit
                 }
                 val user = currentUser.currentUserId()?.takeIf(String::isNotBlank) ?: return@withContext null
@@ -52,3 +53,5 @@ class ConnectionLatencyProber(
         }
     }
 }
+
+[executed on device: pedram2 (cbf92ea2-36fe-4909-b025-f508c0a2544d)]
