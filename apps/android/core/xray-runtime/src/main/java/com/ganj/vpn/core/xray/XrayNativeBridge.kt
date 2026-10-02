@@ -88,15 +88,15 @@ class ReflectiveLibXrayBridge(
         return stopped
     }
 
-    /** Separate native instance: never stops/reconfigures the active VPN core. */
-    fun probe(config: SensitiveXrayConfig, privateDirectory: File, targetUrl: String = "https://www.gstatic.com/generate_204"): Long? {
+    /** Temporary-core latency probe. Call only while the managed VPN core is inactive. */
+    fun probe(config: SensitiveXrayConfig, privateDirectory: File, targetUrl: String = "https://cp.cloudflare.com/"): Long? {
         val file = File.createTempFile("probe-", ".json", privateDirectory)
         return try {
             check(file.setReadable(false, false) && file.setWritable(false, false))
             check(file.setReadable(true, true) && file.setWritable(true, true))
             file.writeText(config.consume())
             val item = JSONObject().put("configPath", file.absolutePath).put("outboundTag", "proxy")
-            val payload = JSONObject().put("configs", JSONArray().put(item)).put("timeout", 5).put("url", targetUrl)
+            val payload = JSONObject().put("configs", JSONArray().put(item)).put("timeout", 3).put("url", targetUrl)
             val request = JSONObject().put("apiVersion", 1).put("method", "pingBatch").put("payload", payload)
             val response = JSONObject(invokeMethod().invoke(null, request.toString()) as String)
             if (!response.optBoolean("success")) return null
