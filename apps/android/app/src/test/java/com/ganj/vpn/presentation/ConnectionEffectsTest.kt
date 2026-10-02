@@ -75,6 +75,20 @@ class ConnectionEffectsTest {
     }
 
     @Test
+    fun missingTunnelEgressYieldsSpecificFailure() {
+        val vault = vault()
+        val executor = ConnectionEffectExecutor(
+            vault,
+            FakeBroker { ProfileProvisioningResult.Success(profile()) },
+            FakeTunnel(connectResult = Result.failure(VpnRuntimeException("vpn.egress_unreachable"))),
+        )
+        val result = runSuspend { executor.execute(vault.store(lease(), binding())) }
+        val failure = (result as ConnectionEffectResult.Failed).failure
+        assertEquals("connection.egress_unreachable", failure.messageKey)
+        assertTrue(failure.retryable)
+    }
+
+    @Test
     fun coreStoppedImmediatelyYieldsSpecificFailure() {
         val vault = vault()
         val executor = ConnectionEffectExecutor(
