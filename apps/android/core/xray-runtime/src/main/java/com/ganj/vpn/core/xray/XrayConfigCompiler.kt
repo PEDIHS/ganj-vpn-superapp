@@ -22,7 +22,7 @@ class XrayConfigCompiler(
             val stream = streamSettings(profile.transport, profile.security)
             val outbound = outbound(profile, credential, stream)
             SensitiveXrayConfig(
-                """{"log":{"loglevel":"warning"},"dns":{"servers":["1.1.1.1","8.8.8.8"]},"inbounds":[{"tag":"ganj-tun","protocol":"tun","settings":{"mtu":$mtu}}],"outbounds":[$outbound,{"tag":"direct","protocol":"freedom"},{"tag":"blocked","protocol":"blackhole"}],"routing":{"domainStrategy":"IPIfNonMatch","rules":[]}}""",
+                """{"env":{"xray.tun.fd":"$tunFileDescriptor"},"log":{"loglevel":"warning"},"dns":{"servers":["1.1.1.1","8.8.8.8"]},"inbounds":[{"tag":"ganj-tun","protocol":"tun","settings":{"mtu":$mtu}}],"outbounds":[$outbound,{"tag":"direct","protocol":"freedom"},{"tag":"blocked","protocol":"blackhole"}],"routing":{"domainStrategy":"IPIfNonMatch","rules":[]}}""",
             )
         }
     }
