@@ -63,11 +63,26 @@ class ReflectiveLibXrayBridge(
         NativeCallResult(true)
     }.getOrElse { NativeCallResult(false, "xray.socket_protection_unavailable") }
 
-    override fun start(config: SensitiveXrayConfig): NativeCallResult = invoke(
-        method = "runXrayFromJson",
-        payloadName = "configJSON",
-        payloadValue = config.consume(),
-    )
+    override fun start(config: SensitiveXrayConfig): NativeCallResult {
+        val started = invoke(
+            method = "runXrayFromJson",
+            payloadName = "configJSON",
+            payloadValue = config.consume(),
+        )
+        if (!started.success) return started
+        // A successful invoke is not a packet-level probe, but also verify that
+        // the managed Core did not immediately stop after its startup response.
+        val running = runCatching {
+            val response = invokeMethod().invoke(
+                null,
+                "{\\"apiVersion\\":1,\\"method\\":\\"getXrayState\\",\\"payload\\":{}}",
+            ) as? String
+            response != null &&
+                SUCCESS_PATTERN.containsMatchIn(response) &&
+                RUNNING_PATTERN.containsMatchIn(response)
+        }.getOrDefault(false)
+        return if (running) started else NativeCallResult(false, "xray.core_not_running")
+    }
 
     override fun stop(): NativeCallResult {
         val stopped = invoke(method = "stopXray")
@@ -136,6 +151,7 @@ class ReflectiveLibXrayBridge(
 
     private companion object {
         const val PROTECTED_DNS = "1.1.1.1:53"
+        val RUNNING_PATTERN = Regex("\\\\"running\\\\"\\\\s*:\\\\s*true")
         val SUCCESS_PATTERN = Regex("\\\"success\\\"\\s*:\\s*true")
     }
 }
