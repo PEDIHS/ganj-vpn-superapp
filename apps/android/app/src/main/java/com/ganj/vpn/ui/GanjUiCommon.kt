@@ -418,6 +418,7 @@ internal fun failureMessage(failure: UiFailure): String = when (failure.messageK
         stringResource(R.string.failure_profile_auth)
     "connection.protocol_unsupported" -> stringResource(R.string.failure_protocol_unsupported)
     "connection.native_core_not_running" -> stringResource(R.string.failure_native_core_not_running)
+    "connection.egress_unreachable" -> stringResource(R.string.failure_egress_unreachable)
     "connection.tunnel_start_failed" -> stringResource(R.string.failure_tunnel_start)
     "connection.disconnect_failed" -> stringResource(R.string.failure_disconnect)
     "billing.provider_unavailable" -> stringResource(R.string.failure_billing_provider)
