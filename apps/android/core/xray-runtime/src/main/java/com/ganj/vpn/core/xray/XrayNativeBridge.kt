@@ -129,7 +129,7 @@ class ReflectiveLibXrayBridge(
 
     private companion object {
         const val PROTECTED_DNS = "1.1.1.1:53"
-        val RUNNING_PATTERN = Regex("\\\"running\\\"\\\\s*:\\\\s*true")
+        val RUNNING_PATTERN = Regex("\\\"running\\\"\\s*:\\s*true")
         val SUCCESS_PATTERN = Regex("\\\"success\\\"\\s*:\\s*true")
     }
 }
