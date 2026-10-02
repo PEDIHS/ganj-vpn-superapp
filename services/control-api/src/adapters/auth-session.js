@@ -650,6 +650,9 @@ export class PostgresAuthSessionStore {
         await client.query('DELETE FROM control_device_proof_nonces WHERE user_id = $1 AND device_id = $2', [currentUserId, deviceId]);
         await client.query('UPDATE control_devices SET user_id = $2 WHERE id = $1', [deviceId, targetUserId]);
         await client.query("UPDATE control_users SET status = 'deleted', updated_at = $2 WHERE id = $1", [currentUserId, now]);
+        await client.query(
+          "UPDATE control_legacy_sources SET checkpoint_cursor = NULL WHERE source_kind = 'telegram_bot'",
+        );
         return { userId: targetUserId };
       }
       if (device.rows[0].telegram_subject && device.rows[0].telegram_subject !== telegramSubject) {
@@ -659,6 +662,9 @@ export class PostgresAuthSessionStore {
         `UPDATE control_users SET telegram_subject = $2,
            display_name = COALESCE($3, display_name), updated_at = $4 WHERE id = $1`,
         [currentUserId, telegramSubject, displayName ?? username ?? null, now],
+      );
+      await client.query(
+        "UPDATE control_legacy_sources SET checkpoint_cursor = NULL WHERE source_kind = 'telegram_bot'",
       );
       return { userId: currentUserId };
     });
