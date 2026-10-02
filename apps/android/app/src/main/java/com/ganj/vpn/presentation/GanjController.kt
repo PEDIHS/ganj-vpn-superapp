@@ -248,7 +248,7 @@ class GanjController(
             } else {
                 reducer.reduce(
                     working,
-                    GanjUiEvent.ConnectionRejected(entitlementId, mapper.apiFailure(profile.error)),
+                    GanjUiEvent.ConnectionRejected(entitlementId, ConnectionFailures.api(profile.error)),
                 )
             }
             is ApiResult.Success -> {

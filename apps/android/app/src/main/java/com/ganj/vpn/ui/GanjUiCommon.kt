@@ -17,6 +17,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -402,6 +407,37 @@ internal fun bugStatusText(status: BugStatus): String = when (status) {
 
 @Composable
 internal fun failureMessage(failure: UiFailure): String = when (failure.messageKey) {
+    "connection.config_invalid" -> stringResource(R.string.failure_config_invalid)
+    "connection.tun_failed" -> stringResource(R.string.failure_tun_failed)
+    "connection.socket_protection_failed" -> stringResource(R.string.failure_socket_protection)
+    "connection.recovery_write_failed" -> stringResource(R.string.failure_recovery_write)
+    "connection.recovery_invalid", "connection.recovery_missing" -> stringResource(R.string.failure_recovery_missing)
+    "connection.service_timeout" -> stringResource(R.string.failure_service_timeout)
+    "connection.service_failed" -> stringResource(R.string.failure_service_start)
+    "connection.native_rejected" -> stringResource(R.string.failure_native_rejected)
+    "connection.native_unavailable" -> stringResource(R.string.failure_native_unavailable)
+    "connection.interrupted" -> stringResource(R.string.failure_connection_interrupted)
+    "connection.device_limit_reached" -> stringResource(R.string.failure_device_limit)
+    "connection.device_proof_invalid" -> stringResource(R.string.failure_device_proof)
+    "connection.device_mismatch" -> stringResource(R.string.failure_device_mismatch)
+    "connection.server_unavailable" -> stringResource(R.string.failure_selected_server)
+    "connection.api_timeout" -> stringResource(R.string.failure_api_timeout)
+    "connection.api_tls" -> stringResource(R.string.failure_api_tls)
+    "connection.api_dns" -> stringResource(R.string.failure_api_dns)
+    "connection.profile_binding_mismatch", "connection.profile_payload_mismatch" -> stringResource(R.string.failure_profile_binding)
+    "connection.profile_algorithm_unsupported" -> stringResource(R.string.failure_profile_algorithm)
+    "connection.profile_envelope_invalid", "connection.profile_payload_invalid" -> stringResource(R.string.failure_profile_invalid)
+    "connection.profile_crypto_failed" -> stringResource(R.string.failure_profile_crypto)
+    "probe.timeout" -> stringResource(R.string.failure_probe_timeout)
+    "probe.dns_failed" -> stringResource(R.string.failure_probe_dns)
+    "probe.tls_failed" -> stringResource(R.string.failure_probe_tls)
+    "probe.connection_refused" -> stringResource(R.string.failure_probe_refused)
+    "probe.network_unreachable" -> stringResource(R.string.failure_probe_network)
+    "probe.http_failed" -> stringResource(R.string.failure_probe_http)
+    "probe.active_tunnel_busy" -> stringResource(R.string.failure_probe_active)
+    "probe.context_unavailable" -> stringResource(R.string.failure_probe_context)
+    "probe.native_failed" -> stringResource(R.string.failure_probe_native)
+    "probe.unavailable" -> stringResource(R.string.failure_probe_unavailable)
     "auth.required" -> stringResource(R.string.failure_auth_required)
     "entitlement.denied" -> stringResource(R.string.failure_entitlement_denied)
     "request.conflict" -> stringResource(R.string.failure_request_conflict)
@@ -437,4 +473,40 @@ internal fun enterpriseMessage(messageKey: String): String = when (messageKey) {
     "request.rate_limited" -> stringResource(R.string.failure_rate_limited)
     "server.unavailable" -> stringResource(R.string.failure_server_unavailable)
     else -> stringResource(R.string.enterprise_failure_generic)
+}
+
+@Composable
+internal fun latencyFailureLabel(failure: UiFailure): String = stringResource(when (failure.messageKey) {
+    "probe.timeout" -> R.string.ping_timeout
+    "probe.dns_failed" -> R.string.ping_dns
+    "probe.tls_failed" -> R.string.ping_tls
+    "probe.connection_refused" -> R.string.ping_refused
+    "probe.network_unreachable" -> R.string.ping_network
+    "probe.active_tunnel_busy" -> R.string.ping_active_only
+    "probe.native_failed", "connection.config_invalid" -> R.string.ping_native
+    else -> R.string.ping_failed
+})
+
+@Composable
+internal fun ConnectionFailureDetails(failure: UiFailure) {
+    val code = failure.diagnosticCode?.takeIf {
+        it.matches(Regex("^(vpn|xray|connection|probe)\\.[a-z_]{2,64}$"))
+    }
+    if (code == null && failure.requestId == null) return
+    var expanded by remember(failure) { mutableStateOf(false) }
+    TextButton(onClick = { expanded = !expanded }) {
+        Text(stringResource(if (expanded) R.string.failure_hide_details else R.string.failure_show_details))
+    }
+    if (expanded) {
+        code?.let {
+            Text(stringResource(R.string.failure_diagnostic_code, isolateTechnicalLtr(it)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        failure.requestId?.let {
+            Text(stringResource(R.string.common_request_code, isolateTechnicalLtr(it.take(8))),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }

@@ -3,7 +3,6 @@ package com.ganj.vpn.presentation
 import com.ganj.vpn.core.controlapi.ConnectionProfileBroker
 import com.ganj.vpn.core.controlapi.ConnectionProfileLease
 import com.ganj.vpn.core.controlapi.ProfileProvisioningBinding
-import com.ganj.vpn.core.controlapi.ProfileProvisioningError
 import com.ganj.vpn.core.controlapi.ProfileProvisioningResult
 import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.xray.VpnRuntimeException
@@ -77,13 +76,16 @@ class InMemoryConnectionActionVault(
 sealed interface ActiveTunnelProbe {
     data object NotActive : ActiveTunnelProbe
     data object OtherTunnelActive : ActiveTunnelProbe
-    data class Measured(val latencyMillis: Long?) : ActiveTunnelProbe
+    data class Measured(val latencyMillis: Long?, val failureCode: String? = null) : ActiveTunnelProbe
 }
 
 interface TunnelConnector {
     suspend fun connect(request: ConnectionRequest): Result<Unit>
     suspend fun disconnect(): Result<Unit>
     suspend fun probe(profile: com.ganj.vpn.core.vpn.ProvisionedProfile): Long? = null
+    suspend fun probeDetailed(profile: com.ganj.vpn.core.vpn.ProvisionedProfile): LatencyProbeResult =
+        probe(profile)?.let { LatencyProbeResult.Measured(it) }
+            ?: LatencyProbeResult.Failed(ConnectionFailures.probe("probe.unavailable"))
     suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
         ActiveTunnelProbe.NotActive
 }
@@ -106,7 +108,7 @@ class ConnectionEffectExecutor(
         val action = actions.consume(handle)
             ?: return failed("connection.action_expired", UiFailureKind.CONFLICT, retryable = true)
         return when (val provisioned = broker.provision(action.lease, action.binding)) {
-            is ProfileProvisioningResult.Failure -> provisioningFailure(provisioned.error)
+            is ProfileProvisioningResult.Failure -> ConnectionEffectResult.Failed(ConnectionFailures.provisioning(provisioned.error))
             is ProfileProvisioningResult.Success -> {
                 val profile = provisioned.profile
                 val profileId = profile.profileId
@@ -123,11 +125,9 @@ class ConnectionEffectExecutor(
                 if (connected.isSuccess) {
                     ConnectionEffectResult.Connected(profileId, serverId)
                 } else {
-                    when ((connected.exceptionOrNull() as? VpnRuntimeException)?.code) {
-                        "xray.core_not_running" ->
-                            failed("connection.native_core_not_running", UiFailureKind.SERVER, retryable = true)
-                        else -> failed("connection.tunnel_start_failed", UiFailureKind.SERVER, retryable = true)
-                    }
+                    ConnectionEffectResult.Failed(ConnectionFailures.runtime(
+                        (connected.exceptionOrNull() as? VpnRuntimeException)?.code,
+                    ))
                 }
             }
         }
@@ -139,26 +139,6 @@ class ConnectionEffectExecutor(
         throw cancelled
     } catch (error: RuntimeException) {
         Result.failure(error)
-    }
-
-    private fun provisioningFailure(error: ProfileProvisioningError): ConnectionEffectResult = when (error) {
-        ProfileProvisioningError.LEASE_CONSUMED ->
-            failed("connection.profile_consumed", UiFailureKind.CONFLICT, retryable = true)
-        ProfileProvisioningError.EXPIRED ->
-            failed("connection.profile_expired", UiFailureKind.CONFLICT, retryable = true)
-        ProfileProvisioningError.CRYPTO_UNAVAILABLE ->
-            failed("connection.device_crypto_unavailable", UiFailureKind.CONFIGURATION, retryable = false)
-        ProfileProvisioningError.AUTHENTICATION_FAILED ->
-            failed("connection.profile_authentication_failed", UiFailureKind.ENTITLEMENT, retryable = true)
-        ProfileProvisioningError.UNSUPPORTED_PROTOCOL ->
-            failed("connection.protocol_unsupported", UiFailureKind.PROTOCOL, retryable = false)
-        ProfileProvisioningError.BINDING_MISMATCH,
-        ProfileProvisioningError.UNSUPPORTED_ALGORITHM,
-        ProfileProvisioningError.MALFORMED_ENVELOPE,
-        ProfileProvisioningError.CRYPTO_FAILURE,
-        ProfileProvisioningError.PAYLOAD_INVALID,
-        ProfileProvisioningError.PAYLOAD_MISMATCH,
-        -> failed("connection.profile_rejected", UiFailureKind.PROTOCOL, retryable = true)
     }
 
     private fun failed(

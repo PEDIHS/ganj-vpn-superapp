@@ -968,3 +968,13 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 ```
 
 این Ledger باید همراه کد تکامل پیدا کند؛ حذف checkbox برای پنهان‌کردن کار باقی‌مانده ممنوع است. اگر Scope رسمی تغییر کرد، ابتدا Scope canonical docs اصلاح شود و سپس آیتم با دلیل مشخص `Deferred by product scope` شود؛ هیچ Agentی حق ندارد مستقل از Product Scope آیتم را نادیده بگیرد.
+
+### 2026-10-03 — Connection errors and proxy ping diagnosis (Alpha 0.3.9)
+
+- Sections 12/13/14/26: preserve fixed, credential-free codes for tunnel creation, service binding, native rejection, recovery storage, encrypted-profile stages and each known HTTP 403 reason. Error details expose only these codes and a short request reference.
+- Ping results now distinguish authorization/profile failures, timeout, DNS, TLS, refused connections and an unsupported probe beside another active tunnel. Selecting a failed server shows its actual reason; an unavailable ping is not labeled proof of a disconnected VPN.
+- Both offline native and active-TUN HTTP probes use a bounded second HTTPS target through the same proxy path. A successful zero-millisecond result is valid. Offline native probing remains serialized and prohibited while a TUN is held, including reconnect states.
+- Bootstrap endpoint DNS uses the physical network's DNS with protected sockets instead of always requiring public UDP 1.1.1.1. VPN traffic DNS/routing policy is unchanged.
+- Reuse the currently loaded service catalog for up to 30 seconds when signing probes instead of fetching it once per server; the backend still validates every profile request.
+- Leaf items completed: none. CI/instrumentation and physical-device verification remain pending at this checkpoint. No full device connection claim.
+- UI Ledger sections touched: 12, 13, 14, 26. Remaining unchecked leaves unchanged; calculator: 196/492 = 39.8%.

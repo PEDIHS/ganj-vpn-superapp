@@ -17,7 +17,7 @@ internal fun reconcileVpnState(ui: GanjUiState, runtime: ConnectionState): GanjU
         ConnectionPhase.DISCONNECTED -> if (ui.connection is ConnectionUiState.Connected) ConnectionUiState.Idle else ui.connection
         ConnectionPhase.ERROR -> ConnectionUiState.Failed(
             runtime.serviceId,
-            UiFailure(UiFailureKind.SERVER, "connection.tunnel_start_failed", true),
+            ConnectionFailures.runtime(runtime.errorCode),
         )
         else -> ui.connection
     }

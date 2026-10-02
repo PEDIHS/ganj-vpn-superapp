@@ -21,6 +21,7 @@ interface XrayNativeBridge {
 /** Thin adapter for the gomobile class generated from the pinned XTLS/libXray source. */
 class ReflectiveLibXrayBridge(
     private val classLoader: ClassLoader = ReflectiveLibXrayBridge::class.java.classLoader!!,
+    private val protectedDnsServer: () -> String = { PROTECTED_DNS },
     private val fixtureFailureObserver: (String) -> Unit = {},
 ) : XrayNativeBridge {
     private val bridgeClass: Class<*> by lazy {
@@ -53,7 +54,7 @@ class ReflectiveLibXrayBridge(
         val setDns = bridgeClass.methods.firstOrNull {
             it.name.equals("setDNS", ignoreCase = true) && it.parameterTypes.size == 2
         } ?: error("libXray protected DNS API is unavailable")
-        setDns.invoke(null, callback, PROTECTED_DNS)
+        setDns.invoke(null, callback, protectedDnsServer())
         NativeCallResult(true)
     }.getOrElse { NativeCallResult(false, "xray.socket_protection_unavailable") }
 
@@ -68,12 +69,10 @@ class ReflectiveLibXrayBridge(
         // the managed Core did not immediately stop after its startup response.
         val running = runCatching {
             val response = invokeMethod().invoke(
-                null,
-                "{\"apiVersion\":1,\"method\":\"getXrayState\",\"payload\":{}}",
-            ) as? String
-            response != null &&
-                SUCCESS_PATTERN.containsMatchIn(response) &&
-                RUNNING_PATTERN.containsMatchIn(response)
+                null, "{\"apiVersion\":1,\"method\":\"getXrayState\",\"payload\":{}}",
+            ) as? String ?: return@runCatching false
+            val parsed = JSONObject(response)
+            parsed.optBoolean("success") && parsed.optJSONObject("data")?.optBoolean("running") == true
         }.getOrDefault(false)
         return if (running) started else NativeCallResult(false, "xray.core_not_running")
     }
@@ -88,24 +87,43 @@ class ReflectiveLibXrayBridge(
         return stopped
     }
 
-    /** Offline native probe. Caller must serialize it against the managed VPN core on v26.7.28. */
-    fun probe(config: SensitiveXrayConfig, privateDirectory: File, targetUrl: String = "https://cp.cloudflare.com/"): Long? {
-        val file = File.createTempFile("probe-", ".json", privateDirectory)
+    /** Offline only. The caller holds the same lifecycle lock as the managed VPN. */
+    fun probe(config: SensitiveXrayConfig, privateDirectory: File, targetUrl: String = ProxyProbeFallback.targets.first()): Long? =
+        (probeDetailed(config, privateDirectory, listOf(targetUrl)) as? NativeProbeResult.Measured)?.millis
+
+    fun probeDetailed(
+        config: SensitiveXrayConfig,
+        privateDirectory: File,
+        targetUrls: List<String> = ProxyProbeFallback.targets,
+    ): NativeProbeResult {
+        var file: File? = null
         return try {
+            file = File.createTempFile("probe-", ".json", privateDirectory)
             check(file.setReadable(false, false) && file.setWritable(false, false))
             check(file.setReadable(true, true) && file.setWritable(true, true))
             file.writeText(config.consume())
-            val item = JSONObject().put("configPath", file.absolutePath).put("outboundTag", "proxy")
-            val payload = JSONObject().put("configs", JSONArray().put(item)).put("timeout", 5).put("url", targetUrl)
-            val request = JSONObject().put("apiVersion", 1).put("method", "pingBatch").put("payload", payload)
-            val response = JSONObject(invokeMethod().invoke(null, request.toString()) as String)
-            if (!response.optBoolean("success")) return null
-            val result = response.optJSONObject("data")?.optJSONArray("results")?.optJSONObject(0) ?: return null
-            if (result.optBoolean("success")) result.optLong("delay", -1).takeIf { it >= 0 } else null
-        } catch (_: Exception) {
-            null
+            val probeFile = file
+            ProxyProbeFallback.measure(targetUrls) { target ->
+                val item = JSONObject().put("configPath", probeFile.absolutePath).put("outboundTag", "proxy")
+                val payload = JSONObject().put("configs", JSONArray().put(item)).put("timeout", 5).put("url", target)
+                val request = JSONObject().put("apiVersion", 1).put("method", "pingBatch").put("payload", payload)
+                val response = JSONObject(invokeMethod().invoke(null, request.toString()) as String)
+                if (!response.optBoolean("success")) {
+                    val raw = response.optString("error")
+                    val startup = NativeFailureClassifier.startup(raw)
+                    return@measure NativeProbeResult.Failed(if (startup == "xray.config_invalid") startup else NativeFailureClassifier.probe(raw))
+                }
+                val result = response.optJSONObject("data")?.optJSONArray("results")?.optJSONObject(0)
+                    ?: return@measure NativeProbeResult.Failed("probe.native_failed")
+                // Upstream omits delay when it is exactly zero; success still makes it a valid measurement.
+                val delay = result.optLong("delay", 0)
+                if (result.optBoolean("success") && delay >= 0) NativeProbeResult.Measured(delay)
+                else NativeProbeResult.Failed(NativeFailureClassifier.probe(result.optString("error")))
+            }
+        } catch (error: Exception) {
+            NativeProbeResult.Failed(NativeFailureClassifier.probe(error))
         } finally {
-            file.delete()
+            file?.delete()
             config.close()
         }
     }
@@ -122,10 +140,10 @@ class ReflectiveLibXrayBridge(
         }
         val response = invokeMethod().invoke(null, request) as? String
             ?: return NativeCallResult(false, "xray.invalid_native_response")
-        if (SUCCESS_PATTERN.containsMatchIn(response)) NativeCallResult(true)
+        if (JSONObject(response).optBoolean("success")) NativeCallResult(true)
         else {
             fixtureFailureObserver(response)
-            NativeCallResult(false, "xray.native_rejected")
+            NativeCallResult(false, NativeFailureClassifier.startup(JSONObject(response).optString("error")))
         }
     }.getOrElse { NativeCallResult(false, "xray.native_call_failed") }
 
@@ -165,8 +183,6 @@ class ReflectiveLibXrayBridge(
     private companion object {
         val protectionStates = java.util.WeakHashMap<Class<*>, ProtectionState>()
         const val PROTECTED_DNS = "1.1.1.1:53"
-        val RUNNING_PATTERN = Regex("\\\"running\\\"\\s*:\\s*true")
-        val SUCCESS_PATTERN = Regex("\\\"success\\\"\\s*:\\s*true")
     }
 
     private class ProtectionState {

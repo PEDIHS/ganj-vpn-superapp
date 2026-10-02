@@ -26,6 +26,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.ganj.vpn.presentation.LatencyProbeResult
+import com.ganj.vpn.presentation.latencyMillis
+import com.ganj.vpn.presentation.ConnectionFailures
+import com.ganj.vpn.presentation.UiFailure
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -60,7 +64,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.ganj.vpn.R
 import com.ganj.vpn.presentation.ConnectionUiState
 import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.ServiceUiModel
@@ -78,7 +81,7 @@ internal fun StitchConnectionScreen(
     onOpenServers: () -> Unit,
     onOpenStore: () -> Unit,
     onRetry: () -> Unit,
-    onProbe: suspend (String, String) -> Long? = { _, _ -> null },
+    onProbe: suspend (String, String) -> LatencyProbeResult = { _, _ -> LatencyProbeResult.Failed(ConnectionFailures.probe("probe.unavailable")) },
     modifier: Modifier = Modifier,
 ) {
     val connection = state.connection
@@ -88,6 +91,7 @@ internal fun StitchConnectionScreen(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var ping by remember { mutableStateOf<Long?>(null) }
     var pingBusy by remember { mutableStateOf(false) }
+    var pingFailure by remember { mutableStateOf<UiFailure?>(null) }
     var smartBusy by remember { mutableStateOf(false) }
     var smartFailure by remember { mutableStateOf(false) }
     val runtimeServer = state.runtimeConnection.serverId
@@ -104,14 +108,18 @@ internal fun StitchConnectionScreen(
     }
     LaunchedEffect(runtimeServer, runtimeService, state.runtimeConnection.phase, lifecycle) {
         ping = null
+        pingFailure = null
         pingBusy = false
         if (state.runtimeConnection.phase != com.ganj.vpn.core.vpn.ConnectionPhase.CONNECTED ||
             runtimeService == null || runtimeServer == null) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (isActive) {
                 pingBusy = true
-                ping = onProbe(runtimeService, runtimeServer)
-                pingBusy = false
+                try {
+                    val measured = onProbe(runtimeService, runtimeServer)
+                    ping = measured.latencyMillis
+                    pingFailure = (measured as? LatencyProbeResult.Failed)?.failure
+                } finally { pingBusy = false }
                 delay(15_000)
             }
         }
@@ -146,6 +154,11 @@ internal fun StitchConnectionScreen(
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
         StitchMetricsCard(ping, pingBusy)
+        pingFailure?.let { failure ->
+            Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ConnectionFailureDetails(failure)
+        }
         if (smartBusy || smartFailure) Text(
             if (smartBusy) "در حال سنجش و انتخاب سریع‌ترین کانفیگ…" else "هیچ کانفیگی پاسخ نداد؛ سرورها را بررسی کنید.",
             style = MaterialTheme.typography.bodySmall,
@@ -165,7 +178,7 @@ internal fun StitchConnectionScreen(
                             controller.servers(selected.entitlementId)
                         } as? ApiResult.Success)?.value.orEmpty()
                         val measured = servers.mapNotNull { server ->
-                            onProbe(selected.entitlementId, server.id)?.let { server.id to it }
+                            onProbe(selected.entitlementId, server.id).latencyMillis?.let { server.id to it }
                         }
                         val best = measured.minByOrNull { it.second }
                         if (best == null) smartFailure = true
@@ -198,6 +211,7 @@ internal fun StitchConnectionScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
+                ConnectionFailureDetails(connection.failure)
                 GanjLiquidAction(
                     onClick = { service?.entitlementId?.let(onConnect) ?: onRetry() },
                     accent = MaterialTheme.colorScheme.error,

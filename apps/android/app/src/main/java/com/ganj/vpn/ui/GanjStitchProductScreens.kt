@@ -23,6 +23,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
+import com.ganj.vpn.presentation.LatencyProbeResult
+import com.ganj.vpn.presentation.latencyMillis
+import com.ganj.vpn.presentation.ConnectionFailures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -218,7 +221,7 @@ internal fun StitchServersScreen(
     onSelectService: (String) -> Unit,
     onConnect: (String) -> Unit,
     onRetry: () -> Unit,
-    onProbe: suspend (String, String) -> Long? = { _, _ -> null },
+    onProbe: suspend (String, String) -> LatencyProbeResult = { _, _ -> LatencyProbeResult.Failed(ConnectionFailures.probe("probe.unavailable")) },
     modifier: Modifier = Modifier,
 ) {
     var query by remember { mutableStateOf("") }
@@ -229,7 +232,7 @@ internal fun StitchServersScreen(
     var loadedServiceId by remember { mutableStateOf<String?>(null) }
     var loadJob by remember { mutableStateOf<Job?>(null) }
     var probeJob by remember { mutableStateOf<Job?>(null) }
-    var latencies by remember { mutableStateOf<Map<String, Long?>>(emptyMap()) }
+    var latencies by remember { mutableStateOf<Map<String, LatencyProbeResult>>(emptyMap()) }
     var measuring by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     fun probeServers(serviceId: String, servers: List<ConnectionServer>) {
@@ -408,8 +411,8 @@ internal fun StitchServersScreen(
                             selected = server.id == selectedServerId,
                             latencyLabel = when {
                                 server.id in measuring -> "در حال سنجش…"
-                                latencies[server.id] != null -> "${latencies[server.id]} ms"
-                                latencies.containsKey(server.id) -> "پاسخ دریافت نشد"
+                                latencies[server.id]?.latencyMillis != null -> "${latencies[server.id]?.latencyMillis} ms"
+                                latencies[server.id] is LatencyProbeResult.Failed -> latencyFailureLabel((latencies.getValue(server.id) as LatencyProbeResult.Failed).failure)
                                 else -> "سنجیده نشده"
                             },
                             onClick = {
@@ -417,6 +420,12 @@ internal fun StitchServersScreen(
                                 selectedServerId = server.id
                             },
                         )
+                    }
+                    val selectedFailure = selectedServerId?.let { (latencies[it] as? LatencyProbeResult.Failed)?.failure }
+                    if (selectedFailure != null) {
+                        Text(failureMessage(selectedFailure), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        ConnectionFailureDetails(selectedFailure)
                     }
                     if (selectedServerId == null) {
                         Text(

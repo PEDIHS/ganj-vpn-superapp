@@ -28,7 +28,21 @@ internal class LiveConnectionProfileContextProvider(
     @Volatile
     private var selectedServerId: String? = null
 
-    override fun servers(entitlementId: String?): ApiResult<List<ConnectionServer>> = serverApi.servers(entitlementId)
+    @Volatile private var catalog: CatalogSnapshot? = null
+
+    // A server list already fetched by the screen can authorize a local probe request.
+    // The profile endpoint still rechecks ownership, entitlement and availability each time.
+    override fun servers(entitlementId: String?): ApiResult<List<ConnectionServer>> {
+        val result = serverApi.servers(entitlementId)
+        if (entitlementId != null) {
+            catalog = (result as? ApiResult.Success)?.let {
+                CatalogSnapshot(entitlementId, it.value, nowEpochSeconds() + 30)
+            }
+        }
+        return result
+    }
+
+    private data class CatalogSnapshot(val serviceId: String, val items: List<ConnectionServer>, val expiresAt: Long)
 
     override fun selectServer(serverId: String?) {
         selectedServerId = serverId
@@ -37,7 +51,7 @@ internal class LiveConnectionProfileContextProvider(
     override fun selectedServerId(): String? = selectedServerId
 
     override fun forEntitlement(entitlementId: String): ConnectionProfileContext? {
-        val available = (serverApi.servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
+        val available = (servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
         if (available.isEmpty()) return null
         val selected = selectedServerId?.let { id -> available.firstOrNull { it.id == id } }
             ?: available.first()
@@ -46,7 +60,10 @@ internal class LiveConnectionProfileContextProvider(
     }
 
     override fun forServer(entitlementId: String, serverId: String): ConnectionProfileContext? {
-        val available = (serverApi.servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
+        val snapshot = catalog
+        val available = if (snapshot != null && snapshot.serviceId == entitlementId && snapshot.expiresAt > nowEpochSeconds()) {
+            snapshot.items
+        } else (servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
         if (available.none { it.id == serverId }) return null
         return signedContext(entitlementId, serverId)
     }

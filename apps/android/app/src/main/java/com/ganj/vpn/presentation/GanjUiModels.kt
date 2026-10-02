@@ -29,6 +29,7 @@ data class UiFailure(
     val messageKey: String,
     val retryable: Boolean,
     val requestId: String? = null,
+    val diagnosticCode: String? = null,
 )
 
 enum class UiTier { FREE, PREMIUM, VIP }
