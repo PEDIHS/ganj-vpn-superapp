@@ -69,15 +69,6 @@ done < <(jq -r '
   ([.libXray.license.path, .libXray.license.sha256] | @tsv)
 ' "$lock")
 
-# Ganj-owned, reviewable gomobile extension. Do not mutate the pinned upstream files.
-# The additional exported setter is required: an `env` object inside Xray JSON
-# is NOT equivalent to setting XRAY_TUN_FD for Android's real VpnService TUN.
-extension="$repo_root/third_party/libxray/ganj_tun_fd.go"
-test -s "$extension"
-install -m 0644 "$extension" "$source_dir/ganj_tun_fd.go"
-extension_sha="$(sha256sum "$extension" | cut -d ' ' -f 1)"
-test "$extension_sha" = "$(sha256sum "$source_dir/ganj_tun_fd.go" | cut -d ' ' -f 1)"
-
 if [[ "$(go env GOVERSION)" != "go$go_version" ]]; then
   printf '%s\n' 'Go toolchain does not match UPSTREAM.lock.json.' >&2
   exit 1
@@ -159,7 +150,6 @@ done < <(jq -r '.libXray.androidArtifact.expectedAbis[]' "$lock")
 
 evidence="$output/evidence"
 mkdir -p "$evidence"
-install -m 0644 "$extension" "$evidence/ganj_tun_fd.go"
 install -m 0644 "$lock" "$evidence/UPSTREAM.lock.json"
 install -m 0644 "$aar" "$evidence/libXray.aar"
 install -m 0644 "$sources" "$evidence/libXRay-sources.jar"
@@ -203,7 +193,6 @@ jq -n \
   --arg gomobile_version "$gomobile_version" \
   --arg ndk_version "$ndk_version" \
   --arg xray_version "$xray_version" \
-  --arg extension_sha256 "$extension_sha" \
   --arg aar_sha256 "$aar_sha" \
   --arg sources_sha256 "$sources_sha" \
   --arg built_at_utc "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
@@ -217,7 +206,6 @@ jq -n \
     gomobileVersion: $gomobile_version,
     androidNdkVersion: $ndk_version,
     xrayCoreVersion: $xray_version,
-    ganjTunFdExtensionSha256: $extension_sha256,
     aarSha256: $aar_sha256,
     sourcesJarSha256: $sources_sha256,
     builtAtUtc: $built_at_utc
@@ -227,7 +215,6 @@ jq -n \
   cd "$evidence"
   sha256sum \
     UPSTREAM.lock.json \
-    ganj_tun_fd.go \
     Xray-core-LICENSE-MPL-2.0.txt \
     libXRay-sources.jar \
     libXray-LICENSE-MIT.txt \
