@@ -13,7 +13,23 @@ class LibXray private constructor() {
             private set
         var dnsReset: Boolean = false
             private set
+        var boundTunFd: Int? = null
+            private set
+        var tunReset: Boolean = false
+            private set
         private var controller: DialerController? = null
+
+        @JvmStatic
+        fun setTunFd(fd: Int) {
+            require(fd >= 0)
+            boundTunFd = fd
+        }
+
+        @JvmStatic
+        fun resetTunFd() {
+            boundTunFd = null
+            tunReset = true
+        }
 
         @JvmStatic
         fun registerDialerController(value: DialerController) {
@@ -43,6 +59,8 @@ class LibXray private constructor() {
             observedRequest = null
             observedDns = null
             dnsReset = false
+            boundTunFd = null
+            tunReset = false
             controller = null
         }
     }
