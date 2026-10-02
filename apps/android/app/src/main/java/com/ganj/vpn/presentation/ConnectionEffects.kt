@@ -76,6 +76,7 @@ class InMemoryConnectionActionVault(
 
 sealed interface ActiveTunnelProbe {
     data object NotActive : ActiveTunnelProbe
+    data object OtherTunnelActive : ActiveTunnelProbe
     data class Measured(val latencyMillis: Long?) : ActiveTunnelProbe
 }
 
@@ -174,3 +175,5 @@ private fun secureConnectionToken(): String {
     SecureRandom().nextBytes(bytes)
     return bytes.joinToString(separator = "") { "%02x".format(it.toInt() and 0xff) }
 }
+
+[executed on device: pedram2 (cbf92ea2-36fe-4909-b025-f508c0a2544d)]
