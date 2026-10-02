@@ -51,6 +51,8 @@ class VpnTunnelIntegrationTest {
         println("VPN test: OS denial and approval passed")
 
         val client = AndroidVpnTunnelClient(context)
+        assertNotNull("offline native ping must work before starting the VPN", client.probe(fixtureProfile()))
+        println("VPN test: offline native latency passed")
         repeat(2) { iteration ->
             try {
                 val started = client.connect(ConnectionRequest(fixtureProfile()))
@@ -64,6 +66,7 @@ class VpnTunnelIntegrationTest {
                 }
                 assertNotNull("active VPN profile must measure latency without issuing another lease", latency)
                 println("VPN test: native proxy latency passed")
+                assertNull("offline probes must not replace an active core", client.probe(fixtureProfile()))
                 assertTrue("switching config must retain a working TUN", client.connect(ConnectionRequest(fixtureProfile())).isSuccess)
                 Socket().use { socket ->
                     socket.soTimeout = 8_000
