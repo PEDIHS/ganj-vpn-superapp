@@ -18,8 +18,6 @@ class XrayRuntimeTest {
         LibXray.resetObservations()
         val bridge = ReflectiveLibXrayBridge(javaClass.classLoader!!)
 
-        assertTrue(bridge.bindTunFileDescriptor(91).success)
-        assertEquals(91, LibXray.boundTunFd)
         assertTrue(bridge.installSocketProtector(SocketProtector { it == 91 }).success)
         assertTrue(bridge.start(SensitiveXrayConfig("{\"outbounds\":[]}")).success)
         assertTrue(LibXray.protect(91))
@@ -30,7 +28,19 @@ class XrayRuntimeTest {
 
         assertTrue(bridge.stop().success)
         assertTrue(LibXray.dnsReset)
-        assertTrue(LibXray.tunReset)
+    }
+
+    @Test
+    fun nativeStartFailsWhenManagedCoreStops() {
+        LibXray.resetObservations()
+        LibXray.simulateStoppedAfterStart = true
+        val bridge = ReflectiveLibXrayBridge(javaClass.classLoader!!)
+
+        val result = bridge.start(SensitiveXrayConfig("{\"inbounds\":[],\"outbounds\":[]}"))
+
+        assertFalse(result.success)
+        assertEquals("xray.core_not_running", result.errorCode)
+        LibXray.resetObservations()
     }
 
     @Test
@@ -48,7 +58,7 @@ class XrayRuntimeTest {
 
         assertEquals("SensitiveXrayConfig([REDACTED])", sensitive.toString())
         val json = sensitive.consume()
-        assertFalse(json.contains("\"xray.tun.fd\""))
+        assertTrue(json.contains("\"xray.tun.fd\":\"42\""))
         assertTrue(json.contains("\"protocol\":\"tun\""))
         assertTrue(json.contains("\"protocol\":\"vless\""))
         assertTrue(json.contains("\"security\":\"reality\""))
@@ -71,7 +81,6 @@ class XrayRuntimeTest {
         assertTrue(engine.connect(ConnectionRequest(profile)).isSuccess)
         assertEquals(ConnectionPhase.CONNECTED, engine.currentState().phase)
         assertEquals(77, native.observedFd)
-        assertEquals(77, native.boundFd)
         assertEquals(listOf("establish", "protect", "start"), platform.events + native.events)
         assertTrue(runCatching { XrayConfigCompiler().compile(profile, 77) }.isFailure)
 
@@ -144,25 +153,6 @@ class XrayRuntimeTest {
         assertEquals("xray.native_rejected", engine.currentState().errorCode)
     }
 
-    @Test
-    fun `missing native TUN setter fails before Xray startup`() {
-        val platform = FakePlatform()
-        val native = object : XrayNativeBridge {
-            override fun bindTunFileDescriptor(fileDescriptor: Int) =
-                NativeCallResult(false, "xray.tun_binding_unavailable")
-            override fun installSocketProtector(protector: SocketProtector) =
-                NativeCallResult(true)
-            override fun start(config: SensitiveXrayConfig) =
-                NativeCallResult(true)
-            override fun stop() = NativeCallResult(true)
-        }
-        val engine = AndroidXrayEngine(platform, native, clock = { 1_000L })
-        val result = engine.connect(ConnectionRequest(profile(expiresAt = 5_000L)))
-        assertTrue(result.isFailure)
-        assertEquals("xray.tun_binding_unavailable", engine.currentState().errorCode)
-        assertTrue(platform.tunnelClosed)
-    }
-
     @Test(expected = IllegalArgumentException::class)
     fun `manual configuration shaped endpoint is rejected`() {
         profile(endpoint = "vless://manual-config.example")
@@ -233,12 +223,6 @@ class XrayRuntimeTest {
         var observedFd: Int? = null
         var startCalls = 0
         var stopCalls = 0
-        var boundFd: Int? = null
-
-        override fun bindTunFileDescriptor(fileDescriptor: Int): NativeCallResult {
-            boundFd = fileDescriptor
-            return NativeCallResult(true)
-        }
 
         override fun installSocketProtector(protector: SocketProtector): NativeCallResult {
             observedFd = 77
