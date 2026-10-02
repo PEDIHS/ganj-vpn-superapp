@@ -35,15 +35,15 @@ class LibXray private constructor() {
 
         @JvmStatic
         fun invoke(request: String): String {
-            if (request.contains("\\"method\\":\\"getXrayState\\"")) {
-                return "{\\"success\\":true,\\"data\\":{\\"running\\":$coreRunning}}"
+            if (request.contains("\"method\":\"getXrayState\"")) {
+                return "{\"success\":true,\"data\":{\"running\":$coreRunning}}"
             }
             observedRequest = request
-            if (request.contains("\\"method\\":\\"runXrayFromJson\\"")) {
+            if (request.contains("\"method\":\"runXrayFromJson\"")) {
                 coreRunning = !simulateStoppedAfterStart
             }
-            if (request.contains("\\"method\\":\\"stopXray\\"")) coreRunning = false
-            return "{\\"success\\":true,\\"data\\":{}}"
+            if (request.contains("\"method\":\"stopXray\"")) coreRunning = false
+            return "{\"success\":true,\"data\":{}}"
         }
 
         fun protect(fileDescriptor: Int): Boolean = controller?.protectFd(fileDescriptor) == true
