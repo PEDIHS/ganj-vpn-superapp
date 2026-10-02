@@ -58,7 +58,9 @@ class VpnTunnelIntegrationTest {
                 println("VPN test: native TUN started")
                 val latency = when (val active = client.probeActive(SERVICE_ID, SERVER_ID)) {
                     is ActiveTunnelProbe.Measured -> active.latencyMillis
-                    ActiveTunnelProbe.NotActive -> null
+                    ActiveTunnelProbe.NotActive,
+                    ActiveTunnelProbe.OtherTunnelActive,
+                    -> null
                 }
                 assertNotNull("active VPN profile must measure latency without issuing another lease", latency)
                 println("VPN test: native proxy latency passed")
@@ -115,3 +117,5 @@ class VpnTunnelIntegrationTest {
         const val SERVER_ID = "30000000-0000-4000-8000-000000000001"
     }
 }
+
+[executed on device: pedram2 (cbf92ea2-36fe-4909-b025-f508c0a2544d)]
