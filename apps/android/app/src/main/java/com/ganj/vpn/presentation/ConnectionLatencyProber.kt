@@ -32,7 +32,9 @@ class ConnectionLatencyProber(
                     is ActiveTunnelProbe.Measured -> return@withContext active.latencyMillis?.let {
                         LatencyProbeResult.Measured(it)
                     } ?: failed(active.failureCode ?: "probe.unavailable")
-                    ActiveTunnelProbe.OtherTunnelActive -> return@withContext failed("probe.active_tunnel_busy")
+                    // pingBatch owns an independent instance; its protected outbound sockets
+                    // can measure another authorized config beside the managed TUN.
+                    ActiveTunnelProbe.OtherTunnelActive -> Unit
                     ActiveTunnelProbe.NotActive -> Unit
                 }
                 val user = currentUser.currentUserId()?.takeIf(String::isNotBlank)

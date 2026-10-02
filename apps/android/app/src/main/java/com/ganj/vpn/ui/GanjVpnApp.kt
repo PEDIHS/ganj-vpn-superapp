@@ -427,6 +427,17 @@ fun GanjVpnApp(
         refreshEnterprise()
     }
 
+    LaunchedEffect(composition, telegramLinked, state.selectedService?.entitlementId, state.selectedService?.isActive) {
+        val selected = state.selectedService
+        if (telegramLinked && selected?.isActive == true) {
+            composition.latency.startAutomatic(selected.entitlementId) {
+                val servers = com.ganj.vpn.composition.ConnectionServerCompositionRegistry.currentController()
+                    ?.servers(selected.entitlementId)
+                (servers as? ApiResult.Success)?.value?.map { it.id }.orEmpty()
+            }
+        }
+    }
+
     LaunchedEffect(composition, "vpn-runtime") {
         com.ganj.vpn.vpn.VpnRuntimeState.state.collect { runtime ->
             commit(com.ganj.vpn.presentation.reconcileVpnState(state, runtime))
@@ -438,6 +449,7 @@ fun GanjVpnApp(
             refreshWallet()
             refreshDevices()
         } else {
+            composition.latency.clear()
             walletJob?.cancel()
             walletState = WalletUiState.AuthRequired
             walletTransactions = emptyList()
@@ -546,6 +558,7 @@ fun GanjVpnApp(
                             GanjDestination.Servers -> StitchServersScreen(
                                 state = state,
                                 onProbe = composition::probeServer,
+                                latency = composition.latency,
                                 onSelectService = {
                                     commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
                                 },
@@ -559,6 +572,7 @@ fun GanjVpnApp(
                             GanjDestination.Connect -> StitchConnectionScreen(
                                 state = state,
                                 onProbe = composition::probeServer,
+                                latency = composition.latency,
                                 onConnect = ::requestProfile,
                                 onDisconnect = ::disconnectTunnel,
                                 onOpenServers = { selectedDestination = GanjDestination.Servers },
@@ -764,3 +778,4 @@ fun GanjVpnApp(
         )
     }
 }
+

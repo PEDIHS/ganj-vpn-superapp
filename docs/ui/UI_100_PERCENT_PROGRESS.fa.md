@@ -978,3 +978,11 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Reuse the currently loaded service catalog for up to 30 seconds when signing probes instead of fetching it once per server; the backend still validates every profile request.
 - Leaf items completed: none. CI/instrumentation and physical-device verification remain pending at this checkpoint. No full device connection claim.
 - UI Ledger sections touched: 12, 13, 14, 26. Remaining unchecked leaves unchanged; calculator: 196/492 = 39.8%.
+
+### 2026-10-03 — Session-owned manual latency (Alpha 0.3.10)
+
+- Sections 12/13/14/26: remove the 15-second connection polling loop and the automatic test on every Servers screen load. One automatic pass runs for the active service on authenticated app entry; navigation, recomposition and foreground resume reuse session results. Only explicit individual/all-server actions refresh readings thereafter.
+- Results use `(serviceId, serverId)` keys, include measurement time, preserve distinct failures and zero-millisecond successes, and share one in-flight test for overlapping requests. Logout clears results and invalidates late writes; profiles/credentials are never cached. Smart Connect reuses measured results.
+- The pinned libXray `pingBatch` builds a local core instance and uses forced outbound HTTP HEAD requests. Allow an authorized second config probe beside a CONNECTED TUN while retaining the active global protector/DNS. Reconnect/disconnect phases remain guarded. Active-profile HTTPS measurements bind to the VPN Network so fallback cannot silently time direct internet after disconnect.
+- Add emulator assertions for independent config latency during VPN connection, rejected credentials, preserved server/TUN and subsequent TUN traffic; unit regressions cover automatic-once, manual refresh, in-flight deduplication, service scoping and logout races. Validation pending at this source checkpoint; physical-phone ping remains pending.
+- UI Ledger sections touched: 12, 13, 14, 26. Leaf items completed: none. Remaining unchecked items in touched sections: 15/16/16/10. Overall UI completion: 196/492 = 39.8% (calculator output).

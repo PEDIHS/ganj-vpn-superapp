@@ -109,9 +109,12 @@ class GanjComposition internal constructor(
 
     suspend fun disconnectVpn(): Result<Unit> = connectionEffects.disconnect()
 
-    suspend fun probeServer(serviceId: String, serverId: String): com.ganj.vpn.presentation.LatencyProbeResult = latencyProber.probeDetailed(serviceId, serverId)
+    val latency = com.ganj.vpn.presentation.SessionLatencyManager(latencyProber::probeDetailed)
+
+    suspend fun probeServer(serviceId: String, serverId: String): com.ganj.vpn.presentation.LatencyProbeResult = latency.cachedOrProbe(serviceId, serverId)
 
     override fun close() {
+        latency.close()
         purchaseEvents.close()
         actionVault.clear()
         connectionActions.clear()

@@ -39,16 +39,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.repeatOnLifecycle
+import androidx.compose.runtime.collectAsState
+import com.ganj.vpn.presentation.SessionLatencyManager
+import com.ganj.vpn.presentation.LatencyKey
+import com.ganj.vpn.presentation.LatencySnapshot
+import androidx.compose.ui.res.stringResource
 import com.ganj.vpn.composition.ConnectionServerCompositionRegistry
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.ConnectionServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,16 +84,14 @@ internal fun StitchConnectionScreen(
     onOpenStore: () -> Unit,
     onRetry: () -> Unit,
     onProbe: suspend (String, String) -> LatencyProbeResult = { _, _ -> LatencyProbeResult.Failed(ConnectionFailures.probe("probe.unavailable")) },
+    latency: SessionLatencyManager? = null,
     modifier: Modifier = Modifier,
 ) {
     val connection = state.connection
     val service = state.selectedService
     val scope = rememberCoroutineScope()
     val serverController = remember { ConnectionServerCompositionRegistry.currentController() }
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var ping by remember { mutableStateOf<Long?>(null) }
-    var pingBusy by remember { mutableStateOf(false) }
-    var pingFailure by remember { mutableStateOf<UiFailure?>(null) }
+    val latencyState = latency?.state?.collectAsState()?.value ?: LatencySnapshot()
     var smartBusy by remember { mutableStateOf(false) }
     var smartFailure by remember { mutableStateOf<UiFailure?>(null) }
     val runtimeServer = state.runtimeConnection.serverId
@@ -108,24 +106,11 @@ internal fun StitchConnectionScreen(
             displayedServer = (available as? ApiResult.Success)?.value?.firstOrNull { it.id == displayServerId }
         }
     }
-    LaunchedEffect(runtimeServer, runtimeService, state.runtimeConnection.phase, lifecycle) {
-        ping = null
-        pingFailure = null
-        pingBusy = false
-        if (state.runtimeConnection.phase != com.ganj.vpn.core.vpn.ConnectionPhase.CONNECTED ||
-            runtimeService == null || runtimeServer == null) return@LaunchedEffect
-        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (isActive) {
-                pingBusy = true
-                try {
-                    val measured = onProbe(runtimeService, runtimeServer)
-                    ping = measured.latencyMillis
-                    pingFailure = (measured as? LatencyProbeResult.Failed)?.failure
-                } finally { pingBusy = false }
-                delay(15_000)
-            }
-        }
-    }
+    val pingKey = if (displayServiceId != null && displayServerId != null) LatencyKey(displayServiceId, displayServerId) else null
+    val reading = latencyState.readings[pingKey]
+    val ping = reading?.result?.latencyMillis
+    val pingBusy = pingKey in latencyState.measuring
+    val pingFailure = (reading?.result as? LatencyProbeResult.Failed)?.failure
     val visualState = when (state.runtimeConnection.phase) {
         com.ganj.vpn.core.vpn.ConnectionPhase.RECONNECTING -> GanjConnectionVisualState.Reconnecting
         com.ganj.vpn.core.vpn.ConnectionPhase.DISCONNECTING -> GanjConnectionVisualState.Connecting
@@ -156,6 +141,15 @@ internal fun StitchConnectionScreen(
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
         StitchMetricsCard(ping, pingBusy)
+        reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (pingKey != null && latency != null) StitchMiniAction(
+            enabled = !pingBusy,
+            text = stringResource(if (pingBusy) R.string.ping_measuring else R.string.ping_selected),
+            accent = MaterialTheme.colorScheme.primary,
+            onClick = { if (!pingBusy) latency?.measure(pingKey.serviceId, listOf(pingKey.serverId)) },
+            modifier = Modifier.fillMaxWidth(),
+        )
         pingFailure?.let { failure ->
             Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -495,7 +489,7 @@ private fun StitchMetricsCard(ping: Long?, measuring: Boolean) {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StitchMetric(label = "پینگ کانفیگ", value = if (measuring) "…" else ping?.toString() ?: "—", unit = "ms", highlight = true)
+            StitchMetric(label = stringResource(R.string.ping_proxy_latency), value = if (measuring) "…" else ping?.toString() ?: "—", unit = "ms", highlight = true)
             StitchMetricDivider()
             StitchMetric(label = "دانلود", value = "—", unit = "Mbps")
             StitchMetricDivider()

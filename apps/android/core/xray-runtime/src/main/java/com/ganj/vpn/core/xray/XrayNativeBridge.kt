@@ -87,7 +87,7 @@ class ReflectiveLibXrayBridge(
         return stopped
     }
 
-    /** Offline only. The caller holds the same lifecycle lock as the managed VPN. */
+    /** Independent outbound instance; never invokes start/stop on the managed VPN core. */
     fun probe(config: SensitiveXrayConfig, privateDirectory: File, targetUrl: String = ProxyProbeFallback.targets.first()): Long? =
         (probeDetailed(config, privateDirectory, listOf(targetUrl)) as? NativeProbeResult.Measured)?.millis
 

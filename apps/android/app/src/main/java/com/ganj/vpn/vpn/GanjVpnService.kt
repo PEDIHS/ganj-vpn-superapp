@@ -301,12 +301,15 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
     private fun probeProfile(profile: ProvisionedProfile): NativeProbeResult {
         return try {
-            if (engine.hasTunnel()) return NativeProbeResult.Failed("probe.active_tunnel_busy")
+            if (engine.hasTunnel() && engine.currentState().phase != ConnectionPhase.CONNECTED) {
+                return NativeProbeResult.Failed("probe.active_tunnel_busy")
+            }
             if (profile.isExpired(System.currentTimeMillis())) return NativeProbeResult.Failed("vpn.profile_expired")
             val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
-            val installed = native.installSocketProtector(SocketProtector { fd ->
-                fd >= 0 && (!engine.hasTunnel() || protect(fd))
-            })
+            // Keep the active core's global DNS/protector intact. pingBatch uses a local
+            // core instance and inherits the already installed, protected socket dialer.
+            val installed = if (engine.hasTunnel()) com.ganj.vpn.core.xray.NativeCallResult(true)
+            else native.installSocketProtector(SocketProtector { fd -> fd >= 0 && (!engine.hasTunnel() || protect(fd)) })
             if (!installed.success) NativeProbeResult.Failed(installed.errorCode ?: "xray.socket_protection_unavailable")
             else XrayConfigCompiler().compileProbe(profile).use { config ->
                 if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
@@ -344,15 +347,21 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 NativeProbeResult.Failed(NativeFailureClassifier.probe(error))
             }
         }
+        // Bind every attempt to this VPN network. A disconnect between attempts must
+        // fail instead of quietly timing a direct connection on the physical network.
+        val vpnNetwork = connectivityManager.allNetworks.firstOrNull {
+            connectivityManager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        } ?: return NativeProbeResult.Failed("probe.network_unreachable")
         return ProxyProbeFallback.measure { target ->
             var connection: HttpURLConnection? = null
             try {
                 val started = SystemClock.elapsedRealtime()
-                connection = URL(target).openConnection() as HttpURLConnection
+                connection = vpnNetwork.openConnection(URL(target)) as HttpURLConnection
                 connection.connectTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MS
                 connection.readTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MS
                 connection.instanceFollowRedirects = false
-                connection.requestMethod = "GET"
+                connection.requestMethod = "HEAD"
+                connection.useCaches = false
                 connection.setRequestProperty("Cache-Control", "no-store")
                 connection.setRequestProperty("Connection", "close")
                 if (connection.responseCode in 200..399) {
@@ -368,7 +377,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
         suspend fun probeDetailed(profile: ProvisionedProfile): LatencyProbeResult = withContext(Dispatchers.IO) {
             synchronized(nativeLifecycleLock) {
-                if (engine.hasTunnel()) {
+                if (engine.hasTunnel() && engine.currentState().phase != ConnectionPhase.CONNECTED) {
                     profile.close()
                     LatencyProbeResult.Failed(ConnectionFailures.probe("probe.active_tunnel_busy"))
                 } else probeProfile(profile).asLatencyResult()

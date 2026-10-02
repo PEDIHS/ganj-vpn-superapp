@@ -32,13 +32,13 @@ class ConnectionLatencyProberTest {
     }
 
     @Test
-    fun `different active tunnel blocks offline native probe`() = runBlocking {
+    fun `different active tunnel permits an authorized independent outbound probe`() = runBlocking {
         val fixture = Fixture(activeProbe = ActiveTunnelProbe.OtherTunnelActive)
-        assertNull(fixture.prober.probe(SERVICE, SERVER))
+        assertEquals(123L, fixture.prober.probe(SERVICE, SERVER))
         assertEquals(1, fixture.activeProbes)
-        assertEquals(0, fixture.requests)
-        assertEquals(0, fixture.provisions)
-        assertEquals(0, fixture.probes)
+        assertEquals(1, fixture.requests)
+        assertEquals(1, fixture.provisions)
+        assertEquals(1, fixture.probes)
     }
 
     @Test

@@ -510,3 +510,9 @@ internal fun ConnectionFailureDetails(failure: UiFailure) {
         }
     }
 }
+
+@Composable
+internal fun latencyReadingTime(measuredAtMillis: Long): String = stringResource(
+    R.string.ping_last_measurement,
+    java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(measuredAtMillis)),
+)

@@ -27,6 +27,12 @@ import com.ganj.vpn.presentation.LatencyProbeResult
 import com.ganj.vpn.presentation.latencyMillis
 import com.ganj.vpn.presentation.ConnectionFailures
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
+import com.ganj.vpn.R
+import com.ganj.vpn.presentation.SessionLatencyManager
+import com.ganj.vpn.presentation.LatencyKey
+import com.ganj.vpn.presentation.LatencySnapshot
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,7 +58,6 @@ import com.ganj.vpn.presentation.ServiceUiModel
 import com.ganj.vpn.presentation.UiTier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -222,6 +227,7 @@ internal fun StitchServersScreen(
     onConnect: (String) -> Unit,
     onRetry: () -> Unit,
     onProbe: suspend (String, String) -> LatencyProbeResult = { _, _ -> LatencyProbeResult.Failed(ConnectionFailures.probe("probe.unavailable")) },
+    latency: SessionLatencyManager? = null,
     modifier: Modifier = Modifier,
 ) {
     var query by remember { mutableStateOf("") }
@@ -231,25 +237,12 @@ internal fun StitchServersScreen(
     var selectedServerId by remember { mutableStateOf(serverController?.selectedServerId()) }
     var loadedServiceId by remember { mutableStateOf<String?>(null) }
     var loadJob by remember { mutableStateOf<Job?>(null) }
-    var probeJob by remember { mutableStateOf<Job?>(null) }
-    var latencies by remember { mutableStateOf<Map<String, LatencyProbeResult>>(emptyMap()) }
-    var measuring by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val latencyState = latency?.state?.collectAsState()?.value ?: LatencySnapshot()
+    val latencies = latencyState.readings.filterKeys { it.serviceId == loadedServiceId }.mapKeys { it.key.serverId }
+    val measuring = latencyState.measuring.filter { it.serviceId == loadedServiceId }.map { it.serverId }.toSet()
 
     fun probeServers(serviceId: String, servers: List<ConnectionServer>) {
-        probeJob?.cancel()
-        latencies = emptyMap()
-        measuring = servers.map { it.id }.toSet()
-        probeJob = scope.launch {
-            coroutineScope {
-                servers.forEach { server -> launch {
-                    val latency = onProbe(serviceId, server.id)
-                    if (isActive && loadedServiceId == serviceId) {
-                        latencies = latencies + (server.id to latency)
-                        measuring = measuring - server.id
-                    }
-                } }
-            }
-        }
+        latency?.measure(serviceId, servers.map { it.id })
     }
 
     val services = state.serviceItems.filter { service ->
@@ -259,9 +252,6 @@ internal fun StitchServersScreen(
 
     fun loadServers(entitlementId: String) {
         loadJob?.cancel()
-        probeJob?.cancel()
-        latencies = emptyMap()
-        measuring = emptySet()
         loadedServiceId = entitlementId
         selectedServerId = null
         serverController?.selectServer(null)
@@ -278,7 +268,6 @@ internal fun StitchServersScreen(
                 is ApiResult.Success -> if (result.value.isEmpty()) ServiceServersUiState.Empty else ServiceServersUiState.Ready(result.value)
                 is ApiResult.Failure -> ServiceServersUiState.Error("دریافت سرورهای این سرویس انجام نشد. دوباره تلاش کنید.")
             }
-            if (result is ApiResult.Success) probeServers(entitlementId, result.value)
         }
     }
 
@@ -288,7 +277,6 @@ internal fun StitchServersScreen(
             loadServers(selected.entitlementId)
         } else if (selected?.isActive != true) {
             loadJob?.cancel()
-            probeJob?.cancel()
             loadedServiceId = null
             serverState = ServiceServersUiState.Idle
             selectedServerId = null
@@ -398,7 +386,8 @@ internal fun StitchServersScreen(
                 ) { loadServers(selectedService.entitlementId) }
                 is ServiceServersUiState.Ready -> {
                     StitchMiniAction(
-                        text = if (measuring.isEmpty()) "تست دوباره پینگ کانفیگ‌ها" else "در حال تست کانفیگ‌ها…",
+                        enabled = measuring.isEmpty() && latency != null,
+                        text = stringResource(if (measuring.isEmpty()) R.string.ping_all else R.string.ping_measuring),
                         accent = MaterialTheme.colorScheme.primary,
                         onClick = {
                             if (measuring.isEmpty()) probeServers(selectedService.entitlementId, serverState.items)
@@ -411,8 +400,8 @@ internal fun StitchServersScreen(
                             selected = server.id == selectedServerId,
                             latencyLabel = when {
                                 server.id in measuring -> "در حال سنجش…"
-                                latencies[server.id]?.latencyMillis != null -> "${latencies[server.id]?.latencyMillis} ms"
-                                latencies[server.id] is LatencyProbeResult.Failed -> latencyFailureLabel((latencies.getValue(server.id) as LatencyProbeResult.Failed).failure)
+                                latencies[server.id]?.result?.latencyMillis != null -> "${latencies[server.id]?.result?.latencyMillis} ms"
+                                latencies[server.id]?.result is LatencyProbeResult.Failed -> latencyFailureLabel((latencies.getValue(server.id).result as LatencyProbeResult.Failed).failure)
                                 else -> "سنجیده نشده"
                             },
                             onClick = {
@@ -421,11 +410,22 @@ internal fun StitchServersScreen(
                             },
                         )
                     }
-                    val selectedFailure = selectedServerId?.let { (latencies[it] as? LatencyProbeResult.Failed)?.failure }
+                    val selectedFailure = selectedServerId?.let { (latencies[it]?.result as? LatencyProbeResult.Failed)?.failure }
                     if (selectedFailure != null) {
                         Text(failureMessage(selectedFailure), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         ConnectionFailureDetails(selectedFailure)
+                    }
+                    selectedServerId?.let { id ->
+                        latencies[id]?.let { Text(latencyReadingTime(it.measuredAtMillis),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        StitchMiniAction(
+                            enabled = id !in measuring && latency != null,
+                            text = stringResource(if (id in measuring) R.string.ping_measuring else R.string.ping_selected),
+                            accent = MaterialTheme.colorScheme.primary,
+                            onClick = { if (id !in measuring) latency?.measure(selectedService.entitlementId, listOf(id)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                     if (selectedServerId == null) {
                         Text(
@@ -637,14 +637,16 @@ private fun StitchQuickCard(
 }
 
 @Composable
-private fun StitchMiniAction(
+internal fun StitchMiniAction(
     text: String,
     accent: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     GanjLiquidAction(
         onClick = onClick,
+        enabled = enabled,
         accent = accent,
         shapeRadius = 999.dp,
         modifier = modifier,

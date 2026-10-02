@@ -66,7 +66,7 @@
     <string name="failure_probe_refused">اتصال در تست پینگ رد شد. ممکن است پورت یا سرویس سرور در دسترس نباشد؛ سرور دیگری را امتحان کنید.</string>
     <string name="failure_probe_network">مسیر شبکه برای تست پینگ در دسترس نیست. اینترنت گوشی را بررسی کنید.</string>
     <string name="failure_probe_http">مقصد تست پینگ پاسخ قابل قبول نداد. این نتیجه به‌تنهایی قطع بودن VPN را ثابت نمی‌کند.</string>
-    <string name="failure_probe_active">هنگام اتصال VPN فقط پینگ سرور فعال قابل سنجش است. برای تست سایر سرورها ابتدا اتصال را قطع کنید.</string>
+    <string name="failure_probe_active">اتصال VPN در حال تغییر یا بازیابی است. پس از پایان تلاش اتصال، پینگ را دوباره بگیرید.</string>
     <string name="failure_probe_context">تأیید سرور یا دستگاه برای تست پینگ انجام نشد. فهرست سرورها را تازه کنید و وضعیت ورود به حساب را بررسی کنید.</string>
     <string name="failure_probe_native">هستهٔ پروکسی نتوانست تست پینگ را اجرا کند. جزئیات خطا را بررسی کنید یا سرور دیگری را امتحان کنید.</string>
     <string name="failure_probe_unavailable">پینگ قابل اندازه‌گیری نبود. این نتیجه به‌تنهایی قطع بودن VPN را ثابت نمی‌کند؛ دوباره تست کنید.</string>
@@ -78,7 +78,12 @@
     <string name="ping_tls">خطای ارتباط امن</string>
     <string name="ping_refused">اتصال رد شد</string>
     <string name="ping_network">شبکه در دسترس نیست</string>
-    <string name="ping_active_only">فقط سرور فعال</string>
+    <string name="ping_active_only">اتصال در حال تغییر</string>
     <string name="ping_native">خطای هستهٔ پروکسی</string>
     <string name="ping_failed">تست ناموفق؛ سرور را انتخاب کنید</string>
+    <string name="ping_selected">سنجش پینگ سرور انتخاب‌شده</string>
+    <string name="ping_all">سنجش پینگ همهٔ سرورها</string>
+    <string name="ping_measuring">در حال سنجش تأخیر…</string>
+    <string name="ping_proxy_latency">تأخیر کانفیگ</string>
+    <string name="ping_last_measurement">آخرین سنجش: %1$s</string>
 </resources>
