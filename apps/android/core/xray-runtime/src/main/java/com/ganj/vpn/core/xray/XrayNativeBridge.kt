@@ -75,7 +75,7 @@ class ReflectiveLibXrayBridge(
         val running = runCatching {
             val response = invokeMethod().invoke(
                 null,
-                "{\\"apiVersion\\":1,\\"method\\":\\"getXrayState\\",\\"payload\\":{}}",
+                "{\"apiVersion\":1,\"method\":\"getXrayState\",\"payload\":{}}",
             ) as? String
             response != null &&
                 SUCCESS_PATTERN.containsMatchIn(response) &&
@@ -151,7 +151,7 @@ class ReflectiveLibXrayBridge(
 
     private companion object {
         const val PROTECTED_DNS = "1.1.1.1:53"
-        val RUNNING_PATTERN = Regex("\\\\"running\\\\"\\\\s*:\\\\s*true")
+        val RUNNING_PATTERN = Regex("\\\"running\\\"\\s*:\\s*true")
         val SUCCESS_PATTERN = Regex("\\\"success\\\"\\s*:\\s*true")
     }
 }
