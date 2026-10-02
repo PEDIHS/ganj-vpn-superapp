@@ -60,6 +60,7 @@ class XrayConfigCompiler(
             ProvisionedTransport.Tcp -> "tcp"
             is ProvisionedTransport.WebSocket -> "ws"
             is ProvisionedTransport.Grpc -> "grpc"
+            is ProvisionedTransport.XHttp -> "xhttp"
         }
         val transportSettings = when (transport) {
             ProvisionedTransport.Tcp -> ""
@@ -69,6 +70,10 @@ class XrayConfigCompiler(
             }
             is ProvisionedTransport.Grpc ->
                 ",\"grpcSettings\":{\"serviceName\":${json(transport.serviceName)},\"multiMode\":false}"
+            is ProvisionedTransport.XHttp -> {
+                val host = transport.host?.let { ",\"host\":${json(it)}" }.orEmpty()
+                ",\"xhttpSettings\":{\"path\":${json(transport.path)},\"mode\":${json(transport.mode)}$host}"
+            }
         }
         val securitySettings = when (security) {
             ProvisionedSecurity.None -> ",\"security\":\"none\""
