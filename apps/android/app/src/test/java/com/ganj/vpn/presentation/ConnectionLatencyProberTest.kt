@@ -32,6 +32,16 @@ class ConnectionLatencyProberTest {
     }
 
     @Test
+    fun `different active tunnel blocks offline native probe`() = runBlocking {
+        val fixture = Fixture(activeProbe = ActiveTunnelProbe.OtherTunnelActive)
+        assertNull(fixture.prober.probe(SERVICE, SERVER))
+        assertEquals(1, fixture.activeProbes)
+        assertEquals(0, fixture.requests)
+        assertEquals(0, fixture.provisions)
+        assertEquals(0, fixture.probes)
+    }
+
+    @Test
     fun `unauthorized server never requests a lease or probes`() = runBlocking {
         val fixture = Fixture(authorized = false)
         assertNull(fixture.prober.probe(SERVICE, SERVER))
@@ -124,3 +134,5 @@ class ConnectionLatencyProberTest {
         const val OTHER = "70000000-0000-4000-8000-000000000006"
     }
 }
+
+[executed on device: pedram2 (cbf92ea2-36fe-4909-b025-f508c0a2544d)]
