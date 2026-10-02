@@ -201,17 +201,14 @@ export class LegacySubscriptionReconciler {
             status: event.status,
           });
           await this.repository.appendAdminAudit({
-            actorType: 'system',
-            actorId: 'legacy-reconciler',
+            actorSubject: 'system:legacy-reconciler',
             action: 'legacy_service_restricted_without_plan_mapping',
-            targetType: 'service',
-            targetId: projectedService.id,
-            metadata: {
-              source_key: event.sourceKey,
-              external_service_digest: stableFingerprint(event.externalServiceId),
-              restricted_status: event.status,
-            },
-            occurredAt: now.toISOString(),
+            resourceType: 'service',
+            resourceId: projectedService.id,
+            reason: 'legacy_sync:' + event.sourceKey,
+            requestId: null,
+            outcome: 'success',
+            createdAt: now.toISOString(),
           });
         }
         return this.#conflict(event, 'plan', event.planCode, 'legacy_plan_mapping_missing', {}, now);
@@ -268,16 +265,14 @@ export class LegacySubscriptionReconciler {
       });
 
       await this.repository.appendAdminAudit({
-        actorType: 'system',
-        actorId: 'legacy-reconciler',
+        actorSubject: 'system:legacy-reconciler',
         action: projection ? 'legacy_service_updated' : 'legacy_service_created',
-        targetType: 'service',
-        targetId: stored.id,
-        metadata: {
-          source_key: event.sourceKey,
-          external_service_digest: stableFingerprint(event.externalServiceId),
-        },
-        occurredAt: now.toISOString(),
+        resourceType: 'service',
+        resourceId: stored.id,
+        reason: 'legacy_sync:' + event.sourceKey,
+        requestId: null,
+        outcome: 'success',
+        createdAt: now.toISOString(),
       });
 
       await this.repository.completeLegacyReconciliationEvent({
