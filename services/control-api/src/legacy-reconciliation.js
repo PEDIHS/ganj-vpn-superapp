@@ -206,7 +206,7 @@ export class LegacySubscriptionReconciler {
             resourceType: 'service',
             resourceId: projectedService.id,
             reason: 'legacy_sync:' + event.sourceKey,
-            requestId: null,
+            requestId: randomUUID(),
             outcome: 'success',
             createdAt: now.toISOString(),
           });
@@ -270,7 +270,7 @@ export class LegacySubscriptionReconciler {
         resourceType: 'service',
         resourceId: stored.id,
         reason: 'legacy_sync:' + event.sourceKey,
-        requestId: null,
+        requestId: randomUUID(),
         outcome: 'success',
         createdAt: now.toISOString(),
       });
