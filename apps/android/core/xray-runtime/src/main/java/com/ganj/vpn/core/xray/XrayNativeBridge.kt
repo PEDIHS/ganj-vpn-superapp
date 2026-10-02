@@ -10,6 +10,8 @@ fun interface SocketProtector {
 data class NativeCallResult(val success: Boolean, val errorCode: String? = null)
 
 interface XrayNativeBridge {
+    /** Bind the Android VpnService descriptor in the gomobile Go process before starting Xray. */
+    fun bindTunFileDescriptor(fileDescriptor: Int): NativeCallResult
     fun installSocketProtector(protector: SocketProtector): NativeCallResult
     fun start(config: SensitiveXrayConfig): NativeCallResult
     fun stop(): NativeCallResult
@@ -26,6 +28,21 @@ class ReflectiveLibXrayBridge(
         listOf("libXray.LibXRay", "libXray.LibXray")
             .firstNotNullOfOrNull { runCatching { classLoader.loadClass(it) }.getOrNull() }
             ?: throw IllegalStateException("Pinned libXray runtime is unavailable")
+    }
+
+    override fun bindTunFileDescriptor(fileDescriptor: Int): NativeCallResult {
+        if (fileDescriptor < 0) return NativeCallResult(false, "xray.invalid_tun_descriptor")
+        return runCatching {
+            // The gomobile setter is built from third_party/libxray/ganj_tun_fd.go.
+            // Failing closed is essential: a UI-level "connected" state must never
+            // be reported when the VpnService TUN is not bound to Xray.
+            val method = bridgeClass.methods.firstOrNull {
+                it.name.equals("setTunFd", ignoreCase = true) &&
+                    it.parameterTypes.contentEquals(arrayOf(Int::class.javaPrimitiveType))
+            } ?: return NativeCallResult(false, "xray.tun_binding_unavailable")
+            method.invoke(null, fileDescriptor)
+            NativeCallResult(true)
+        }.getOrElse { NativeCallResult(false, "xray.tun_binding_failed") }
     }
 
     override fun installSocketProtector(protector: SocketProtector): NativeCallResult = runCatching {
@@ -57,6 +74,11 @@ class ReflectiveLibXrayBridge(
         runCatching {
             bridgeClass.methods.firstOrNull {
                 it.name.equals("resetDNS", ignoreCase = true) && it.parameterTypes.isEmpty()
+            }?.invoke(null)
+        }
+        runCatching {
+            bridgeClass.methods.firstOrNull {
+                it.name.equals("resetTunFd", ignoreCase = true) && it.parameterTypes.isEmpty()
             }?.invoke(null)
         }
         socketCallback = null
