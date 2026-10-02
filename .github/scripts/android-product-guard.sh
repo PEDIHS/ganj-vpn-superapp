@@ -28,4 +28,17 @@ if find "$android_main" -type f \( -iname '*mock*' -o -iname '*fake*' \) -print 
   exit 1
 fi
 
+# A successful server catalog is not a connection path. Production must sign one
+# device-bound request for the selected managed server; the old placeholder
+# silently prevented all real connection-profile issuance.
+owner="$android_main/java/com/ganj/vpn/composition/GanjCompositionOwner.kt"
+if [[ ! -f "$owner" ]] || grep -Fq 'connectionContext = ConnectionProfileContextProvider { null }' "$owner"; then
+  printf '%s\n' "Android connection profile context must not be a null placeholder." >&2
+  exit 1
+fi
+if ! grep -Fq 'connectionContext = AndroidConnectionProfileContextProvider(' "$owner"; then
+  printf '%s\n' "Android selected-server device-proof context is not wired to production." >&2
+  exit 1
+fi
+
 printf '%s\n' "Android subscription-only product guard passed."
