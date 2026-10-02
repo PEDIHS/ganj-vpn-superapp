@@ -147,6 +147,22 @@ class ConnectionProfileBrokerTest {
     }
 
     @Test
+    fun `schema v1 allows xhttp reality material`() {
+        val profileJson = validPlaintext(
+            transport = """{"type":"xhttp","path":"/","mode":"auto"}""",
+            security = """{"type":"reality","server_name":"edge.ganj.test","fingerprint":"chrome","public_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","short_id":"aabbccdd","allow_insecure":false}""",
+            flow = "null",
+        )
+        val fixture = fixture(CapturingProvider(NODE_AAD, profileJson.toByteArray()))
+
+        val result = fixture.broker.provision(fixture.lease, binding()) as ProfileProvisioningResult.Success
+
+        assertEquals(ProvisionedTransport.XHttp("/", mode = "auto"), result.profile.transport)
+        assertTrue(result.profile.security is ProvisionedSecurity.Reality)
+        result.profile.close()
+    }
+
+    @Test
     fun `schema v1 allows explicit grpc tls and shadowsocks method`() {
         val profileJson = validPlaintext(
             protocol = "shadowsocks",
