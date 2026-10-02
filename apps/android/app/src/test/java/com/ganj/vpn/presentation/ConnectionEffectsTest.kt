@@ -75,18 +75,18 @@ class ConnectionEffectsTest {
     }
 
     @Test
-    fun `missing native TUN binding yields actionable non-retryable error`() {
+    fun coreStoppedAfterStartupShowsActionableRetryableFailure() {
         val vault = vault()
         val executor = ConnectionEffectExecutor(
             vault,
             FakeBroker { ProfileProvisioningResult.Success(profile()) },
-            FakeTunnel(connectResult = Result.failure(VpnRuntimeException("xray.tun_binding_unavailable"))),
+            FakeTunnel(connectResult = Result.failure(VpnRuntimeException("xray.core_not_running"))),
         )
         val result = runSuspend { executor.execute(vault.store(lease(), binding())) }
         val failure = (result as ConnectionEffectResult.Failed).failure
-        assertEquals("connection.native_tun_unavailable", failure.messageKey)
-        assertEquals(UiFailureKind.CONFIGURATION, failure.kind)
-        assertTrue(!failure.retryable)
+        assertEquals("connection.native_core_not_running", failure.messageKey)
+        assertEquals(UiFailureKind.SERVER, failure.kind)
+        assertTrue(failure.retryable)
     }
 
     private fun vault() = InMemoryConnectionActionVault(
