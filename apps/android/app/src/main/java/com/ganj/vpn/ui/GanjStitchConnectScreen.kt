@@ -95,7 +95,7 @@ internal fun StitchConnectionScreen(
     var pingBusy by remember { mutableStateOf(false) }
     var pingFailure by remember { mutableStateOf<UiFailure?>(null) }
     var smartBusy by remember { mutableStateOf(false) }
-    var smartFailure by remember { mutableStateOf(false) }
+    var smartFailure by remember { mutableStateOf<UiFailure?>(null) }
     val runtimeServer = state.runtimeConnection.serverId
     val runtimeService = state.runtimeConnection.serviceId
     val displayServerId = runtimeServer ?: serverController?.selectedServerId()
@@ -161,10 +161,13 @@ internal fun StitchConnectionScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             ConnectionFailureDetails(failure)
         }
-        if (smartBusy || smartFailure) Text(
-            if (smartBusy) "در حال سنجش و انتخاب سریع‌ترین کانفیگ…" else "هیچ کانفیگی پاسخ نداد؛ سرورها را بررسی کنید.",
-            style = MaterialTheme.typography.bodySmall,
+        if (smartBusy) Text(
+            "در حال سنجش و انتخاب سریع‌ترین کانفیگ…", style = MaterialTheme.typography.bodySmall,
         )
+        smartFailure?.let { failure ->
+            Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall)
+            ConnectionFailureDetails(failure)
+        }
         StitchSelectedServerCard(server = displayedServer, ping = ping, onOpenServers = onOpenServers)
         StitchSmartConnectCard(
             enabled = service?.isActive == true && !smartBusy,
@@ -174,16 +177,20 @@ internal fun StitchConnectionScreen(
                 if (selected == null || controller == null) onOpenServers()
                 else if (!smartBusy) scope.launch {
                     smartBusy = true
-                    smartFailure = false
+                    smartFailure = null
                     try {
-                        val servers = (withContext(Dispatchers.IO) {
-                            controller.servers(selected.entitlementId)
-                        } as? ApiResult.Success)?.value.orEmpty()
-                        val measured = servers.mapNotNull { server ->
-                            onProbe(selected.entitlementId, server.id).latencyMillis?.let { server.id to it }
+                        val response = withContext(Dispatchers.IO) { controller.servers(selected.entitlementId) }
+                        if (response is ApiResult.Failure) {
+                            smartFailure = ConnectionFailures.api(response.error)
+                            return@launch
                         }
-                        val best = measured.minByOrNull { it.second }
-                        if (best == null) smartFailure = true
+                        val servers = (response as ApiResult.Success).value
+                        val results = servers.map { server -> server.id to onProbe(selected.entitlementId, server.id) }
+                        val best = results.mapNotNull { (id, result) -> result.latencyMillis?.let { id to it } }
+                            .minByOrNull { it.second }
+                        if (best == null) smartFailure = results.firstNotNullOfOrNull { (_, result) ->
+                            (result as? LatencyProbeResult.Failed)?.failure
+                        } ?: ConnectionFailures.probe("probe.unavailable")
                         else {
                             controller.selectServer(best.first)
                             onConnect(selected.entitlementId)
