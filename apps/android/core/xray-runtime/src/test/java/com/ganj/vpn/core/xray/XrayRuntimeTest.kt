@@ -69,6 +69,19 @@ class XrayRuntimeTest {
     }
 
     @Test
+    fun nativeStartFailsWhenManagedXrayStopped() {
+        LibXray.resetObservations()
+        LibXray.simulateStoppedAfterStart = true
+        val bridge = ReflectiveLibXrayBridge(javaClass.classLoader!!)
+
+        val result = bridge.start(SensitiveXrayConfig("{\"inbounds\":[],\"outbounds\":[]}"))
+
+        assertFalse(result.success)
+        assertEquals("xray.core_not_running", result.errorCode)
+        LibXray.resetObservations()
+    }
+
+    @Test
     fun `compiler creates native tun and vless reality grpc config only from typed profile`() {
         val profile = profile(
             security = ProvisionedSecurity.Reality(
@@ -93,6 +106,27 @@ class XrayRuntimeTest {
         assertFalse(profile.toString().contains("40000000-0000-4000-8000-000000000001"))
         assertFalse(sensitive.toString().contains("40000000-0000-4000-8000-000000000001"))
         assertTrue(runCatching { sensitive.consume() }.isFailure)
+        profile.close()
+    }
+
+    @Test
+    fun `compiler creates vless reality xhttp config used by production subscriptions`() {
+        val profile = profile(
+            security = ProvisionedSecurity.Reality(
+                serverName = "edge.example.com",
+                publicKey = "A".repeat(43),
+                shortId = "a1b2c3d4",
+            ),
+            transport = ProvisionedTransport.XHttp(path = "/", mode = "auto"),
+            flow = null,
+        )
+        val sensitive = XrayConfigCompiler().compile(profile, tunFileDescriptor = 42)
+        val json = sensitive.consume()
+
+        assertTrue(json.contains("\"network\":\"xhttp\""))
+        assertTrue(json.contains("\"xhttpSettings\":{\"path\":\"/\",\"mode\":\"auto\"}"))
+        assertFalse(json.contains("\"host\""))
+        assertTrue(json.contains("\"security\":\"reality\""))
         profile.close()
     }
 

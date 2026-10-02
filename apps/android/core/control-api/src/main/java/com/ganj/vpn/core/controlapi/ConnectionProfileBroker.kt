@@ -381,12 +381,14 @@ private class StrictProvisionedProfileParser(private val source: ByteArray) {
         var path: String? = null
         var host: String? = null
         var serviceName: String? = null
+        var mode: String? = null
         readObject(TRANSPORT_FIELDS, seen) { key ->
             when (key) {
                 "type" -> type = readString()
                 "path" -> path = readString()
                 "host" -> host = readNullableString()
                 "service_name" -> serviceName = readString()
+                "mode" -> mode = readString()
             }
         }
         return when (type) {
@@ -395,12 +397,20 @@ private class StrictProvisionedProfileParser(private val source: ByteArray) {
                 ProvisionedTransport.Tcp
             }
             "ws" -> {
-                if (seen != WS_TRANSPORT_FIELDS) throw ProfilePayloadException()
+                if (seen != WS_TRANSPORT_FIELDS && seen != WS_TRANSPORT_FIELDS_WITH_HOST) throw ProfilePayloadException()
                 ProvisionedTransport.WebSocket(path = path ?: throw ProfilePayloadException(), host = host)
             }
             "grpc" -> {
                 if (seen != GRPC_TRANSPORT_FIELDS) throw ProfilePayloadException()
                 ProvisionedTransport.Grpc(serviceName = serviceName ?: throw ProfilePayloadException())
+            }
+            "xhttp" -> {
+                if (seen != XHTTP_TRANSPORT_FIELDS && seen != XHTTP_TRANSPORT_FIELDS_WITH_HOST) throw ProfilePayloadException()
+                ProvisionedTransport.XHttp(
+                    path = path ?: throw ProfilePayloadException(),
+                    host = host,
+                    mode = mode ?: throw ProfilePayloadException(),
+                )
             }
             else -> throw ProfilePayloadException()
         }
@@ -746,10 +756,13 @@ private val REQUIRED_PROFILE_FIELDS = setOf(
     "flow",
     "shadowsocks_method",
 )
-private val TRANSPORT_FIELDS = setOf("type", "path", "host", "service_name")
+private val TRANSPORT_FIELDS = setOf("type", "path", "host", "service_name", "mode")
 private val TCP_TRANSPORT_FIELDS = setOf("type")
-private val WS_TRANSPORT_FIELDS = setOf("type", "path", "host")
+private val WS_TRANSPORT_FIELDS = setOf("type", "path")
+private val WS_TRANSPORT_FIELDS_WITH_HOST = setOf("type", "path", "host")
 private val GRPC_TRANSPORT_FIELDS = setOf("type", "service_name")
+private val XHTTP_TRANSPORT_FIELDS = setOf("type", "path", "mode")
+private val XHTTP_TRANSPORT_FIELDS_WITH_HOST = setOf("type", "path", "host", "mode")
 private val SECURITY_FIELDS = setOf(
     "type",
     "server_name",

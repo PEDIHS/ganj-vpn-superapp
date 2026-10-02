@@ -4,7 +4,8 @@ import { parseBody } from './application.js';
 
 const TIER_RANK = Object.freeze({ free: 0, premium: 1, vip: 2 });
 const SERVER_PROTOCOLS = new Set(['vless', 'vmess', 'trojan', 'shadowsocks']);
-const PROFILE_TRANSPORTS = new Set(['tcp', 'ws', 'grpc']);
+const PROFILE_TRANSPORTS = new Set(['tcp', 'ws', 'grpc', 'xhttp']);
+const XHTTP_MODES = new Set(['auto', 'packet-up', 'stream-up', 'stream-one']);
 const PROFILE_SECURITY = new Set(['none', 'tls', 'reality']);
 const TLS_FINGERPRINTS = new Set(['chrome', 'firefox', 'safari', 'ios', 'android', 'randomized']);
 const SHADOWSOCKS_METHODS = new Set([
@@ -72,12 +73,16 @@ function trustedConnection(server, service) {
     throw new Error('Server transport is invalid.');
   }
   const transportAllowed = transport.type === 'ws' ? new Set(['type', 'path', 'host'])
-    : transport.type === 'grpc' ? new Set(['type', 'service_name']) : new Set(['type']);
+    : transport.type === 'grpc' ? new Set(['type', 'service_name'])
+      : transport.type === 'xhttp' ? new Set(['type', 'path', 'host', 'mode']) : new Set(['type']);
   if (Object.keys(transport).some((key) => !transportAllowed.has(key))) throw new Error('Server transport contains unsupported fields.');
   if (transport.type === 'ws' && (typeof transport.path !== 'string' || !transport.path.startsWith('/')
     || transport.path.length > 2048 || transport.host != null && !SAFE_HOST.test(transport.host))) throw new Error('Server WebSocket transport is invalid.');
   if (transport.type === 'grpc' && (typeof transport.service_name !== 'string'
     || !/^[A-Za-z0-9._/-]{1,256}$/.test(transport.service_name))) throw new Error('Server gRPC transport is invalid.');
+  if (transport.type === 'xhttp' && (typeof transport.path !== 'string' || !transport.path.startsWith('/')
+    || transport.path.length > 2048 || transport.host != null && !SAFE_HOST.test(transport.host)
+    || !XHTTP_MODES.has(transport.mode))) throw new Error('Server XHTTP transport is invalid.');
 
   const security = value.security;
   if (!security || typeof security !== 'object' || Array.isArray(security) || !PROFILE_SECURITY.has(security.type)) {

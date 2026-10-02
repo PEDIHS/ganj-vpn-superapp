@@ -41,8 +41,14 @@ function resolverBody() {
         port: 443,
         protocol: 'vless',
         credential: UUID,
-        transport: { type: 'ws', path: '/ganj', host: 'edge.example.com' },
-        security: { type: 'tls', server_name: 'edge.example.com', fingerprint: 'chrome' },
+        transport: { type: 'xhttp', path: '/', mode: 'auto' },
+        security: {
+          type: 'reality',
+          server_name: 'edge.example.com',
+          fingerprint: 'chrome',
+          public_key: 'A'.repeat(43),
+          short_id: 'aabbccdd',
+        },
       },
     }],
   };
@@ -146,6 +152,8 @@ test('live router lists entitlement-filtered servers and issues a sealed device-
     sealConnectionProfile: async ({ plaintext }) => {
       assert.equal(plaintext.credential, UUID);
       assert.equal(plaintext.protocol, 'vless');
+      assert.deepEqual(plaintext.transport, { type: 'xhttp', path: '/', mode: 'auto' });
+      assert.equal(plaintext.security.type, 'reality');
       return { algorithm: 'X25519+HKDF-SHA256+AES-256-GCM/GVP1', keyVersion: 'v1', nonce: 'bm9uY2U=', ciphertext: 'Y2lwaGVy' };
     },
   };
