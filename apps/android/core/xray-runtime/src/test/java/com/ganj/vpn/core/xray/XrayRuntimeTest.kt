@@ -110,6 +110,26 @@ class XrayRuntimeTest {
     }
 
     @Test
+    fun `compiler creates vless reality xhttp config used by production subscriptions`() {
+        val profile = profile(
+            security = ProvisionedSecurity.Reality(
+                serverName = "edge.example.com",
+                publicKey = "A".repeat(43),
+                shortId = "a1b2c3d4",
+            ),
+            transport = ProvisionedTransport.XHttp(path = "/", mode = "auto"),
+            flow = null,
+        )
+        val sensitive = XrayConfigCompiler().compile(profile, tunFileDescriptor = 42)
+        val json = sensitive.consume()
+
+        assertTrue(json.contains("\"network\":\"xhttp\""))
+        assertTrue(json.contains("\"xhttpSettings\":{\"path\":\"/\",\"mode\":\"auto\"}"))
+        assertTrue(json.contains("\"security\":\"reality\""))
+        profile.close()
+    }
+
+    @Test
     fun `engine establishes tun protects sockets starts and destroys profile`() {
         val platform = FakePlatform()
         val native = FakeNative()
