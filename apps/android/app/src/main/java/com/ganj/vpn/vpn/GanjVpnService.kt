@@ -14,6 +14,7 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import com.ganj.vpn.MainActivity
 import com.ganj.vpn.presentation.ActiveTunnelProbe
 import com.ganj.vpn.R
@@ -30,6 +31,8 @@ import com.ganj.vpn.core.xray.ReflectiveLibXrayBridge
 import com.ganj.vpn.core.xray.TunnelDevice
 import com.ganj.vpn.core.xray.TunnelPlatform
 import com.ganj.vpn.core.xray.VpnRuntimeException
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -275,22 +278,54 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
     private fun probeProfile(profile: ProvisionedProfile): Long? {
         return try {
+            // Pinned libXray temporary probes share process-global Xray state. Never run one
+            // beside the managed VPN core because that can disturb the active tunnel.
+            if (engine.hasTunnel()) return null
             val native = ReflectiveLibXrayBridge(applicationContext.classLoader)
             val installed = native.installSocketProtector(SocketProtector { fd ->
-                fd >= 0 && (!engine.hasTunnel() || protect(fd))
+                fd >= 0 && protect(fd)
             })
-            if (!installed.success) null else {
+            if (!installed.success) null else if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
                 XrayConfigCompiler().compileProbe(profile).use { config ->
-                    if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
-                        native.probe(config, noBackupFilesDir, NATIVE_FIXTURE_PROBE_URL)
-                    } else {
-                        native.probe(config, noBackupFilesDir)
-                    }
+                    native.probe(config, noBackupFilesDir, NATIVE_FIXTURE_PROBE_URL)
+                }
+            } else {
+                val primary = XrayConfigCompiler().compileProbe(profile).use { config ->
+                    native.probe(config, noBackupFilesDir, INACTIVE_PROBE_PRIMARY_URL)
+                }
+                primary ?: XrayConfigCompiler().compileProbe(profile).use { config ->
+                    native.probe(config, noBackupFilesDir, INACTIVE_PROBE_FALLBACK_URL)
                 }
             }
         } finally {
             profile.close()
         }
+    }
+
+    /** Measures end-to-end HTTP latency through the already-running Android VPN tunnel. */
+    private fun activeTunnelLatency(): Long? {
+        for (target in ACTIVE_TUNNEL_PROBE_URLS) {
+            val started = SystemClock.elapsedRealtime()
+            val connection = runCatching { URL(target).openConnection() as HttpURLConnection }.getOrNull()
+                ?: continue
+            try {
+                connection.instanceFollowRedirects = false
+                connection.connectTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MILLIS
+                connection.readTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MILLIS
+                connection.useCaches = false
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("Cache-Control", "no-cache")
+                val status = connection.responseCode
+                if (status in 200..399) {
+                    return (SystemClock.elapsedRealtime() - started).coerceAtLeast(0L)
+                }
+            } catch (_: Exception) {
+                // Try the next independent endpoint.
+            } finally {
+                connection.disconnect()
+            }
+        }
+        return null
     }
 
 
@@ -309,13 +344,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                     !engine.hasTunnel()
                 ) return@withContext ActiveTunnelProbe.NotActive
 
-                val restored = recoveryStore.restore().getOrNull()
-                    ?: return@withContext ActiveTunnelProbe.Measured(null)
-                if (restored.serviceId != serviceId || restored.serverId != serverId) {
-                    restored.close()
-                    return@withContext ActiveTunnelProbe.Measured(null)
-                }
-                ActiveTunnelProbe.Measured(probeProfile(restored))
+                ActiveTunnelProbe.Measured(activeTunnelLatency())
             }
 
         suspend fun connect(request: ConnectionRequest): Result<Unit> = withContext(Dispatchers.IO) {
@@ -433,6 +462,13 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         private const val NOTIFICATION_CHANNEL_ID = "ganj_vpn_connection"
         private const val NOTIFICATION_ID = 4201
         private const val NATIVE_FIXTURE_PROBE_URL = "http://198.18.0.1:18080/ganj-tun-check"
+        private const val INACTIVE_PROBE_PRIMARY_URL = "https://cp.cloudflare.com/"
+        private const val INACTIVE_PROBE_FALLBACK_URL = "https://www.gstatic.com/generate_204"
+        private val ACTIVE_TUNNEL_PROBE_URLS = listOf(
+            "https://cp.cloudflare.com/",
+            "https://www.gstatic.com/generate_204",
+        )
+        private const val ACTIVE_TUNNEL_PROBE_TIMEOUT_MILLIS = 4_000
         private const val IPV4_CLIENT_ADDRESS = "10.111.222.2"
         private const val IPV4_PREFIX_LENGTH = 32
         private const val IPV4_DEFAULT_ROUTE = "0.0.0.0"
