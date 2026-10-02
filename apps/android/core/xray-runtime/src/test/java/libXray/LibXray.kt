@@ -14,6 +14,8 @@ class LibXray private constructor() {
         var dnsReset: Boolean = false
             private set
         private var controller: DialerController? = null
+        var simulateStoppedAfterStart: Boolean = false
+        private var coreRunning: Boolean = false
         private val dialerControllers = mutableListOf<DialerController>()
         val registrationCount: Int get() = dialerControllers.size
 
@@ -36,7 +38,14 @@ class LibXray private constructor() {
 
         @JvmStatic
         fun invoke(request: String): String {
+            if (request.contains("\"method\":\"getXrayState\"")) {
+                return "{\"success\":true,\"data\":{\"running\":$coreRunning}}"
+            }
             observedRequest = request
+            if (request.contains("\"method\":\"runXrayFromJson\"")) {
+                coreRunning = !simulateStoppedAfterStart
+            }
+            if (request.contains("\"method\":\"stopXray\"")) coreRunning = false
             return "{\"success\":true,\"data\":{}}"
         }
 
@@ -47,6 +56,8 @@ class LibXray private constructor() {
             observedRequest = null
             observedDns = null
             dnsReset = false
+            simulateStoppedAfterStart = false
+            coreRunning = false
         }
     }
 }
