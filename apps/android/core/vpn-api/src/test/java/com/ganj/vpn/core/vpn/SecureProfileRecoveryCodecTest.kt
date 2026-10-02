@@ -26,6 +26,28 @@ class SecureProfileRecoveryCodecTest {
     }
 
     @Test
+    fun roundTripPreservesXHttpRealityTransport() {
+        val original = profile(
+            transport = ProvisionedTransport.XHttp(path = "/", mode = "auto"),
+            security = ProvisionedSecurity.Reality(
+                serverName = "vpn.example.com",
+                publicKey = "A".repeat(43),
+                shortId = "a1b2",
+            ),
+            flow = null,
+        )
+        val encoded = ProvisionedProfileRecoveryCodec.encode(original)
+        val decoded = ProvisionedProfileRecoveryCodec.decode(encoded)
+
+        assertEquals(ProvisionedTransport.XHttp(path = "/", mode = "auto"), decoded.transport)
+        assertTrue(decoded.security is ProvisionedSecurity.Reality)
+
+        original.close()
+        decoded.close()
+        encoded.fill(0)
+    }
+
+    @Test
     fun rejectsUnsupportedVersionTrailingBytesAndMalformedPayload() {
         val profile = profile()
         val encoded = ProvisionedProfileRecoveryCodec.encode(profile)
