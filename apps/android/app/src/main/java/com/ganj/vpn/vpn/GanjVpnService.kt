@@ -32,6 +32,8 @@ import com.ganj.vpn.core.xray.TunnelDevice
 import com.ganj.vpn.core.xray.TunnelPlatform
 import com.ganj.vpn.core.xray.VpnRuntimeException
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.net.URL
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
@@ -302,11 +304,27 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     }
 
     private fun probeEstablishedTunnel(): Long? {
-        val target = if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
-            NATIVE_FIXTURE_PROBE_URL
-        } else {
-            ACTIVE_TUNNEL_PROBE_URL
+        if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
+            // The isolated benchmark endpoint uses plaintext only inside the test VLESS fixture.
+            // Keep Android's production cleartext policy intact and verify its exact marker.
+            return try {
+                val started = SystemClock.elapsedRealtime()
+                Socket().use { socket ->
+                    socket.soTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MS
+                    socket.connect(InetSocketAddress("198.18.0.1", 18080), ACTIVE_TUNNEL_PROBE_TIMEOUT_MS)
+                    socket.getOutputStream().write(
+                        "GET /ganj-tun-check HTTP/1.1\r\nHost: test.invalid\r\nConnection: close\r\n\r\n".toByteArray(),
+                    )
+                    val response = socket.getInputStream().bufferedReader().readText()
+                    if (response.contains("ganj-tun-vless-roundtrip-ok")) {
+                        (SystemClock.elapsedRealtime() - started).coerceAtLeast(0L)
+                    } else null
+                }
+            } catch (_: Exception) {
+                null
+            }
         }
+        val target = ACTIVE_TUNNEL_PROBE_URL
         var connection: HttpURLConnection? = null
         return try {
             val started = SystemClock.elapsedRealtime()
