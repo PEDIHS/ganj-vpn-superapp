@@ -49,6 +49,9 @@ class LibXray private constructor() {
 
         @JvmStatic
         fun invoke(request: String): String {
+            if (request.contains("\"method\":\"getXrayState\"")) {
+                return "{\"success\":true,\"data\":{\"running\":true}}"
+            }
             observedRequest = request
             return "{\"success\":true,\"data\":{}}"
         }
