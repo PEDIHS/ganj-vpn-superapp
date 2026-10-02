@@ -350,6 +350,11 @@ export class PostgresRepository {
 
   async reserveConnectionProfile(value) {
     await this.advisoryLock('profile-nonce', `${value.deviceId}:${value.clientNonceDigest}`);
+    // Ping/connection profiles are intentionally short-lived. Prune expired grants on the same
+    // transactional path so repeated client-side latency checks cannot grow this table forever.
+    await this.database().query(
+      'DELETE FROM control_connection_profile_grants WHERE expires_at <= now()',
+    );
     const existing = await this.database().query(
       'SELECT profile_id FROM control_connection_profile_grants WHERE device_id = $1 AND client_nonce_digest = $2',
       [value.deviceId, value.clientNonceDigest],
