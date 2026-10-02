@@ -138,18 +138,6 @@ class AndroidXrayEngine(
                     closeTunnel = !reconnect,
                 )
 
-                val tunBinding = runCatching {
-                    native.bindTunFileDescriptor(device.fileDescriptor)
-                }.getOrElse { NativeCallResult(false, "xray.tun_binding_failed") }
-                if (!tunBinding.success) {
-                    return@synchronized failure(
-                        profile = profile,
-                        code = tunBinding.errorCode ?: "xray.tun_binding_failed",
-                        closeTunnel = !reconnect,
-                        stopNative = !reconnect,
-                    )
-                }
-
                 val socketProtectionFailed = AtomicBoolean(false)
                 val protector = runCatching {
                     native.installSocketProtector(
