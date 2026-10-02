@@ -31,6 +31,19 @@ class XrayRuntimeTest {
     }
 
     @Test
+    fun nativeStartFailsWhenManagedCoreStops() {
+        LibXray.resetObservations()
+        LibXray.simulateStoppedAfterStart = true
+        val bridge = ReflectiveLibXrayBridge(javaClass.classLoader!!)
+
+        val result = bridge.start(SensitiveXrayConfig("{\"inbounds\":[],\"outbounds\":[]}"))
+
+        assertFalse(result.success)
+        assertEquals("xray.core_not_running", result.errorCode)
+        LibXray.resetObservations()
+    }
+
+    @Test
     fun `compiler creates native tun and vless reality grpc config only from typed profile`() {
         val profile = profile(
             security = ProvisionedSecurity.Reality(
