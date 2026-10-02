@@ -129,12 +129,13 @@ jobs:
           lintDebug
           lintRelease
           :app:assembleDebug
+          :app:assembleRelease
 
-      - name: Verify generated Telegram Alpha APK
+      - name: Verify generated Telegram Alpha signing input
         shell: bash
         run: |
           set -Eeuo pipefail
-          apk="apps/android/app/build/outputs/apk/debug/app-debug.apk"
+          apk="apps/android/app/build/outputs/apk/release/app-release-unsigned.apk"
           bash .github/scripts/android-artifact-guard.sh "$apk"
           native_library="$(jq -r '.libXray.androidArtifact.nativeLibrary' UPSTREAM.lock.json)"
           expected_native="$(unzip -p "$RUNNER_TEMP/pinned-libxray/evidence/libXray.aar" "jni/arm64-v8a/$native_library" | sha256sum | cut -d ' ' -f 1)"
@@ -174,15 +175,15 @@ jobs:
           test -s "$sbom"
           jq -e '.spdxVersion and (.packages | length > 0)' "$sbom" >/dev/null
 
-      - name: Upload debug APK
+      - name: Upload verified Alpha signing input
         uses: actions/upload-artifact@v7
         with:
-          name: ganj-vpn-debug-${{ github.sha }}
+          name: ganj-vpn-alpha-unsigned-${{ github.sha }}
           path: |
-            apps/android/app/build/outputs/apk/debug/app-debug.apk
-            apps/android/app/build/outputs/apk/debug/app-debug.apk.sha256
+            apps/android/app/build/outputs/apk/release/app-release-unsigned.apk
+            apps/android/app/build/outputs/apk/release/app-release-unsigned.apk.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
       - name: Upload test, lint and SBOM evidence
         if: always()
@@ -227,10 +228,10 @@ jobs:
         shell: bash
         run: sdkmanager "build-tools;36.0.0"
 
-      - name: Download verified Alpha APK
+      - name: Download verified unsigned Alpha APK
         uses: actions/download-artifact@v7
         with:
-          name: ganj-vpn-debug-${{ github.sha }}
+          name: ganj-vpn-alpha-unsigned-${{ github.sha }}
           path: ${{ runner.temp }}/alpha-input
 
       - name: Sign Alpha with protected stable key
@@ -251,7 +252,7 @@ jobs:
           : "${GANJ_UPLOAD_KEY_PASSWORD:?Missing protected upload key password}"
           : "${GANJ_EXPECTED_UPLOAD_CERT_SHA256:?Missing expected upload certificate fingerprint}"
 
-          input="$RUNNER_TEMP/alpha-input/app-debug.apk"
+          input="$RUNNER_TEMP/alpha-input/app-release-unsigned.apk"
           output="$RUNNER_TEMP/alpha-output"
           keystore="$RUNNER_TEMP/android-upload-keystore.jks"
           signed="$output/ganj-vpn-alpha-arm64.apk"
