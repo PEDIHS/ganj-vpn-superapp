@@ -53,5 +53,3 @@ class ConnectionLatencyProber(
         }
     }
 }
-
-[executed on device: pedram2 (cbf92ea2-36fe-4909-b025-f508c0a2544d)]

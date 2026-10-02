@@ -175,5 +175,3 @@ private fun secureConnectionToken(): String {
     SecureRandom().nextBytes(bytes)
     return bytes.joinToString(separator = "") { "%02x".format(it.toInt() and 0xff) }
 }
-
-[executed on device: pedram2 (cbf92ea2-36fe-4909-b025-f508c0a2544d)]

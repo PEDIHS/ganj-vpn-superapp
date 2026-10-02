@@ -117,5 +117,3 @@ class VpnTunnelIntegrationTest {
         const val SERVER_ID = "30000000-0000-4000-8000-000000000001"
     }
 }
-
-[executed on device: pedram2 (cbf92ea2-36fe-4909-b025-f508c0a2544d)]

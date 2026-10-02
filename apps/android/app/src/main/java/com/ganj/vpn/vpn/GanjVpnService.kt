@@ -482,5 +482,3 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         private const val IPV6_DNS = "2606:4700:4700::1111"
     }
 }
-
-[executed on device: pedram2 (cbf92ea2-36fe-4909-b025-f508c0a2544d)]
