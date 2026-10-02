@@ -125,6 +125,7 @@ class XrayRuntimeTest {
 
         assertTrue(json.contains("\"network\":\"xhttp\""))
         assertTrue(json.contains("\"xhttpSettings\":{\"path\":\"/\",\"mode\":\"auto\"}"))
+        assertFalse(json.contains("\"host\""))
         assertTrue(json.contains("\"security\":\"reality\""))
         profile.close()
     }

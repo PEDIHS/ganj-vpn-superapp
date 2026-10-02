@@ -26,4 +26,6 @@ test('legacy postgres forwards canonical audit fields without dropping resource 
   await repository.appendAdminAudit(value);
 
   assert.deepEqual(observed, value);
+  assert.equal(observed.resourceType, 'service');
+  assert.equal(observed.resourceId, value.resourceId);
 });
