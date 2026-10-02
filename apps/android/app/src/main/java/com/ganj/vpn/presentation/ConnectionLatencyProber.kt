@@ -23,7 +23,7 @@ class ConnectionLatencyProber(
 ) {
     // The pinned libXray temporary-core probe is process-global. Serialize inactive probes so
     // two server tests cannot replace each other's native Xray state.
-    private val permits = Semaphore(1)
+    private val permits = Semaphore(6)
 
     suspend fun probe(serviceId: String, serverId: String): Long? = withContext(Dispatchers.IO) {
         try {
@@ -62,6 +62,6 @@ class ConnectionLatencyProber(
     }
 
     private companion object {
-        const val INACTIVE_PROBE_TIMEOUT_MILLIS = 8_000L
+        const val INACTIVE_PROBE_TIMEOUT_MILLIS = 6_000L
     }
 }
