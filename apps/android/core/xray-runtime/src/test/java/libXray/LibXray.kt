@@ -13,23 +13,9 @@ class LibXray private constructor() {
             private set
         var dnsReset: Boolean = false
             private set
-        var boundTunFd: Int? = null
-            private set
-        var tunReset: Boolean = false
-            private set
         private var controller: DialerController? = null
-
-        @JvmStatic
-        fun setTunFd(fd: Int) {
-            require(fd >= 0)
-            boundTunFd = fd
-        }
-
-        @JvmStatic
-        fun resetTunFd() {
-            boundTunFd = null
-            tunReset = true
-        }
+        var simulateStoppedAfterStart: Boolean = false
+        private var coreRunning: Boolean = false
 
         @JvmStatic
         fun registerDialerController(value: DialerController) {
@@ -49,11 +35,15 @@ class LibXray private constructor() {
 
         @JvmStatic
         fun invoke(request: String): String {
-            if (request.contains("\"method\":\"getXrayState\"")) {
-                return "{\"success\":true,\"data\":{\"running\":true}}"
+            if (request.contains("\\"method\\":\\"getXrayState\\"")) {
+                return "{\\"success\\":true,\\"data\\":{\\"running\\":$coreRunning}}"
             }
             observedRequest = request
-            return "{\"success\":true,\"data\":{}}"
+            if (request.contains("\\"method\\":\\"runXrayFromJson\\"")) {
+                coreRunning = !simulateStoppedAfterStart
+            }
+            if (request.contains("\\"method\\":\\"stopXray\\"")) coreRunning = false
+            return "{\\"success\\":true,\\"data\\":{}}"
         }
 
         fun protect(fileDescriptor: Int): Boolean = controller?.protectFd(fileDescriptor) == true
@@ -62,9 +52,9 @@ class LibXray private constructor() {
             observedRequest = null
             observedDns = null
             dnsReset = false
-            boundTunFd = null
-            tunReset = false
             controller = null
+            simulateStoppedAfterStart = false
+            coreRunning = false
         }
     }
 }
