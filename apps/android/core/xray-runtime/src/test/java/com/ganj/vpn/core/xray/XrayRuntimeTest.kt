@@ -14,6 +14,44 @@ import libXray.LibXray
 
 class XrayRuntimeTest {
     @Test
+    fun `latency config includes only authorized proxy with no TUN or direct bypass`() {
+        profile().use { profile ->
+            val json = XrayConfigCompiler().compileProbe(profile).consume()
+            assertTrue(json.contains("\"protocol\":\"vless\""))
+            assertFalse(json.contains("inbounds"))
+            assertFalse(json.contains("freedom"))
+            assertFalse(json.contains("xray.tun.fd"))
+        }
+    }
+
+    @Test
+    fun `recreated bridges replace protection delegate without accumulating native controllers`() {
+        val first = ReflectiveLibXrayBridge(javaClass.classLoader!!)
+        assertTrue(first.installSocketProtector(SocketProtector { it == 90 }).success)
+        val registrations = LibXray.registrationCount
+        assertTrue(first.stop().success)
+        val second = ReflectiveLibXrayBridge(javaClass.classLoader!!)
+        assertTrue(second.installSocketProtector(SocketProtector { it == 91 }).success)
+        assertEquals(registrations, LibXray.registrationCount)
+        assertTrue(LibXray.protect(91))
+        assertFalse(LibXray.protect(90))
+        assertTrue(second.stop().success)
+    }
+
+    @Test
+    fun `duplicate connect leaves the active tunnel intact`() {
+        val platform = FakePlatform()
+        val native = FakeNative()
+        val engine = AndroidXrayEngine(platform, native, clock = { 1_000L })
+        assertTrue(engine.connect(ConnectionRequest(profile(expiresAt = 10_000L))).isSuccess)
+        assertTrue(engine.connect(ConnectionRequest(profile(expiresAt = 10_000L))).isFailure)
+        assertEquals(ConnectionPhase.CONNECTED, engine.currentState().phase)
+        assertFalse(platform.tunnelClosed)
+        assertEquals(0, native.stopCalls)
+        engine.close()
+    }
+
+    @Test
     fun `official libxray bridge uses protected DNS and pinned configJSON contract`() {
         LibXray.resetObservations()
         val bridge = ReflectiveLibXrayBridge(javaClass.classLoader!!)
@@ -28,6 +66,19 @@ class XrayRuntimeTest {
 
         assertTrue(bridge.stop().success)
         assertTrue(LibXray.dnsReset)
+    }
+
+    @Test
+    fun nativeStartFailsWhenManagedXrayStopped() {
+        LibXray.resetObservations()
+        LibXray.simulateStoppedAfterStart = true
+        val bridge = ReflectiveLibXrayBridge(javaClass.classLoader!!)
+
+        val result = bridge.start(SensitiveXrayConfig("{\"inbounds\":[],\"outbounds\":[]}"))
+
+        assertFalse(result.success)
+        assertEquals("xray.core_not_running", result.errorCode)
+        LibXray.resetObservations()
     }
 
     @Test
@@ -47,6 +98,7 @@ class XrayRuntimeTest {
         val json = sensitive.consume()
         assertTrue(json.contains("\"xray.tun.fd\":\"42\""))
         assertTrue(json.contains("\"protocol\":\"tun\""))
+        assertTrue("explicit TUN name prevents forbidden Android netlink enumeration", json.contains("\"name\":\"ganj-tun\""))
         assertTrue(json.contains("\"protocol\":\"vless\""))
         assertTrue(json.contains("\"security\":\"reality\""))
         assertTrue(json.contains("\"network\":\"grpc\""))
@@ -54,6 +106,27 @@ class XrayRuntimeTest {
         assertFalse(profile.toString().contains("40000000-0000-4000-8000-000000000001"))
         assertFalse(sensitive.toString().contains("40000000-0000-4000-8000-000000000001"))
         assertTrue(runCatching { sensitive.consume() }.isFailure)
+        profile.close()
+    }
+
+    @Test
+    fun `compiler creates vless reality xhttp config used by production subscriptions`() {
+        val profile = profile(
+            security = ProvisionedSecurity.Reality(
+                serverName = "edge.example.com",
+                publicKey = "A".repeat(43),
+                shortId = "a1b2c3d4",
+            ),
+            transport = ProvisionedTransport.XHttp(path = "/", mode = "auto"),
+            flow = null,
+        )
+        val sensitive = XrayConfigCompiler().compile(profile, tunFileDescriptor = 42)
+        val json = sensitive.consume()
+
+        assertTrue(json.contains("\"network\":\"xhttp\""))
+        assertTrue(json.contains("\"xhttpSettings\":{\"path\":\"/\",\"mode\":\"auto\"}"))
+        assertFalse(json.contains("\"host\""))
+        assertTrue(json.contains("\"security\":\"reality\""))
         profile.close()
     }
 

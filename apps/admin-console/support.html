@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="referrer" content="no-referrer">
+  <title>Ganj VPN · Support</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./support.css">
+</head>
+<body>
+  <main class="support-shell">
+    <header class="support-top glass">
+      <div>
+        <p class="eyebrow">GANJ CONTROL CENTER</p>
+        <h1>پشتیبانی کاربران</h1>
+        <p>تیکت‌ها، گفت‌وگو و وضعیت پاسخ‌گویی؛ بدون نمایش credential یا کانفیگ VPN.</p>
+      </div>
+      <div class="support-top-actions">
+        <a class="link-button" href="./index.html">مدیریت سرورها</a>
+        <button id="refreshSupport" type="button">به‌روزرسانی</button>
+      </div>
+    </header>
+
+    <div id="supportBanner" class="support-banner hidden" role="status" aria-live="polite"></div>
+
+    <section class="support-layout">
+      <aside class="ticket-pane glass" aria-label="فهرست تیکت‌ها">
+        <div class="ticket-toolbar">
+          <label>
+            <span>جستجو</span>
+            <input id="ticketSearch" type="search" autocomplete="off" placeholder="کد، عنوان یا دسته‌بندی">
+          </label>
+          <label>
+            <span>وضعیت</span>
+            <select id="ticketStatusFilter">
+              <option value="all">همه</option>
+              <option value="open">باز</option>
+              <option value="waiting_support">منتظر پشتیبانی</option>
+              <option value="waiting_user">منتظر کاربر</option>
+              <option value="resolved">حل‌شده</option>
+              <option value="closed">بسته</option>
+            </select>
+          </label>
+        </div>
+        <div id="ticketList" class="ticket-list"></div>
+        <div id="ticketEmpty" class="ticket-empty hidden">تیکتی با این فیلتر پیدا نشد.</div>
+      </aside>
+
+      <section class="conversation-pane glass" aria-label="گفت‌وگوی تیکت">
+        <div id="conversationPlaceholder" class="conversation-placeholder">
+          <strong>یک تیکت را انتخاب کنید</strong>
+          <span>متن کامل و پاسخ‌های ثبت‌شده اینجا نمایش داده می‌شوند.</span>
+        </div>
+
+        <div id="conversationContent" class="hidden">
+          <header class="conversation-head">
+            <div>
+              <p id="ticketMeta" class="eyebrow"></p>
+              <h2 id="ticketSubject"></h2>
+            </div>
+            <select id="ticketStatus" aria-label="وضعیت تیکت">
+              <option value="waiting_support">منتظر پشتیبانی</option>
+              <option value="waiting_user">منتظر کاربر</option>
+              <option value="resolved">حل‌شده</option>
+              <option value="closed">بسته</option>
+            </select>
+          </header>
+          <div id="messageList" class="message-list" aria-live="polite"></div>
+          <form id="replyForm" class="reply-box">
+            <label for="replyBody">پاسخ پشتیبانی</label>
+            <textarea id="replyBody" rows="4" maxlength="8000" placeholder="پاسخ را بدون اطلاعات محرمانه بنویسید"></textarea>
+            <p class="privacy-note">کانفیگ VPN، توکن، رمز عبور و کلید خصوصی در پیام پشتیبانی مجاز نیست.</p>
+            <button id="sendReply" type="submit">ارسال پاسخ</button>
+          </form>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="supportSessionDialog">
+    <form id="supportSessionForm" method="dialog" class="session-form">
+      <h2>نشست مدیریت</h2>
+      <p>Access Token فقط در حافظه همین صفحه نگه‌داری می‌شود و هنگام خروج پاک می‌شود.</p>
+      <label>
+        <span>Access Token</span>
+        <input id="supportTokenInput" type="password" autocomplete="off" spellcheck="false" required>
+      </label>
+      <button type="submit">ادامه</button>
+    </form>
+  </dialog>
+
+  <script type="module" src="./src/support.js"></script>
+</body>
+</html>

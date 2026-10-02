@@ -35,19 +35,20 @@ internal fun GanjStatusPill(
     tone: GanjStatusTone = GanjStatusTone.Neutral,
     modifier: Modifier = Modifier,
 ) {
+    val darkSurface = MaterialTheme.colorScheme.background == GanjDarkCanvas
     val accent = when (tone) {
         GanjStatusTone.Neutral -> MaterialTheme.colorScheme.onSurfaceVariant
         GanjStatusTone.Positive -> MaterialTheme.colorScheme.primary
-        GanjStatusTone.Premium -> GanjGold
-        GanjStatusTone.Warning -> GanjWarning
+        GanjStatusTone.Premium -> MaterialTheme.colorScheme.secondary
+        GanjStatusTone.Warning -> if (darkSurface) GanjWarning else Color(0xFF805900)
         GanjStatusTone.Danger -> MaterialTheme.colorScheme.error
     }
     val shape = RoundedCornerShape(999.dp)
     Row(
         modifier = modifier
-            .background(accent.copy(alpha = 0.095f), shape)
-            .border(1.dp, accent.copy(alpha = 0.22f), shape)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .background(accent.copy(alpha = if (darkSurface) 0.11f else 0.08f), shape)
+            .border(1.dp, accent.copy(alpha = if (darkSurface) 0.28f else 0.22f), shape)
+            .padding(horizontal = 11.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

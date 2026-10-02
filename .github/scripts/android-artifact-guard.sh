@@ -27,6 +27,8 @@ for artifact in "$@"; do
   fi
 
   unzip -tqq "$artifact"
+  python3 "$(dirname "$0")/test-apk-png.py"
+  python3 "$(dirname "$0")/check-apk-png.py" "$artifact"
   entries="$(mktemp)"
   trap 'rm -f "$entries"' EXIT
   unzip -Z1 "$artifact" > "$entries"

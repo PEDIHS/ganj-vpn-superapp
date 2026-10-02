@@ -2,6 +2,8 @@
 
 مخزن مرجع محصول **Ganj VPN**؛ یک VPN Super App اختصاصی Android به‌همراه Control API، فروش و مدیریت اشتراک، همگام‌سازی Telegram Bot، Admin Console، Enterprise Systems و زیرساخت Release/Operations.
 
+> **🚨 مرجع اجباری پیشرفت UI برای تمام Agentها:** [`docs/ui/UI_100_PERCENT_PROGRESS.fa.md`](docs/ui/UI_100_PERCENT_PROGRESS.fa.md)  
+> **هر Agent قبل از هر تغییر UI باید ابتدا این فایل را کامل بخواند، آیتم Scope خود را از checkboxهای باز انتخاب کند و پس از تکمیل واقعی همان checkboxها را در همان PR/commit تیک بزند. ادعای 100٪ UI تا زمانی که Final Gate این Ledger کامل نشده ممنوع است.**  
 > **مرجع Scope فعلی:** [`docs/00-CURRENT_PRODUCT_SCOPE.fa.md`](docs/00-CURRENT_PRODUCT_SCOPE.fa.md)  
 > **مرجع UI/UX و Brand:** [`docs/15-android-ui-ux-brand-system.fa.md`](docs/15-android-ui-ux-brand-system.fa.md)  
 > **استاندارد اجباری Liquid Glass:** [`docs/16-liquid-glass-first-design-standard.fa.md`](docs/16-liquid-glass-first-design-standard.fa.md)  
@@ -17,6 +19,21 @@
 
 > **Liquid Glass-first ≠ Blur Everywhere.**  
 > Content layer باید خوانا و پایدار بماند؛ Glass در لایه Functional و تعاملی استفاده می‌شود. جزئیات و Acceptance Criteria کامل در سند 16 ثبت شده است.
+
+## قانون اجباری UI Agent
+
+برای هر کار UI/UX، ترتیب زیر الزام‌آور است:
+
+1. `docs/ui/UI_100_PERCENT_PROGRESS.fa.md` را کامل بخوان.
+2. آخرین `main`، Branch فعلی و PRهای باز مرتبط را بررسی کن.
+3. فقط آیتم‌های باز `[ ]` مرتبط با Scope خود را انتخاب کن؛ Scope موازی تکراری نساز.
+4. صفحه اصلی به‌تنهایی Done نیست؛ تمام Subpage / Dialog / Bottom Sheet / Popup / Loading / Empty / Error / Offline / Permission / Success / Failure / Retry / Accessibility / Responsive stateهای آن بخش باید مطابق Ledger بررسی شوند.
+5. Parent checkbox فقط وقتی `[x]` می‌شود که تمام Child itemهای آن واقعاً تکمیل شده باشند.
+6. Mock/Placeholder/Fake telemetry یا action بدون Runtime contract هرگز Done محسوب نمی‌شود.
+7. پس از هر Batch همان Ledger را در همان PR/commit به‌روز کن و Remaining Boundary را دقیق بنویس.
+8. **100٪ فقط وقتی مجاز است که Final 100% Release Gate داخل Ledger کاملاً تیک خورده باشد.**
+
+Baseline فعلی Ledger در زمان ایجاد آن **54٪ UI کل محصول** است؛ این عدد پنج تب اصلی را به‌تنهایی معیار قرار نمی‌دهد و تمام Flowها و micro-surfaceهای محصول را حساب می‌کند.
 
 ## تصمیم‌های قطعی محصول
 
@@ -41,30 +58,31 @@
 
 ## مستندات اصلی پروژه
 
-1. **[Current Product Scope Lock](docs/00-CURRENT_PRODUCT_SCOPE.fa.md)** — Requirementهای قطعی فعلی، Android-only scope، Design/Commerce/Telegram locks و رفع ابهام شماره Phaseها.
-2. **[Android UI/UX, Visual Brand & Interaction System](docs/15-android-ui-ux-brand-system.fa.md)** — مرجع Canonical رنگ، لوگو، Emerald/Gold/Neutral palette، Typography، Components، Motion، RTL، Accessibility و تمام Screenها.
-3. **[Liquid Glass-First Android Design Standard](docs/16-liquid-glass-first-design-standard.fa.md)** — **استاندارد اجباری Material، Depth، Glass Roles، Edge-to-Edge، Motion، Performance، Accessibility و Liquid coverage تمام اپ.**
-4. **[Project Bible & Engineering Specification](docs/PROJECT_BIBLE.fa.md)** — مرجع Canonical محصول، معماری، امنیت، Phaseها، Critical Path، Definition of Done و Release Blockers.
-5. **[Delivery Ledger](docs/DELIVERY_LEDGER.fa.md)** — تاریخچه دقیق Phaseها، PRها و وضعیت Trackهای Phase 7.
-6. **[Implementation Backlog](docs/IMPLEMENTATION_BACKLOG.fa.md)** — P0/P1/P2، Epicها و Acceptance Criteria اجرایی.
-7. **[Release Readiness Matrix](docs/RELEASE_READINESS_MATRIX.fa.md)** — ماتریس Ready/In Progress/Blocker برای انتشار.
-8. **[AI / Developer Engineering Handoff](docs/AI_ENGINEERING_HANDOFF.fa.md)** — قوانین ادامه پروژه توسط AI Agent یا Developer جدید.
-9. [Master Project Plan](docs/MASTER_PROJECT_PLAN.fa.md) — نسخه جامع اولیه و تاریخچه محصول؛ در تعارض با Scope/Brand جاری، Scope Lock و اسناد 15/16 مقدم‌اند.
-10. [خلاصه اجرایی](docs/00-phase-zero-executive-summary.fa.md)
-11. [ممیزی وضع موجود](docs/01-current-state-audit.fa.md)
-12. [تحلیل رقبا](docs/02-competitor-analysis.fa.md)
-13. [معماری سامانه](docs/03-architecture.fa.md)
-14. [Design System Summary](docs/04-design-system.fa.md)
-15. [مدل داده](docs/05-database-schema.fa.md)
-16. [طراحی API](docs/06-api-documentation.fa.md)
-17. [امنیت و Threat Model](docs/07-security-threat-model.fa.md)
-18. [Roadmap توسعه](docs/08-development-roadmap.fa.md)
-19. [انتشار و انطباق Google Play](docs/09-play-release-compliance.fa.md)
-20. [پلتفرم Enterprise](docs/10-enterprise-platform.fa.md)
-21. [Observability، Bug Tracking و پشتیبانی](docs/11-observability-and-support-runbook.fa.md)
-22. [Release، Update و Supply Chain](docs/12-release-and-update-runbook.fa.md)
-23. [Incident Response و Disaster Recovery](docs/13-incident-response-runbook.fa.md)
-24. [Observability اندروید با حفظ حریم خصوصی](docs/14-observability-privacy.fa.md)
+1. **[UI 100% Completion Progress Ledger](docs/ui/UI_100_PERCENT_PROGRESS.fa.md)** — **مرجع اجرایی اجباری تمام Agentها برای تکمیل دانه‌به‌دانه Screen/Subpage/Dialog/Sheet/Stateها و تنها مبنای ادعای 100٪ UI.**
+2. **[Current Product Scope Lock](docs/00-CURRENT_PRODUCT_SCOPE.fa.md)** — Requirementهای قطعی فعلی، Android-only scope، Design/Commerce/Telegram locks و رفع ابهام شماره Phaseها.
+3. **[Android UI/UX, Visual Brand & Interaction System](docs/15-android-ui-ux-brand-system.fa.md)** — مرجع Canonical رنگ، لوگو، Emerald/Gold/Neutral palette، Typography، Components، Motion، RTL، Accessibility و تمام Screenها.
+4. **[Liquid Glass-First Android Design Standard](docs/16-liquid-glass-first-design-standard.fa.md)** — **استاندارد اجباری Material، Depth، Glass Roles، Edge-to-Edge، Motion، Performance، Accessibility و Liquid coverage تمام اپ.**
+5. **[Project Bible & Engineering Specification](docs/PROJECT_BIBLE.fa.md)** — مرجع Canonical محصول، معماری، امنیت، Phaseها، Critical Path، Definition of Done و Release Blockers.
+6. **[Delivery Ledger](docs/DELIVERY_LEDGER.fa.md)** — تاریخچه دقیق Phaseها، PRها و وضعیت Trackهای Phase 7.
+7. **[Implementation Backlog](docs/IMPLEMENTATION_BACKLOG.fa.md)** — P0/P1/P2، Epicها و Acceptance Criteria اجرایی.
+8. **[Release Readiness Matrix](docs/RELEASE_READINESS_MATRIX.fa.md)** — ماتریس Ready/In Progress/Blocker برای انتشار.
+9. **[AI / Developer Engineering Handoff](docs/AI_ENGINEERING_HANDOFF.fa.md)** — قوانین ادامه پروژه توسط AI Agent یا Developer جدید.
+10. [Master Project Plan](docs/MASTER_PROJECT_PLAN.fa.md) — نسخه جامع اولیه و تاریخچه محصول؛ در تعارض با Scope/Brand جاری، Scope Lock و اسناد 15/16 مقدم‌اند.
+11. [خلاصه اجرایی](docs/00-phase-zero-executive-summary.fa.md)
+12. [ممیزی وضع موجود](docs/01-current-state-audit.fa.md)
+13. [تحلیل رقبا](docs/02-competitor-analysis.fa.md)
+14. [معماری سامانه](docs/03-architecture.fa.md)
+15. [Design System Summary](docs/04-design-system.fa.md)
+16. [مدل داده](docs/05-database-schema.fa.md)
+17. [طراحی API](docs/06-api-documentation.fa.md)
+18. [امنیت و Threat Model](docs/07-security-threat-model.fa.md)
+19. [Roadmap توسعه](docs/08-development-roadmap.fa.md)
+20. [انتشار و انطباق Google Play](docs/09-play-release-compliance.fa.md)
+21. [پلتفرم Enterprise](docs/10-enterprise-platform.fa.md)
+22. [Observability، Bug Tracking و پشتیبانی](docs/11-observability-and-support-runbook.fa.md)
+23. [Release، Update و Supply Chain](docs/12-release-and-update-runbook.fa.md)
+24. [Incident Response و Disaster Recovery](docs/13-incident-response-runbook.fa.md)
+25. [Observability اندروید با حفظ حریم خصوصی](docs/14-observability-privacy.fa.md)
 
 ## فایل‌های ماشینی
 
@@ -86,12 +104,12 @@
 ## وضعیت UI و VPN
 
 - VPN Runtime واقعی و secure profile-to-tunnel orchestration روی `main` وجود دارد؛ اما Production E2E، real server deployment، resilience/leak/device evidence هنوز Release Blocker هستند.
-- UI فعلی Functional/Foundation است و Final Design محسوب نمی‌شود.
+- پنج مقصد اصلی UI روی branch `ui/stitch-persian-liquid-v1` به Stitch Persian Liquid منتقل شده‌اند، اما این به معنی تکمیل کل UI محصول نیست.
+- **وضعیت دقیق و ریزدانه کل UI فقط از `docs/ui/UI_100_PERCENT_PROGRESS.fa.md` خوانده شود.**
 - **Final UI باید Liquid Glass Maturity Level 3 / Production طبق سند 16 باشد.**
 - **Brand Lock:** Neutral surfaces غالب + Emerald برای Brand/Action + Gold محدود برای Premium. آبی Primary حذف است.
 - Bottom Navigation، Search/Filter، Sheets، floating controls و Connect باید semantic Glass role داشته باشند.
 - Content rows/cards به‌طور پیش‌فرض Glass نیستند؛ Nested Glass و Blur Everywhere ممنوع است.
-- Phase 7 UI branch که هنوز `GanjBlue` دارد باید قبل از merge نهایی به Emerald/Gold + Liquid Glass component system migration شود.
 
 ## مدل توسعه
 
@@ -110,7 +128,7 @@
 ## Quality Gates
 
 - Android: unit, lint, instrumentation, VPN smoke, accessibility, benchmark/device evidence.
-- UI/UX: Liquid Glass Level 3، semantic Glass roles، Dark/Light/System، fa/en، RTL/LTR، font scale تا 200%، TalkBack، Reduce Transparency/Motion، 48dp touch targets، screenshot/device review، frame/jank evidence، no dominant blue brand surface.
+- UI/UX: Liquid Glass Level 3، semantic Glass roles، Dark/Light/System، fa/en یا Scope قطعی locale، RTL/LTR، font scale تا 200%، TalkBack، Reduce Transparency/Motion، 48dp touch targets، screenshot/device review، frame/jank evidence، no dominant blue brand surface.
 - Backend: unit, integration, PostgreSQL migrations, contracts, ownership, idempotency, concurrency.
 - Security: secret scan, SAST/CodeQL, dependency review, SBOM/provenance, replay/tamper tests, penetration testing before Production.
 - Release: signed AAB/APK، artifact checksum، mapping، Internal/Closed Beta، metrics، rollback.
@@ -119,6 +137,6 @@
 
 قبل از تغییر کد، به‌ترتیب بخوان:
 
-`00-CURRENT_PRODUCT_SCOPE.fa.md` → `15-android-ui-ux-brand-system.fa.md` → **`16-liquid-glass-first-design-standard.fa.md`** → `04-design-system.fa.md` → `design/tokens.json` → `PROJECT_BIBLE.fa.md` → `DELIVERY_LEDGER.fa.md` → `IMPLEMENTATION_BACKLOG.fa.md` → `RELEASE_READINESS_MATRIX.fa.md` → `AI_ENGINEERING_HANDOFF.fa.md` → latest `main`/Branch/PR/code/tests.
+**`docs/ui/UI_100_PERCENT_PROGRESS.fa.md`** → `00-CURRENT_PRODUCT_SCOPE.fa.md` → `15-android-ui-ux-brand-system.fa.md` → **`16-liquid-glass-first-design-standard.fa.md`** → `04-design-system.fa.md` → `design/tokens.json` → `PROJECT_BIBLE.fa.md` → `DELIVERY_LEDGER.fa.md` → `IMPLEMENTATION_BACKLOG.fa.md` → `RELEASE_READINESS_MATRIX.fa.md` → `AI_ENGINEERING_HANDOFF.fa.md` → latest `main`/Branch/PR/code/tests.
 
-مستندات Context هستند؛ برای تصمیم نهایی runtime، کد، Migration، OpenAPI و CI Evidence روی baseline جاری Source of Truth هستند. برای UI/UX، Scope Lock + اسناد 15/16 + Design Tokens مراجع قطعی‌اند.
+مستندات Context هستند؛ برای تصمیم نهایی runtime، کد، Migration، OpenAPI و CI Evidence روی baseline جاری Source of Truth هستند. برای UI/UX، **UI 100% Ledger + Scope Lock + اسناد 15/16 + Design Tokens** مراجع قطعی‌اند.

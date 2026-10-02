@@ -9,6 +9,14 @@ import com.ganj.vpn.core.vpn.VpnProtocol
 class XrayConfigCompiler(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    fun compileProbe(profile: ProvisionedProfile): SensitiveXrayConfig {
+        check(!profile.isExpired(clock()))
+        return profile.useCredential { credential ->
+            val proxy = outbound(profile, credential, streamSettings(profile.transport, profile.security))
+            SensitiveXrayConfig("{\"log\":{\"loglevel\":\"none\"},\"outbounds\":[$proxy]}")
+        }
+    }
+
     fun compile(
         profile: ProvisionedProfile,
         tunFileDescriptor: Int,
@@ -22,7 +30,9 @@ class XrayConfigCompiler(
             val stream = streamSettings(profile.transport, profile.security)
             val outbound = outbound(profile, credential, stream)
             SensitiveXrayConfig(
-                """{"env":{"xray.tun.fd":"$tunFileDescriptor"},"log":{"loglevel":"warning"},"dns":{"servers":["1.1.1.1","8.8.8.8"]},"inbounds":[{"tag":"ganj-tun","protocol":"tun","settings":{"mtu":$mtu}}],"outbounds":[$outbound,{"tag":"direct","protocol":"freedom"},{"tag":"blocked","protocol":"blackhole"}],"routing":{"domainStrategy":"IPIfNonMatch","rules":[]}}""",
+                // Android supplies the actual interface through its FD. An explicit logical name
+                // avoids upstream's net.Interfaces auto-naming, forbidden by modern Android.
+                """{"env":{"xray.tun.fd":"$tunFileDescriptor"},"log":{"loglevel":"warning"},"dns":{"servers":["1.1.1.1","8.8.8.8"]},"inbounds":[{"tag":"ganj-tun","protocol":"tun","settings":{"name":"ganj-tun","desc":"Ganj VPN","mtu":$mtu}}],"outbounds":[$outbound,{"tag":"direct","protocol":"freedom"},{"tag":"blocked","protocol":"blackhole"}],"routing":{"domainStrategy":"IPIfNonMatch","rules":[]}}""",
             )
         }
     }
@@ -50,6 +60,7 @@ class XrayConfigCompiler(
             ProvisionedTransport.Tcp -> "tcp"
             is ProvisionedTransport.WebSocket -> "ws"
             is ProvisionedTransport.Grpc -> "grpc"
+            is ProvisionedTransport.XHttp -> "xhttp"
         }
         val transportSettings = when (transport) {
             ProvisionedTransport.Tcp -> ""
@@ -59,6 +70,10 @@ class XrayConfigCompiler(
             }
             is ProvisionedTransport.Grpc ->
                 ",\"grpcSettings\":{\"serviceName\":${json(transport.serviceName)},\"multiMode\":false}"
+            is ProvisionedTransport.XHttp -> {
+                val host = transport.host?.let { ",\"host\":${json(it)}" }.orEmpty()
+                ",\"xhttpSettings\":{\"path\":${json(transport.path)},\"mode\":${json(transport.mode)}$host}"
+            }
         }
         val securitySettings = when (security) {
             ProvisionedSecurity.None -> ",\"security\":\"none\""

@@ -2,10 +2,12 @@
 <resources>
     <style name="Theme.GanjVpn" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#0A84FF</item>
-        <item name="android:navigationBarColor">#06111F</item>
-        <item name="android:statusBarColor">#06111F</item>
+        <item name="android:colorAccent">#1DA15D</item>
+        <item name="android:windowBackground">#07110D</item>
+        <item name="android:navigationBarColor">#07110D</item>
+        <item name="android:statusBarColor">#07110D</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

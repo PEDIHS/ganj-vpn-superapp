@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="bug_category_ui">Interface</string>
-    <string name="bug_category_performance">Performance</string>
-    <string name="bug_category_security">Security</string>
-    <string name="bug_category_other">Other</string>
-    <string name="bug_status_new">New</string>
-    <string name="bug_status_investigating">Investigating</string>
-    <string name="bug_status_assigned">Assigned</string>
-    <string name="bug_status_fixing">Fixing</string>
-    <string name="bug_status_testing">Testing</string>
-    <string name="bug_status_released">Released</string>
-    <string name="bug_status_closed">Closed</string>
+    <string name="bug_category_ui">رابط کاربری</string>
+    <string name="bug_category_performance">عملکرد</string>
+    <string name="bug_category_security">امنیت</string>
+    <string name="bug_category_other">سایر</string>
+    <string name="bug_status_new">جدید</string>
+    <string name="bug_status_investigating">در حال بررسی</string>
+    <string name="bug_status_assigned">ارجاع شده</string>
+    <string name="bug_status_fixing">در حال رفع</string>
+    <string name="bug_status_testing">در حال تست</string>
+    <string name="bug_status_released">منتشر شده</string>
+    <string name="bug_status_closed">بسته شده</string>
 </resources>

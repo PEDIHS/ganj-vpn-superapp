@@ -35,6 +35,8 @@ data class ConnectionProfileContext(
 
 fun interface ConnectionProfileContextProvider {
     fun forEntitlement(entitlementId: String): ConnectionProfileContext?
+    fun forServer(entitlementId: String, serverId: String): ConnectionProfileContext? =
+        forEntitlement(entitlementId)?.takeIf { it.serverId == serverId }
 }
 
 fun interface AuthenticatedCheckoutSession {
