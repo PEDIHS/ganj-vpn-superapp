@@ -125,6 +125,8 @@ class ConnectionEffectExecutor(
                     when ((connected.exceptionOrNull() as? VpnRuntimeException)?.code) {
                         "xray.core_not_running" ->
                             failed("connection.native_core_not_running", UiFailureKind.SERVER, retryable = true)
+                        "vpn.egress_unreachable" ->
+                            failed("connection.egress_unreachable", UiFailureKind.SERVER, retryable = true)
                         else -> failed("connection.tunnel_start_failed", UiFailureKind.SERVER, retryable = true)
                     }
                 }
