@@ -105,7 +105,9 @@ function trustedConnection(server, service) {
     protocol: value.protocol,
     credential: value.credential,
     transport,
-    security: { ...security, ...(security.allow_insecure === undefined ? {} : { allow_insecure: false }) },
+    // Android's exact TLS/REALITY payload schema requires this explicit false.
+    // Source adapters may omit it; none-security profiles must keep their one-field schema.
+    security: { ...security, ...(security.type === 'none' ? {} : { allow_insecure: false }) },
     flow: value.flow ?? null,
     shadowsocks_method: value.shadowsocks_method ?? null,
   };

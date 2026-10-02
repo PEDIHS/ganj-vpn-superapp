@@ -169,3 +169,31 @@ test('live profile fails closed for wrong device, unavailable server, exhausted 
   const replay = fixture({ reserve: false });
   await assert.rejects(() => call(replay.route, 'POST', `/v1/services/${SERVICE_ID}/connection-profile`, baseBody), /already used/);
 });
+
+// Android's strict profile contract requires explicit false for TLS/REALITY,
+// and exactly {type: none} for profiles without transport security.
+test('sealed live TLS and Reality profiles match Android security fields', async () => {
+  const cases = [
+    { type: 'tls', server_name: 'edge.example.com', fingerprint: 'chrome' },
+    { type: 'tls', server_name: 'edge.example.com', fingerprint: 'chrome', allow_insecure: false },
+    { type: 'reality', server_name: 'edge.example.com', fingerprint: 'chrome', public_key: 'A'.repeat(43), short_id: 'a1b2c3d4' },
+    { type: 'none' },
+  ];
+  for (const security of cases) {
+    const original = structuredClone(security);
+    const current = server();
+    current.connection.security = security;
+    if (security.type === 'reality') current.connection.transport = { type: 'xhttp', path: '/', mode: 'auto' };
+    const { route, observed } = fixture({ currentServer: current });
+    const response = await call(route, 'POST', `/v1/services/${SERVICE_ID}/connection-profile`, {
+      device_id: DEVICE_ID, server_id: SERVER_ID,
+      client_nonce: 'client-generated-security-contract-00001',
+      device_proof: 'gdp1-proof-material-that-is-long-enough-for-route',
+    });
+    assert.equal(response.status, 201);
+    const expected = original.type === 'none' ? original : { ...original, allow_insecure: false };
+    assert.deepEqual(observed.sealed.plaintext.security, expected, security.type);
+    assert.deepEqual(current.connection.security, original, 'source material must remain unchanged');
+    assert.equal(JSON.stringify(response.body).includes('credential'), false);
+  }
+});
