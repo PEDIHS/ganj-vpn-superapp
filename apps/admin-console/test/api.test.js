@@ -79,10 +79,10 @@ test('client rejects malformed identifiers before network I/O', async () => {
     accessTokenProvider: async () => 'e'.repeat(32),
     fetchImpl: async () => { called = true; },
   });
-  await assert.rejects(() => client.probePasarGuard('../secret'));
-  await assert.rejects(() => client.diagnosePasarGuardService('not-a-uuid'));
-  await assert.rejects(() => client.getSharedAccount('not-a-uuid'));
-  await assert.rejects(() => client.listReconciliationConflicts({ source: '../../etc' }));
+  assert.throws(() => client.probePasarGuard('../secret'));
+  assert.throws(() => client.diagnosePasarGuardService('not-a-uuid'));
+  assert.throws(() => client.getSharedAccount('not-a-uuid'));
+  assert.throws(() => client.listReconciliationConflicts({ source: '../../etc' }));
   assert.equal(called, false);
 });
 

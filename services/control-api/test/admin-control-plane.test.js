@@ -76,7 +76,7 @@ test('admin can create a maintenance server using only an opaque secret-store re
   assert.equal(created.body.data.secret_configured, true);
   assert.equal(JSON.stringify(created.body).includes('vault:kv/data/ganj/servers/tr-free-02'), false);
 
-  const stored = await runtime.repository.findServer(created.body.data.id);
+  const stored = await runtime.repository.findManagedFreeServer(created.body.data.id);
   assert.equal(stored.code, 'tr-free-02');
   const audit = await runtime.repository.listAdminAudit({ limit: 10 });
   assert.equal(audit[0].action, 'server.create');
@@ -84,16 +84,16 @@ test('admin can create a maintenance server using only an opaque secret-store re
 
 test('admin can emergency-disable an existing server without changing its secret binding', async () => {
   const { app, runtime } = await setup();
-  const before = await runtime.repository.findServer(FIXTURES.servers.free);
+  const before = await runtime.repository.findManagedFreeServer(FIXTURES.servers.free);
   const patched = await request(app, 'PATCH', `/v1/admin/control-plane/servers/${FIXTURES.servers.free}`, {
     body: { status: 'disabled', load_ratio: 0 },
   });
   assert.equal(patched.status, 200);
   assert.equal(patched.body.data.status, 'disabled');
 
-  const after = await runtime.repository.findServer(FIXTURES.servers.free);
+  const after = await runtime.repository.findManagedFreeServer(FIXTURES.servers.free);
   assert.equal(after.status, 'disabled');
-  assert.deepEqual(after.connection, before.connection);
+  assert.equal(after.secretRef, before.secretRef);
   assert.equal(JSON.stringify(patched.body).includes('credential'), false);
 });
 

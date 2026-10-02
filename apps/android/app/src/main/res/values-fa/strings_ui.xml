@@ -153,4 +153,5 @@
     <string name="enterprise_failure_collection">تست‌های عیب‌یابی به‌صورت امن کامل نشدند.</string>
     <string name="enterprise_failure_invalid">نتیجه عیب‌یابی از اعتبارسنجی محلی عبور نکرد.</string>
     <string name="enterprise_failure_generic">این قابلیت سازمانی فعلاً در دسترس نیست.</string>
+    <string name="failure_native_core_not_running">هسته VPN بلافاصله پس از اجرا متوقف شد. دوباره تلاش کنید یا سرور دیگری انتخاب کنید.</string>
 </resources>

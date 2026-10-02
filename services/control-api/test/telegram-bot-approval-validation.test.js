@@ -21,6 +21,7 @@ function makeAdapter(overrides = {}) {
     async loadForExchange() { return null; },
     async prepareAccountLink() { return 'ready'; },
     async markConsumed() { return true; },
+    async restoreApproved() { return true; },
     async close() {},
     ...overrides.store,
   };
