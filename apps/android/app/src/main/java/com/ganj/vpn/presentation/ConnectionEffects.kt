@@ -6,6 +6,7 @@ import com.ganj.vpn.core.controlapi.ProfileProvisioningBinding
 import com.ganj.vpn.core.controlapi.ProfileProvisioningError
 import com.ganj.vpn.core.controlapi.ProfileProvisioningResult
 import com.ganj.vpn.core.vpn.ConnectionRequest
+import com.ganj.vpn.core.xray.VpnRuntimeException
 import java.security.SecureRandom
 import kotlinx.coroutines.CancellationException
 
@@ -113,7 +114,15 @@ class ConnectionEffectExecutor(
                 if (connected.isSuccess) {
                     ConnectionEffectResult.Connected(profileId, serverId)
                 } else {
-                    failed("connection.tunnel_start_failed", UiFailureKind.SERVER, retryable = true)
+                    when ((connected.exceptionOrNull() as? VpnRuntimeException)?.code) {
+                        "xray.tun_binding_unavailable",
+                        "xray.tun_binding_failed",
+                        "xray.invalid_tun_descriptor",
+                        -> failed("connection.native_tun_unavailable", UiFailureKind.CONFIGURATION, retryable = false)
+                        "xray.core_not_running" ->
+                            failed("connection.native_core_not_running", UiFailureKind.SERVER, retryable = true)
+                        else -> failed("connection.tunnel_start_failed", UiFailureKind.SERVER, retryable = true)
+                    }
                 }
             }
         }
