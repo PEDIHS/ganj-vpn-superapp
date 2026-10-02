@@ -153,4 +153,6 @@
     <string name="enterprise_failure_collection">The diagnostic checks could not complete safely.</string>
     <string name="enterprise_failure_invalid">The diagnostic result did not pass local validation.</string>
     <string name="enterprise_failure_generic">This enterprise feature is unavailable right now.</string>
+    <string name="failure_native_tun_unavailable">The VPN core cannot access Android's tunnel. Install a build with the correct native engine.</string>
+    <string name="failure_native_core_not_running">The VPN core stopped immediately after startup. Try again or choose another server.</string>
 </resources>
