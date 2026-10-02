@@ -115,10 +115,6 @@ class ConnectionEffectExecutor(
                     ConnectionEffectResult.Connected(profileId, serverId)
                 } else {
                     when ((connected.exceptionOrNull() as? VpnRuntimeException)?.code) {
-                        "xray.tun_binding_unavailable",
-                        "xray.tun_binding_failed",
-                        "xray.invalid_tun_descriptor",
-                        -> failed("connection.native_tun_unavailable", UiFailureKind.CONFIGURATION, retryable = false)
                         "xray.core_not_running" ->
                             failed("connection.native_core_not_running", UiFailureKind.SERVER, retryable = true)
                         else -> failed("connection.tunnel_start_failed", UiFailureKind.SERVER, retryable = true)
