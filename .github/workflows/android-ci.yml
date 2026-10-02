@@ -255,6 +255,7 @@ jobs:
           input="$RUNNER_TEMP/alpha-input/app-release-unsigned.apk"
           output="$RUNNER_TEMP/alpha-output"
           keystore="$RUNNER_TEMP/android-upload-keystore.jks"
+          aligned="$RUNNER_TEMP/ganj-vpn-alpha-aligned.apk"
           signed="$output/ganj-vpn-alpha-arm64.apk"
           install -d -m 0700 "$output"
           trap 'truncate -s 0 "$keystore" 2>/dev/null || true; rm -f "$keystore"' EXIT
@@ -277,6 +278,9 @@ jobs:
           )"
           test "$actual_cert_sha" = "$expected_cert_sha"
 
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -P 16 -f 4 "$input" "$aligned"
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -c -P 16 4 "$aligned"
+
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" sign \
             --ks "$keystore" \
             --ks-key-alias "$GANJ_UPLOAD_KEY_ALIAS" \
@@ -286,7 +290,7 @@ jobs:
             --v2-signing-enabled true \
             --v3-signing-enabled true \
             --out "$signed" \
-            "$input"
+            "$aligned"
 
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$signed"
           bash .github/scripts/android-artifact-guard.sh "$signed"
