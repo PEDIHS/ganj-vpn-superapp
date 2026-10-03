@@ -70,7 +70,8 @@ class SubscriptionSelectionTest {
         compose.onNodeWithTag("subscriptions-screen").assertExists()
         compose.onNodeWithText("۲۵٪", substring = true).assertExists()
         capture("subscriptions-dark")
-        compose.onNodeWithTag("subscription-service-b").performScrollTo().performClick()
+        compose.onNodeWithTag("subscriptions-screen").performScrollToNode(hasTestTag("subscription-service-b"))
+        compose.onNodeWithTag("subscription-service-b").performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-two").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("config-picker").assertExists()
         capture("config-picker-dark")
@@ -100,9 +101,11 @@ class SubscriptionSelectionTest {
                 }
             }
         }
-        compose.onNodeWithTag("subscription-service-a").performScrollTo().assertTextContains("۲۵٪", substring = true)
+        compose.onNodeWithTag("subscriptions-screen").performScrollToNode(hasTestTag("subscription-service-a"))
+        compose.onNodeWithTag("subscription-service-a").assertTextContains("۲۵٪", substring = true)
         capture("subscriptions-light-large")
-        compose.onNodeWithTag("subscription-service-b").performScrollTo()
+        compose.onNodeWithTag("subscriptions-screen").performScrollToNode(hasTestTag("subscription-service-b"))
+        compose.onNodeWithTag("subscription-service-b")
             .assertTextContains("مصرف در دسترس نیست", substring = true)
         compose.onNodeWithTag("subscription-service-b").assertTextContains("۱۰۰ گیگابایت", substring = true)
         capture("subscriptions-unknown-large")
