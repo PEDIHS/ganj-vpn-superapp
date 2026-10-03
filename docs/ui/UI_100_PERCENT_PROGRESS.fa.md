@@ -1011,3 +1011,14 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Leaf items completed: none; multi-width/font-scale, TalkBack and physical-device frame pacing remain pending.
 - Remaining unchecked items in touched sections: 9/15/16/16/9/16/17.
 - Overall UI completion: 196/492 = 39.8% (calculator output; Final Gate remains open).
+
+#### Verified delivery follow-up — Alpha 0.3.15
+
+- Tested source: `af5b122341735685c4e5dac944152d406b79e025` (this follow-up changes documentation only).
+- Preview 37100610008: app unit tests, debug lint, ARM64 APK build and artifact guard passed.
+- Android CI 37100612904: native provenance, API 24/35 startup + real native TUN contract/integration + scoped selection, all required module unit tests, debug/release lint, trusted Alpha packaging and SBOM validation passed. CodeQL, repository security, dependency review and documentation/contracts also passed on the tested source.
+- Independent UI review 37100610020: three Compose instrumentation tests passed, including 200% light config selection; six real emulator screenshots reviewed for dark/light cards, unknown usage, connection selection and large text. Physical-device frame pacing, TalkBack and the complete 360/390/412/430dp matrix remain open.
+- Signed APK: package `com.ganj.vpn`, versionCode 18, 41,778,906 bytes. Existing certificate verified; all non-signature APK entries identical before/after signing. SHA-256: `a013ad52343dab353afe6d11f3d45bece19ba6208f812f8115b17749cccdfecd`.
+- Bot's existing APK path and version marker atomically updated to 0.3.15 after all checks passed; previous alpha backed up. Versioned HTTPS download returned HTTP 200. No Telegram message sent and no backend/VPN service restarted.
+- UI Ledger sections touched: 1, 12, 13, 14, 23, 24, 25.
+- Leaf items completed: none; remaining unchecked leaves in touched sections: 9/15/16/16/9/16/17. Overall UI completion: 196/492 = 39.8% (calculator). No final/zero-jank/physical-phone claim.
