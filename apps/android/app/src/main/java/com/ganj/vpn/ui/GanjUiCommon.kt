@@ -512,7 +512,8 @@ internal fun ConnectionFailureDetails(failure: UiFailure) {
 }
 
 @Composable
-internal fun latencyReadingTime(measuredAtMillis: Long): String = stringResource(
-    R.string.ping_last_measurement,
-    java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(measuredAtMillis)),
-)
+internal fun latencyReadingTime(measuredAtMillis: Long): String {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    return stringResource(R.string.ping_last_measurement,
+        java.text.SimpleDateFormat("HH:mm:ss", locale).format(java.util.Date(measuredAtMillis)))
+}
