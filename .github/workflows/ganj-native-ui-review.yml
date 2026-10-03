@@ -1,0 +1,69 @@
+name: GANJ native UI visual review
+on:
+  push:
+    branches: [feat/ganj-flagglass-config-20261003]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  visual-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: '14742923'
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v6.3.0
+        with:
+          gradle-version: '9.4.1'
+          cache-provider: basic
+      - uses: actions/download-artifact@v7
+        with:
+          name: alpha-pinned-libxray
+          repository: PEDIHS/ganj-vpn-superapp
+          run-id: 37093163551
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/pinned-libxray
+      - name: Verify identical native runtime and protect the production surface
+        run: |
+          cmp UPSTREAM.lock.json "$RUNNER_TEMP/pinned-libxray/evidence/UPSTREAM.lock.json"
+          (cd "$RUNNER_TEMP/pinned-libxray/evidence" && sha256sum -c SHA256SUMS)
+          bash .github/scripts/android-product-guard.sh
+          echo "GANJ_PINNED_LIBXRAY_REPOSITORY=$RUNNER_TEMP/pinned-libxray/maven" >> "$GITHUB_ENV"
+      - name: Build isolated emulator UI fixtures
+        working-directory: apps/android
+        run: >-
+          gradle --no-daemon --init-script ../../.github/gradle/pinned-libxray.init.gradle
+          -PGANJ_CONTROL_API_BASE_URL=https://bot.pedramhs.ir/app-api/v1/
+          -PGANJ_TELEGRAM_REDIRECT_URI=https://bot.pedramhs.ir/app-auth/telegram/callback
+          -PGANJ_ALPHA_ARM64_ONLY=false
+          -PGANJ_NATIVE_FIXTURE_DIAGNOSTICS=false
+          :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Review real native Compose screens independently of VPN fixture
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: bash .github/scripts/ganj-ui-review.sh
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ganj-native-ui-review-${{ github.sha }}
+          path: ui-review/
+          if-no-files-found: warn
+          retention-days: 7

@@ -28,11 +28,11 @@ internal val GanjJade = Color(0xFF3AA58D)
 internal val GanjDanger = Color(0xFFD94A4A)
 internal val GanjWarning = Color(0xFFE0A33C)
 
-internal val GanjDarkCanvas = Color(0xFF0F1211)
-internal val GanjDarkSurface = Color(0xFF141E19)
-internal val GanjDarkSurfaceSecondary = Color(0xFF1C2D23)
+internal val GanjDarkCanvas = Color(0xFF10271D)
+internal val GanjDarkSurface = Color(0xFF1A3729)
+internal val GanjDarkSurfaceSecondary = Color(0xFF244735)
 internal val GanjDarkText = Color(0xFFF5F7F2)
-internal val GanjDarkMuted = Color(0xFFAFBDB2)
+internal val GanjDarkMuted = Color(0xFFC7D9CA)
 
 internal val GanjLightCanvas = Color(0xFFF7F8F5)
 internal val GanjLightSurface = Color(0xFFFFFFFF)
@@ -69,7 +69,7 @@ private val GanjDarkColors = darkColorScheme(
     onPrimary = Color(0xFF091D13),
     primaryContainer = Color(0xFF075237),
     onPrimaryContainer = Color(0xFF92EAB9),
-    secondary = GanjGold,
+    secondary = GanjGoldBright,
     onSecondary = Color(0xFF271900),
     secondaryContainer = Color(0xFF4B3919),
     onSecondaryContainer = Color(0xFFFFDEA7),
@@ -95,6 +95,8 @@ private val GanjPersianFont = FontFamily(
 
 private val GanjTypography = Typography().run {
     copy(
+        displayLarge = displayLarge.copy(fontFamily = GanjPersianFont, letterSpacing = 0.sp),
+        displayMedium = displayMedium.copy(fontFamily = GanjPersianFont, letterSpacing = 0.sp),
         displaySmall = displaySmall.copy(
             fontSize = 34.sp,
             lineHeight = 48.sp,
@@ -221,6 +223,29 @@ private val GanjLightGlass = GanjGlassPalette(
 
 internal val LocalGanjGlassPalette = staticCompositionLocalOf { GanjDarkGlass }
 
+/** Content uses opaque, theme-aware surfaces; glass belongs to floating controls. */
+@Immutable
+internal data class GanjContentPalette(
+    val selectedSurface: Color,
+    val onSelected: Color,
+    val selectedMuted: Color,
+    val premiumText: Color,
+)
+
+internal val GanjDarkContent = GanjContentPalette(
+    selectedSurface = Color(0xFF214D38),
+    onSelected = GanjDarkText,
+    selectedMuted = Color(0xFFD4E6D8),
+    premiumText = GanjGoldBright,
+)
+internal val GanjLightContent = GanjContentPalette(
+    selectedSurface = Color(0xFFE4F2E9),
+    onSelected = GanjLightText,
+    selectedMuted = Color(0xFF435D4D),
+    premiumText = Color(0xFF76510D),
+)
+internal val LocalGanjContentPalette = staticCompositionLocalOf { GanjDarkContent }
+
 @Composable
 internal fun GanjTheme(
     darkTheme: Boolean = true,
@@ -230,6 +255,7 @@ internal fun GanjTheme(
     val effectiveVisualEffectsPolicy = visualEffectsPolicy ?: currentGanjVisualEffectsPolicy()
     CompositionLocalProvider(
         LocalGanjGlassPalette provides if (darkTheme) GanjDarkGlass else GanjLightGlass,
+        LocalGanjContentPalette provides if (darkTheme) GanjDarkContent else GanjLightContent,
         LocalGanjVisualEffectsPolicy provides effectiveVisualEffectsPolicy,
         LocalLayoutDirection provides LayoutDirection.Rtl,
     ) {

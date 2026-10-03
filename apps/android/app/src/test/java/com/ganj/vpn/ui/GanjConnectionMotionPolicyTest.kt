@@ -7,14 +7,19 @@ import org.junit.Test
 
 class GanjConnectionMotionPolicyTest {
     @Test
-    fun `full effects pulse active connection states`() {
-        assertTrue(
+    fun `connected state settles instead of pulsing indefinitely`() {
+        assertFalse(
             GanjConnectionMotionPolicy.shouldPulse(
                 state = GanjConnectionVisualState.Connected,
                 effectsTier = GanjEffectsTier.Full,
                 reduceMotion = false,
             ),
         )
+        assertEquals(1f..1f, GanjConnectionMotionPolicy.pulseRange(GanjConnectionVisualState.Connected))
+    }
+
+    @Test
+    fun `full effects pulse only transient busy states`() {
         assertTrue(
             GanjConnectionMotionPolicy.shouldPulse(
                 state = GanjConnectionVisualState.Connecting,

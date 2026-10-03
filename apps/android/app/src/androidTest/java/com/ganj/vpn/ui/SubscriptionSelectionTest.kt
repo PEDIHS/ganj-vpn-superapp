@@ -111,6 +111,30 @@ class SubscriptionSelectionTest {
         capture("subscriptions-unknown-large")
     }
 
+    @Test fun lightConfigPickerPreservesSelectionAtLargeFontScale() {
+        val longConfig = configs[1].copy(name = "🇩🇪 کانفیگ آلمان با عنوان فارسی بلند")
+        var chosen: ConnectionServer? = null
+        compose.activityRule.scenario.onActivity { activity ->
+            activity.setContent {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                    GanjTheme(darkTheme = false, visualEffectsPolicy = reduced) {
+                        Surface(Modifier.fillMaxSize()) {
+                            StitchConfigSelectionSheet(second, longConfig,
+                                loadServers = { ApiResult.Success(listOf(configs[0], longConfig), ResponseMetadata("ui-fixture", null)) },
+                                latency = null, onSelect = { chosen = it }, onDismiss = {})
+                        }
+                    }
+                }
+            }
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-two").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("config-option-config-two").performScrollTo().assertIsSelected()
+        capture("config-picker-light-large")
+        compose.onNodeWithTag("config-option-config-two").performClick()
+        compose.runOnIdle { assertEquals(longConfig, chosen) }
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

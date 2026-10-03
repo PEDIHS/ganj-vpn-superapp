@@ -127,4 +127,5 @@
     <string name="subscription_overview_total">All subscriptions</string>
     <string name="subscription_overview_selected">Selected: %1$s</string>
     <string name="subscription_remaining_traffic">Remaining: %1$s</string>
+    <string name="ping_last_result">آخرین اندازه‌گیری</string>
 </resources>

@@ -23,7 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
@@ -59,8 +59,8 @@ internal fun ganjCanvasColors(
     tertiary: Color,
     ambientEffects: Boolean,
 ): List<Color> = listOf(
-    primary.copy(alpha = if (ambientEffects) 0.14f else 0.055f).compositeOver(background),
-    tertiary.copy(alpha = if (ambientEffects) 0.035f else 0f).compositeOver(background),
+    primary.copy(alpha = if (ambientEffects) 0.21f else 0.065f).compositeOver(background),
+    tertiary.copy(alpha = if (ambientEffects) 0.075f else 0.015f).compositeOver(background),
     background,
 )
 
@@ -106,7 +106,7 @@ internal fun GanjGlassSurface(
     } else {
         role
     }
-    val shape = RoundedCornerShape(shapeRadius)
+    val shape = remember(shapeRadius) { RoundedCornerShape(shapeRadius) }
     val base = when (effectiveRole) {
         GanjGlassRole.Clear -> MaterialTheme.colorScheme.surface.copy(alpha = 0.44f)
         GanjGlassRole.Regular -> MaterialTheme.colorScheme.surface.copy(alpha = 0.68f)
@@ -165,12 +165,12 @@ internal fun GanjLiquidAction(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val effects = LocalGanjVisualEffectsPolicy.current
-    val scale by animateFloatAsState(
-        targetValue = if (!effects.reduceMotion && pressed) 0.975f else 1f,
+    val scale = animateFloatAsState(
+        targetValue = if (!effects.reduceMotion && effects.tier != GanjEffectsTier.Reduced && pressed) 0.975f else 1f,
         animationSpec = tween(durationMillis = if (effects.reduceMotion) 0 else 125),
         label = "ganjLiquidPressScale",
     )
-    val shape = RoundedCornerShape(shapeRadius)
+    val shape = remember(shapeRadius) { RoundedCornerShape(shapeRadius) }
     val glass = LocalGanjGlassPalette.current
     val effectiveAccent = if (enabled) accent else MaterialTheme.colorScheme.outline
     val strongAlpha = when (effects.tier) {
@@ -182,7 +182,7 @@ internal fun GanjLiquidAction(
     Box(
         modifier = modifier
             .heightIn(min = GanjLiquidGlassPolicy.MinimumTouchTargetDp.dp)
-            .scale(scale)
+            .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
             .clip(shape)
             .background(
                 Brush.linearGradient(

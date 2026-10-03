@@ -9,15 +9,13 @@ internal object GanjConnectionMotionPolicy {
         effectsTier == GanjEffectsTier.Full &&
         state in setOf(
             GanjConnectionVisualState.Connecting,
-            GanjConnectionVisualState.Connected,
             GanjConnectionVisualState.Reconnecting,
         )
 
     fun pulseRange(state: GanjConnectionVisualState): ClosedFloatingPointRange<Float> = when (state) {
         GanjConnectionVisualState.Connecting,
         GanjConnectionVisualState.Reconnecting,
-        -> 0.94f..1.04f
-        GanjConnectionVisualState.Connected -> 0.98f..1.025f
+        -> 0.985f..1.015f
         else -> 1f..1f
     }
 }
