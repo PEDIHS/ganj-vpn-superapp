@@ -14,6 +14,7 @@ import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.vpn.ProvisionedProfile
 import com.ganj.vpn.core.vpn.VpnProtocol
 import com.ganj.vpn.presentation.ActiveTunnelProbe
+import com.ganj.vpn.presentation.LatencyProbeResult
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlinx.coroutines.runBlocking
@@ -51,7 +52,9 @@ class VpnTunnelIntegrationTest {
         println("VPN test: OS denial and approval passed")
 
         val client = AndroidVpnTunnelClient(context)
-        assertNotNull("offline native ping must work before starting the VPN", client.probe(fixtureProfile()))
+        val offlineProbe = client.probeDetailed(fixtureProfile())
+        val failureCode = (offlineProbe as? LatencyProbeResult.Failed)?.failure?.let { it.diagnosticCode ?: it.messageKey }
+        assertTrue("offline native ping must work before starting the VPN: $failureCode", offlineProbe is LatencyProbeResult.Measured)
         println("VPN test: offline native latency passed")
         repeat(2) { iteration ->
             try {

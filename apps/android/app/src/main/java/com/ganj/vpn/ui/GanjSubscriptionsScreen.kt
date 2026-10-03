@@ -227,7 +227,7 @@ internal fun StitchConfigSelectionSheet(
     val busy = readings.measuring.any { it.serviceId == service.entitlementId }
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.65f
     GanjLiquidBottomSheet(title = stringResource(R.string.config_picker_title),
-        subtitle = subscriptionUsername(service), onDismiss = onDismiss) {
+        subtitle = subscriptionUsername(service), onDismiss = onDismiss, skipPartiallyExpanded = true) {
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxHeight).testTag("config-picker").selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {

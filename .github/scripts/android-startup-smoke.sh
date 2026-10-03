@@ -48,6 +48,14 @@ for attempt in {1..30}; do
   sleep 0.1
 done
 grep -q 'fixture ready' startup-evidence/fixture.log
-timeout 300 adb shell am instrument -w -r com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner | tee startup-evidence/instrumentation.txt
-grep -E '^OK \([1-9][0-9]* tests?\)' startup-evidence/instrumentation.txt
-! grep -E 'FAILURES|INSTRUMENTATION_FAILED|Process crashed' startup-evidence/instrumentation.txt
+# Compose test rules own clocks/lifecycles. Keep their process separate from the
+# OS consent and native-runtime fixture, which must use the real Android dispatcher.
+run_suite() {
+  local suite_name="$1" classes="$2" output="startup-evidence/instrumentation-$1.txt"
+  timeout 300 adb shell am instrument -w -r -e class "$classes" com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner | tee "$output"
+  cat "$output" >> startup-evidence/instrumentation.txt
+  grep -E '^OK \([1-9][0-9]* tests?\)' "$output"
+  ! grep -E 'FAILURES|INSTRUMENTATION_FAILED|Process crashed' "$output"
+}
+run_suite vpn com.ganj.vpn.vpn.NativeRuntimeContractTest,com.ganj.vpn.vpn.VpnTunnelIntegrationTest
+run_suite selection com.ganj.vpn.ui.SubscriptionSelectionTest

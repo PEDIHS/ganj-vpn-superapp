@@ -102,7 +102,7 @@ internal fun StitchConnectionScreen(
     val displayServiceId = service?.entitlementId
     val connectedSelection = connection is ConnectionUiState.Connected &&
         connection.entitlementId == displayServiceId && connection.serverId == displayServerId
-    val switchingSelection = connection is ConnectionUiState.Connected && displayedServer != null && !connectedSelection
+    val switchingSelection = connection is ConnectionUiState.Connected && service?.isActive == true && !connectedSelection
     val pingKey = if (displayServiceId != null && displayServerId != null) LatencyKey(displayServiceId, displayServerId) else null
     val reading = latencyState.readings[pingKey]
     val ping = reading?.result?.latencyMillis

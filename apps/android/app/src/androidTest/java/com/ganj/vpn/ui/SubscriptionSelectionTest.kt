@@ -47,7 +47,8 @@ class SubscriptionSelectionTest {
                                 onSelectService = { state = reducer.reduce(state, GanjUiEvent.SelectService(it)); picker = true },
                                 onRetry = {})
                             else StitchConnectionScreen(state,
-                                onConnect = { connectedChoice = state.selectedConnectionServer }, onDisconnect = {},
+                                onConnect = { connectedChoice = state.selectedConnectionServer },
+                                onDisconnect = { error("Changing the selected config must not disconnect the old config instead") },
                                 onOpenServers = { if (state.selectedService == null) subscriptions = true else picker = true },
                                 onOpenSubscriptions = { subscriptions = true }, loadServers = { ApiResult.Success(configs, ResponseMetadata("ui-fixture", null)) },
                                 onSelectAndConnect = { _, _ -> }, onOpenStore = {}, onRetry = {})
@@ -56,6 +57,7 @@ class SubscriptionSelectionTest {
                                     loadServers = { requested += it; ApiResult.Success(configs, ResponseMetadata("ui-fixture", null)) }, latency = null,
                                     onSelect = {
                                         state = reducer.reduce(state, GanjUiEvent.SelectServer(service.entitlementId, it))
+                                        state = state.copy(connection = ConnectionUiState.Connected(first.entitlementId, "fixture-profile", configs[0].id))
                                         picker = false; subscriptions = false
                                     }, onDismiss = { picker = false })
                             }
@@ -109,7 +111,10 @@ class SubscriptionSelectionTest {
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        check(UiDevice.getInstance(instrumentation).takeScreenshot(File(instrumentation.targetContext.cacheDir, "$name.png")))
+        instrumentation.waitForIdleSync()
+        val device = UiDevice.getInstance(instrumentation)
+        device.waitForIdle(1_000)
+        check(device.takeScreenshot(File(instrumentation.targetContext.cacheDir, "$name.png")))
     }
 
     private fun service(id: String, username: String, used: Long) = ServiceUiModel(
