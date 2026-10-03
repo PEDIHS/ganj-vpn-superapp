@@ -59,8 +59,8 @@ internal fun ganjCanvasColors(
     tertiary: Color,
     ambientEffects: Boolean,
 ): List<Color> = listOf(
-    primary.copy(alpha = if (ambientEffects) 0.14f else 0.055f).compositeOver(background),
-    tertiary.copy(alpha = if (ambientEffects) 0.035f else 0f).compositeOver(background),
+    primary.copy(alpha = if (ambientEffects) 0.21f else 0.065f).compositeOver(background),
+    tertiary.copy(alpha = if (ambientEffects) 0.075f else 0.015f).compositeOver(background),
     background,
 )
 

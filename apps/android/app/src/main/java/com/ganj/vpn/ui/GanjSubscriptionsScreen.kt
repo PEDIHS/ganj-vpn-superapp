@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -506,30 +508,144 @@ internal fun StitchConfigSelectionSheet(
 }
 
 @Composable
-private fun GanjConfigOption(server: ConnectionServer, selected: Boolean, reading: LatencyReading?, measuring: Boolean,
-    onSelect: () -> Unit, onPing: () -> Unit, canPing: Boolean) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).testTag("config-option-${server.id}")
-        .clip(RoundedCornerShape(16.dp))
-        .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else Color.Transparent)
-        .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect).padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(server.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2,
-                overflow = TextOverflow.Ellipsis)
-            Text(isolateTechnicalLtr(server.protocols.joinToString(" / ") { it.name }), style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(when {
-                measuring -> stringResource(R.string.ping_measuring)
-                reading?.result?.latencyMillis != null -> persianTechnicalMetric(reading.result.latencyMillis.toString(), "ms")
-                reading?.result is LatencyProbeResult.Failed -> latencyFailureLabel(reading.result.failure)
-                else -> stringResource(R.string.ping_not_measured)
-            }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant) }
+private fun GanjConfigOption(
+    server: ConnectionServer,
+    selected: Boolean,
+    reading: LatencyReading?,
+    measuring: Boolean,
+    onSelect: () -> Unit,
+    onPing: () -> Unit,
+    canPing: Boolean,
+) {
+    val effects = LocalGanjVisualEffectsPolicy.current
+    val reduceMotion = effects.reduceMotion || effects.tier == GanjEffectsTier.Reduced
+    val identity = remember(server.name, server.countryCode) {
+        ganjConfigIdentity(server.name, server.countryCode)
+    }
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        if (!reduceMotion && pressed) 0.987f else 1f,
+        if (reduceMotion) snap() else tween(115), label = "configPress",
+    )
+    val rim by animateColorAsState(
+        if (selected) GanjGoldBright else GanjEmeraldBright.copy(alpha = 0.42f),
+        if (reduceMotion) snap() else tween(185), label = "configSelectedRim",
+    )
+    val shape = remember { RoundedCornerShape(22.dp) }
+    val latencyMs = reading?.result?.latencyMillis
+    val latencyColor = when {
+        latencyMs == null -> MaterialTheme.colorScheme.onSurfaceVariant
+        latencyMs <= 80L -> GanjEmeraldBright
+        latencyMs <= 180L -> GanjGoldBright
+        else -> MaterialTheme.colorScheme.error
+    }
+    // The app remains RTL, but config rows use LTR for a LEFT flag and RIGHT latency.
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Box(
+            modifier = Modifier.fillMaxWidth().testTag("config-option-" + server.id)
+                .scale(pressScale)
+                .clip(shape)
+                .background(Brush.linearGradient(
+                    if (selected) listOf(Color(0xFF277A54), Color(0xFF14553B), Color(0xFF1B4431))
+                    else listOf(Color(0xFF28553D), Color(0xFF1E4633), Color(0xFF1B392B)),
+                ))
+                .border(if (selected) 1.5.dp else 1.dp, rim, shape)
+                .selectable(
+                    selected = selected, role = Role.RadioButton,
+                    interactionSource = interaction, indication = null, onClick = onSelect,
+                ),
+        ) {
+            if (selected) {
+                Box(Modifier.fillMaxWidth().height(2.dp)
+                    .background(Brush.horizontalGradient(listOf(
+                        GanjGold.copy(alpha = 0.10f), GanjGoldBright,
+                        GanjGold.copy(alpha = 0.10f),
+                    ))))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 92.dp)
+                    .padding(horizontal = 11.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GanjConfigFlagBadge(identity.flag, selected)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(identity.title, style = MaterialTheme.typography.titleMedium,
+                        color = Color(0xFFF9FFF9), fontWeight = FontWeight.Bold,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(isolateTechnicalLtr(server.protocols.joinToString("  •  ") { it.name }),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFDBEBDD),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (selected) Text("✓  انتخاب‌شده",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = GanjGoldBright, fontWeight = FontWeight.SemiBold)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(
+                        modifier = Modifier.testTag("ping-" + server.id)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(latencyColor.copy(alpha =
+                                if (latencyMs == null) 0.12f else 0.17f))
+                            .border(1.dp, latencyColor.copy(alpha = 0.68f),
+                                RoundedCornerShape(14.dp))
+                            .clickable(enabled = canPing && !measuring,
+                                role = Role.Button, onClick = onPing)
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            when {
+                                measuring -> "…"
+                                latencyMs != null ->
+                                    persianTechnicalMetric(latencyMs.toString(), "ms")
+                                reading?.result is LatencyProbeResult.Failed -> "!"
+                                else -> "—"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = latencyColor, fontWeight = FontWeight.Bold, maxLines = 1,
+                        )
+                    }
+                    Text(
+                        when {
+                            measuring -> stringResource(R.string.ping_measuring)
+                            reading?.result is LatencyProbeResult.Failed ->
+                                latencyFailureLabel(reading.result.failure)
+                            else -> stringResource(R.string.config_ping)
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFDBEBDD), maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(if (selected) "✓" else "›",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = if (selected) GanjGoldBright else Color(0xFFCCDDCF),
+                    fontWeight = FontWeight.Bold)
+            }
         }
-        TextButton(onClick = onPing, enabled = canPing && !measuring, modifier = Modifier.testTag("ping-${server.id}")) {
-            Text(stringResource(R.string.config_ping))
-        }
-        if (selected) Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** Color emoji is drawn by Android itself; no flag assets, network or bitmap work. */
+@Composable
+internal fun GanjConfigFlagBadge(
+    flag: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.size(53.dp).clip(CircleShape)
+            .background(Brush.linearGradient(
+                listOf(Color(0xFF4C926B), Color(0xFF15462F)),
+            ))
+            .border(if (selected) 2.dp else 1.dp,
+                if (selected) GanjGoldBright
+                else Color(0xFF9BD8B0).copy(alpha = 0.70f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(flag, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
     }
 }

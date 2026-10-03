@@ -67,6 +67,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ganj.vpn.presentation.ConnectionUiState
 import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.ServiceUiModel
@@ -425,7 +426,13 @@ private fun StitchConnectOrb(
                 .size(outerSize - 8.dp)
                 .scale(pulse)
                 .clip(CircleShape)
-                .border(1.dp, StitchGold.copy(alpha = 0.30f), CircleShape),
+                .border(1.5.dp, Brush.sweepGradient(listOf(
+                    StitchGold.copy(alpha = 0.25f),
+                    StitchGoldBright,
+                    StitchGold.copy(alpha = 0.35f),
+                    StitchGoldBright,
+                    StitchGold.copy(alpha = 0.25f),
+                )), CircleShape),
         )
         Box(
             modifier = Modifier
@@ -441,15 +448,19 @@ private fun StitchConnectOrb(
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            accent.copy(alpha = if (activeServiceAvailable) 0.22f else 0.08f),
-                            GanjEmeraldDeep.copy(alpha = 0.48f),
-                            GanjDarkCanvas.copy(alpha = 0.96f),
+                            accent.copy(alpha = if (activeServiceAvailable) 0.45f else 0.15f),
+                            Color(0xFF0B7851).copy(alpha = 0.82f),
+                            GanjEmeraldDeep.copy(alpha = 0.96f),
                         ),
                     ),
                 )
                 .border(
                     3.dp,
-                    accent.copy(alpha = if (activeServiceAvailable) 0.95f else 0.36f),
+                    Brush.sweepGradient(listOf(
+                        StitchGold.copy(alpha = 0.58f), StitchGoldBright,
+                        accent.copy(alpha = 0.90f), StitchGoldBright,
+                        StitchGold.copy(alpha = 0.58f),
+                    )),
                     CircleShape,
                 )
                 .testTag("connect-action")
@@ -468,10 +479,11 @@ private fun StitchConnectOrb(
                         .border(1.dp, StitchGold.copy(alpha = 0.20f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Image(
-                        painter = painterResource(R.drawable.ganj_logo_official),
-                        contentDescription = null,
-                        modifier = Modifier.size(if (width <= 360) 58.dp else 66.dp),
+                    Text(
+                        "⏻",
+                        color = Color(0xFFF7FFF7),
+                        fontSize = if (width <= 360) 52.sp else 60.sp,
+                        fontWeight = FontWeight.Light,
                     )
                 }
                 Text(
@@ -568,14 +580,14 @@ private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, has
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
-                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.30f), CircleShape),
+                    modifier = Modifier.size(53.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = countryEmoji(server?.countryCode), style = MaterialTheme.typography.titleLarge)
+                    GanjConfigFlagBadge(
+                        flag = server?.let { ganjConfigIdentity(it.name, it.countryCode).flag }
+                            ?: "🌐",
+                        selected = server != null,
+                    )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -584,7 +596,8 @@ private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, has
                         color = StitchEmeraldGlow,
                     )
                     Text(
-                        text = server?.name ?: stringResource(if (hasSubscription) R.string.config_choose else R.string.subscription_choose_first),
+                        text = server?.let { ganjConfigIdentity(it.name, it.countryCode).title }
+                            ?: stringResource(if (hasSubscription) R.string.config_choose else R.string.subscription_choose_first),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
