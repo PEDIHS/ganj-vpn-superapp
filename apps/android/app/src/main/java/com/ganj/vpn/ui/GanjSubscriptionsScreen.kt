@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -562,7 +563,7 @@ private fun GanjConfigOption(
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GanjConfigFlagBadge(identity.flag, selected)
+                GanjConfigFlagBadge(identity.countryCode, selected)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(identity.title, style = MaterialTheme.typography.titleMedium,
                         color = if (selected) palette.onSelected else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold,
@@ -623,23 +624,37 @@ private fun GanjConfigOption(
     }
 }
 
-/** Color emoji is drawn by Android itself; no flag assets, network or bitmap work. */
+/** Locally bundled, sharp WebP flag image. No network request, emoji rendering or decode loop. */
 @Composable
 internal fun GanjConfigFlagBadge(
-    flag: String,
+    countryCode: String?,
     selected: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val normalized = remember(countryCode) { ganjNormalizedCountry(countryCode) }
+    val imageRes = remember(normalized) { ganjFlagDrawable(normalized) }
+    val isGlobal = imageRes == R.drawable.ic_ganj_world
+    val flagShape = remember { RoundedCornerShape(7.dp) }
+    val badgeShape = remember { RoundedCornerShape(17.dp) }
     Box(
-        modifier = modifier.size(53.dp).clip(CircleShape)
+        modifier = modifier.size(55.dp, 51.dp)
+            .clip(badgeShape)
             .background(Brush.linearGradient(
                 listOf(Color(0xFF4C926B), Color(0xFF15462F)),
             ))
-            .border(if (selected) 2.dp else 1.dp,
+            .border(if (selected) 1.5.dp else 1.dp,
                 if (selected) GanjGoldBright
-                else Color(0xFF9BD8B0).copy(alpha = 0.70f), CircleShape),
+                else Color(0xFF9BD8B0).copy(alpha = 0.70f), badgeShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(flag, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
+        Image(
+            painter = painterResource(imageRes),
+            contentDescription = null, // Country is described in the adjacent server details.
+            modifier = if (isGlobal) Modifier.size(31.dp)
+                else Modifier.size(43.dp, 31.dp).clip(flagShape)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.24f), flagShape),
+            contentScale = ContentScale.Fit,
+            colorFilter = if (isGlobal) ColorFilter.tint(GanjGoldBright) else null,
+        )
     }
 }

@@ -2,13 +2,13 @@ package com.ganj.vpn.ui
 
 import java.util.Locale
 
-/** Presentation-only model; connection IDs and raw subscription data never change. */
-internal data class GanjConfigIdentity(val title: String, val flag: String)
+/** Presentation-only metadata. Server IDs and unmodified connection data remain authoritative. */
+internal data class GanjConfigIdentity(val title: String, val countryCode: String?)
 
 internal fun ganjConfigIdentity(rawName: String, countryCode: String?): GanjConfigIdentity {
     var start = -1
     var end = -1
-    var flag: String? = null
+    var detectedCode: String? = null
     var i = 0
     while (i < rawName.length) {
         val first = Character.codePointAt(rawName, i)
@@ -18,7 +18,10 @@ internal fun ganjConfigIdentity(rawName: String, countryCode: String?): GanjConf
             if (second in 0x1F1E6..0x1F1FF) {
                 start = i
                 end = next + Character.charCount(second)
-                flag = rawName.substring(start, end)
+                detectedCode = buildString {
+                    append('A' + (first - 0x1F1E6))
+                    append('A' + (second - 0x1F1E6))
+                }
                 break
             }
         }
@@ -27,14 +30,13 @@ internal fun ganjConfigIdentity(rawName: String, countryCode: String?): GanjConf
     val cleaned = if (start >= 0) rawName.removeRange(start, end) else rawName
     val title = cleaned.replace(Regex("\\s+"), " ")
         .trim(' ', '|', '•', '·', '—', '-', ':', '،')
-        .ifBlank { rawName.ifBlank { "سرور" } }
-    return GanjConfigIdentity(title, flag ?: ganjCountryFlag(countryCode))
+        .ifBlank { "سرور" }
+    return GanjConfigIdentity(title, ganjNormalizedCountry(detectedCode ?: countryCode))
 }
 
-internal fun ganjCountryFlag(countryCode: String?): String {
-    val code = countryCode?.trim()?.uppercase(Locale.ROOT)?.let {
-        if (it == "UK") "GB" else it
-    }
-    if (code == null || code.length != 2 || code.any { it !in 'A'..'Z' }) return "🌐"
-    return buildString { code.forEach { appendCodePoint(0x1F1E6 + (it - 'A')) } }
+/** Do not synthesize emoji flags. Null is displayed as an in-app vector globe. */
+internal fun ganjNormalizedCountry(countryCode: String?): String? {
+    val code = countryCode?.trim()?.uppercase(Locale.ROOT) ?: return null
+    val normalized = if (code == "UK") "GB" else code
+    return normalized.takeIf { it.length == 2 && it.all { char -> char in 'A'..'Z' } }
 }

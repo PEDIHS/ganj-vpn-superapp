@@ -482,8 +482,7 @@ private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, has
                     contentAlignment = Alignment.Center,
                 ) {
                     GanjConfigFlagBadge(
-                        flag = server?.let { ganjConfigIdentity(it.name, it.countryCode).flag }
-                            ?: "🌐",
+                        countryCode = server?.let { ganjConfigIdentity(it.name, it.countryCode).countryCode },
                         selected = server != null,
                     )
                 }
