@@ -5,7 +5,7 @@
     <string name="connection_disconnecting_label">در حال قطع اتصال</string>
     <string name="connection_disconnecting_hint">تونل امن در حال بسته‌شدن است.</string>
     <string name="connection_recovering_hint">در حال بازیابی تونل امن؛ ترافیک داخل تونل باقی می‌ماند.</string>
-    <string name="connection_active_hint">برای قطع اتصال، دکمه را لمس کنید.</string>
+    <string name="connection_active_hint">تونل امن برقرار است.</string>
     <string name="connection_establishing_hint">در حال آماده‌سازی و برقراری تونل امن.</string>
     <string name="connection_failed_hint">جزئیات خطا و راه تلاش دوباره پایین صفحه آمده است.</string>
     <string name="connection_idle_hint">کانفیگ را انتخاب کنید و برای اتصال دکمه را لمس کنید.</string>
