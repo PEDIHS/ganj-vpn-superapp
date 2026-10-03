@@ -110,10 +110,13 @@ test('Reality identity is canonical, preserves distinct routes and deduplicates 
   const other = structuredClone(alternative);
   other.candidate_ref = 'c'.repeat(40);
   other.connection.port = 8443;
-  value.connections.push(alternative, other);
+  const named = structuredClone(alternative);
+  named.name = 'Separate named config';
+  named.candidate_ref = 'd'.repeat(40);
+  value.connections.push(alternative, other, named);
   const resolver = source(async () => new Response(JSON.stringify(value)));
   const servers = await resolver.listServers({ principal, services: [service] });
-  assert.equal(servers.length, 2);
+  assert.equal(servers.length, 3);
   assert.notEqual(servers[0].id, servers[1].id);
 });
 
