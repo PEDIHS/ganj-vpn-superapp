@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 mkdir -p ui-review
 capture() {
-  for image in subscriptions-dark config-picker-dark connection-selected subscriptions-light-large subscriptions-unknown-large config-picker-light-large navigation-dark navigation-light-loading-large connection-off-light connection-busy-light connection-on-dark connection-on-light-large connection-config-light-large; do
+  for image in subscriptions-dark config-picker-dark connection-selected subscriptions-light-large subscriptions-unknown-large config-picker-light-large navigation-dark navigation-light-loading-large connection-off-light connection-busy-light connection-on-dark connection-on-light-large connection-config-light-large connection-header-light-large; do
     adb exec-out run-as com.ganj.vpn cat "cache/$image.png" > "ui-review/$image.png" 2>/dev/null || true
   done
   adb logcat -d -b crash > ui-review/crash.txt || true

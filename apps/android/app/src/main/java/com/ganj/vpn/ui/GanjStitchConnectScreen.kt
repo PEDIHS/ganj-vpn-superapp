@@ -262,9 +262,9 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit) {
                 }
                 Column(Modifier.weight(1f)) {
                     Text("گنج VPN", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                        color = StitchEmeraldGlow)
+                        color = StitchEmeraldGlow, modifier = Modifier.fillMaxWidth())
                     Text("ارتباط امن، کنترل ساده", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
                 }
             }
             if (!largeText) {

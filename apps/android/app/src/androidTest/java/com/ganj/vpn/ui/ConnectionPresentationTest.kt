@@ -103,10 +103,12 @@ class ConnectionPresentationTest {
                 GanjTheme(darkTheme = false, visualEffectsPolicy = reduced) { Surface(Modifier.fillMaxSize()) { screen(current) } }
             }
         } }
+        capture("connection-header-light-large")
         listOf("گنج VPN", "ارتباط امن، کنترل ساده").forEach { text ->
             val layout = mutableListOf<TextLayoutResult>()
             compose.onNodeWithText(text).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layout) }
-            assertFalse("Large-font brand text must not be clipped", layout.single().hasVisualOverflow)
+            val result = layout.single()
+            assertFalse("Large-font brand text '$text': size=${result.size}, paragraph=${result.multiParagraph.width}x${result.multiParagraph.height}", result.hasVisualOverflow)
         }
         compose.onNodeWithTag("connect-action").performScrollTo().assertIsEnabled().assertHeightIsAtLeast(48.dp)
         capture("connection-on-light-large")
