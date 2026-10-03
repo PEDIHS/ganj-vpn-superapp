@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connection_selecting_config">در حال سنجش کانفیگ‌ها</string>
+    <string name="connection_selecting_hint">پینگ کانفیگ‌های همین اشتراک بررسی می‌شود.</string>
+    <string name="connection_disconnecting_label">در حال قطع اتصال</string>
+    <string name="connection_disconnecting_hint">تونل امن در حال بسته‌شدن است.</string>
+    <string name="connection_recovering_hint">در حال بازیابی تونل امن؛ ترافیک داخل تونل باقی می‌ماند.</string>
+    <string name="connection_active_hint">برای قطع اتصال، دکمه را لمس کنید.</string>
+    <string name="connection_establishing_hint">در حال آماده‌سازی و برقراری تونل امن.</string>
+    <string name="connection_failed_hint">جزئیات خطا و راه تلاش دوباره پایین صفحه آمده است.</string>
+    <string name="connection_idle_hint">کانفیگ را انتخاب کنید و برای اتصال دکمه را لمس کنید.</string>
+    <string name="connection_session_duration">مدت اتصال فعلی</string>
+    <string name="connection_duration_live">زمان سپری‌شده از برقراری تونل</string>
+    <string name="connection_duration_unavailable">پس از اتصال نمایش داده می‌شود</string>
+    <string name="connection_duration_unknown">زمان شروع در دسترس نیست</string>
+    <string name="connection_selected_ping">پینگ کانفیگ انتخابی</string>
+    <string name="connection_selected_config">کانفیگ انتخاب‌شده</string>
+    <string name="connection_change_config">تغییر یا انتخاب کانفیگ</string>
+</resources>

@@ -1,4 +1,4 @@
-name: GANJ 0.3.17 preview APK
+name: GANJ 0.3.18 preview APK
 on:
   push:
     branches: [feat/ganj-flagglass-config-20261003, feat/ganj-fluid-navigation-0.3.17]
@@ -57,7 +57,7 @@ jobs:
           sha256sum "$apk" > "$apk.sha256"
       - uses: actions/upload-artifact@v7
         with:
-          name: ganj-0.3.17-preview-arm64
+          name: ganj-0.3.18-preview-arm64
           path: |
             apps/android/app/build/outputs/apk/debug/app-debug.apk
             apps/android/app/build/outputs/apk/debug/app-debug.apk.sha256

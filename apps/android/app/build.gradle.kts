@@ -44,8 +44,8 @@ android {
         applicationId = "com.ganj.vpn"
         minSdk = 24
         targetSdk = 36
-        versionCode = 20
-        versionName = "0.3.17-alpha"
+        versionCode = 21
+        versionName = "0.3.18-alpha"
         buildConfigField("boolean", "NATIVE_FIXTURE_DIAGNOSTICS", nativeFixtureDiagnostics.toString())
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
         buildConfigField("String", "TELEGRAM_REDIRECT_URI", "\"$escapedTelegramRedirectUri\"")

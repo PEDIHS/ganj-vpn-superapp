@@ -2,11 +2,6 @@ package com.ganj.vpn.ui
 
 import com.ganj.vpn.R
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -53,15 +48,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -73,6 +62,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ganj.vpn.presentation.ConnectionSessionTimer
+import com.ganj.vpn.core.vpn.ConnectionPhase
 import com.ganj.vpn.presentation.ConnectionUiState
 import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.ServiceUiModel
@@ -98,6 +89,7 @@ internal fun StitchConnectionScreen(
     onProbe: suspend (String, String) -> LatencyProbeResult = { _, _ -> LatencyProbeResult.Failed(ConnectionFailures.probe("probe.unavailable")) },
     latency: SessionLatencyManager? = null,
     modifier: Modifier = Modifier,
+    sessionTimer: ConnectionSessionTimer? = null,
 ) {
     val connection = state.connection
     val service = state.selectedService
@@ -121,6 +113,9 @@ internal fun StitchConnectionScreen(
         com.ganj.vpn.core.vpn.ConnectionPhase.DISCONNECTING -> GanjConnectionVisualState.Connecting
         else -> connection.toStitchVisualState(service)
     }
+    val disconnecting = state.runtimeConnection.phase == ConnectionPhase.DISCONNECTING
+    val connectionBusy = visualState == GanjConnectionVisualState.Connecting ||
+        visualState == GanjConnectionVisualState.Reconnecting || disconnecting
     val hasPremium = remember(state.services) { state.serviceItems.any {
         it.isActive && (it.tier == UiTier.PREMIUM || it.tier == UiTier.VIP)
     } }
@@ -133,11 +128,12 @@ internal fun StitchConnectionScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         StitchBrandHeader(premium = hasPremium, onOpenStore = onOpenStore)
-        StitchProtectionBanner(state = visualState, onClick = onOpenServers)
-        StitchConnectOrb(
+        GanjConnectionHero(
             state = visualState,
-            activeServiceAvailable = service?.isActive == true,
-            switchingSelection = switchingSelection,
+            action = if (switchingSelection) stringResource(R.string.connection_switch_selection) else connectionAction(visualState),
+            title = connectionTitle(visualState),
+            disconnecting = disconnecting,
+            selecting = smartBusy,
             onClick = {
                 when {
                     connection is ConnectionUiState.Connected && !switchingSelection -> onDisconnect()
@@ -145,9 +141,8 @@ internal fun StitchConnectionScreen(
                     else -> onOpenServers()
                 }
             },
-            modifier = Modifier.align(Alignment.CenterHorizontally),
         )
-        StitchMetricsCard(ping, pingBusy)
+        GanjConnectionTelemetry(state.runtimeConnection, sessionTimer, ping, pingBusy)
         reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (pingKey != null && latency != null) StitchMiniAction(
@@ -162,9 +157,7 @@ internal fun StitchConnectionScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             ConnectionFailureDetails(failure)
         }
-        if (smartBusy) Text(
-            "در حال سنجش و انتخاب سریع‌ترین کانفیگ…", style = MaterialTheme.typography.bodySmall,
-        )
+        if (smartBusy) LoadingCard(stringResource(R.string.connection_selecting_config))
         smartFailure?.let { failure ->
             Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall)
             ConnectionFailureDetails(failure)
@@ -178,11 +171,11 @@ internal fun StitchConnectionScreen(
             Text(stringResource(R.string.subscription_change), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary)
         }
-        StitchSelectedServerCard(server = displayedServer, ping = ping, hasSubscription = service != null, onOpenServers = onOpenServers)
+        StitchSelectedServerCard(server = displayedServer, hasSubscription = service != null, onOpenServers = onOpenServers)
         if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         StitchSmartConnectCard(
-            enabled = service?.isActive == true && !smartBusy,
+            enabled = service?.isActive == true && !smartBusy && !connectionBusy,
             onClick = {
                 val selected = service?.takeIf { it.isActive }
                 if (selected == null) onOpenServers()
@@ -211,7 +204,6 @@ internal fun StitchConnectionScreen(
                 }
             },
         )
-        StitchPremiumCard(premium = hasPremium, onOpenStore = onOpenStore)
 
         if (connection is ConnectionUiState.Failed) {
             GanjGlassSurface(
@@ -312,224 +304,29 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit) {
 }
 
 @Composable
-private fun StitchProtectionBanner(state: GanjConnectionVisualState, onClick: () -> Unit) {
-    val protected = state == GanjConnectionVisualState.Connected
-    GanjGlassSurface(
-        role = GanjGlassRole.Dense,
-        accent = if (protected) StitchEmeraldGlow else MaterialTheme.colorScheme.outline,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick),
-        shapeRadius = 22.dp,
-        padding = PaddingValues(16.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (protected) StitchEmeraldGlow.copy(alpha = 0.15f)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.54f),
-                        )
-                        .border(
-                            1.dp,
-                            if (protected) StitchEmeraldGlow.copy(alpha = 0.4f)
-                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-                            CircleShape,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    GanjSecurityIcon(tint = if (protected) StitchEmeraldGlow
-                        else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = connectionTitle(state),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = if (protected) "اتصال شما محافظت می‌شود" else "اتصال شما محافظت نشده است",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Text(
-                text = "‹",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun StitchConnectOrb(
-    state: GanjConnectionVisualState,
-    activeServiceAvailable: Boolean,
-    switchingSelection: Boolean = false,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val effects = LocalGanjVisualEffectsPolicy.current
-    val orbSize = GanjResponsivePolicy.stitchConnectOrbSizeDp(LocalConfiguration.current.screenWidthDp).dp
-    val outerSize = orbSize + 40.dp
-    val reduceMotion = effects.reduceMotion || effects.tier == GanjEffectsTier.Reduced
-    val shouldPulse = GanjConnectionMotionPolicy.shouldPulse(state, effects.tier, reduceMotion)
-    val pulse = if (shouldPulse) {
-        val transition = rememberInfiniteTransition(label = "connectionBusyHalo")
-        transition.animateFloat(
-            initialValue = 0.985f, targetValue = 1.015f,
-            animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Reverse),
-            label = "connectionBusyScale",
-        )
-    } else remember { mutableStateOf(1f) }
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val press = animateFloatAsState(
-        targetValue = if (pressed && !reduceMotion) 0.97f else 1f,
-        animationSpec = if (reduceMotion) snap() else tween(120), label = "connectionPress",
-    )
-    val accent = when (state) {
-        GanjConnectionVisualState.Connecting, GanjConnectionVisualState.Reconnecting -> StitchGoldBright
-        GanjConnectionVisualState.Failed -> MaterialTheme.colorScheme.error
-        GanjConnectionVisualState.Unavailable -> MaterialTheme.colorScheme.onSurfaceVariant
-        else -> MaterialTheme.colorScheme.primary
-    }
-    val fill = remember(activeServiceAvailable) { Brush.radialGradient(
-        listOf(if (activeServiceAvailable) Color(0xFF147A52) else Color(0xFF416452), GanjEmeraldDeep),
-    ) }
-    val action = if (switchingSelection) stringResource(R.string.connection_switch_selection) else connectionAction(state)
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(Modifier.size(outerSize), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(outerSize - 4.dp)
-                .graphicsLayer { scaleX = pulse.value; scaleY = pulse.value }
-                .border(1.dp, accent.copy(alpha = 0.22f), CircleShape))
-            Box(Modifier.size(outerSize - 22.dp)
-                .border(1.dp, accent.copy(alpha = 0.12f), CircleShape))
-            Box(
-                Modifier.size(orbSize)
-                    .graphicsLayer { scaleX = press.value; scaleY = press.value }
-                    .clip(CircleShape).background(fill)
-                    .border(2.dp, GanjGold.copy(alpha = 0.70f), CircleShape)
-                    .testTag("connect-action")
-                    .semantics { contentDescription = action }
-                    .clickable(interactionSource = interaction, indication = null,
-                        role = Role.Button, onClick = onClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                GanjNavigationIcon(GanjDestination.Connect, Color.White, Modifier.size(78.dp))
-            }
-        }
-        Text(action, style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center)
-    }
-}
-
-@Composable
-private fun StitchMetricsCard(ping: Long?, measuring: Boolean) {
-    // Only measured telemetry is presented. Unsupported throughput fields are omitted.
-    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(stringResource(R.string.ping_proxy_latency), style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(stringResource(if (measuring) R.string.ping_measuring
-                else if (ping == null) R.string.ping_not_measured else R.string.ping_last_result),
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Text(persianTechnicalMetric(if (measuring) "…" else ping?.toString() ?: "—", "ms"),
-            style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary)
-    }
-}
-
-@Composable
-private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, hasSubscription: Boolean, onOpenServers: () -> Unit) {
-    GanjGlassSurface(
-        role = GanjGlassRole.Dense,
-        accent = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenServers),
-        shapeRadius = 22.dp,
-        padding = PaddingValues(16.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier.size(53.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    GanjConfigFlagBadge(
-                        countryCode = server?.let { ganjConfigIdentity(it.name, it.countryCode).countryCode },
-                        selected = server != null,
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "سرور انتخاب‌شده",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = StitchEmeraldGlow,
-                    )
-                    Text(
-                        text = server?.let { ganjConfigIdentity(it.name, it.countryCode).title }
-                            ?: stringResource(if (hasSubscription) R.string.config_choose else R.string.subscription_choose_first),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = server?.let { "${countryName(it.countryCode)} • ${it.protocols.joinToString(" / ") { protocol -> protocol.name }}" }
-                            ?: stringResource(if (hasSubscription) R.string.config_picker_scope else R.string.subscription_choose_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = persianTechnicalMetric(ping?.toString() ?: "—", "ms"),
-                    color = StitchEmeraldGlow,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                TextButton(onClick = onOpenServers, modifier = Modifier.height(48.dp)) {
-                    Text(
-                        text = stringResource(R.string.config_choose),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
+private fun StitchSelectedServerCard(server: ConnectionServer?, hasSubscription: Boolean, onOpenServers: () -> Unit) {
+    val identity = remember(server) { server?.let { ganjConfigIdentity(it.name, it.countryCode) } }
+    GanjGlassSurface(role = GanjGlassRole.Dense, accent = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.fillMaxWidth().testTag("selected-config")
+            .clickable(role = Role.Button, onClick = onOpenServers),
+        shapeRadius = 22.dp, padding = PaddingValues(16.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            GanjConfigFlagBadge(identity?.countryCode, server != null, Modifier.testTag("selected-config-flag"))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.connection_selected_config), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(identity?.title ?: stringResource(if (hasSubscription) R.string.config_choose else R.string.subscription_choose_first),
+                    style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                server?.let {
+                    Text("${countryName(it.countryCode)} • ${it.protocols.joinToString(" / ") { protocol -> protocol.name }}",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
+        Text(stringResource(R.string.connection_change_config), style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -667,7 +464,7 @@ private fun connectionTitle(state: GanjConnectionVisualState): String = when (st
     GanjConnectionVisualState.Connected -> "اتصال امن برقرار است"
     GanjConnectionVisualState.Reconnecting -> "در حال اتصال مجدد"
     GanjConnectionVisualState.Failed -> "خطای اتصال"
-    GanjConnectionVisualState.Unavailable -> "سرور انتخاب نشده"
+    GanjConnectionVisualState.Unavailable -> "اشتراک فعال انتخاب نشده"
 }
 
 private fun connectionAction(state: GanjConnectionVisualState): String = when (state) {
@@ -675,7 +472,7 @@ private fun connectionAction(state: GanjConnectionVisualState): String = when (s
     GanjConnectionVisualState.Connecting -> "در حال اتصال…"
     GanjConnectionVisualState.Reconnecting -> "در حال بازیابی…"
     GanjConnectionVisualState.Failed -> "تلاش دوباره"
-    GanjConnectionVisualState.Unavailable -> "انتخاب سرور"
+    GanjConnectionVisualState.Unavailable -> "انتخاب اشتراک"
     GanjConnectionVisualState.Disconnected -> "اتصال"
 }
 

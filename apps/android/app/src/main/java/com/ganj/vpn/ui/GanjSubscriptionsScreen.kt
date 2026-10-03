@@ -638,22 +638,27 @@ internal fun GanjConfigFlagBadge(
     val normalized = remember(countryCode) { ganjNormalizedCountry(countryCode) }
     val imageRes = remember(normalized) { ganjFlagDrawable(normalized) }
     val isGlobal = imageRes == R.drawable.ic_ganj_world
-    val badgeShape = remember { RoundedCornerShape(14.dp) }
+    val badgeShape = remember { RoundedCornerShape(8.dp) }
     val effects = LocalGanjVisualEffectsPolicy.current
-    Box(
-        modifier = modifier.size(55.dp, 51.dp)
-            .shadow(if (effects.tier == GanjEffectsTier.Reduced) 0.dp else if (selected) 6.dp else 3.dp,
-                badgeShape, clip = false)
-            .clip(badgeShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center,
-    ) {
-        Image(
-            painter = painterResource(imageRes),
-            contentDescription = null, // Country is described in the adjacent server details.
-            modifier = if (isGlobal) Modifier.size(31.dp) else Modifier.fillMaxSize(),
-            contentScale = if (isGlobal) ContentScale.Fit else ContentScale.Crop,
-            colorFilter = if (isGlobal) ColorFilter.tint(GanjGoldBright) else null,
-        )
+    val painter = painterResource(imageRes)
+    val ratio = if (isGlobal) 1.52f else painter.intrinsicSize.let {
+        if (it.width > 0 && it.height > 0) it.width / it.height else 1.52f
+    }
+    val flagHeight = minOf(50f, 76f / ratio)
+    val flagWidth = flagHeight * ratio
+    val elevation = if (effects.tier == GanjEffectsTier.Reduced) 0.dp else if (selected) 5.dp else 3.dp
+    Box(modifier.size(76.dp, 50.dp), contentAlignment = Alignment.Center) {
+        if (isGlobal) {
+            Box(Modifier.fillMaxSize().shadow(elevation, badgeShape, clip = false).clip(badgeShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                Image(painter, contentDescription = null, modifier = Modifier.size(31.dp),
+                    colorFilter = ColorFilter.tint(GanjGoldBright))
+            }
+        } else {
+            // Preserve the complete source image and its national aspect ratio; no cropped canton/symbol.
+            Image(painter, contentDescription = null,
+                modifier = Modifier.size(flagWidth.dp, flagHeight.dp).shadow(elevation, badgeShape, clip = false).clip(badgeShape),
+                contentScale = ContentScale.Fit)
+        }
     }
 }

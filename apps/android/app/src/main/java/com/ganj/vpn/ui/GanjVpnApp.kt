@@ -1,6 +1,8 @@
 package com.ganj.vpn.ui
 import kotlinx.coroutines.flow.collect
 
+import android.os.SystemClock
+import com.ganj.vpn.presentation.ConnectionSessionTimer
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -103,6 +105,8 @@ fun GanjVpnApp(
     onLaunchVpn: suspend (ConnectionActionHandle) -> ConnectionEffectResult,
     onPrepareVpnPermission: suspend () -> Boolean = { true },
 ) {
+    val connectionSessionTimer = remember(composition) { ConnectionSessionTimer(
+        wallClock = System::currentTimeMillis, monotonicClock = SystemClock::elapsedRealtime) }
     val controller = remember(composition) { composition.controller }
     val reducer = remember(composition) { composition.reducer }
     val enterpriseController = remember(composition) { composition.enterpriseController }
@@ -603,6 +607,7 @@ fun GanjVpnApp(
                                 state = state,
                                 onProbe = composition::probeServer,
                                 latency = composition.latency,
+                                sessionTimer = connectionSessionTimer,
                                 onConnect = ::requestProfile,
                                 onDisconnect = ::disconnectTunnel,
                                 onOpenServers = ::openConfigs,
