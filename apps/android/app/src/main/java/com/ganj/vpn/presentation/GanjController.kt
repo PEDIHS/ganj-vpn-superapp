@@ -222,7 +222,11 @@ class GanjController(
                     UiFailure(UiFailureKind.ENTITLEMENT, "connection.service_inactive", false),
                 ),
             )
-        val context = connectionContext.forEntitlement(service.entitlementId)
+        val selected = state.selectedConnectionServer?.takeIf { it.entitlementId == service.entitlementId }
+            ?: return reducer.reduce(working, GanjUiEvent.ConnectionRejected(entitlementId,
+                UiFailure(UiFailureKind.CONFIGURATION, "connection.server_selection_required", false)))
+        val context = connectionContext.forServer(service.entitlementId, selected.server.id)
+            ?.takeIf { it.serverId == selected.server.id }
             ?: return reducer.reduce(
                 working,
                 GanjUiEvent.ConnectionRejected(
@@ -252,6 +256,9 @@ class GanjController(
                 )
             }
             is ApiResult.Success -> {
+                if (profile.value.serverId != selected.server.id) return reducer.reduce(working,
+                    GanjUiEvent.ConnectionRejected(entitlementId,
+                        UiFailure(UiFailureKind.PROTOCOL, "connection.profile_binding_mismatch", false)))
                 val binding = ProfileProvisioningBinding(
                     profileId = profile.value.profileId,
                     userId = userId,

@@ -6,6 +6,7 @@ sealed interface GanjUiEvent {
     data class ServicesResolved(val content: ContentState<ServiceUiModel>) : GanjUiEvent
     data class SelectPlan(val planId: String) : GanjUiEvent
     data class SelectService(val entitlementId: String) : GanjUiEvent
+    data class SelectServer(val entitlementId: String, val server: com.ganj.vpn.core.controlapi.ConnectionServer) : GanjUiEvent
     data class CheckoutRequested(val planId: String) : GanjUiEvent
     data class CheckoutPending(
         val planId: String,
@@ -48,16 +49,32 @@ class GanjUiReducer {
             state.copy(catalog = event.content, selectedPlanId = selected, refreshInProgress = false)
         }
         is GanjUiEvent.ServicesResolved -> {
-            val selected = state.selectedEntitlementId?.takeIf { id ->
-                (event.content as? ContentState.Ready<ServiceUiModel>)?.items?.any { it.entitlementId == id && it.isActive } == true
-            } ?: (event.content as? ContentState.Ready<ServiceUiModel>)?.items?.firstOrNull { it.isActive }?.entitlementId
-            state.copy(services = event.content, selectedEntitlementId = selected, refreshInProgress = false)
+            // A list refresh never chooses an arbitrary subscription. Transient failures retain
+            // the explicit choice; authoritative removal/expiry and logout invalidate it.
+            val selected = when (event.content) {
+                is ContentState.Ready -> state.selectedEntitlementId?.takeIf { id ->
+                    event.content.items.any { it.entitlementId == id && it.isActive }
+                }
+                ContentState.Empty, ContentState.AuthRequired -> null
+                else -> state.selectedEntitlementId
+            }
+            state.copy(services = event.content, selectedEntitlementId = selected,
+                selectedConnectionServer = state.selectedConnectionServer?.takeIf { it.entitlementId == selected },
+                refreshInProgress = false)
         }
         is GanjUiEvent.SelectPlan -> if (state.plans.any { it.id == event.planId }) {
             state.copy(selectedPlanId = event.planId)
         } else state
         is GanjUiEvent.SelectService -> if (state.serviceItems.any { it.entitlementId == event.entitlementId && it.isActive }) {
-            state.copy(selectedEntitlementId = event.entitlementId, connection = ConnectionUiState.Idle)
+            if (state.selectedEntitlementId == event.entitlementId) state else state.copy(
+                selectedEntitlementId = event.entitlementId,
+                selectedConnectionServer = null,
+                connection = state.connection.takeIf { it is ConnectionUiState.Connected } ?: ConnectionUiState.Idle,
+            )
+        } else state
+        is GanjUiEvent.SelectServer -> if (state.selectedService?.isActive == true && state.selectedEntitlementId == event.entitlementId) {
+            state.copy(selectedConnectionServer = SelectedConnectionServer(event.entitlementId, event.server),
+                connection = state.connection.takeIf { it is ConnectionUiState.Connected } ?: ConnectionUiState.Idle)
         } else state
         is GanjUiEvent.CheckoutRequested -> if (state.plans.any { it.id == event.planId }) {
             state.copy(
@@ -85,6 +102,7 @@ class GanjUiReducer {
         is GanjUiEvent.CheckoutActivated -> state.copy(
             checkout = CheckoutUiState.Active(event.planId, event.entitlementId),
             selectedEntitlementId = event.entitlementId,
+            selectedConnectionServer = state.selectedConnectionServer?.takeIf { it.entitlementId == event.entitlementId },
         )
         is GanjUiEvent.CheckoutRejected -> state.copy(
             checkout = CheckoutUiState.Failed(event.planId, event.failure),

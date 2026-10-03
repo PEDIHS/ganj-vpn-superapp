@@ -444,6 +444,7 @@ internal fun failureMessage(failure: UiFailure): String = when (failure.messageK
     "request.rate_limited" -> stringResource(R.string.failure_rate_limited)
     "network.unavailable" -> stringResource(R.string.failure_network_unavailable)
     "server.unavailable" -> stringResource(R.string.failure_server_unavailable)
+    "connection.server_selection_required" -> stringResource(R.string.failure_server_selection_required)
     "connection.context_unavailable" -> stringResource(R.string.failure_connection_context)
     "connection.service_inactive" -> stringResource(R.string.failure_service_inactive)
     "connection.permission_denied" -> stringResource(R.string.failure_vpn_permission)

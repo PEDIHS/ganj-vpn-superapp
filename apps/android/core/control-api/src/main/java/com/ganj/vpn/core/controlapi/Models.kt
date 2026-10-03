@@ -40,6 +40,8 @@ data class UserService(
     val expiresAt: String?,
     val deviceLimit: Int,
     val allowedProtocols: Set<VpnProtocol>,
+    val username: String? = null,
+    val trafficUsageAvailable: Boolean = true,
 )
 
 data class CheckoutCommand(

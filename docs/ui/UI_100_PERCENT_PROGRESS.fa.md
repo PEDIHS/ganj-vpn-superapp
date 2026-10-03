@@ -986,3 +986,13 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - The pinned libXray `pingBatch` builds a local core instance and uses forced outbound HTTP HEAD requests. Allow an authorized second config probe beside a CONNECTED TUN while retaining the active global protector/DNS. Reconnect/disconnect phases remain guarded. Active-profile HTTPS measurements bind to the VPN Network so fallback cannot silently time direct internet after disconnect.
 - Add emulator assertions for independent config latency during VPN connection, rejected credentials, preserved server/TUN and subsequent TUN traffic; unit regressions cover automatic-once, manual refresh, in-flight deduplication, service scoping and logout races. Validation pending at this source checkpoint; physical-phone ping remains pending.
 - UI Ledger sections touched: 12, 13, 14, 26. Leaf items completed: none. Remaining unchecked items in touched sections: 15/16/16/10. Overall UI completion: 196/492 = 39.8% (calculator output).
+
+### 2026-10-03 — Explicit subscription/config selection (Alpha 0.3.11)
+
+- Sections 2/11/12/13/20/22/23/24/25/26: rename the bottom destination to Subscriptions; show invoice username, total quota and real usage with semantic progress and bounded selection/press animation. Reduced motion/tier snaps; unavailable usage never becomes a fabricated zero percent.
+- Explicit subscription-scoped config sheet; no implicit first-subscription/first-config selection. Choosing a config returns to Connect, preserves choice across list refreshes and checks the exact chosen server before issuing/accepting a profile. Late asynchronous results cannot replace a newer selection.
+- Read-only, authenticated bot metadata endpoint rechecks invoice ownership and returns only an allowlisted username/quota/usage shape. Safe Android models contain no raw subscription or connection material. Unknown usage is separate from unlimited quota.
+- Unit regressions cover selection/refresh/expiry, exact profile binding, malformed/cross-owner metadata and quota edges. API 24/35 instrumentation adds isolated UI fixtures for scoped selection, second-config return and light/dark/large-text screenshots; validation pending at this source checkpoint. Physical-phone and TalkBack final QA remain pending.
+- UI Ledger sections touched: 2, 11, 12, 13, 20, 22, 23, 24, 25, 26.
+- Leaf items completed: none. Remaining unchecked leaves in these sections: 6/12/15/16/22/13/9/16/17/10, unchanged.
+- Overall UI completion: 196/492 = 39.8% (calculator). No Final Gate claim.

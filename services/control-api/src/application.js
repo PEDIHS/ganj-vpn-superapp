@@ -54,6 +54,8 @@ function asService(service) {
   return {
     id: service.id,
     name: service.name,
+    service_username: service.service_username ?? null,
+    traffic_usage_available: service.traffic_usage_available ?? true,
     status: service.status,
     tier: service.tier,
     country_code: service.country_code,
@@ -272,7 +274,7 @@ async function fulfillOrder(repository, order, plan, now) {
   });
 }
 
-export function createApplication({ repository, auth, authSession, telegramAuth, purchaseVerifier, playNotifications, enterpriseSecurity, clock = () => new Date() }) {
+export function createApplication({ repository, auth, authSession, telegramAuth, purchaseVerifier, playNotifications, enterpriseSecurity, serviceMetadata = null, clock = () => new Date() }) {
   assertPort('repository', repository, [
     'transaction',
     'listPlans', 'findPlan', 'listServices', 'findOwnedService', 'saveService', 'createService',
@@ -453,12 +455,16 @@ export function createApplication({ repository, auth, authSession, telegramAuth,
       }
 
       if (request.method === 'GET' && pathname === '/v1/services') {
-        return { status: 200, body: success((await repository.listServices(principal.userId)).map(asService), requestId, clock) };
+        const owned = await repository.listServices(principal.userId);
+        const display = serviceMetadata ? await serviceMetadata.decorate({ principal, services: owned }) : owned;
+        return { status: 200, body: success(display.map(asService), requestId, clock) };
       }
 
       let params = match(pathname, '/v1/services/:serviceId');
       if (request.method === 'GET' && params) {
-        return { status: 200, body: success(asService(await requireOwnedService(repository, principal.userId, params.serviceId)), requestId, clock) };
+        const owned = await requireOwnedService(repository, principal.userId, params.serviceId);
+        const display = serviceMetadata ? (await serviceMetadata.decorate({ principal, services: [owned] }))[0] : owned;
+        return { status: 200, body: success(asService(display), requestId, clock) };
       }
 
       if (request.method === 'GET' && pathname === '/v1/servers') {

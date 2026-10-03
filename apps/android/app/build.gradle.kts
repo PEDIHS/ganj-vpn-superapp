@@ -44,8 +44,8 @@ android {
         applicationId = "com.ganj.vpn"
         minSdk = 24
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.3.10-alpha"
+        versionCode = 14
+        versionName = "0.3.11-alpha"
         buildConfigField("boolean", "NATIVE_FIXTURE_DIAGNOSTICS", nativeFixtureDiagnostics.toString())
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
         buildConfigField("String", "TELEGRAM_REDIRECT_URI", "\"$escapedTelegramRedirectUri\"")
@@ -103,6 +103,7 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")

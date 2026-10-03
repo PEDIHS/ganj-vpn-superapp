@@ -108,10 +108,12 @@ fun GanjVpnApp(
     val enterpriseController = remember(composition) { composition.enterpriseController }
     val enterpriseReducer = remember(composition) { composition.enterpriseReducer }
     val walletApi = remember(composition) { WalletCompositionRegistry.api(composition) }
+    val serverController = remember(composition) { com.ganj.vpn.composition.ConnectionServerCompositionRegistry.controller(composition) }
     val deviceApi = remember(composition) { DeviceCompositionRegistry.api(composition) }
     val scope = rememberCoroutineScope()
 
     var selectedDestination by remember { mutableStateOf(GanjDestination.Connect) }
+    var configPickerServiceId by remember(composition) { mutableStateOf<String?>(null) }
     var accountSurface by remember { mutableStateOf(GanjAccountSurface.PROFILE) }
     var purchaseConfirmationPlan by remember { mutableStateOf<PlanUiModel?>(null) }
     var accountSyncFeedback by remember { mutableStateOf<TelegramServiceSyncFeedback?>(null) }
@@ -371,7 +373,8 @@ fun GanjVpnApp(
             val refreshed = withContext(Dispatchers.IO) {
                 controller.refresh(loadingState)
             }
-            commit(refreshed)
+            commit(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
+                GanjUiEvent.ServicesResolved(refreshed.services)))
             accountSyncFeedback = if (telegramLinked) {
                 telegramServiceSyncFeedback(refreshed.services)
             } else {
@@ -394,7 +397,19 @@ fun GanjVpnApp(
         }
     }
 
+    fun openConfigs() {
+        val service = state.selectedService
+        if (service?.isActive == true) configPickerServiceId = service.entitlementId
+        else selectedDestination = GanjDestination.Servers
+    }
+
+    suspend fun loadServiceServers(entitlementId: String): ApiResult<List<com.ganj.vpn.core.controlapi.ConnectionServer>> =
+        withContext(Dispatchers.IO) { serverController?.servers(entitlementId)
+            ?: ApiResult.Failure(ApiError.Server(null, 503, "server_catalog_unavailable", true)) }
+
     fun requestProfile(entitlementId: String) {
+        val choice = state.selectedConnectionServer?.takeIf { it.entitlementId == entitlementId }
+        if (choice == null) { openConfigs(); return }
         connectionJob?.cancel()
         commit(reducer.reduce(state, GanjUiEvent.ConnectionRequested(entitlementId)))
         val pendingState = state
@@ -402,16 +417,17 @@ fun GanjVpnApp(
             // Ask before issuing a short-lived encrypted lease: time in the OS dialog must not
             // expire the profile before its first use.
             if (!onPrepareVpnPermission()) {
-                commit(controller.onConnectionEffectResult(state, entitlementId,
+                if (state.selectedConnectionServer == choice) commit(controller.onConnectionEffectResult(state, entitlementId,
                     ConnectionEffectResult.Failed(UiFailure(UiFailureKind.CONFIGURATION, "connection.permission_denied", true)),
                 ))
                 return@launch
             }
-            commit(
-                withContext(Dispatchers.IO) {
-                    controller.prepareConnection(pendingState, entitlementId)
-                },
-            )
+            val prepared = withContext(Dispatchers.IO) {
+                controller.prepareConnection(pendingState, entitlementId)
+            }
+            // Selection or refresh may change while permission/network I/O is pending.
+            // Apply only this operation's result, never its old copy of the whole UI state.
+            if (state.selectedConnectionServer == choice) commit(state.copy(connection = prepared.connection))
         }
     }
 
@@ -432,8 +448,7 @@ fun GanjVpnApp(
         val selected = entryService
         if (telegramLinked && selected?.isActive == true) {
             composition.latency.startAutomatic(selected.entitlementId) {
-                val servers = com.ganj.vpn.composition.ConnectionServerCompositionRegistry.currentController()
-                    ?.servers(selected.entitlementId)
+                val servers = loadServiceServers(selected.entitlementId)
                 (servers as? ApiResult.Success)?.value?.map { it.id }.orEmpty()
             }
         }
@@ -501,6 +516,25 @@ fun GanjVpnApp(
         commit(controller.onConnectionEffectResult(state, entitlementId, result))
     }
 
+    val pickerService = state.selectedService?.takeIf { it.entitlementId == configPickerServiceId && it.isActive }
+    if (pickerService != null) {
+        StitchConfigSelectionSheet(
+            service = pickerService,
+            selectedServer = state.selectedServer,
+            loadServers = ::loadServiceServers,
+            latency = composition.latency,
+            onSelect = { server ->
+                if (state.selectedEntitlementId == pickerService.entitlementId) {
+                    connectionJob?.cancel()
+                    commit(reducer.reduce(state, GanjUiEvent.SelectServer(pickerService.entitlementId, server)))
+                    configPickerServiceId = null
+                    selectedDestination = GanjDestination.Connect
+                }
+            },
+            onDismiss = { configPickerServiceId = null },
+        )
+    }
+
     GanjLiquidCanvas {
         when (val availability = enterpriseState.availability) {
             is ProductAvailabilityUiState.ForcedUpdate -> StitchProductGateScreen(
@@ -556,16 +590,12 @@ fun GanjVpnApp(
                                 },
                             )
 
-                            GanjDestination.Servers -> StitchServersScreen(
+                            GanjDestination.Servers -> StitchSubscriptionsScreen(
                                 state = state,
-                                onProbe = composition::probeServer,
-                                latency = composition.latency,
-                                onSelectService = {
-                                    commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
-                                },
-                                onConnect = {
-                                    requestProfile(it)
-                                    selectedDestination = GanjDestination.Connect
+                                onSelectService = { entitlementId ->
+                                    connectionJob?.cancel()
+                                    commit(reducer.reduce(state, GanjUiEvent.SelectService(entitlementId)))
+                                    openConfigs()
                                 },
                                 onRetry = ::refresh,
                             )
@@ -576,7 +606,15 @@ fun GanjVpnApp(
                                 latency = composition.latency,
                                 onConnect = ::requestProfile,
                                 onDisconnect = ::disconnectTunnel,
-                                onOpenServers = { selectedDestination = GanjDestination.Servers },
+                                onOpenServers = ::openConfigs,
+                                onOpenSubscriptions = { selectedDestination = GanjDestination.Servers },
+                                loadServers = ::loadServiceServers,
+                                onSelectAndConnect = { entitlementId, server ->
+                                    if (state.selectedEntitlementId == entitlementId) {
+                                        commit(reducer.reduce(state, GanjUiEvent.SelectServer(entitlementId, server)))
+                                        requestProfile(entitlementId)
+                                    }
+                                },
                                 onOpenStore = { selectedDestination = GanjDestination.Store },
                                 onRetry = ::refresh,
                             )

@@ -184,6 +184,10 @@ internal class ControlApiClient(
             expiresAt = value.optionalString("expires_at")?.utcTimestamp("expires_at"),
             deviceLimit = value.requiredLong("device_limit").positiveInt("device_limit"),
             allowedProtocols = protocols,
+            username = value.optionalString("service_username")?.also {
+                if (!it.matches(Regex("^[A-Za-z0-9._@:-]{1,128}$"))) throw JsonProtocolException("Invalid service_username")
+            },
+            trafficUsageAvailable = value.optionalBoolean("traffic_usage_available", default = true),
         )
     }
 

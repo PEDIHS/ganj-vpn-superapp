@@ -77,6 +77,8 @@ class GanjPresentationMapper {
         expiresAt = service.expiresAt,
         deviceLimit = service.deviceLimit,
         allowedProtocols = service.allowedProtocols.mapTo(linkedSetOf()) { it.name },
+        username = service.username,
+        trafficUsageAvailable = service.trafficUsageAvailable,
     )
 
     private fun SubscriptionTier.toUiTier(): UiTier = when (this) {

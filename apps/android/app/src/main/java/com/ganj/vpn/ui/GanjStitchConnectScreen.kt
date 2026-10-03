@@ -57,6 +57,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -81,6 +82,9 @@ internal fun StitchConnectionScreen(
     onConnect: (String) -> Unit,
     onDisconnect: () -> Unit,
     onOpenServers: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
+    loadServers: suspend (String) -> ApiResult<List<ConnectionServer>>,
+    onSelectAndConnect: (String, ConnectionServer) -> Unit,
     onOpenStore: () -> Unit,
     onRetry: () -> Unit,
     onProbe: suspend (String, String) -> LatencyProbeResult = { _, _ -> LatencyProbeResult.Failed(ConnectionFailures.probe("probe.unavailable")) },
@@ -90,22 +94,15 @@ internal fun StitchConnectionScreen(
     val connection = state.connection
     val service = state.selectedService
     val scope = rememberCoroutineScope()
-    val serverController = remember { ConnectionServerCompositionRegistry.currentController() }
     val latencyState = latency?.state?.collectAsState()?.value ?: LatencySnapshot()
     var smartBusy by remember { mutableStateOf(false) }
     var smartFailure by remember { mutableStateOf<UiFailure?>(null) }
-    val runtimeServer = state.runtimeConnection.serverId
-    val runtimeService = state.runtimeConnection.serviceId
-    val displayServerId = runtimeServer ?: serverController?.selectedServerId()
-    val displayServiceId = runtimeService ?: service?.entitlementId
-    var displayedServer by remember { mutableStateOf<ConnectionServer?>(null) }
-    LaunchedEffect(displayServerId, displayServiceId) {
-        displayedServer = null
-        if (displayServiceId != null && displayServerId != null && serverController != null) {
-            val available = withContext(Dispatchers.IO) { serverController.servers(displayServiceId) }
-            displayedServer = (available as? ApiResult.Success)?.value?.firstOrNull { it.id == displayServerId }
-        }
-    }
+    val displayedServer = state.selectedServer
+    val displayServerId = displayedServer?.id
+    val displayServiceId = service?.entitlementId
+    val connectedSelection = connection is ConnectionUiState.Connected &&
+        connection.entitlementId == displayServiceId && connection.serverId == displayServerId
+    val switchingSelection = connection is ConnectionUiState.Connected && displayedServer != null && !connectedSelection
     val pingKey = if (displayServiceId != null && displayServerId != null) LatencyKey(displayServiceId, displayServerId) else null
     val reading = latencyState.readings[pingKey]
     val ping = reading?.result?.latencyMillis
@@ -122,6 +119,7 @@ internal fun StitchConnectionScreen(
 
     Column(
         modifier = modifier
+            .testTag("connection-screen")
             .verticalScroll(rememberScrollState())
             .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -131,9 +129,10 @@ internal fun StitchConnectionScreen(
         StitchConnectOrb(
             state = visualState,
             activeServiceAvailable = service?.isActive == true,
+            switchingSelection = switchingSelection,
             onClick = {
                 when {
-                    connection is ConnectionUiState.Connected -> onDisconnect()
+                    connection is ConnectionUiState.Connected && !switchingSelection -> onDisconnect()
                     service?.isActive == true -> onConnect(service.entitlementId)
                     else -> onOpenServers()
                 }
@@ -162,18 +161,28 @@ internal fun StitchConnectionScreen(
             Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall)
             ConnectionFailureDetails(failure)
         }
-        StitchSelectedServerCard(server = displayedServer, ping = ping, onOpenServers = onOpenServers)
+        GanjGlassSurface(role = GanjGlassRole.Dense, modifier = Modifier.fillMaxWidth().testTag("selected-subscription")
+            .clickable(role = Role.Button, onClick = onOpenSubscriptions).padding(2.dp), shapeRadius = 22.dp) {
+            Text(stringResource(R.string.subscription_selected_label), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(service?.let { subscriptionUsername(it) } ?: stringResource(R.string.subscription_choose_first),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.subscription_change), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary)
+        }
+        StitchSelectedServerCard(server = displayedServer, ping = ping, hasSubscription = service != null, onOpenServers = onOpenServers)
+        if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         StitchSmartConnectCard(
             enabled = service?.isActive == true && !smartBusy,
             onClick = {
                 val selected = service?.takeIf { it.isActive }
-                val controller = serverController
-                if (selected == null || controller == null) onOpenServers()
+                if (selected == null) onOpenServers()
                 else if (!smartBusy) scope.launch {
                     smartBusy = true
                     smartFailure = null
                     try {
-                        val response = withContext(Dispatchers.IO) { controller.servers(selected.entitlementId) }
+                        val response = loadServers(selected.entitlementId)
                         if (response is ApiResult.Failure) {
                             smartFailure = ConnectionFailures.api(response.error)
                             return@launch
@@ -186,8 +195,9 @@ internal fun StitchConnectionScreen(
                             (result as? LatencyProbeResult.Failed)?.failure
                         } ?: ConnectionFailures.probe("probe.unavailable")
                         else {
-                            controller.selectServer(best.first)
-                            onConnect(selected.entitlementId)
+                            servers.firstOrNull { it.id == best.first }?.let {
+                                onSelectAndConnect(selected.entitlementId, it)
+                            }
                         }
                     } finally { smartBusy = false }
                 }
@@ -364,6 +374,7 @@ private fun StitchProtectionBanner(state: GanjConnectionVisualState, onClick: ()
 private fun StitchConnectOrb(
     state: GanjConnectionVisualState,
     activeServiceAvailable: Boolean,
+    switchingSelection: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -441,6 +452,7 @@ private fun StitchConnectOrb(
                     accent.copy(alpha = if (activeServiceAvailable) 0.95f else 0.36f),
                     CircleShape,
                 )
+                .testTag("connect-action")
                 .clickable(role = Role.Button, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
@@ -463,7 +475,7 @@ private fun StitchConnectOrb(
                     )
                 }
                 Text(
-                    text = connectionAction(state),
+                    text = if (switchingSelection) stringResource(R.string.connection_switch_selection) else connectionAction(state),
                     style = MaterialTheme.typography.titleMedium,
                     color = accent,
                     fontWeight = FontWeight.Bold,
@@ -537,11 +549,11 @@ private fun StitchMetricDivider() {
 }
 
 @Composable
-private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, onOpenServers: () -> Unit) {
+private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, hasSubscription: Boolean, onOpenServers: () -> Unit) {
     GanjGlassSurface(
         role = GanjGlassRole.Dense,
         accent = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenServers),
         shapeRadius = 22.dp,
         padding = PaddingValues(16.dp),
     ) {
@@ -572,7 +584,7 @@ private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, onO
                         color = StitchEmeraldGlow,
                     )
                     Text(
-                        text = server?.name ?: "هنوز سروری انتخاب نشده",
+                        text = server?.name ?: stringResource(if (hasSubscription) R.string.config_choose else R.string.subscription_choose_first),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
@@ -581,7 +593,7 @@ private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, onO
                     )
                     Text(
                         text = server?.let { "${countryName(it.countryCode)} • ${it.protocols.joinToString(" / ") { protocol -> protocol.name }}" }
-                            ?: "برای انتخاب سرور وارد فهرست سرورها شوید",
+                            ?: stringResource(if (hasSubscription) R.string.config_picker_scope else R.string.subscription_choose_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -604,10 +616,10 @@ private fun StitchSelectedServerCard(server: ConnectionServer?, ping: Long?, onO
                     accent = MaterialTheme.colorScheme.primary,
                     shapeRadius = 999.dp,
                     padding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenServers),
+                    modifier = Modifier.height(48.dp).clickable(role = Role.Button, onClick = onOpenServers),
                 ) {
                     Text(
-                        text = "تغییر",
+                        text = stringResource(R.string.config_choose),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.labelMedium,
                     )

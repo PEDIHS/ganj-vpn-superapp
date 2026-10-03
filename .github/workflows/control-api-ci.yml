@@ -60,6 +60,12 @@ jobs:
       - name: Syntax check
         run: npm run check
 
+      - name: Verify bot service metadata boundary
+        run: |
+          php -l ../../integrations/ganj-bot-bridge/service-metadata.php
+          php -l ../../integrations/ganj-bot-bridge/service-metadata-core.php
+          php ../../integrations/ganj-bot-bridge/service-metadata-core.test.php
+
       - name: Unit and integration tests
         run: npm test
 

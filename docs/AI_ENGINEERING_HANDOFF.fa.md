@@ -439,3 +439,9 @@ Contribution خوب:
 - کار Agent بعدی را آسان‌تر می‌کند.
 
 هدف سرعت خام نیست؛ هدف **parallel delivery بدون ایجاد technical/security/design debt پنهان** است.
+
+### Alpha 0.3.11 subscription selection checkpoint (2026-10-03)
+
+PR #59 continues the Android alpha: explicit `(entitlementId, server)` selection replaces provider-global/first-entry fallback. Subscription selection clears only a different scope; refresh merges into current state. Profile preparation/lease acceptance must match the chosen server. The config sheet is scoped to one subscription and selection returns to Connect without starting the tunnel.
+
+`service-metadata-v1` is a read-only bridge installed beside `connection-v1`, using the existing projection token and current invoice-owner validation. The Control API decorates only owned services; username/quota/usage are a strict allowlist. It does not update entitlement/provisioning state. Deploy backend changes over the current release to retain PR #60's independent TLS/Reality parser hotfix. Remaining boundary: CI screenshot/instrumentation review and physical-phone/TalkBack QA; no ledger leaves claimed complete.

@@ -13,8 +13,6 @@ import java.util.WeakHashMap
 
 internal interface ConnectionServerController {
     fun servers(entitlementId: String? = null): ApiResult<List<ConnectionServer>>
-    fun selectServer(serverId: String?)
-    fun selectedServerId(): String?
 }
 
 internal fun connectionProfileProofPath(entitlementId: String): String =
@@ -25,9 +23,6 @@ internal class LiveConnectionProfileContextProvider(
     private val identity: AndroidDeviceIdentity,
     private val nowEpochSeconds: () -> Long = { System.currentTimeMillis() / 1_000L },
 ) : ConnectionProfileContextProvider, ConnectionServerController {
-    @Volatile
-    private var selectedServerId: String? = null
-
     @Volatile private var catalog: CatalogSnapshot? = null
 
     // A server list already fetched by the screen can authorize a local probe request.
@@ -44,20 +39,9 @@ internal class LiveConnectionProfileContextProvider(
 
     private data class CatalogSnapshot(val serviceId: String, val items: List<ConnectionServer>, val expiresAt: Long)
 
-    override fun selectServer(serverId: String?) {
-        selectedServerId = serverId
-    }
-
-    override fun selectedServerId(): String? = selectedServerId
-
-    override fun forEntitlement(entitlementId: String): ConnectionProfileContext? {
-        val available = (servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
-        if (available.isEmpty()) return null
-        val selected = selectedServerId?.let { id -> available.firstOrNull { it.id == id } }
-            ?: available.first()
-        selectedServerId = selected.id
-        return signedContext(entitlementId, selected.id)
-    }
+    // Connection must carry an explicit service + server from the shared UI state.
+    // An absent or stale choice must never silently turn into the first catalog entry.
+    override fun forEntitlement(entitlementId: String): ConnectionProfileContext? = null
 
     override fun forServer(entitlementId: String, serverId: String): ConnectionProfileContext? {
         val snapshot = catalog

@@ -252,7 +252,8 @@ private fun ProfileServiceCard(
         ) {
             ProfileInfoChip(
                 label = "ترافیک",
-                value = profileTraffic(service.remainingBytes),
+                value = if (service.trafficUsageAvailable) profileTraffic(service.remainingBytes)
+                    else androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.subscription_usage_unavailable),
                 modifier = Modifier.weight(1f),
             )
             ProfileInfoChip(
