@@ -1039,3 +1039,5 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Leaf items completed: none; final multi-width, physical-device, accessibility and account end-to-end gates remain open.
 - Remaining unchecked items in touched sections: 12=15, 13=16, 14=16, 20=22, 23=9, 24=16, 25=17.
 - Overall UI completion: **196/492 = 39.8%**, 296 remaining, calculated by `node scripts/ui-progress.mjs docs/ui/UI_100_PERCENT_PROGRESS.fa.md --sections`.
+
+- Visual follow-up: initial API35 review passed all eight tests and captured thirteen screenshots (run 37161459561); inspection found clipped brand text at 200% font. The header now wraps its text and moves the upgrade action onto its own row at large font scale, with a 48dp target. Final source validation remains tracked in PR #65.

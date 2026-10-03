@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -52,6 +53,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -246,61 +248,41 @@ internal fun StitchConnectionScreen(
 
 @Composable
 private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(14.dp))
+    val largeText = LocalDensity.current.fontScale >= 1.3f
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
                     .border(1.dp, StitchGold.copy(alpha = 0.48f), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ganj_logo_official),
-                    contentDescription = "نشان گنج VPN",
-                    modifier = Modifier.size(38.dp),
-                )
+                    contentAlignment = Alignment.Center) {
+                    Image(painterResource(R.drawable.ganj_logo_official), contentDescription = "نشان گنج VPN",
+                        modifier = Modifier.size(38.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("گنج VPN", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                        color = StitchEmeraldGlow)
+                    Text("ارتباط امن، کنترل ساده", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "گنج VPN",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = StitchEmeraldGlow,
-                    maxLines = 1,
-                )
-                Text(
-                    text = "ارتباط امن، کنترل ساده",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
+            if (!largeText) {
+                Spacer(Modifier.width(10.dp))
+                StitchHeaderUpgrade(premium, onOpenStore)
             }
         }
-        Spacer(Modifier.width(10.dp))
-        GanjGlassSurface(
-            role = GanjGlassRole.Clear,
-            accent = StitchGold,
-            shapeRadius = 999.dp,
-            padding = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
-            modifier = Modifier.clickable(role = Role.Button, onClick = onOpenStore),
-        ) {
-            Text(
-                text = if (premium) "پریمیوم" else "ارتقا",
-                color = StitchGoldBright,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        if (largeText) StitchHeaderUpgrade(premium, onOpenStore, Modifier.align(Alignment.End))
+    }
+}
+
+@Composable
+private fun StitchHeaderUpgrade(premium: Boolean, onOpenStore: () -> Unit, modifier: Modifier = Modifier) {
+    GanjGlassSurface(role = GanjGlassRole.Clear, accent = StitchGold, shapeRadius = 999.dp,
+        padding = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
+        modifier = modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onOpenStore)) {
+        Text(if (premium) "پریمیوم" else "ارتقا", color = StitchGoldBright,
+            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
     }
 }
 

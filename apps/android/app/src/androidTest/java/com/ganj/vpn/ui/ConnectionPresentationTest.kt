@@ -9,7 +9,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -22,6 +24,7 @@ import com.ganj.vpn.core.vpn.ConnectionPhase
 import com.ganj.vpn.core.vpn.ConnectionState
 import com.ganj.vpn.presentation.*
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -100,6 +103,11 @@ class ConnectionPresentationTest {
                 GanjTheme(darkTheme = false, visualEffectsPolicy = reduced) { Surface(Modifier.fillMaxSize()) { screen(current) } }
             }
         } }
+        listOf("گنج VPN", "ارتباط امن، کنترل ساده").forEach { text ->
+            val layout = mutableListOf<TextLayoutResult>()
+            compose.onNodeWithText(text).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layout) }
+            assertFalse("Large-font brand text must not be clipped", layout.single().hasVisualOverflow)
+        }
         compose.onNodeWithTag("connect-action").performScrollTo().assertIsEnabled().assertHeightIsAtLeast(48.dp)
         capture("connection-on-light-large")
         compose.onNodeWithTag("connection-duration").performScrollTo().assertTextEquals("—")
