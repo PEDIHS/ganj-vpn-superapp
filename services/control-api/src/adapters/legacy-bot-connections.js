@@ -3,6 +3,20 @@ import { createHash } from 'node:crypto';
 const CANDIDATE = /^[a-f0-9]{40}$/;
 const SOURCE_KEY = /^[A-Za-z0-9._:-]{1,128}$/;
 
+function stableCandidateRef(connection, name) {
+  // Reality can advertise a different accepted short ID on every subscription read.
+  // It is handshake material, not server identity. Preserve every other connection
+  // field, including credential, public key, SNI and transport path, in the identity.
+  const security = connection.security?.type === 'reality'
+    ? Object.fromEntries(Object.entries(connection.security).filter(([key]) => key !== 'short_id'))
+    : connection.security;
+  const canonical = (value) => Array.isArray(value) ? value.map(canonical)
+    : value && typeof value === 'object'
+      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]))
+      : value;
+  return createHash('sha256').update(JSON.stringify(canonical({ name, connection: { ...connection, security } }))).digest('hex').slice(0, 40);
+}
+
 function stableUuid(value) {
   const bytes = Buffer.from(createHash('sha256').update(value).digest().subarray(0, 16));
   bytes[6] = (bytes[6] & 0x0f) | 0x50;
@@ -88,10 +102,12 @@ export function createLegacyBotConnectionSource({ environment, repository, fetch
   }
 
   function asServer(service, candidate) {
-    const id = stableUuid(`${candidate.sourceKey}:${service.id}:${candidate.candidateRef}`);
+    const reference = candidate.connection.security?.type === 'reality'
+      ? stableCandidateRef(candidate.connection, candidate.name) : candidate.candidateRef;
+    const id = stableUuid(`${candidate.sourceKey}:${service.id}:${reference}`);
     return {
       id,
-      code: `legacy-${candidate.candidateRef.slice(0, 12)}`,
+      code: `legacy-${reference.slice(0, 12)}`,
       name: candidate.name,
       country_code: candidate.countryCode,
       city: candidate.city,
@@ -118,6 +134,10 @@ export function createLegacyBotConnectionSource({ environment, repository, fetch
       for (const candidate of await candidates(service, principal)) {
         const server = asServer(service, candidate);
         if (server.id === serverId) return server;
+        // A pre-hotfix selection remains valid only while that exact upstream
+        // candidate still exists. Never replace it with an arbitrary candidate.
+        const previousId = stableUuid(`${candidate.sourceKey}:${service.id}:${candidate.candidateRef}`);
+        if (previousId === serverId) return { ...server, id: serverId };
       }
       return null;
     },

@@ -1711,6 +1711,14 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
+        service_username:
+          type: [string, 'null']
+          pattern: '^[A-Za-z0-9._@:-]{1,128}$'
+          description: Owned service username from the bot invoice; no connection credentials.
+        traffic_usage_available:
+          type: boolean
+          default: true
+          description: False when live usage is unavailable; clients must not display zero consumption or a percentage.
         status: { type: string, enum: [pending, active, disabled, expired, revoked] }
         tier: { type: string, enum: [free, premium, vip] }
         country_code: { type: [string, 'null'] }

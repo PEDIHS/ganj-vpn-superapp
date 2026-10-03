@@ -4,6 +4,7 @@ import { createTestAuthAdapter } from './adapters/test-auth.js';
 import { createTestAuthSessionAdapter } from './adapters/test-auth-session.js';
 import { createBotApprovalAdapter, createTestBotApprovalAdapter } from './adapters/bot-approval.js';
 import { createLegacyBotConnectionSource } from './adapters/legacy-bot-connections.js';
+import { createLegacyBotServiceMetadataSource } from './adapters/legacy-bot-service-metadata.js';
 import { createTestPurchaseVerifier } from './adapters/test-purchase-verifier.js';
 import { createTestTelegramAuthAdapter } from './adapters/test-telegram-auth.js';
 import { FIXTURES, InMemoryRepository, createSeed } from './repository.js';
@@ -81,6 +82,7 @@ export async function createRuntime(environment = process.env) {
     : null;
   return {
     repository: controlPlaneRepository,
+    serviceMetadata: connectionSource ? createLegacyBotServiceMetadataSource({ environment, repository: controlPlaneRepository }) : null,
     auth,
     authSession,
     botApproval,

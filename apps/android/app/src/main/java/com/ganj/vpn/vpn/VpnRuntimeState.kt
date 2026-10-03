@@ -12,6 +12,10 @@ internal object VpnRuntimeState {
         private set
     fun publish(value: ConnectionState, hasTunnel: Boolean = false) {
         tunnelActive = hasTunnel
+        if (value.phase == com.ganj.vpn.core.vpn.ConnectionPhase.ERROR && mutable.value != value) {
+            val code = com.ganj.vpn.presentation.ConnectionFailures.runtime(value.errorCode).diagnosticCode
+            android.util.Log.w("GanjVpn", "VPN_FAILED code=$code")
+        }
         mutable.value = value
     }
 }

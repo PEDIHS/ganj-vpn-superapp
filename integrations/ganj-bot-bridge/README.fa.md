@@ -69,3 +69,13 @@ GANJ_BOT_APPROVAL_REDIRECT_URIS=https://auth.example.com/ganj/telegram/callback
 Installer در شرایط زیر متوقف می‌شود: Bot marker ناسازگار، Secret داخل web-root، permission باز، URL غیر HTTPS، connector map نامعتبر، نبود Trigger privilege، index symlink یا نبود Backup directory امن.
 
 Approval token در Bot DB ذخیره نمی‌شود و Bridge آن را log نمی‌کند. دیتابیس Control API نیز فقط SHA-256 approval token/state را نگه می‌دارد. Callback Bot دارای timestamp window محدود، HMAC و idempotent event id است. درخواست expired، replayed، wrong-device یا binding mismatch باید رد شود.
+
+## Read-only subscription display metadata (Alpha 0.3.11)
+
+The app uses `/api/internal/ganj-app/service-metadata-v1/` beside the existing private connection resolver. Deploy `service-metadata.php` as that directory's `index.php` and `service-metadata-core.php` alongside it. This deployment layout resolves `config.php`, `function.php` and `panels.php` from the bot root four directories above. The bridge installer does not install this optional endpoint automatically.
+
+The endpoint accepts authenticated POST only with the existing `/etc/ganj-bot/app-projection-token`; keep that file outside the web root. Requests contain invoice/customer IDs and a boolean `include_usage`. Invoice IDs may be alphanumeric; customer IDs remain numeric. The current invoice owner is rechecked before returning username or querying the panel. SQL statements are prepared. Responses are `no-store` and contain only `service_username`, traffic fields, availability and the matching external IDs; provider objects/subscription links are never serialized.
+
+The Control API automatically enables this display source when the private connection resolver is configured. It reads only the caller's projections, fetches cheap names first and uses at most three bounded usage batches. Unknown, slow or unsupported panel usage is represented by `traffic_usage_available: false`, not a fabricated zero. This display source does not write consumption/entitlement state or affect profile issuance. No database migration or bot restart is required.
+
+Validation: `php -l service-metadata.php`, `php -l service-metadata-core.php`, `php service-metadata-core.test.php` and the Control API metadata/ownership unit tests. Deployment must preserve the independently installed connection parser hotfix and verify API health/readiness plus 401 for unauthenticated metadata POST and 405 for GET.

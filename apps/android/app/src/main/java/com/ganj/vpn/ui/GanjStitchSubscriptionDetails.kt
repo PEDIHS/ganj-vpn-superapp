@@ -110,13 +110,15 @@ internal fun StitchSubscriptionDetailsScreen(
         ) {
             SubscriptionMetric(
                 label = "باقی‌مانده",
-                value = subscriptionBytes(service.remainingBytes, unlimitedWhenNull = true),
+                value = if (service.trafficUsageAvailable) subscriptionBytes(service.remainingBytes, unlimitedWhenNull = true)
+                    else androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.subscription_usage_unavailable),
                 modifier = Modifier.weight(1f),
                 accent = MaterialTheme.colorScheme.primary,
             )
             SubscriptionMetric(
                 label = "مصرف‌شده",
-                value = subscriptionBytes(service.trafficUsedBytes),
+                value = if (service.trafficUsageAvailable) subscriptionBytes(service.trafficUsedBytes)
+                    else androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.subscription_usage_unavailable),
                 modifier = Modifier.weight(1f),
                 accent = if (premium) GanjGold else MaterialTheme.colorScheme.tertiary,
             )

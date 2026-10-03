@@ -968,3 +968,33 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 ```
 
 این Ledger باید همراه کد تکامل پیدا کند؛ حذف checkbox برای پنهان‌کردن کار باقی‌مانده ممنوع است. اگر Scope رسمی تغییر کرد، ابتدا Scope canonical docs اصلاح شود و سپس آیتم با دلیل مشخص `Deferred by product scope` شود؛ هیچ Agentی حق ندارد مستقل از Product Scope آیتم را نادیده بگیرد.
+
+### 2026-10-03 — Connection errors and proxy ping diagnosis (Alpha 0.3.9)
+
+- Sections 12/13/14/26: preserve fixed, credential-free codes for tunnel creation, service binding, native rejection, recovery storage, encrypted-profile stages and each known HTTP 403 reason. Error details expose only these codes and a short request reference.
+- Ping results now distinguish authorization/profile failures, timeout, DNS, TLS, refused connections and an unsupported probe beside another active tunnel. Selecting a failed server shows its actual reason; an unavailable ping is not labeled proof of a disconnected VPN.
+- Both offline native and active-TUN HTTP probes use a bounded second HTTPS target through the same proxy path. A successful zero-millisecond result is valid. Offline native probing remains serialized and prohibited while a TUN is held, including reconnect states.
+- Bootstrap endpoint DNS uses the physical network's DNS with protected sockets instead of always requiring public UDP 1.1.1.1. VPN traffic DNS/routing policy is unchanged.
+- Reuse the currently loaded service catalog for up to 30 seconds when signing probes instead of fetching it once per server; the backend still validates every profile request.
+- Leaf items completed: none. CI/instrumentation and physical-device verification remain pending at this checkpoint. No full device connection claim.
+- UI Ledger sections touched: 12, 13, 14, 26. Remaining unchecked leaves unchanged; calculator: 196/492 = 39.8%.
+
+### 2026-10-03 — Session-owned manual latency (Alpha 0.3.10)
+
+- Sections 12/13/14/26: remove the 15-second connection polling loop and the automatic test on every Servers screen load. One automatic pass runs for the active service on authenticated app entry; navigation, recomposition and foreground resume reuse session results. Only explicit individual/all-server actions refresh readings thereafter.
+- Results use `(serviceId, serverId)` keys, include measurement time, preserve distinct failures and zero-millisecond successes, and share one in-flight test for overlapping requests. Logout clears results and invalidates late writes; profiles/credentials are never cached. Smart Connect reuses measured results.
+- The pinned libXray `pingBatch` builds a local core instance and uses forced outbound HTTP HEAD requests. Allow an authorized second config probe beside a CONNECTED TUN while retaining the active global protector/DNS. Reconnect/disconnect phases remain guarded. Active-profile HTTPS measurements bind to the VPN Network so fallback cannot silently time direct internet after disconnect.
+- Add emulator assertions for independent config latency during VPN connection, rejected credentials, preserved server/TUN and subsequent TUN traffic; unit regressions cover automatic-once, manual refresh, in-flight deduplication, service scoping and logout races. Validation pending at this source checkpoint; physical-phone ping remains pending.
+- UI Ledger sections touched: 12, 13, 14, 26. Leaf items completed: none. Remaining unchecked items in touched sections: 15/16/16/10. Overall UI completion: 196/492 = 39.8% (calculator output).
+
+### 2026-10-03 — Explicit subscription/config selection (Alpha 0.3.11)
+
+- Sections 2/11/12/13/20/22/23/24/25/26: rename the bottom destination to Subscriptions; show invoice username, total quota and real usage with semantic progress and bounded selection/press animation. Reduced motion/tier snaps; unavailable usage never becomes a fabricated zero percent.
+- Explicit subscription-scoped config sheet; no implicit first-subscription/first-config selection. Choosing a config returns to Connect, preserves choice across list refreshes and checks the exact chosen server before issuing/accepting a profile. Late asynchronous results cannot replace a newer selection.
+- Read-only, authenticated bot metadata endpoint rechecks invoice ownership and returns only an allowlisted username/quota/usage shape. Safe Android models contain no raw subscription or connection material. Unknown usage is separate from unlimited quota.
+- Unit regressions cover selection/refresh/expiry, exact profile binding, malformed/cross-owner metadata and quota edges. API 24/35 instrumentation adds isolated UI fixtures for scoped selection, second-config return and light/dark/large-text screenshots; validation pending at this source checkpoint. Physical-phone and TalkBack final QA remain pending.
+- UI Ledger sections touched: 2, 11, 12, 13, 20, 22, 23, 24, 25, 26.
+- Leaf items completed: none. Remaining unchecked leaves in these sections: 6/12/15/16/22/13/9/16/17/10, unchanged.
+- Overall UI completion: 196/492 = 39.8% (calculator). No Final Gate claim.
+
+- Follow-up: selection fixtures passed in API 24/35 and screenshots were inspected. Open the scoped config picker fully instead of half-expanded. Preserve the old tunnel while choosing a new subscription/config and label the action as connecting the new selection. UI screenshot capture waits for draw/accessibility idle. Compose clock/lifecycle fixtures run in a separate instrumentation process from the OS/native fixture; API 35 native verification is being repeated with a credential-free detailed failure code. No leaf completion claim; calculator remains 196/492 = 39.8%.

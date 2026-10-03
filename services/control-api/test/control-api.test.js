@@ -26,13 +26,13 @@ const TOKENS = Object.freeze({
   [PURCHASE_PROOFS.vip]: 'ganj.vip.90d',
 });
 
-function setup({ purchaseVerifier: purchaseOverride, playNotifications: notificationsOverride, auth: authOverride } = {}) {
+function setup({ purchaseVerifier: purchaseOverride, playNotifications: notificationsOverride, auth: authOverride, serviceMetadata = null } = {}) {
   const repository = new InMemoryRepository(createSeed(NOW));
   const auth = authOverride ?? createTestAuthAdapter({ deviceSecrets: SECRETS });
   const purchaseVerifier = purchaseOverride ?? createTestPurchaseVerifier({ approvedTokens: TOKENS });
   const telegramAuth = createTestTelegramAuthAdapter();
   const playNotifications = notificationsOverride ?? { kind: 'test-only', async verifyAndDecode() { throw new Error('not configured'); } };
-  const app = createApplication({ repository, auth, purchaseVerifier, telegramAuth, playNotifications, clock: () => new Date(NOW) });
+  const app = createApplication({ repository, auth, purchaseVerifier, telegramAuth, playNotifications, serviceMetadata, clock: () => new Date(NOW) });
   return { app, repository };
 }
 
@@ -150,6 +150,28 @@ test('my services are ownership-scoped and contain no config material', async ()
   assert.deepEqual(response.body.data.map((service) => service.id), [FIXTURES.services.expired]);
   assert.equal(JSON.stringify(response.body).includes('deviceIds'), false);
   assert.equal(JSON.stringify(response.body).includes('credential'), false);
+});
+
+test('collection and detail enrich only owned services and expose an exact safe metadata shape', async () => {
+  let calls = 0;
+  const { app } = setup({ serviceMetadata: { async decorate({ principal, services }) {
+    calls += 1;
+    assert.equal(principal.userId, FIXTURES.users.primary);
+    assert.ok(services.every((s) => s.userId === principal.userId));
+    return services.map((s) => ({ ...s, service_username: 'fixture_service', traffic_used_bytes: 250,
+      traffic_limit_bytes: 1000, traffic_usage_available: true, credential: 'must-not-escape' }));
+  } } });
+  for (const path of ['/v1/services', `/v1/services/${FIXTURES.services.premium}`]) {
+    const response = await request(app, 'GET', path);
+    assert.equal(response.status, 200);
+    const services = Array.isArray(response.body.data) ? response.body.data : [response.body.data];
+    assert.ok(services.every((s) => s.service_username === 'fixture_service' && s.traffic_used_bytes === 250));
+    assert.equal(JSON.stringify(response.body).includes('must-not-escape'), false);
+  }
+  assert.equal(calls, 2);
+  const refused = await request(app, 'GET', `/v1/services/${FIXTURES.services.expired}`);
+  assert.equal(refused.status, 404);
+  assert.equal(calls, 2, 'Cross-owner detail must fail before metadata lookup');
 });
 
 test('server catalog is filtered by active entitlement, tier, protocol and status', async () => {

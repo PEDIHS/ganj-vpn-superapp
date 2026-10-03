@@ -9,6 +9,9 @@ import android.os.IBinder
 import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.presentation.ActiveTunnelProbe
 import com.ganj.vpn.presentation.TunnelConnector
+import com.ganj.vpn.presentation.LatencyProbeResult
+import com.ganj.vpn.presentation.ConnectionFailures
+import com.ganj.vpn.core.xray.VpnRuntimeException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -30,9 +33,9 @@ class AndroidVpnTunnelClient(context: Context) : TunnelConnector {
     } catch (cancelled: CancellationException) {
         applicationContext.stopService(Intent(applicationContext, GanjVpnService::class.java))
         throw cancelled
-    } catch (_: Exception) {
+    } catch (error: Exception) {
         applicationContext.stopService(Intent(applicationContext, GanjVpnService::class.java))
-        Result.failure(IllegalStateException("vpn.service_start_failed"))
+        Result.failure(if (error is VpnRuntimeException) error else VpnRuntimeException("vpn.service_start_failed"))
     }
 
     override suspend fun disconnect(): Result<Unit> = try {
@@ -54,12 +57,20 @@ class AndroidVpnTunnelClient(context: Context) : TunnelConnector {
         profile.close()
     }
 
+    override suspend fun probeDetailed(profile: com.ganj.vpn.core.vpn.ProvisionedProfile): LatencyProbeResult = try {
+        withBoundService { it.probeDetailed(profile) }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        LatencyProbeResult.Failed(ConnectionFailures.runtime((error as? VpnRuntimeException)?.code ?: "vpn.service_start_failed"))
+    } finally { profile.close() }
+
     override suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
         withBoundService { it.probeActive(serviceId, serverId) }
 
     private suspend fun <T> withBoundService(block: suspend (GanjVpnService.LocalBinder) -> T): T {
         val bound = withTimeoutOrNull(10_000) { withContext(Dispatchers.Main.immediate) { bind() } }
-            ?: error("vpn.service_bind_timeout")
+            ?: throw VpnRuntimeException("vpn.service_bind_timeout")
         return try {
             block(bound.binder)
         } finally {
@@ -78,7 +89,7 @@ class AndroidVpnTunnelClient(context: Context) : TunnelConnector {
                 runCatching { applicationContext.unbindService(connection) }
                 registered = false
             }
-            if (continuation.isActive) continuation.resumeWithException(IllegalStateException(code))
+            if (continuation.isActive) continuation.resumeWithException(VpnRuntimeException(code))
         }
         connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, service: IBinder?) {

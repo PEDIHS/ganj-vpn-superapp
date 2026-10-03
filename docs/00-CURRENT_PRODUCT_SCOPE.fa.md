@@ -54,7 +54,7 @@ UI فعلی روی `main` Functional/Foundation UI است و **Final Product Des
 
 این Requirement شامل تمام Screenها و تمام interactionهای اصلی است؛ نه فقط چند Card یا Bottom Navigation.
 
-از Splash و Login تا Home، Servers، Connect، Store، My Services، Account، Settings، Wallet، Support، Diagnostics، Dialog، Sheet، Search و Navigation باید:
+از Splash و Login تا Home، Subscriptions، Connect، Store، My Services، Account، Settings، Wallet، Support، Diagnostics، Dialog، Sheet، Search و Navigation باید:
 
 - زبان Material واحد؛
 - layered depth؛
@@ -85,7 +85,7 @@ Final Android UI باید:
 - Responsive؛
 - Accessibility/TalkBack/Large Font؛
 - Motion و micro-interaction حرفه‌ای؛
-- پنج Tab اصلی Home / Servers / Connect / Store / Account؛
+- پنج Tab اصلی Home / Subscriptions / Connect / Store / Account؛
 - Design System اختصاصی Ganj؛
 - Material 3 / M3 Expressive behavior بومی Android؛
 - Apple HIG/Liquid Glass-inspired hierarchy/material principles؛
@@ -231,3 +231,7 @@ PRها بعداً با نام‌های Phase 6A / 6B / 6C و Phase 7 Trackها �
 8. historical PR text
 
 ملاک تفسیر باشد.
+
+### تصمیم محصول ۲۰۲۶-۱۰-۰۳ — انتخاب اشتراک و کانفیگ
+
+تب «اشتراک‌ها» جایگزین عنوان «سرورها» می‌شود و نام کاربری سرویس، حجم کل و مصرف واقعی را نشان می‌دهد. انتخاب اشتراک صریح است؛ انتخاب سرور در صفحه اتصال فقط کانفیگ‌های همان اشتراک را نمایش می‌دهد. انتخاب کانفیگ کاربر را به صفحه اتصال برمی‌گرداند و اتصال دقیقاً به همان شناسه صادر می‌شود؛ انتخاب ضمنی اولین کانفیگ مجاز نیست. مصرف ناموجود به‌عنوان صفر نمایش داده نمی‌شود.

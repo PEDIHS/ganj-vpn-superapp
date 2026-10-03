@@ -32,6 +32,16 @@ class ConnectionLatencyProberTest {
     }
 
     @Test
+    fun `different active tunnel permits an authorized independent outbound probe`() = runBlocking {
+        val fixture = Fixture(activeProbe = ActiveTunnelProbe.OtherTunnelActive)
+        assertEquals(123L, fixture.prober.probe(SERVICE, SERVER))
+        assertEquals(1, fixture.activeProbes)
+        assertEquals(1, fixture.requests)
+        assertEquals(1, fixture.provisions)
+        assertEquals(1, fixture.probes)
+    }
+
+    @Test
     fun `unauthorized server never requests a lease or probes`() = runBlocking {
         val fixture = Fixture(authorized = false)
         assertNull(fixture.prober.probe(SERVICE, SERVER))
@@ -65,8 +75,28 @@ class ConnectionLatencyProberTest {
         assertTrue(runCatching { fixture.profile.useCredential { it } }.isFailure)
     }
 
+    @Test
+    fun `profile issuance refusal is not mislabeled as a ping timeout`() = runBlocking {
+        val fixture = Fixture(apiFailure = ApiError.Forbidden("request", "server_unavailable"))
+        val result = fixture.prober.probeDetailed(SERVICE, SERVER) as LatencyProbeResult.Failed
+        assertEquals("connection.server_unavailable", result.failure.messageKey)
+        assertEquals("request", result.failure.requestId)
+        assertEquals(0, fixture.provisions)
+        assertEquals(0, fixture.probes)
+    }
+
+    @Test
+    fun `rejected encrypted profile retains provisioning stage`() = runBlocking {
+        val fixture = Fixture(provisioningError = ProfileProvisioningError.CRYPTO_FAILURE)
+        val result = fixture.prober.probeDetailed(SERVICE, SERVER) as LatencyProbeResult.Failed
+        assertEquals("connection.profile_crypto_failed", result.failure.messageKey)
+        assertEquals(0, fixture.probes)
+    }
+
     private class Fixture(
         authorized: Boolean = true,
+        apiFailure: ApiError? = null,
+        private val provisioningError: ProfileProvisioningError? = null,
         leaseServer: String = SERVER,
         cancelProbe: Boolean = false,
         private val activeProbe: ActiveTunnelProbe = ActiveTunnelProbe.NotActive,
@@ -85,7 +115,7 @@ class ConnectionLatencyProberTest {
             command = args!![0] as ConnectionProfileCommand
             val constructor = ConnectionProfileLease::class.java.declaredConstructors.single { it.parameterTypes.size == 4 }
                 .apply { isAccessible = true }
-            ApiResult.Success(
+            if (apiFailure != null) ApiResult.Failure(apiFailure) else ApiResult.Success(
                 constructor.newInstance(PROFILE, leaseServer, "2027-01-01T00:00:00Z", "test-handle") as ConnectionProfileLease,
                 ResponseMetadata("fixture-request", "2026-09-13T00:00:00Z"),
             )
@@ -94,7 +124,7 @@ class ConnectionLatencyProberTest {
             override fun provision(lease: ConnectionProfileLease, binding: ProfileProvisioningBinding): ProfileProvisioningResult {
                 provisions++
                 this@Fixture.binding = binding
-                return ProfileProvisioningResult.Success(profile)
+                return provisioningError?.let { ProfileProvisioningResult.Failure(it) } ?: ProfileProvisioningResult.Success(profile)
             }
         }, CurrentUserIdProvider { USER }, object : ConnectionProfileContextProvider {
             override fun forEntitlement(entitlementId: String): ConnectionProfileContext? = error("probe must not change current selection")

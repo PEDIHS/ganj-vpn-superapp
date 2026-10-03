@@ -14,6 +14,7 @@ import com.ganj.vpn.core.vpn.ConnectionRequest
 import com.ganj.vpn.core.vpn.ProvisionedProfile
 import com.ganj.vpn.core.vpn.VpnProtocol
 import com.ganj.vpn.presentation.ActiveTunnelProbe
+import com.ganj.vpn.presentation.LatencyProbeResult
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlinx.coroutines.runBlocking
@@ -51,6 +52,10 @@ class VpnTunnelIntegrationTest {
         println("VPN test: OS denial and approval passed")
 
         val client = AndroidVpnTunnelClient(context)
+        val offlineProbe = client.probeDetailed(fixtureProfile())
+        val failureCode = (offlineProbe as? LatencyProbeResult.Failed)?.failure?.let { it.diagnosticCode ?: it.messageKey }
+        assertTrue("offline native ping must work before starting the VPN: $failureCode", offlineProbe is LatencyProbeResult.Measured)
+        println("VPN test: offline native latency passed")
         repeat(2) { iteration ->
             try {
                 val started = client.connect(ConnectionRequest(fixtureProfile()))
@@ -58,10 +63,17 @@ class VpnTunnelIntegrationTest {
                 println("VPN test: native TUN started")
                 val latency = when (val active = client.probeActive(SERVICE_ID, SERVER_ID)) {
                     is ActiveTunnelProbe.Measured -> active.latencyMillis
-                    ActiveTunnelProbe.NotActive -> null
+                    ActiveTunnelProbe.NotActive,
+                    ActiveTunnelProbe.OtherTunnelActive,
+                    -> null
                 }
                 assertNotNull("active VPN profile must measure latency without issuing another lease", latency)
                 println("VPN test: native proxy latency passed")
+                assertNotNull("independent config latency must work beside the active VPN", client.probe(fixtureProfile(OTHER_SERVER_ID)))
+                assertNull("wrong credentials must never produce a successful latency", client.probe(fixtureProfile(OTHER_SERVER_ID, "40000000-0000-4000-8000-000000000099")))
+                assertTrue("probes must preserve the connected server", VpnRuntimeState.state.value.serverId == SERVER_ID)
+                assertTrue("probes must keep the active TUN", VpnRuntimeState.tunnelActive)
+                println("VPN test: independent config latency, rejected credentials and active core preservation passed")
                 assertTrue("switching config must retain a working TUN", client.connect(ConnectionRequest(fixtureProfile())).isSuccess)
                 Socket().use { socket ->
                     socket.soTimeout = 8_000
@@ -99,19 +111,20 @@ class VpnTunnelIntegrationTest {
         } finally { activity.close() }
     }
 
-    private fun fixtureProfile() = ProvisionedProfile(
+    private fun fixtureProfile(serverId: String = SERVER_ID, credential: String = "40000000-0000-4000-8000-000000000001") = ProvisionedProfile(
         profileId = "10000000-0000-4000-8000-000000000001",
         serviceId = SERVICE_ID,
-        serverId = SERVER_ID,
+        serverId = serverId,
         endpoint = "10.0.2.2",
         port = 18081,
         protocol = VpnProtocol.VLESS,
-        credential = "40000000-0000-4000-8000-000000000001".encodeToByteArray(),
+        credential = credential.encodeToByteArray(),
         expiresAtEpochMillis = System.currentTimeMillis() + 120_000,
     )
 
     private companion object {
         const val SERVICE_ID = "20000000-0000-4000-8000-000000000001"
         const val SERVER_ID = "30000000-0000-4000-8000-000000000001"
+        const val OTHER_SERVER_ID = "30000000-0000-4000-8000-000000000002"
     }
 }

@@ -13,8 +13,6 @@ import java.util.WeakHashMap
 
 internal interface ConnectionServerController {
     fun servers(entitlementId: String? = null): ApiResult<List<ConnectionServer>>
-    fun selectServer(serverId: String?)
-    fun selectedServerId(): String?
 }
 
 internal fun connectionProfileProofPath(entitlementId: String): String =
@@ -25,28 +23,31 @@ internal class LiveConnectionProfileContextProvider(
     private val identity: AndroidDeviceIdentity,
     private val nowEpochSeconds: () -> Long = { System.currentTimeMillis() / 1_000L },
 ) : ConnectionProfileContextProvider, ConnectionServerController {
-    @Volatile
-    private var selectedServerId: String? = null
+    @Volatile private var catalog: CatalogSnapshot? = null
 
-    override fun servers(entitlementId: String?): ApiResult<List<ConnectionServer>> = serverApi.servers(entitlementId)
-
-    override fun selectServer(serverId: String?) {
-        selectedServerId = serverId
+    // A server list already fetched by the screen can authorize a local probe request.
+    // The profile endpoint still rechecks ownership, entitlement and availability each time.
+    override fun servers(entitlementId: String?): ApiResult<List<ConnectionServer>> {
+        val result = serverApi.servers(entitlementId)
+        if (entitlementId != null) {
+            catalog = (result as? ApiResult.Success)?.let {
+                CatalogSnapshot(entitlementId, it.value, nowEpochSeconds() + 30)
+            }
+        }
+        return result
     }
 
-    override fun selectedServerId(): String? = selectedServerId
+    private data class CatalogSnapshot(val serviceId: String, val items: List<ConnectionServer>, val expiresAt: Long)
 
-    override fun forEntitlement(entitlementId: String): ConnectionProfileContext? {
-        val available = (serverApi.servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
-        if (available.isEmpty()) return null
-        val selected = selectedServerId?.let { id -> available.firstOrNull { it.id == id } }
-            ?: available.first()
-        selectedServerId = selected.id
-        return signedContext(entitlementId, selected.id)
-    }
+    // Connection must carry an explicit service + server from the shared UI state.
+    // An absent or stale choice must never silently turn into the first catalog entry.
+    override fun forEntitlement(entitlementId: String): ConnectionProfileContext? = null
 
     override fun forServer(entitlementId: String, serverId: String): ConnectionProfileContext? {
-        val available = (serverApi.servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
+        val snapshot = catalog
+        val available = if (snapshot != null && snapshot.serviceId == entitlementId && snapshot.expiresAt > nowEpochSeconds()) {
+            snapshot.items
+        } else (servers(entitlementId) as? ApiResult.Success)?.value.orEmpty()
         if (available.none { it.id == serverId }) return null
         return signedContext(entitlementId, serverId)
     }
