@@ -998,3 +998,16 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Overall UI completion: 196/492 = 39.8% (calculator). No Final Gate claim.
 
 - Follow-up: selection fixtures passed in API 24/35 and screenshots were inspected. Open the scoped config picker fully instead of half-expanded. Preserve the old tunnel while choosing a new subscription/config and label the action as connecting the new selection. UI screenshot capture waits for draw/accessibility idle. Compose clock/lifecycle fixtures run in a separate instrumentation process from the OS/native fixture; API 35 native verification is being repeated with a credential-free detailed failure code. No leaf completion claim; calculator remains 196/492 = 39.8%.
+
+### 2026-10-03 — Calm native UI and draw-phase motion (Alpha 0.3.15)
+
+- Continue active PR #63 from the shipped 0.3.14 alpha source; latest main and related open PRs compared. This is Compose Android UI, with no CSS/JS runtime in the app.
+- Sections 1/12/13/14/23/24: introduce shared light/dark selected-card and premium-text tokens; remove always-dark gradients from config and subscription rows. Persian font also covers the two previously omitted display styles. Add AA contrast regression checks for real selected/unselected card colors.
+- Replace text-glyph power control with the existing vector icon; simplify concentric rings, place the scalable action label outside the fixed orb, add bounded press feedback. Busy-only halo respects effect tiers; Connected settles without continuous decoration. Both runtime and legacy connection control use the same motion policy.
+- Press and traffic animation state is read in graphics/draw phases, rather than reconstructing cards every frame. Search survives recreation and lazy rows declare content types. Ping target is at least 48dp. Remove nested glass actions in connection cards.
+- Connection metrics display only measured proxy latency with truthful measuring/unmeasured/last-result labels; unsupported download/upload placeholders no longer occupy the screen. All data, selection, auth and VPN handlers preserved.
+- Validation at source checkpoint: product guard and diff whitespace checks pass; preview workflow now requires app unit tests and lint before producing APK. Actual build/device/performance results must be appended after execution. No zero-jank or physical-phone claim.
+- UI Ledger sections touched: 1, 12, 13, 14, 23, 24, 25.
+- Leaf items completed: none; multi-width/font-scale, TalkBack and physical-device frame pacing remain pending.
+- Remaining unchecked items in touched sections: 9/15/16/16/9/16/17.
+- Overall UI completion: 196/492 = 39.8% (calculator output; Final Gate remains open).

@@ -1,4 +1,4 @@
-name: GANJ 0.3.14 preview APK
+name: GANJ 0.3.15 preview APK
 on:
   push:
     branches: [feat/ganj-flagglass-config-20261003]
@@ -46,7 +46,7 @@ jobs:
           -PGANJ_TELEGRAM_REDIRECT_URI=https://bot.pedramhs.ir/app-auth/telegram/callback
           -PGANJ_ALPHA_ARM64_ONLY=true
           -PGANJ_NATIVE_FIXTURE_DIAGNOSTICS=false
-          :app:assembleDebug
+          :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
       - name: Verify APK packaging and checksum
         run: |
           set -Eeuo pipefail
@@ -57,7 +57,7 @@ jobs:
           sha256sum "$apk" > "$apk.sha256"
       - uses: actions/upload-artifact@v7
         with:
-          name: ganj-0.3.14-preview-arm64
+          name: ganj-0.3.15-preview-arm64
           path: |
             apps/android/app/build/outputs/apk/debug/app-debug.apk
             apps/android/app/build/outputs/apk/debug/app-debug.apk.sha256
