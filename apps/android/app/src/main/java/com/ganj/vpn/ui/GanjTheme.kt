@@ -10,6 +10,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import com.ganj.vpn.R
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -85,72 +89,90 @@ private val GanjDarkColors = darkColorScheme(
     outline = Color(0xFF6F7A71),
 )
 
+private val GanjPersianFont = FontFamily(
+    Font(R.font.vazirmatn_regular, weight = FontWeight.Normal),
+    Font(R.font.vazirmatn_bold, weight = FontWeight.Bold),
+)
+
 private val GanjTypography = Typography().run {
     copy(
         displaySmall = displaySmall.copy(
             fontSize = 34.sp,
             lineHeight = 48.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         headlineLarge = headlineLarge.copy(
             fontSize = 30.sp,
             lineHeight = 42.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         headlineMedium = headlineMedium.copy(
             fontSize = 26.sp,
             lineHeight = 38.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         headlineSmall = headlineSmall.copy(
             fontSize = 23.sp,
             lineHeight = 34.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         titleLarge = titleLarge.copy(
             fontSize = 21.sp,
             lineHeight = 32.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         titleMedium = titleMedium.copy(
             fontSize = 17.sp,
             lineHeight = 28.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         titleSmall = titleSmall.copy(
             fontSize = 15.sp,
             lineHeight = 24.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         bodyLarge = bodyLarge.copy(
             fontSize = 16.sp,
             lineHeight = 27.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         bodyMedium = bodyMedium.copy(
             fontSize = 15.sp,
             lineHeight = 24.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         bodySmall = bodySmall.copy(
-            fontSize = 13.sp,
-            lineHeight = 21.sp,
+            fontSize = 14.sp,
+            lineHeight = 23.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         labelLarge = labelLarge.copy(
             fontSize = 14.sp,
             lineHeight = 23.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         labelMedium = labelMedium.copy(
-            fontSize = 12.sp,
-            lineHeight = 20.sp,
+            fontSize = 13.sp,
+            lineHeight = 21.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
         labelSmall = labelSmall.copy(
-            fontSize = 11.sp,
-            lineHeight = 18.sp,
+            fontSize = 12.sp,
+            lineHeight = 19.sp,
             letterSpacing = 0.sp,
+            fontFamily = GanjPersianFont,
         ),
     )
 }
