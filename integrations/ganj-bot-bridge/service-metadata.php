@@ -23,7 +23,7 @@ if (!is_array($body) || array_diff(array_keys($body), ['records', 'include_usage
 $records = [];
 foreach ($body['records'] as $record) {
     if (!is_array($record) || count($record) !== 2
-        || !is_string($record['external_service_id'] ?? null) || !preg_match('/^[0-9]{1,20}$/D', $record['external_service_id'])
+        || !is_string($record['external_service_id'] ?? null) || !preg_match('/^[A-Za-z0-9._:-]{1,128}$/D', $record['external_service_id'])
         || !is_string($record['external_customer_id'] ?? null) || !preg_match('/^[0-9]{1,20}$/D', $record['external_customer_id'])) ganjMetadataFail(400, 'record_invalid');
     if (isset($records[$record['external_service_id']])) ganjMetadataFail(400, 'duplicate_record');
     $records[$record['external_service_id']] = $record;

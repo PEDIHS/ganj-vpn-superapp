@@ -1,4 +1,5 @@
-const ID = /^[0-9]{1,20}$/;
+const INVOICE_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+const CUSTOMER_ID = /^[0-9]{1,20}$/;
 const USERNAME = /^[A-Za-z0-9._@:-]{1,128}$/;
 const FIELDS = new Set(['external_service_id', 'external_customer_id', 'service_username',
   'traffic_limit_bytes', 'traffic_used_bytes', 'traffic_usage_available']);
@@ -56,19 +57,26 @@ export function createLegacyBotServiceMetadataSource({ environment, repository, 
       );
       const owned = new Set(services.map((s) => s.id));
       const rows = result.rows.filter((r) => owned.has(r.control_service_id)
-        && ID.test(r.external_service_id) && ID.test(r.external_customer_id));
+        && INVOICE_ID.test(r.external_service_id) && CUSTOMER_ID.test(r.external_customer_id));
       const records = rows.map((r) => ({ external_service_id: r.external_service_id, external_customer_id: r.external_customer_id }));
       const metadata = new Map();
       if (records.length) {
         // Names are cheap invoice metadata and survive a slow/unavailable usage provider.
-        for (const includeUsage of [false, true]) {
-          try {
-            for (const item of await read(records, includeUsage)) {
-              const key = `${item.external_service_id}:${item.external_customer_id}`;
-              metadata.set(key, { ...metadata.get(key), ...item });
-            }
-          } catch { /* The config/connection path remains available; usage is explicitly unknown. */ }
-        }
+        const merge = (items) => {
+          for (const item of items) {
+            const key = `${item.external_service_id}:${item.external_customer_id}`;
+            metadata.set(key, { ...metadata.get(key), ...item });
+          }
+        };
+        try { merge(await read(records, false)); } catch { /* Names can be recovered by the usage pass. */ }
+        // At most three bounded reads prevent a large account from serially timing out the list.
+        // Each PHP batch also has a provider deadline; late/unknown usage remains explicit.
+        const batchSize = Math.ceil(records.length / 3);
+        const batches = [];
+        for (let offset = 0; offset < records.length; offset += batchSize) batches.push(records.slice(offset, offset + batchSize));
+        await Promise.all(batches.map(async (batch) => {
+          try { merge(await read(batch, true)); } catch { /* The connection path remains available. */ }
+        }));
       }
       const byService = new Map(rows.map((r) => [r.control_service_id,
         metadata.get(`${r.external_service_id}:${r.external_customer_id}`)]));

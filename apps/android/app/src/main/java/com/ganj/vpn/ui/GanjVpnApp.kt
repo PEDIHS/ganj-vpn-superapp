@@ -247,11 +247,9 @@ fun GanjVpnApp(
         commit(reducer.reduce(state, GanjUiEvent.RefreshRequested))
         val loadingState = state
         refreshJob = scope.launch {
-            commit(
-                withContext(Dispatchers.IO) {
-                    controller.refresh(loadingState)
-                },
-            )
+            val refreshed = withContext(Dispatchers.IO) { controller.refresh(loadingState) }
+            commit(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
+                GanjUiEvent.ServicesResolved(refreshed.services)))
         }
     }
 

@@ -8,7 +8,7 @@ const UNMAPPED = '10000000-0000-4000-8000-000000000002';
 const environment = { GANJ_BOT_CONNECTION_RESOLVER_URL: 'https://bot.example.com/api/internal/ganj-app/connection-v1/',
   GANJ_BOT_CONNECTION_RESOLVER_TOKEN: 'metadata-token-'.padEnd(40, 'x') };
 const service = { id: SERVICE, name: 'Plan name', traffic_limit_bytes: 1000, traffic_used_bytes: 0 };
-const row = { control_service_id: SERVICE, external_service_id: '42', external_customer_id: '99' };
+const row = { control_service_id: SERVICE, external_service_id: 'fixture-invoice-a8', external_customer_id: '99' };
 function fixture(fetchImpl, rows = [row]) {
   return createLegacyBotServiceMetadataSource({ environment, fetchImpl, repository: {
     database() { return { async query(sql, values) {
@@ -19,7 +19,7 @@ function fixture(fetchImpl, rows = [row]) {
 }
 const input = { principal: { userId: USER }, services: [service, { ...service, id: UNMAPPED }] };
 function item(available = true) {
-  return { external_service_id: '42', external_customer_id: '99', service_username: 'fixture_user_99',
+  return { external_service_id: 'fixture-invoice-a8', external_customer_id: '99', service_username: 'fixture_user_99',
     traffic_limit_bytes: available ? 1000 : null, traffic_used_bytes: available ? 250 : null, traffic_usage_available: available };
 }
 function response(items) { return new Response(JSON.stringify({ items }), { status: 200 }); }
@@ -35,7 +35,7 @@ test('service metadata is owner scoped, read only and uses actual provider traff
   });
   const result = await source.decorate(input);
   assert.deepEqual(calls.map((c) => c.include_usage), [false, true]);
-  assert.deepEqual(calls[0].records, [{ external_service_id: '42', external_customer_id: '99' }]);
+  assert.deepEqual(calls[0].records, [{ external_service_id: 'fixture-invoice-a8', external_customer_id: '99' }]);
   assert.equal(result[0].service_username, 'fixture_user_99');
   assert.equal(result[0].traffic_used_bytes, 250); assert.equal(result[0].traffic_limit_bytes, 1000);
   assert.equal(result[0].traffic_usage_available, true); assert.equal(result[1], input.services[1]);
@@ -54,6 +54,30 @@ test('unavailable provider keeps the username and explicitly marks usage unknown
 test('unlimited quota does not invent a consumption percentage', async () => {
   const result = await fixture(async () => response([{ ...item(), traffic_limit_bytes: null }])).decorate(input);
   assert.equal(result[0].traffic_limit_bytes, null);
+});
+
+test('large accounts use bounded parallel batches and one failed batch keeps other real readings', async () => {
+  const rows = Array.from({ length: 6 }, (_, i) => ({ control_service_id: `10000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+    external_service_id: `invoice-${i}`, external_customer_id: '99' }));
+  const services = rows.map((r) => ({ ...service, id: r.control_service_id }));
+  let active = 0; let maximum = 0;
+  const source = createLegacyBotServiceMetadataSource({ environment,
+    repository: { database() { return { async query(_, values) { assert.equal(values[0], USER); return { rows }; } }; } },
+    fetchImpl: async (_, options) => {
+      const body = JSON.parse(options.body);
+      if (body.include_usage) {
+        active++; maximum = Math.max(maximum, active);
+        await new Promise((resolve) => setTimeout(resolve, 5)); active--;
+        if (body.records[0].external_service_id === 'invoice-2') throw new Error('provider timeout');
+      }
+      return response(body.records.map((r) => ({ ...item(body.include_usage), ...r })));
+    },
+  });
+  const result = await source.decorate({ principal: input.principal, services });
+  assert.equal(maximum, 3);
+  assert.equal(result.filter((s) => s.traffic_usage_available).length, 4);
+  assert.equal(result.filter((s) => s.service_username === 'fixture_user_99').length, 6);
+  assert.equal(result[2].traffic_usage_available, false);
 });
 
 test('unmapped and malformed projection locators never call the endpoint', async () => {
