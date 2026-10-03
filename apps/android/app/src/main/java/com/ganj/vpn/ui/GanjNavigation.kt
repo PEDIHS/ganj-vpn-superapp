@@ -63,6 +63,7 @@ internal fun GanjLiquidBottomNavigation(
     modifier: Modifier = Modifier,
 ) {
     val configuration = LocalConfiguration.current
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     val showAllLabels = GanjResponsivePolicy.shouldShowAllNavigationLabels(
         configuration.screenWidthDp, LocalDensity.current.fontScale,
     )
@@ -90,7 +91,7 @@ internal fun GanjLiquidBottomNavigation(
     Box(modifier.navigationBarsPadding().padding(
         horizontal = GanjResponsivePolicy.stitchNavigationHorizontalPaddingDp(configuration.screenWidthDp).dp,
         vertical = 8.dp)) {
-        Box(Modifier.fillMaxWidth()
+        Column(Modifier.fillMaxWidth()
             .shadow(if (effects.tier == GanjEffectsTier.Reduced) 0.dp else 10.dp, shape, clip = false)
             .clip(shape)
             .background(if (effects.reduceTransparency) glass.opaqueFallback else colors.surface.copy(alpha = 0.94f))
@@ -99,36 +100,44 @@ internal fun GanjLiquidBottomNavigation(
                 Color.Transparent, glass.emeraldTint.copy(alpha = 0.035f))))
             .border(0.75.dp, glass.borderSoft, shape)
             .padding(5.dp).testTag("liquid-bottom-navigation")) {
-            Canvas(Modifier.matchParentSize()) {
-                val slot = size.width / GanjDestination.entries.size
-                val leading = position.value.coerceIn(0f, 4f)
-                val trailing = tail.value.coerceIn(0f, 4f)
-                val stretch = (abs(leading - trailing) * slot * 0.24f).coerceAtMost(slot * 0.32f)
-                val centerIndex = if (rtl) 4f - leading else leading
-                val lensWidth = slot - 4.dp.toPx() + stretch
-                val lensHeight = size.height - 4.dp.toPx()
-                val origin = Offset((centerIndex + 0.5f) * slot - lensWidth / 2, 2.dp.toPx())
-                val lensSize = Size(lensWidth, lensHeight)
-                val radius = CornerRadius(23.dp.toPx())
-                drawRoundRect(colors.primary.copy(alpha = if (effects.reduceTransparency) 0.17f else 0.12f),
-                    origin, lensSize, radius)
-                if (!effects.reduceTransparency) {
-                    drawRoundRect(Brush.verticalGradient(listOf(glass.highlight.copy(alpha = 0.19f),
-                        Color.Transparent, glass.emeraldTint.copy(alpha = 0.08f))), origin, lensSize, radius)
-                    drawRoundRect(glass.highlight.copy(alpha = 0.20f), origin, lensSize, radius,
-                        style = Stroke(0.65.dp.toPx()))
-                }
-                drawRoundRect(colors.secondary.copy(alpha = 0.70f),
-                    Offset(origin.x + lensWidth * 0.32f, origin.y + lensHeight - 3.dp.toPx()),
-                    Size(lensWidth * 0.36f, 1.5.dp.toPx()), CornerRadius(2.dp.toPx()))
+            if (largeText) {
+                Text(stringResource(selectedDestination.labelRes), color = colors.primary,
+                    style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 4.dp)
+                        .clearAndSetSemantics {})
             }
-            Row(Modifier.fillMaxWidth().selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
-                GanjDestination.entries.forEach { destination ->
-                    GanjNavigationItem(destination, destination == selectedDestination,
-                        showAllLabels || destination == selectedDestination,
-                        if (destination == GanjDestination.Account) unreadCount ?: 0 else 0,
-                        onClick = { if (destination != selectedDestination) onDestinationSelected(destination) },
-                        modifier = Modifier.weight(1f))
+            Box(Modifier.fillMaxWidth()) {
+                Canvas(Modifier.matchParentSize()) {
+                    val slot = size.width / GanjDestination.entries.size
+                    val leading = position.value.coerceIn(0f, 4f)
+                    val trailing = tail.value.coerceIn(0f, 4f)
+                    val stretch = (abs(leading - trailing) * slot * 0.24f).coerceAtMost(slot * 0.32f)
+                    val centerIndex = if (rtl) 4f - leading else leading
+                    val lensWidth = slot - 4.dp.toPx() + stretch
+                    val lensHeight = size.height - 4.dp.toPx()
+                    val origin = Offset((centerIndex + 0.5f) * slot - lensWidth / 2, 2.dp.toPx())
+                    val lensSize = Size(lensWidth, lensHeight)
+                    val radius = CornerRadius(23.dp.toPx())
+                    drawRoundRect(colors.primary.copy(alpha = if (effects.reduceTransparency) 0.17f else 0.12f),
+                        origin, lensSize, radius)
+                    if (!effects.reduceTransparency) {
+                        drawRoundRect(Brush.verticalGradient(listOf(glass.highlight.copy(alpha = 0.19f),
+                            Color.Transparent, glass.emeraldTint.copy(alpha = 0.08f))), origin, lensSize, radius)
+                        drawRoundRect(glass.highlight.copy(alpha = 0.20f), origin, lensSize, radius,
+                            style = Stroke(0.65.dp.toPx()))
+                    }
+                    drawRoundRect(colors.secondary.copy(alpha = 0.70f),
+                        Offset(origin.x + lensWidth * 0.32f, origin.y + lensHeight - 3.dp.toPx()),
+                        Size(lensWidth * 0.36f, 1.5.dp.toPx()), CornerRadius(2.dp.toPx()))
+                }
+                Row(Modifier.fillMaxWidth().selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
+                    GanjDestination.entries.forEach { destination ->
+                        GanjNavigationItem(destination, destination == selectedDestination,
+                            !largeText && (showAllLabels || destination == selectedDestination), !largeText,
+                            if (destination == GanjDestination.Account) unreadCount ?: 0 else 0,
+                            onClick = { if (destination != selectedDestination) onDestinationSelected(destination) },
+                            modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -137,7 +146,7 @@ internal fun GanjLiquidBottomNavigation(
 
 @Composable
 private fun GanjNavigationItem(
-    destination: GanjDestination, selected: Boolean, showLabel: Boolean, unreadCount: Int,
+    destination: GanjDestination, selected: Boolean, showLabel: Boolean, reserveLabelSpace: Boolean, unreadCount: Int,
     onClick: () -> Unit, modifier: Modifier = Modifier,
 ) {
     val label = stringResource(destination.labelRes)
@@ -175,9 +184,11 @@ private fun GanjNavigationItem(
                 }
             }
         }
-        Spacer(Modifier.height(3.dp))
-        Text(if (showLabel) label else "", color = tint, style = MaterialTheme.typography.labelSmall,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1,
-            overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics {})
+        if (reserveLabelSpace) {
+            Spacer(Modifier.height(3.dp))
+            Text(if (showLabel) label else "", color = tint, style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics {})
+        }
     }
 }
