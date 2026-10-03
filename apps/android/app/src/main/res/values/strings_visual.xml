@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="visual_protected">Protected</string>
-    <string name="visual_ready">Ready</string>
-    <string name="visual_verified">Server-verified flow</string>
-    <string name="visual_signature">Ganj Signature</string>
-    <string name="visual_device_verified">Device verified</string>
-    <string name="visual_selected_service">Selected service</string>
-    <string name="visual_active_service">Active service</string>
-    <string name="visual_protocols">%1$d protocols</string>
-    <string name="visual_service_security">Secure service access</string>
-    <string name="visual_service_security_body">Only your verified subscription and registered device can request a connection profile.</string>
-    <string name="visual_available_services">Available services</string>
-    <string name="visual_available_services_body">Smart routing uses only destinations allowed by your current service.</string>
-    <string name="visual_store_plans">Subscription plans</string>
-    <string name="visual_store_plans_body">Choose the service tier that fits your usage.</string>
-    <string name="visual_my_services">Your subscriptions</string>
-    <string name="visual_my_services_body">Manage and connect using services already linked to your account.</string>
+    <string name="visual_protected">محافظت‌شده</string>
+    <string name="visual_ready">آماده</string>
+    <string name="visual_verified">فرایند تاییدشده توسط سرور</string>
+    <string name="visual_signature">امضای گنج</string>
+    <string name="visual_device_verified">دستگاه تاییدشده</string>
+    <string name="visual_selected_service">سرویس انتخاب‌شده</string>
+    <string name="visual_active_service">سرویس فعال</string>
+    <string name="visual_protocols">%1$d پروتکل</string>
+    <string name="visual_service_security">دسترسی امن به سرویس</string>
+    <string name="visual_service_security_body">فقط اشتراک تاییدشده و دستگاه ثبت‌شده شما می‌تواند پروفایل اتصال درخواست کند.</string>
+    <string name="visual_available_services">سرویس‌های قابل استفاده</string>
+    <string name="visual_available_services_body">مسیریابی هوشمند فقط از مقصدهای مجاز سرویس فعلی شما استفاده می‌کند.</string>
+    <string name="visual_store_plans">پلن‌های اشتراک</string>
+    <string name="visual_store_plans_body">پلنی را انتخاب کنید که با نوع استفاده شما هماهنگ است.</string>
+    <string name="visual_my_services">اشتراک‌های شما</string>
+    <string name="visual_my_services_body">سرویس‌های متصل به حساب خود را مدیریت کنید و با آن‌ها وصل شوید.</string>
 </resources>

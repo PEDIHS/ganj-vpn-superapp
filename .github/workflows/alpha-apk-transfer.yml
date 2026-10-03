@@ -1,0 +1,82 @@
+name: Verified Alpha APK transfer
+
+on:
+  pull_request:
+    paths: [".github/workflows/alpha-apk-transfer.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+# Transfer an already tested build in small pieces. This never rebuilds or changes APK bytes.
+# Update these immutable identifiers together when preparing another Alpha release.
+env:
+  SOURCE_RUN: "37080206556"
+  SOURCE_HEAD: "52793abb4f38f87a1c76b68cc961bfc8e4573a54"
+  SOURCE_ARTIFACT: "ganj-vpn-debug-f5296b83d33f205492940746807bd0e63926566a"
+
+jobs:
+  transfer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Require a successful Android CI run for the pinned source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" > source-run.json
+          jq -e --arg head "$SOURCE_HEAD" '.head_sha == $head and .conclusion == "success" and .name == "Android CI"' source-run.json >/dev/null
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source
+          run-id: ${{ env.SOURCE_RUN }}
+          github-token: ${{ github.token }}
+
+      - name: Verify and split the exact CI APK
+        id: split
+        run: |
+          set -Eeuo pipefail
+          cd source
+          test -s app-debug.apk
+          expected="$(awk '{print $1}' app-debug.apk.sha256)"
+          actual="$(sha256sum app-debug.apk | cut -d ' ' -f 1)"
+          test "$actual" = "$expected"
+          test "$(stat -c '%s' app-debug.apk)" -le 52428800
+          split -b 20971520 app-debug.apk from-ci.apk.part-
+          sha256sum from-ci.apk.part-* app-debug.apk > transfer-sha256.txt
+          cp ../source-run.json .
+          printf 'sha256=%s\n' "$actual" >> "$GITHUB_OUTPUT"
+          for part in ab ac; do
+            if test -f "from-ci.apk.part-$part"; then printf '%s=true\n' "$part" >> "$GITHUB_OUTPUT"; fi
+          done
+          printf 'Verified source APK SHA-256: %s\n' "$actual"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: alpha-transfer-${{ env.SOURCE_RUN }}-aa
+          path: |
+            source/from-ci.apk.part-aa
+            source/transfer-sha256.txt
+            source/source-run.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v7
+        if: steps.split.outputs.ab == 'true'
+        with:
+          name: alpha-transfer-${{ env.SOURCE_RUN }}-ab
+          path: source/from-ci.apk.part-ab
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v7
+        if: steps.split.outputs.ac == 'true'
+        with:
+          name: alpha-transfer-${{ env.SOURCE_RUN }}-ac
+          path: source/from-ci.apk.part-ac
+          if-no-files-found: error
+          retention-days: 7

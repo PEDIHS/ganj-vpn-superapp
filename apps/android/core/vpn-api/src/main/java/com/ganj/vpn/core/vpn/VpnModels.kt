@@ -24,6 +24,8 @@ data class ConnectionState(
     val bytesUp: Long = 0,
     val bytesDown: Long = 0,
     val errorCode: String? = null,
+    val serviceId: String? = null,
+    val profileId: String? = null,
 )
 
 class ConnectionRequest(val profile: ProvisionedProfile) {

@@ -3,6 +3,7 @@ import { ApiError } from './errors.js';
 
 const ALLOWED_STATUSES = new Set(['pending', 'active', 'disabled', 'expired', 'revoked']);
 const ALLOWED_PROTOCOLS = new Set(['vless', 'vmess', 'trojan', 'shadowsocks']);
+const RETRYABLE_CONFLICTS = new Set(['legacy_customer_unlinked', 'legacy_plan_mapping_missing']);
 
 function requiredString(value, field, max = 512) {
   if (typeof value !== 'string' || value.length < 1 || value.length > max) {
@@ -128,20 +129,24 @@ export class LegacySubscriptionReconciler {
 
     return this.repository.transaction(async () => {
       const priorEvent = await this.repository.findLegacyReconciliationEvent(event.sourceKey, event.eventId);
-      if (priorEvent) {
-        if (priorEvent.payloadFingerprint !== event.payloadFingerprint) {
-          throw new ApiError(409, 'legacy_event_replay_conflict', 'Legacy event ID was reused with different content.');
-        }
+      if (priorEvent?.payloadFingerprint !== undefined && priorEvent.payloadFingerprint !== event.payloadFingerprint) {
+        throw new ApiError(409, 'legacy_event_replay_conflict', 'Legacy event ID was reused with different content.');
+      }
+      const retryableConflict = priorEvent?.processingStatus === 'conflict'
+        && RETRYABLE_CONFLICTS.has(priorEvent.errorCode);
+      if (priorEvent && !retryableConflict) {
         return { outcome: priorEvent.processingStatus, replay: true, serviceId: priorEvent.controlServiceId ?? null };
       }
 
-      await this.repository.recordLegacyReconciliationEvent({
-        sourceKey: event.sourceKey,
-        eventId: event.eventId,
-        payloadFingerprint: event.payloadFingerprint,
-        externalServiceId: event.externalServiceId,
-        receivedAt: now.toISOString(),
-      });
+      if (!priorEvent) {
+        await this.repository.recordLegacyReconciliationEvent({
+          sourceKey: event.sourceKey,
+          eventId: event.eventId,
+          payloadFingerprint: event.payloadFingerprint,
+          externalServiceId: event.externalServiceId,
+          receivedAt: now.toISOString(),
+        });
+      }
 
       const user = await this.repository.findUserByTelegramSubject(event.telegramSubject);
       if (!user) {
@@ -167,17 +172,46 @@ export class LegacySubscriptionReconciler {
         });
       }
 
-      const plan = await this.repository.findPlanByCode(event.planCode);
-      if (!plan) {
-        return this.#conflict(event, 'plan', event.planCode, 'legacy_plan_mapping_missing', {}, now);
-      }
-
       const projection = await this.repository.findLegacyServiceProjection(event.sourceKey, event.externalServiceId);
       if (projection && projection.userId !== user.id) {
         return this.#conflict(event, 'service', event.externalServiceId, 'legacy_service_owner_conflict', {
           mapped_user_id: projection.userId,
           resolved_user_id: user.id,
         }, now);
+      }
+
+      let projectedService = null;
+      if (projection) {
+        projectedService = await this.repository.findOwnedService(user.id, projection.controlServiceId);
+        if (!projectedService) {
+          return this.#conflict(event, 'service', event.externalServiceId, 'legacy_projection_orphaned', {
+            control_service_id: projection.controlServiceId,
+          }, now);
+        }
+      }
+
+      const plan = await this.repository.findPlanByCode(event.planCode);
+      if (!plan) {
+        // Missing commercial mapping must never create or expand an entitlement. For an already
+        // projected service we may still apply a fail-closed lifecycle restriction from the trusted
+        // legacy source, so expired/revoked subscriptions cannot remain connectable indefinitely.
+        if (projectedService && event.status !== 'active' && projectedService.status !== event.status) {
+          await this.repository.saveService({
+            ...projectedService,
+            status: event.status,
+          });
+          await this.repository.appendAdminAudit({
+            actorSubject: 'system:legacy-reconciler',
+            action: 'legacy_service_restricted_without_plan_mapping',
+            resourceType: 'service',
+            resourceId: projectedService.id,
+            reason: 'legacy_sync:' + event.sourceKey,
+            requestId: randomUUID(),
+            outcome: 'success',
+            createdAt: now.toISOString(),
+          });
+        }
+        return this.#conflict(event, 'plan', event.planCode, 'legacy_plan_mapping_missing', {}, now);
       }
 
       if (projection?.sourceFingerprint === event.fingerprint) {
@@ -196,17 +230,7 @@ export class LegacySubscriptionReconciler {
         return { outcome: 'unchanged', replay: false, serviceId: projection.controlServiceId };
       }
 
-      let service;
-      if (projection) {
-        service = await this.repository.findOwnedService(user.id, projection.controlServiceId);
-        if (!service) {
-          return this.#conflict(event, 'service', event.externalServiceId, 'legacy_projection_orphaned', {
-            control_service_id: projection.controlServiceId,
-          }, now);
-        }
-      } else {
-        service = { id: this.ids(), userId: user.id };
-      }
+      const service = projectedService ?? { id: this.ids(), userId: user.id };
 
       const nextService = {
         ...service,
@@ -241,16 +265,14 @@ export class LegacySubscriptionReconciler {
       });
 
       await this.repository.appendAdminAudit({
-        actorType: 'system',
-        actorId: 'legacy-reconciler',
+        actorSubject: 'system:legacy-reconciler',
         action: projection ? 'legacy_service_updated' : 'legacy_service_created',
-        targetType: 'service',
-        targetId: stored.id,
-        metadata: {
-          source_key: event.sourceKey,
-          external_service_digest: stableFingerprint(event.externalServiceId),
-        },
-        occurredAt: now.toISOString(),
+        resourceType: 'service',
+        resourceId: stored.id,
+        reason: 'legacy_sync:' + event.sourceKey,
+        requestId: randomUUID(),
+        outcome: 'success',
+        createdAt: now.toISOString(),
       });
 
       await this.repository.completeLegacyReconciliationEvent({

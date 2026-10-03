@@ -25,4 +25,6 @@ dependencies {
     runtimeOnly("io.github.toolshubofficial:libxray:26.6.27")
 
     testImplementation("junit:junit:4.13.2")
+    // JVM tests need the real parser; android.jar supplies throwing JSON stubs.
+    testImplementation("org.json:json:20240303")
 }

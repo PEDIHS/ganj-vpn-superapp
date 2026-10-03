@@ -32,6 +32,52 @@ internal class DefaultAuthSessionApi(
         mapData = ::mapSession,
     )
 
+    override fun currentAccount(accessToken: AccessToken): ApiResult<CurrentAccount> = execute(
+        method = HttpMethod.GET,
+        path = "/me",
+        headers = mapOf("Authorization" to accessToken.authorizationValue()),
+        mapData = ::mapCurrentAccount,
+    )
+
+    override fun beginTelegramBotApproval(
+        accessToken: AccessToken,
+        command: TelegramBotApprovalCommand,
+    ): ApiResult<TelegramBotApprovalRequest> = execute(
+        method = HttpMethod.POST,
+        path = "/auth/telegram/bot/start",
+        headers = mapOf("Authorization" to accessToken.authorizationValue()),
+        body = JsonEncoder.objectValue(
+            "code_challenge" to command.codeChallenge,
+            "redirect_uri" to command.redirectUri,
+        ),
+        mapData = ::mapBotApprovalRequest,
+    )
+
+    override fun telegramBotApprovalStatus(
+        accessToken: AccessToken,
+        requestId: String,
+    ): ApiResult<TelegramBotApprovalStatus> = execute(
+        method = HttpMethod.GET,
+        path = "/auth/telegram/bot/requests/$requestId",
+        headers = mapOf("Authorization" to accessToken.authorizationValue()),
+        mapData = ::mapBotApprovalStatus,
+    )
+
+    override fun exchangeTelegramBotApproval(
+        accessToken: AccessToken,
+        command: TelegramBotApprovalExchangeCommand,
+    ): ApiResult<AuthSessionCredentials> = execute(
+        method = HttpMethod.POST,
+        path = "/auth/telegram/bot/exchange",
+        headers = mapOf("Authorization" to accessToken.authorizationValue()),
+        body = JsonEncoder.objectValue(
+            "request_id" to command.requestId,
+            "state" to command.state,
+            "code_verifier" to command.codeVerifier,
+        ),
+        mapData = ::mapSession,
+    )
+
     override fun beginTelegram(
         accessToken: AccessToken,
         command: TelegramAuthorizationCommand,
@@ -141,6 +187,47 @@ internal class DefaultAuthSessionApi(
         )
     }
 
+    private fun mapCurrentAccount(data: JsonValue): CurrentAccount {
+        val value = data.asObject()
+        if (value.requiredString("status") != "active") {
+            throw JsonProtocolException("Current account is not active")
+        }
+        return CurrentAccount(
+            id = value.requiredString("id").canonicalUuid("id"),
+            displayName = value.optionalString("display_name"),
+            locale = value.requiredString("locale"),
+            telegramLinked = value.optionalBoolean("telegram_linked", default = false),
+            telegramUsername = value.optionalString("telegram_username"),
+        )
+    }
+
+    private fun mapBotApprovalRequest(data: JsonValue): TelegramBotApprovalRequest {
+        val value = data.asObject()
+        return TelegramBotApprovalRequest(
+            requestId = value.requiredString("request_id").canonicalUuid("request_id"),
+            botUrl = value.requiredString("bot_url"),
+            state = value.requiredString("state"),
+            expiresAt = value.requiredString("expires_at").utcTimestamp("expires_at"),
+        )
+    }
+
+    private fun mapBotApprovalStatus(data: JsonValue): TelegramBotApprovalStatus {
+        val value = data.asObject()
+        val state = when (value.requiredString("status")) {
+            "pending" -> TelegramBotApprovalState.PENDING
+            "approved" -> TelegramBotApprovalState.APPROVED
+            "denied" -> TelegramBotApprovalState.DENIED
+            "consumed" -> TelegramBotApprovalState.CONSUMED
+            "expired" -> TelegramBotApprovalState.EXPIRED
+            else -> throw JsonProtocolException("Unknown Telegram Bot Approval status")
+        }
+        return TelegramBotApprovalStatus(
+            requestId = value.requiredString("request_id").canonicalUuid("request_id"),
+            state = state,
+            expiresAt = value.requiredString("expires_at").utcTimestamp("expires_at"),
+        )
+    }
+
     private fun mapTelegramAuthorization(data: JsonValue): TelegramAuthorization {
         val value = data.asObject()
         return TelegramAuthorization(
@@ -165,7 +252,7 @@ internal class DefaultAuthSessionApi(
             401 -> ApiError.AuthenticationExpired(requestId, code)
             403 -> ApiError.Forbidden(requestId, code)
             404 -> ApiError.NotFound(requestId, code)
-            409 -> ApiError.Conflict(requestId, code)
+            409, 410 -> ApiError.Conflict(requestId, code)
             429 -> ApiError.RateLimited(requestId, response.headers["retry-after"]?.toLongOrNull()?.coerceIn(0, 86_400))
             in 500..599 -> ApiError.Server(requestId, response.statusCode, code, retryable = true)
             else -> ApiError.Server(requestId, response.statusCode, code, retryable)

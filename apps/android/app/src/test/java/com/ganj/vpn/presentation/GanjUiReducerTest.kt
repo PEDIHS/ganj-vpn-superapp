@@ -44,6 +44,46 @@ class GanjUiReducerTest {
         assertEquals(ACTIVE_ID, selected.selectedEntitlementId)
     }
 
+    @Test fun `refresh and selecting same subscription preserve an explicit config`() {
+        val server = com.ganj.vpn.core.controlapi.ConnectionServer("config", "fixture", "Fixture", "DE", null,
+            com.ganj.vpn.core.controlapi.SubscriptionTier.PREMIUM, setOf(com.ganj.vpn.core.controlapi.VpnProtocol.VLESS))
+        val chosen = reducer.reduce(readyState(), GanjUiEvent.SelectServer(ACTIVE_ID, server))
+        val repeated = reducer.reduce(chosen, GanjUiEvent.SelectService(ACTIVE_ID))
+        val refreshed = reducer.reduce(reducer.reduce(repeated, GanjUiEvent.RefreshRequested), GanjUiEvent.ServicesResolved(chosen.services))
+        assertEquals(server, refreshed.selectedServer)
+        assertEquals(ACTIVE_ID, refreshed.selectedEntitlementId)
+    }
+
+    @Test fun `different subscription and authoritative expiry clear the previous config`() {
+        val server = com.ganj.vpn.core.controlapi.ConnectionServer("config", "fixture", "Fixture", "DE", null,
+            com.ganj.vpn.core.controlapi.SubscriptionTier.PREMIUM, setOf(com.ganj.vpn.core.controlapi.VpnProtocol.VLESS))
+        val initial = readyState().copy(services = ContentState.Ready(listOf(service(ACTIVE_ID, ServiceUiStatus.ACTIVE),
+            service(EXPIRED_ID, ServiceUiStatus.ACTIVE))))
+        val chosen = reducer.reduce(initial, GanjUiEvent.SelectServer(ACTIVE_ID, server))
+        val switched = reducer.reduce(chosen, GanjUiEvent.SelectService(EXPIRED_ID))
+        assertEquals(null, switched.selectedServer)
+        assertEquals(switched, reducer.reduce(switched, GanjUiEvent.SelectServer(ACTIVE_ID, server)))
+        val expired = reducer.reduce(chosen, GanjUiEvent.ServicesResolved(ContentState.Ready(listOf(service(ACTIVE_ID, ServiceUiStatus.EXPIRED)))))
+        assertEquals(null, expired.selectedEntitlementId)
+        assertEquals(null, expired.selectedServer)
+    }
+
+    @Test fun `subscription refresh never chooses the first active entry`() {
+        val refreshed = reducer.reduce(GanjUiState(), GanjUiEvent.ServicesResolved(readyState().services))
+        assertEquals(null, refreshed.selectedService)
+        assertEquals(null, refreshed.selectedServer)
+    }
+
+    @Test fun `traffic progress handles unlimited exhausted unavailable and overflow safely`() {
+        val s = service(ACTIVE_ID, ServiceUiStatus.ACTIVE)
+        assertEquals(0.01f, s.usageFraction!!, 0.0001f)
+        assertEquals(1f, s.copy(trafficLimitBytes = 0).usageFraction!!, 0f)
+        assertEquals(1f, s.copy(trafficUsedBytes = Long.MAX_VALUE).usageFraction!!, 0f)
+        assertEquals(null, s.copy(trafficLimitBytes = null).usageFraction)
+        assertEquals(null, s.copy(trafficUsageAvailable = false).usageFraction)
+        assertEquals(null, s.copy(trafficUsageAvailable = false).remainingBytes)
+    }
+
     @Test
     fun `checkout progresses pending verified active`() {
         val plan = plan()

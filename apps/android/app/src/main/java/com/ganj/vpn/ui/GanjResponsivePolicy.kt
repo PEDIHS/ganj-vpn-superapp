@@ -32,4 +32,25 @@ internal object GanjResponsivePolicy {
         GanjWidthClass.Regular -> 20
         GanjWidthClass.Wide -> 28
     }
+
+    /** Stitch mobile system: 18/20/22dp page gutters across the supported phone range. */
+    fun stitchHorizontalPaddingDp(widthDp: Int): Int = when {
+        widthDp <= 360 -> 18
+        widthDp >= 412 -> 22
+        else -> 20
+    }
+
+    /** Keeps the Connect control dominant without crowding 360dp devices. */
+    fun stitchConnectOrbSizeDp(widthDp: Int): Int = when {
+        widthDp <= 360 -> 180
+        widthDp <= 400 -> 198
+        else -> 212
+    }
+
+    /** Gives the floating bottom navigation additional breathing room on larger phones. */
+    fun stitchNavigationHorizontalPaddingDp(widthDp: Int): Int = when {
+        widthDp <= 360 -> 8
+        widthDp >= 412 -> 14
+        else -> 12
+    }
 }

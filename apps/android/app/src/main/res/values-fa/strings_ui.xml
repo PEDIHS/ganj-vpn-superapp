@@ -140,6 +140,7 @@
     <string name="failure_device_crypto">کلیدهای امن این دستگاه هنوز آماده نیستند.</string>
     <string name="failure_profile_auth">اعتبار پروفایل رمزگذاری‌شده سرور تایید نشد.</string>
     <string name="failure_protocol_unsupported">پروتکل این سرور در این نسخه پشتیبانی نمی‌شود.</string>
+    <string name="failure_native_core_not_running">هستهٔ VPN پس از راه‌اندازی متوقف شد. دوباره تلاش کنید یا سرور دیگری انتخاب کنید.</string>
     <string name="failure_tunnel_start">تونل VPN شروع نشد. با یک شبکه دیگر دوباره تلاش کنید.</string>
     <string name="failure_disconnect">VPN به‌صورت کامل قطع نشد. دوباره تلاش کنید.</string>
     <string name="failure_billing_provider">این روش پرداخت هنوز در دسترس نیست.</string>

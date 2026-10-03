@@ -184,6 +184,12 @@ internal object ProvisionedProfileRecoveryCodec {
                     writer.byte(TRANSPORT_GRPC)
                     writer.string(transport.serviceName, 256)
                 }
+                is ProvisionedTransport.XHttp -> {
+                    writer.byte(TRANSPORT_XHTTP)
+                    writer.string(transport.path, MAXIMUM_OPTION_BYTES)
+                    writer.nullableString(transport.host, MAXIMUM_HOST_BYTES)
+                    writer.string(transport.mode, 32)
+                }
             }
             when (val security = profile.security) {
                 ProvisionedSecurity.None -> writer.byte(SECURITY_NONE)
@@ -230,6 +236,11 @@ internal object ProvisionedProfileRecoveryCodec {
                     host = reader.nullableString(MAXIMUM_HOST_BYTES),
                 )
                 TRANSPORT_GRPC -> ProvisionedTransport.Grpc(reader.string(256))
+                TRANSPORT_XHTTP -> ProvisionedTransport.XHttp(
+                    path = reader.string(MAXIMUM_OPTION_BYTES),
+                    host = reader.nullableString(MAXIMUM_HOST_BYTES),
+                    mode = reader.string(32),
+                )
                 else -> error("Unsupported recovery transport")
             }
             val security = when (reader.byte()) {
@@ -277,6 +288,7 @@ internal object ProvisionedProfileRecoveryCodec {
     private const val TRANSPORT_TCP = 1
     private const val TRANSPORT_WEBSOCKET = 2
     private const val TRANSPORT_GRPC = 3
+    private const val TRANSPORT_XHTTP = 4
     private const val SECURITY_NONE = 1
     private const val SECURITY_TLS = 2
     private const val SECURITY_REALITY = 3

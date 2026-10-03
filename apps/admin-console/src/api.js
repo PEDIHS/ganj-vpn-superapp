@@ -1,4 +1,4 @@
-const SAFE_API_PATH = /^\/v1\/admin\/control-plane\/[A-Za-z0-9/_-]*$/;
+const SAFE_API_PATH = /^\/v1\/admin\/(?:control-plane|support)\/[A-Za-z0-9/_-]*$/;
 
 function sanitizeBaseUrl(value) {
   const raw = value || window.location.origin;
@@ -18,13 +18,18 @@ function safeMessage(error) {
   const code = typeof error.code === 'string' ? error.code : 'request_failed';
   const known = {
     unauthorized: 'نشست مدیریت معتبر نیست.',
-    admin_scope_required: 'این حساب دسترسی Control Plane ندارد.',
+    admin_scope_required: 'این حساب دسترسی مدیریتی لازم را ندارد.',
     server_not_found: 'سرور پیدا نشد.',
     server_code_conflict: 'کد سرور قبلاً استفاده شده است.',
     invalid_server_status: 'وضعیت انتخاب‌شده معتبر نیست.',
     invalid_protocols: 'پروتکل‌های انتخاب‌شده معتبر نیستند.',
     invalid_secret_reference: 'مرجع Secret Store معتبر نیست.',
     raw_secret_forbidden: 'ورود کانفیگ یا credential خام مجاز نیست.',
+    support_ticket_not_found: 'تیکت پشتیبانی پیدا نشد.',
+    support_ticket_closed: 'این تیکت بسته است؛ ابتدا وضعیت آن را تغییر دهید.',
+    invalid_support_status: 'وضعیت تیکت معتبر نیست.',
+    sensitive_content_rejected: 'پیام شامل محتوای محرمانه یا کانفیگ VPN است و ارسال نشد.',
+    idempotency_conflict: 'شناسه امن این عملیات قبلاً برای محتوای دیگری استفاده شده است.',
   };
   return known[code] ?? 'درخواست مدیریت با خطا مواجه شد.';
 }
@@ -98,6 +103,32 @@ export class AdminApiClient {
   updateServer(serverId, patch) {
     if (!/^[0-9a-f-]{36}$/i.test(serverId)) throw new Error('Invalid server id.');
     return this.request('PATCH', `/v1/admin/control-plane/servers/${serverId}`, patch);
+  }
+
+  listSupportTickets() {
+    return this.request('GET', '/v1/admin/support/tickets');
+  }
+
+  getSupportTicket(ticketId) {
+    if (!/^[0-9a-f-]{36}$/i.test(ticketId)) throw new Error('Invalid support ticket id.');
+    return this.request('GET', `/v1/admin/support/tickets/${ticketId}`);
+  }
+
+  replySupportTicket(ticketId, clientMessageId, body) {
+    if (!/^[0-9a-f-]{36}$/i.test(ticketId)) throw new Error('Invalid support ticket id.');
+    if (!/^[0-9a-f-]{36}$/i.test(clientMessageId)) throw new Error('Invalid support message id.');
+    return this.request('POST', `/v1/admin/support/tickets/${ticketId}/messages`, {
+      client_message_id: clientMessageId,
+      body,
+    });
+  }
+
+  updateSupportTicketStatus(ticketId, status) {
+    if (!/^[0-9a-f-]{36}$/i.test(ticketId)) throw new Error('Invalid support ticket id.');
+    if (!['waiting_user', 'waiting_support', 'resolved', 'closed'].includes(status)) {
+      throw new Error('Invalid support status.');
+    }
+    return this.request('PATCH', `/v1/admin/support/tickets/${ticketId}`, { status });
   }
 }
 

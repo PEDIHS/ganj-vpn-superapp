@@ -7,10 +7,18 @@ import com.ganj.vpn.core.controlapi.AuthSessionApi
 import com.ganj.vpn.core.controlapi.AuthSessionCredentials
 import com.ganj.vpn.core.controlapi.AuthSessionProofContract
 import com.ganj.vpn.core.controlapi.AuthenticationEventSink
+import com.ganj.vpn.core.controlapi.CurrentAccount
 import com.ganj.vpn.core.controlapi.GuestSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshSessionCommand
 import com.ganj.vpn.core.controlapi.RefreshingAuthTokenProvider
 import com.ganj.vpn.core.controlapi.SessionCredentialVault
+import com.ganj.vpn.core.controlapi.TelegramAuthorization
+import com.ganj.vpn.core.controlapi.TelegramAuthorizationCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalExchangeCommand
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalRequest
+import com.ganj.vpn.core.controlapi.TelegramBotApprovalStatus
+import com.ganj.vpn.core.controlapi.TelegramExchangeCommand
 import com.ganj.vpn.core.deviceidentity.DeviceIdentity
 import com.ganj.vpn.core.deviceidentity.DeviceProofRequest
 import com.ganj.vpn.presentation.CurrentUserIdProvider
@@ -19,16 +27,6 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
-/**
- * Device-bound Android authentication lifecycle.
- *
- * Network-backed bootstrap/refresh calls are deliberately serialized under one lock so a rotating
- * refresh token can never be consumed concurrently by two app requests. The durable vault is
- * committed before a new access token is exposed to the rest of the app.
- *
- * Session invalidation also crosses the VPN revocation boundary. A revoked, forbidden or locally
- * cleared session must never leave a paid tunnel or a recoverable server profile alive.
- */
 internal class AndroidAuthSessionManager(
     private val api: AuthSessionApi,
     private val vault: SessionCredentialVault,
@@ -36,7 +34,10 @@ internal class AndroidAuthSessionManager(
     private val sessionRevocationSink: SessionRevocationSink = SessionRevocationSink.NoOp,
     private val random: SecureRandom = SecureRandom(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
-) : RefreshingAuthTokenProvider, AuthenticationEventSink, CurrentUserIdProvider {
+) : RefreshingAuthTokenProvider,
+    AuthenticationEventSink,
+    CurrentUserIdProvider,
+    TelegramAuthSessionGateway {
     private val lock = Any()
 
     @Volatile
@@ -57,17 +58,102 @@ internal class AndroidAuthSessionManager(
     }
 
     override fun currentUserId(): String? = synchronized(lock) {
-        val current = vault.restore() ?: createGuestLocked()
-        current?.userId
+        (vault.restore() ?: createGuestLocked())?.userId
     }
 
     fun currentDeviceId(): String? = synchronized(lock) {
-        val current = vault.restore() ?: createGuestLocked()
-        current?.deviceId
+        (vault.restore() ?: createGuestLocked())?.deviceId
+    }
+
+    fun currentAccount(): ApiResult<CurrentAccount> = synchronized(lock) {
+        val token = currentAccessToken()
+            ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationExpired(null, "auth_required"))
+        when (val first = api.currentAccount(token)) {
+            is ApiResult.Success -> first
+            is ApiResult.Failure -> if (first.error is ApiError.AuthenticationExpired) {
+                val current = vault.restore()
+                val refreshed = current?.let(::refreshLocked)
+                if (refreshed != null) api.currentAccount(refreshed.accessToken) else first
+            } else {
+                first
+            }
+        }
+    }
+
+    override fun beginTelegramBotApproval(
+        command: TelegramBotApprovalCommand,
+    ): ApiResult<TelegramBotApprovalRequest> = synchronized(lock) {
+        val token = currentAccessToken()
+            ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationExpired(null, "auth_required"))
+        api.beginTelegramBotApproval(token, command)
+    }
+
+    override fun telegramBotApprovalStatus(
+        requestId: String,
+    ): ApiResult<TelegramBotApprovalStatus> = synchronized(lock) {
+        val token = currentAccessToken()
+            ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationExpired(null, "auth_required"))
+        api.telegramBotApprovalStatus(token, requestId)
+    }
+
+    override fun exchangeTelegramBotApproval(
+        command: TelegramBotApprovalExchangeCommand,
+    ): ApiResult<AuthSessionCredentials> = synchronized(lock) {
+        val token = currentAccessToken()
+            ?: return@synchronized ApiResult.Failure(ApiError.AuthenticationExpired(null, "auth_required"))
+        when (val result = api.exchangeTelegramBotApproval(token, command)) {
+            is ApiResult.Success -> if (persistLocked(result.value) != null) {
+                result
+            } else {
+                ApiResult.Failure(ApiError.Protocol(null, "session_persistence_failed"))
+            }
+            is ApiResult.Failure -> result
+        }
+    }
+
+    override fun beginTelegram(
+        command: TelegramAuthorizationCommand,
+    ): ApiResult<TelegramAuthorization> = synchronized(lock) {
+        val token = currentAccessToken()
+            ?: return@synchronized ApiResult.Failure(
+                ApiError.AuthenticationExpired(null, "auth_required"),
+            )
+        api.beginTelegram(token, command)
+    }
+
+    override fun exchangeTelegram(
+        command: TelegramExchangeCommand,
+    ): ApiResult<AuthSessionCredentials> = synchronized(lock) {
+        when (val result = api.exchangeTelegram(command)) {
+            is ApiResult.Success -> if (persistLocked(result.value) != null) {
+                result
+            } else {
+                ApiResult.Failure(ApiError.Protocol(null, "session_persistence_failed"))
+            }
+            is ApiResult.Failure -> result
+        }
+    }
+
+    /**
+     * A retryable remote failure must not destroy the only credential that can revoke that session.
+     * We therefore keep the local vault intact for network/server failures and clear it only after
+     * confirmed logout or when the server already considers the credential invalid/expired.
+     */
+    override fun logout(): Boolean = synchronized(lock) {
+        val current = vault.restore()
+            ?: return@synchronized invalidateSessionLocked().isSuccess
+
+        when (val remote = api.logout(current.accessToken)) {
+            is ApiResult.Success -> invalidateSessionLocked().isSuccess
+            is ApiResult.Failure -> when (remote.error) {
+                is ApiError.AuthenticationRequired,
+                is ApiError.AuthenticationExpired -> invalidateSessionLocked().isSuccess
+                else -> false
+            }
+        }
     }
 
     override fun onAuthenticationExpired(requestId: String?) {
-        // Never perform I/O on the response callback. The next token read performs one serialized refresh.
         forceRefresh = true
     }
 
@@ -78,10 +164,10 @@ internal class AndroidAuthSessionManager(
     private fun createGuestLocked(): AuthSessionCredentials? {
         val publicIdentity = identity.publicIdentity().getOrNull() ?: return null
         val unsignedBody = AuthSessionProofContract.guestUnsignedBody(
-            deviceId = publicIdentity.installationId,
-            keyVersion = publicIdentity.keyVersion,
-            signingPublicKeySpki = publicIdentity.signingPublicKeySpki,
-            encryptionPublicKeyRaw = publicIdentity.encryptionPublicKeyRaw,
+            publicIdentity.installationId,
+            publicIdentity.keyVersion,
+            publicIdentity.signingPublicKeySpki,
+            publicIdentity.encryptionPublicKeyRaw,
         )
         val compactProof = try {
             signProof(AuthSessionProofContract.GUEST_PATH, unsignedBody)
@@ -91,11 +177,11 @@ internal class AndroidAuthSessionManager(
         return when (
             val result = api.createGuest(
                 GuestSessionCommand(
-                    deviceId = publicIdentity.installationId,
-                    keyVersion = publicIdentity.keyVersion,
-                    signingPublicKeySpki = publicIdentity.signingPublicKeySpki,
-                    encryptionPublicKeyRaw = publicIdentity.encryptionPublicKeyRaw,
-                    deviceProof = compactProof,
+                    publicIdentity.installationId,
+                    publicIdentity.keyVersion,
+                    publicIdentity.signingPublicKeySpki,
+                    publicIdentity.encryptionPublicKeyRaw,
+                    compactProof,
                 ),
             )
         ) {
@@ -110,8 +196,8 @@ internal class AndroidAuthSessionManager(
             return createGuestLocked()
         }
         val unsignedBody = AuthSessionProofContract.refreshUnsignedBody(
-            deviceId = current.deviceId,
-            refreshToken = current.refreshToken,
+            current.deviceId,
+            current.refreshToken,
         )
         val compactProof = try {
             signProof(AuthSessionProofContract.REFRESH_PATH, unsignedBody)
@@ -121,9 +207,9 @@ internal class AndroidAuthSessionManager(
         return when (
             val result = api.refresh(
                 RefreshSessionCommand(
-                    refreshToken = current.refreshToken,
-                    deviceId = current.deviceId,
-                    deviceProof = compactProof,
+                    current.refreshToken,
+                    current.deviceId,
+                    compactProof,
                 ),
             )
         ) {
@@ -131,19 +217,17 @@ internal class AndroidAuthSessionManager(
                 forceRefresh = false
                 persistLocked(result.value)
             }
-            is ApiResult.Failure -> {
-                when (result.error) {
-                    is ApiError.AuthenticationExpired -> {
-                        val expired = result.error as ApiError.AuthenticationExpired
-                        invalidateSessionLocked()
-                        if (expired.code == "refresh_token_reuse_detected") null else createGuestLocked()
-                    }
-                    is ApiError.Forbidden -> {
-                        invalidateSessionLocked()
-                        null
-                    }
-                    else -> null
+            is ApiResult.Failure -> when (result.error) {
+                is ApiError.AuthenticationExpired -> {
+                    val expired = result.error as ApiError.AuthenticationExpired
+                    invalidateSessionLocked()
+                    if (expired.code == "refresh_token_reuse_detected") null else createGuestLocked()
                 }
+                is ApiError.Forbidden -> {
+                    invalidateSessionLocked()
+                    null
+                }
+                else -> null
             }
         }
     }
@@ -151,8 +235,6 @@ internal class AndroidAuthSessionManager(
     private fun invalidateSessionLocked(): Result<Unit> {
         forceRefresh = false
         val cleared = vault.clear()
-        // Cleanup of the privileged VPN boundary must not be skipped merely because local vault
-        // deletion reported an error. The sink itself is required to be non-throwing.
         runCatching { sessionRevocationSink.onSessionInvalidated() }
         return cleared
     }
@@ -179,29 +261,25 @@ internal class AndroidAuthSessionManager(
         } finally {
             nonceBytes.fill(0)
         }
-        val proofRequest = DeviceProofRequest.create(
-            method = "POST",
-            pathAndQuery = path,
-            body = unsignedBody,
-            timestampEpochSeconds = nowMillis() / 1_000L,
-            nonce = nonce,
-        )
-        return identity.sign(proofRequest).getOrNull()?.compactValue()
+        return identity.sign(
+            DeviceProofRequest.create(
+                "POST",
+                path,
+                unsignedBody,
+                nowMillis() / 1_000L,
+                nonce,
+            ),
+        ).getOrNull()?.compactValue()
     }
 
-    private fun expiresWithin(timestamp: String, windowMillis: Long): Boolean {
-        val expiry = parseUtcMillis(timestamp) ?: return true
-        return expiry <= nowMillis() + windowMillis
-    }
+    private fun expiresWithin(timestamp: String, windowMillis: Long): Boolean =
+        (parseUtcMillis(timestamp) ?: return true) <= nowMillis() + windowMillis
 
-    private fun isExpired(timestamp: String): Boolean {
-        val expiry = parseUtcMillis(timestamp) ?: return true
-        return expiry <= nowMillis()
-    }
+    private fun isExpired(timestamp: String): Boolean =
+        (parseUtcMillis(timestamp) ?: return true) <= nowMillis()
 
     private fun parseUtcMillis(value: String): Long? = runCatching {
-        val withoutZulu = value.removeSuffix("Z")
-        val seconds = withoutZulu.substringBefore('.')
+        val seconds = value.removeSuffix("Z").substringBefore('.')
         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
             isLenient = false
             timeZone = TimeZone.getTimeZone("UTC")

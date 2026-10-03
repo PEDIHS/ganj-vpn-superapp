@@ -29,6 +29,7 @@ data class UiFailure(
     val messageKey: String,
     val retryable: Boolean,
     val requestId: String? = null,
+    val diagnosticCode: String? = null,
 )
 
 enum class UiTier { FREE, PREMIUM, VIP }
@@ -59,11 +60,24 @@ data class ServiceUiModel(
     val expiresAt: String?,
     val deviceLimit: Int,
     val allowedProtocols: Set<String>,
+    val username: String? = null,
+    val trafficUsageAvailable: Boolean = true,
 ) {
     val isActive: Boolean get() = status == ServiceUiStatus.ACTIVE
     val remainingBytes: Long?
-        get() = trafficLimitBytes?.let { (it - trafficUsedBytes).coerceAtLeast(0) }
+        get() = if (trafficUsageAvailable) trafficLimitBytes?.let { (it - trafficUsedBytes).coerceAtLeast(0) } else null
+
+    val usageFraction: Float?
+        get() = if (!trafficUsageAvailable) null else trafficLimitBytes?.let { limit ->
+            if (limit == 0L) 1f else (trafficUsedBytes.toDouble() / limit.toDouble()).coerceIn(0.0, 1.0).toFloat()
+        }
 }
+
+/** Only safe server catalog metadata; the service identity is part of every selection. */
+data class SelectedConnectionServer(
+    val entitlementId: String,
+    val server: com.ganj.vpn.core.controlapi.ConnectionServer,
+)
 
 sealed interface CheckoutUiState {
     data object Idle : CheckoutUiState
@@ -115,9 +129,11 @@ data class GanjUiState(
     val services: ContentState<ServiceUiModel> = ContentState.Loading,
     val selectedPlanId: String? = null,
     val selectedEntitlementId: String? = null,
+    val selectedConnectionServer: SelectedConnectionServer? = null,
     val checkout: CheckoutUiState = CheckoutUiState.Idle,
     val connection: ConnectionUiState = ConnectionUiState.Idle,
     val refreshInProgress: Boolean = false,
+    val runtimeConnection: com.ganj.vpn.core.vpn.ConnectionState = com.ganj.vpn.core.vpn.ConnectionState(),
 ) {
     val plans: List<PlanUiModel>
         get() = (catalog as? ContentState.Ready<PlanUiModel>)?.items.orEmpty()
@@ -127,6 +143,9 @@ data class GanjUiState(
 
     val selectedService: ServiceUiModel?
         get() = serviceItems.firstOrNull { it.entitlementId == selectedEntitlementId }
+
+    val selectedServer: com.ganj.vpn.core.controlapi.ConnectionServer?
+        get() = selectedConnectionServer?.takeIf { it.entitlementId == selectedEntitlementId }?.server
 
     val selectedPlan: PlanUiModel?
         get() = plans.firstOrNull { it.id == selectedPlanId }

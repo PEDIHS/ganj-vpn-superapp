@@ -50,6 +50,8 @@ class ControlApiClientMappingTest {
                 [{
                   "id":"$SERVICE_ID",
                   "name":"Germany VIP",
+                  "service_username":"fixture_user_42",
+                  "traffic_usage_available":false,
                   "status":"active",
                   "tier":"vip",
                   "country_code":"DE",
@@ -67,6 +69,8 @@ class ControlApiClientMappingTest {
         val service = result.value.single()
 
         assertEquals(SERVICE_ID, service.id)
+        assertEquals("fixture_user_42", service.username)
+        assertFalse(service.trafficUsageAvailable)
         assertEquals(setOf(VpnProtocol.VLESS, VpnProtocol.TROJAN), service.allowedProtocols)
         assertFalse(UserService::class.java.declaredFields.any { it.name.contains("config", ignoreCase = true) })
         assertFalse(UserService::class.java.declaredFields.any { it.name.contains("uri", ignoreCase = true) })

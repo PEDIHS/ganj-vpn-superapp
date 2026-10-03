@@ -11,11 +11,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +32,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ganj.vpn.R
 import com.ganj.vpn.enterprise.BugCategory
 import com.ganj.vpn.enterprise.BugStatus
@@ -100,7 +105,7 @@ internal fun AppHeader(
 
 @Composable
 private fun HeaderCopy(title: String, subtitle: String) {
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
@@ -183,62 +188,155 @@ internal fun QuickAction(
 }
 
 @Composable
-internal fun LoadingCard(text: String) = ContentCard(accent = MaterialTheme.colorScheme.secondary) {
-    Text(text, fontWeight = FontWeight.SemiBold)
-    Text(
-        stringResource(R.string.common_wait),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.bodySmall,
-    )
+private fun StateCard(
+    title: String,
+    body: String,
+    accent: Color,
+    tone: GanjStatusTone,
+    status: String,
+    glyph: String,
+    actionText: String? = null,
+    onAction: (() -> Unit)? = null,
+    supporting: (@Composable ColumnScope.() -> Unit)? = null,
+) {
+    GanjGlassSurface(
+        role = GanjGlassRole.Dense,
+        accent = accent,
+        modifier = Modifier.fillMaxWidth(),
+        shapeRadius = 22.dp,
+        padding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable(enabled = false, onClick = {})
+                        .then(Modifier),
+                )
+                Text(
+                    text = glyph,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = accent,
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = body,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        GanjStatusPill(text = status, tone = tone)
+        supporting?.invoke(this)
+        if (actionText != null && onAction != null) {
+            GanjLiquidAction(
+                onClick = onAction,
+                accent = accent,
+                shapeRadius = 999.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = actionText,
+                    modifier = Modifier.align(Alignment.Center),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (tone == GanjStatusTone.Warning) {
+                        MaterialTheme.colorScheme.onSecondary
+                    } else if (tone == GanjStatusTone.Danger) {
+                        MaterialTheme.colorScheme.onError
+                    } else {
+                        MaterialTheme.colorScheme.onPrimary
+                    },
+                )
+            }
+        }
+    }
 }
+
+@Composable
+internal fun LoadingCard(text: String) = StateCard(
+    title = text,
+    body = stringResource(R.string.common_wait),
+    accent = MaterialTheme.colorScheme.primary,
+    tone = GanjStatusTone.Neutral,
+    status = "در حال بارگذاری",
+    glyph = "…",
+)
 
 @Composable
 internal fun EmptyCard(
     title: String,
     subtitle: String,
     onAction: () -> Unit,
-) = ContentCard(accent = MaterialTheme.colorScheme.outline) {
-    Text(title, fontWeight = FontWeight.Bold)
-    Text(
-        subtitle,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.bodySmall,
-    )
-    OutlinedButton(onClick = onAction) { Text(stringResource(R.string.common_refresh)) }
-}
+) = StateCard(
+    title = title,
+    body = subtitle,
+    accent = MaterialTheme.colorScheme.primary,
+    tone = GanjStatusTone.Neutral,
+    status = "موردی برای نمایش نیست",
+    glyph = "○",
+    actionText = stringResource(R.string.common_refresh),
+    onAction = onAction,
+)
 
 @Composable
-internal fun AuthCard(onRetry: () -> Unit) = ContentCard(accent = GanjWarning) {
-    Text(stringResource(R.string.auth_required_title), fontWeight = FontWeight.Bold)
-    Text(
-        stringResource(R.string.auth_required_body),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.bodySmall,
-    )
-    OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.auth_refresh_session)) }
-}
+internal fun AuthCard(onRetry: () -> Unit) = StateCard(
+    title = stringResource(R.string.auth_required_title),
+    body = stringResource(R.string.auth_required_body),
+    accent = GanjWarning,
+    tone = GanjStatusTone.Warning,
+    status = "اتصال حساب لازم است",
+    glyph = "◇",
+    actionText = stringResource(R.string.auth_refresh_session),
+    onAction = onRetry,
+)
 
 @Composable
 internal fun ErrorCard(
     failure: UiFailure,
     onRetry: () -> Unit,
-) = ContentCard(accent = MaterialTheme.colorScheme.error) {
-    Text(
-        failureMessage(failure),
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.error,
-    )
-    failure.requestId?.let {
-        Text(
-            stringResource(R.string.common_request_code, it.take(8)),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 10.sp,
-        )
-    }
-    if (failure.retryable) {
-        OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.common_retry)) }
-    }
-}
+) = StateCard(
+    title = "مشکلی پیش آمد",
+    body = failureMessage(failure),
+    accent = MaterialTheme.colorScheme.error,
+    tone = GanjStatusTone.Danger,
+    status = if (failure.retryable) "قابل تلاش دوباره" else "نیازمند بررسی",
+    glyph = "!",
+    actionText = if (failure.retryable) stringResource(R.string.common_retry) else null,
+    onAction = if (failure.retryable) onRetry else null,
+    supporting = failure.requestId?.let { requestId ->
+        {
+            GanjInfoChip(
+                text = stringResource(
+                    R.string.common_request_code,
+                    isolateTechnicalLtr(requestId.take(8)),
+                ),
+                accent = MaterialTheme.colorScheme.error,
+            )
+        }
+    },
+)
 
 @Composable
 internal fun formatPrice(product: PlanUiModel): String = if (product.amountMinor == 0L) {
@@ -246,14 +344,21 @@ internal fun formatPrice(product: PlanUiModel): String = if (product.amountMinor
 } else {
     val major = product.amountMinor / 100
     val minor = product.amountMinor % 100
-    "$major.${minor.toString().padStart(2, '0')} ${product.currency}"
+    val numeric = "$major.${minor.toString().padStart(2, '0')}".toPersianDigits()
+    "$numeric ${isolateTechnicalLtr(product.currency)}"
 }
 
 @Composable
 internal fun formatTraffic(bytes: Long?): String = when {
     bytes == null -> stringResource(R.string.traffic_unlimited)
-    bytes >= 1_000_000_000 -> stringResource(R.string.traffic_gb_left, bytes / 1_000_000_000)
-    else -> stringResource(R.string.traffic_mb_left, bytes / 1_000_000)
+    bytes >= 1_000_000_000 -> stringResource(
+        R.string.traffic_gb_left,
+        bytes / 1_000_000_000,
+    ).toPersianDigits()
+    else -> stringResource(
+        R.string.traffic_mb_left,
+        bytes / 1_000_000,
+    ).toPersianDigits()
 }
 
 @Composable
@@ -275,7 +380,7 @@ internal fun serviceStatusText(status: ServiceUiStatus): String = when (status) 
 internal fun tierText(tier: UiTier): String = when (tier) {
     UiTier.FREE -> stringResource(R.string.tier_free)
     UiTier.PREMIUM -> stringResource(R.string.tier_premium)
-    UiTier.VIP -> stringResource(R.string.tier_vip)
+    UiTier.VIP -> "وی‌آی‌پی"
 }
 
 @Composable
@@ -302,12 +407,44 @@ internal fun bugStatusText(status: BugStatus): String = when (status) {
 
 @Composable
 internal fun failureMessage(failure: UiFailure): String = when (failure.messageKey) {
+    "connection.config_invalid" -> stringResource(R.string.failure_config_invalid)
+    "connection.tun_failed" -> stringResource(R.string.failure_tun_failed)
+    "connection.socket_protection_failed" -> stringResource(R.string.failure_socket_protection)
+    "connection.recovery_write_failed" -> stringResource(R.string.failure_recovery_write)
+    "connection.recovery_invalid", "connection.recovery_missing" -> stringResource(R.string.failure_recovery_missing)
+    "connection.service_timeout" -> stringResource(R.string.failure_service_timeout)
+    "connection.service_failed" -> stringResource(R.string.failure_service_start)
+    "connection.native_rejected" -> stringResource(R.string.failure_native_rejected)
+    "connection.native_unavailable" -> stringResource(R.string.failure_native_unavailable)
+    "connection.interrupted" -> stringResource(R.string.failure_connection_interrupted)
+    "connection.device_limit_reached" -> stringResource(R.string.failure_device_limit)
+    "connection.device_proof_invalid" -> stringResource(R.string.failure_device_proof)
+    "connection.device_mismatch" -> stringResource(R.string.failure_device_mismatch)
+    "connection.server_unavailable" -> stringResource(R.string.failure_selected_server)
+    "connection.api_timeout" -> stringResource(R.string.failure_api_timeout)
+    "connection.api_tls" -> stringResource(R.string.failure_api_tls)
+    "connection.api_dns" -> stringResource(R.string.failure_api_dns)
+    "connection.profile_binding_mismatch", "connection.profile_payload_mismatch" -> stringResource(R.string.failure_profile_binding)
+    "connection.profile_algorithm_unsupported" -> stringResource(R.string.failure_profile_algorithm)
+    "connection.profile_envelope_invalid", "connection.profile_payload_invalid" -> stringResource(R.string.failure_profile_invalid)
+    "connection.profile_crypto_failed" -> stringResource(R.string.failure_profile_crypto)
+    "probe.timeout" -> stringResource(R.string.failure_probe_timeout)
+    "probe.dns_failed" -> stringResource(R.string.failure_probe_dns)
+    "probe.tls_failed" -> stringResource(R.string.failure_probe_tls)
+    "probe.connection_refused" -> stringResource(R.string.failure_probe_refused)
+    "probe.network_unreachable" -> stringResource(R.string.failure_probe_network)
+    "probe.http_failed" -> stringResource(R.string.failure_probe_http)
+    "probe.active_tunnel_busy" -> stringResource(R.string.failure_probe_active)
+    "probe.context_unavailable" -> stringResource(R.string.failure_probe_context)
+    "probe.native_failed" -> stringResource(R.string.failure_probe_native)
+    "probe.unavailable" -> stringResource(R.string.failure_probe_unavailable)
     "auth.required" -> stringResource(R.string.failure_auth_required)
     "entitlement.denied" -> stringResource(R.string.failure_entitlement_denied)
     "request.conflict" -> stringResource(R.string.failure_request_conflict)
     "request.rate_limited" -> stringResource(R.string.failure_rate_limited)
     "network.unavailable" -> stringResource(R.string.failure_network_unavailable)
     "server.unavailable" -> stringResource(R.string.failure_server_unavailable)
+    "connection.server_selection_required" -> stringResource(R.string.failure_server_selection_required)
     "connection.context_unavailable" -> stringResource(R.string.failure_connection_context)
     "connection.service_inactive" -> stringResource(R.string.failure_service_inactive)
     "connection.permission_denied" -> stringResource(R.string.failure_vpn_permission)
@@ -317,6 +454,7 @@ internal fun failureMessage(failure: UiFailure): String = when (failure.messageK
     "connection.profile_authentication_failed", "connection.profile_rejected" ->
         stringResource(R.string.failure_profile_auth)
     "connection.protocol_unsupported" -> stringResource(R.string.failure_protocol_unsupported)
+    "connection.native_core_not_running" -> stringResource(R.string.failure_native_core_not_running)
     "connection.tunnel_start_failed" -> stringResource(R.string.failure_tunnel_start)
     "connection.disconnect_failed" -> stringResource(R.string.failure_disconnect)
     "billing.provider_unavailable" -> stringResource(R.string.failure_billing_provider)
@@ -336,4 +474,47 @@ internal fun enterpriseMessage(messageKey: String): String = when (messageKey) {
     "request.rate_limited" -> stringResource(R.string.failure_rate_limited)
     "server.unavailable" -> stringResource(R.string.failure_server_unavailable)
     else -> stringResource(R.string.enterprise_failure_generic)
+}
+
+@Composable
+internal fun latencyFailureLabel(failure: UiFailure): String = stringResource(when (failure.messageKey) {
+    "probe.timeout" -> R.string.ping_timeout
+    "probe.dns_failed" -> R.string.ping_dns
+    "probe.tls_failed" -> R.string.ping_tls
+    "probe.connection_refused" -> R.string.ping_refused
+    "probe.network_unreachable" -> R.string.ping_network
+    "probe.active_tunnel_busy" -> R.string.ping_active_only
+    "probe.native_failed", "connection.config_invalid" -> R.string.ping_native
+    else -> R.string.ping_failed
+})
+
+@Composable
+internal fun ConnectionFailureDetails(failure: UiFailure) {
+    val code = failure.diagnosticCode?.takeIf {
+        it.matches(Regex("^(vpn|xray|connection|probe)\\.[a-z_]{2,64}$"))
+    }
+    if (code == null && failure.requestId == null) return
+    var expanded by remember(failure) { mutableStateOf(false) }
+    TextButton(onClick = { expanded = !expanded }) {
+        Text(stringResource(if (expanded) R.string.failure_hide_details else R.string.failure_show_details))
+    }
+    if (expanded) {
+        code?.let {
+            Text(stringResource(R.string.failure_diagnostic_code, isolateTechnicalLtr(it)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        failure.requestId?.let {
+            Text(stringResource(R.string.common_request_code, isolateTechnicalLtr(it.take(8))),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+internal fun latencyReadingTime(measuredAtMillis: Long): String {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    return stringResource(R.string.ping_last_measurement,
+        java.text.SimpleDateFormat("HH:mm:ss", locale).format(java.util.Date(measuredAtMillis)))
 }

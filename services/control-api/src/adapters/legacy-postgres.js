@@ -225,6 +225,20 @@ export class LegacyPostgresRepository {
   }
 
   async appendAdminAudit(value) {
+    if (value?.actorSubject && value?.resourceType && value?.resourceId && value?.requestId && value?.createdAt) {
+      return this.base.appendAdminAudit({
+        actorSubject: value.actorSubject,
+        action: value.action,
+        resourceType: value.resourceType,
+        resourceId: value.resourceId,
+        reason: value.reason ?? 'Legacy reconciliation projected normalized entitlement metadata.',
+        requestId: value.requestId,
+        beforeDigest: value.beforeDigest ?? null,
+        afterDigest: value.afterDigest ?? null,
+        outcome: value.outcome ?? 'success',
+        createdAt: value.createdAt,
+      });
+    }
     const digest = value.metadata?.external_service_digest ?? null;
     return this.base.appendAdminAudit({
       actorSubject: `${value.actorType}:${value.actorId}`,

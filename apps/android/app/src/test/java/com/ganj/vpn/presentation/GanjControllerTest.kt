@@ -7,6 +7,7 @@ import com.ganj.vpn.core.controlapi.CheckoutCommand
 import com.ganj.vpn.core.controlapi.CheckoutOrder
 import com.ganj.vpn.core.controlapi.ConnectionProfileCommand
 import com.ganj.vpn.core.controlapi.ConnectionProfileLease
+import com.ganj.vpn.core.controlapi.ConnectionServer
 import com.ganj.vpn.core.controlapi.ControlApiRepository
 import com.ganj.vpn.core.controlapi.Money
 import com.ganj.vpn.core.controlapi.OrderStatus
@@ -38,7 +39,7 @@ class GanjControllerTest {
         val state = controller.refresh(GanjUiState(refreshInProgress = true))
 
         assertEquals(PLAN_ID, state.selectedPlanId)
-        assertEquals(SERVICE_ID, state.selectedEntitlementId)
+        assertNull("refresh must not silently choose the first subscription", state.selectedEntitlementId)
         assertFalse(state.refreshInProgress)
         assertEquals(1, state.plans.size)
         assertEquals(1, state.serviceItems.size)
@@ -198,6 +199,55 @@ class GanjControllerTest {
         assertEquals("connection.context_unavailable", failed.failure.messageKey)
     }
 
+    @Test fun `manual second config is passed explicitly and never replaced by first config`() {
+        val chosen = server(OTHER_SERVER_ID)
+        var requested: Pair<String, String>? = null
+        val repository = FakeRepository()
+        val provider = object : ConnectionProfileContextProvider {
+            override fun forEntitlement(entitlementId: String): ConnectionProfileContext? = error("Implicit fallback must not run")
+            override fun forServer(entitlementId: String, serverId: String): ConnectionProfileContext {
+                requested = entitlementId to serverId
+                return ConnectionProfileContext(DEVICE_ID, serverId, NONCE, DEVICE_PROOF)
+            }
+        }
+        val selected = stateWithService().copy(selectedConnectionServer = SelectedConnectionServer(SERVICE_ID, chosen))
+        controller(repository, connectionContext = provider).prepareConnection(selected, SERVICE_ID)
+        assertEquals(SERVICE_ID to OTHER_SERVER_ID, requested)
+        assertEquals(OTHER_SERVER_ID, repository.profileCommand?.serverId)
+    }
+
+    @Test fun `missing or different-subscription config does not issue a profile`() {
+        for (choice in listOf(null, SelectedConnectionServer("different-subscription", server(SERVER_ID)))) {
+            val repository = FakeRepository()
+            val controller = controller(repository, connectionContext = ConnectionProfileContextProvider { error("Must not request device proof") })
+            val result = controller.prepareConnection(stateWithService().copy(selectedConnectionServer = choice), SERVICE_ID)
+            assertNull(repository.profileCommand)
+            assertEquals("connection.server_selection_required", (result.connection as ConnectionUiState.Failed).failure.messageKey)
+        }
+    }
+
+    @Test fun `unavailable explicit config never falls back to another server`() {
+        val repository = FakeRepository()
+        val provider = object : ConnectionProfileContextProvider {
+            override fun forEntitlement(entitlementId: String) = ConnectionProfileContext(DEVICE_ID, SERVER_ID, NONCE, DEVICE_PROOF)
+            override fun forServer(entitlementId: String, serverId: String): ConnectionProfileContext? = null
+        }
+        val selected = stateWithService().copy(selectedConnectionServer = SelectedConnectionServer(SERVICE_ID, server(OTHER_SERVER_ID)))
+        val result = controller(repository, connectionContext = provider).prepareConnection(selected, SERVICE_ID)
+        assertNull(repository.profileCommand)
+        assertTrue(result.connection is ConnectionUiState.Failed)
+    }
+
+    @Test fun `lease for another config is rejected before creating tunnel action`() {
+        val constructor = ConnectionProfileLease::class.java.declaredConstructors.single { it.parameterTypes.size == 4 }.apply { isAccessible = true }
+        val lease = constructor.newInstance("profile", OTHER_SERVER_ID, "2027-01-01T00:00:00Z", "fixture") as ConnectionProfileLease
+        val repository = FakeRepository(profileResult = success(lease))
+        val result = controller(repository, connectionContext = ConnectionProfileContextProvider {
+            ConnectionProfileContext(DEVICE_ID, SERVER_ID, NONCE, DEVICE_PROOF)
+        }).prepareConnection(stateWithService(), SERVICE_ID)
+        assertEquals("connection.profile_binding_mismatch", (result.connection as ConnectionUiState.Failed).failure.messageKey)
+    }
+
     private fun controller(
         repository: FakeRepository,
         billing: FakeBilling = FakeBilling(BillingStartResult.AuthRequired),
@@ -230,8 +280,12 @@ class GanjControllerTest {
             catalog = ContentState.Empty,
             services = mapped,
             selectedEntitlementId = if (status == ServiceStatus.ACTIVE) SERVICE_ID else null,
+            selectedConnectionServer = if (status == ServiceStatus.ACTIVE) SelectedConnectionServer(SERVICE_ID, server(SERVER_ID)) else null,
         )
     }
+
+    private fun server(id: String) = ConnectionServer(id, "fixture", "Fixture config", "DE", null,
+        SubscriptionTier.PREMIUM, setOf(VpnProtocol.VLESS))
 
     private fun planUi() = (GanjPresentationMapper().catalog(success(listOf(product()))) as ContentState.Ready).items.single()
 
@@ -320,6 +374,7 @@ class GanjControllerTest {
         const val USER_ID = "10000000-0000-4000-8000-000000000099"
         const val DEVICE_ID = "30000000-0000-4000-8000-000000000001"
         const val SERVER_ID = "40000000-0000-4000-8000-000000000001"
+        const val OTHER_SERVER_ID = "40000000-0000-4000-8000-000000000002"
         const val IDEMPOTENCY_KEY = "50000000-0000-4000-8000-000000000001"
         const val NONCE = "nonce-opaque-device-bound-value-00000001"
         const val DEVICE_PROOF = "proof-opaque-device-bound-value-00000001"

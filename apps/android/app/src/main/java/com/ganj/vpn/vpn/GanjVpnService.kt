@@ -7,15 +7,29 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import com.ganj.vpn.MainActivity
+import com.ganj.vpn.presentation.ActiveTunnelProbe
+import com.ganj.vpn.presentation.LatencyProbeResult
+import com.ganj.vpn.presentation.latencyMillis
+import com.ganj.vpn.presentation.ConnectionFailures
+import com.ganj.vpn.core.xray.NativeProbeResult
+import com.ganj.vpn.core.xray.ProxyProbeFallback
+import com.ganj.vpn.core.xray.NativeFailureClassifier
 import com.ganj.vpn.R
 import com.ganj.vpn.core.vpn.ConnectionRequest
+import com.ganj.vpn.core.vpn.ConnectionPhase
 import com.ganj.vpn.core.vpn.ConnectionState
+import com.ganj.vpn.core.vpn.ProvisionedProfile
+import com.ganj.vpn.core.xray.XrayConfigCompiler
+import com.ganj.vpn.core.xray.SocketProtector
 import com.ganj.vpn.core.vpn.SecureProfileRecoveryStore
 import com.ganj.vpn.core.vpn.VpnReconnectCoordinator
 import com.ganj.vpn.core.xray.AndroidXrayEngine
@@ -23,6 +37,10 @@ import com.ganj.vpn.core.xray.ReflectiveLibXrayBridge
 import com.ganj.vpn.core.xray.TunnelDevice
 import com.ganj.vpn.core.xray.TunnelPlatform
 import com.ganj.vpn.core.xray.VpnRuntimeException
+import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.net.URL
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +67,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     private val desiredConnection = AtomicBoolean(false)
     private val networkLossObserved = AtomicBoolean(false)
     private val reconnectCoordinator = VpnReconnectCoordinator()
+    private val nativeLifecycleLock = Any()
     private val recoveryStore by lazy { SecureProfileRecoveryStore(applicationContext) }
     private val connectivityManager by lazy { getSystemService(ConnectivityManager::class.java) }
 
@@ -58,21 +77,28 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     @Volatile
     private var networkCallbackRegistered = false
 
+    private val underlyingNetworks = java.util.concurrent.ConcurrentHashMap.newKeySet<Network>()
+
     private val engine by lazy {
         AndroidXrayEngine(
             platform = this,
-            native = ReflectiveLibXrayBridge(applicationContext.classLoader),
+            native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer) { response ->
+                if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
+                    android.util.Log.e("GanjNativeFixture", response)
+                }
+            },
         )
     }
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onLost(network: Network) {
+            if (!underlyingNetworks.remove(network)) return
             if (!desiredConnection.get()) return
             networkLossObserved.set(true)
             // Android may deliver new-network onAvailable before old-network onLost. If a new
             // default already exists, reconnect now; otherwise wait for its onAvailable callback.
             if (
-                connectivityManager.activeNetwork != null &&
+                underlyingNetworks.isNotEmpty() &&
                 networkLossObserved.compareAndSet(true, false)
             ) {
                 scheduleNetworkReconnect()
@@ -80,6 +106,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         }
 
         override fun onAvailable(network: Network) {
+            underlyingNetworks.add(network)
             if (!desiredConnection.get()) return
             if (networkLossObserved.compareAndSet(true, false)) {
                 scheduleNetworkReconnect()
@@ -90,8 +117,20 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        serviceScope.launch {
+            while (isActive) {
+                VpnRuntimeState.publish(engine.currentState(), engine.hasTunnel())
+                delay(250)
+            }
+        }
         networkCallbackRegistered = runCatching {
-            connectivityManager.registerDefaultNetworkCallback(networkCallback)
+            connectivityManager.registerNetworkCallback(
+                NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                    .build(),
+                networkCallback,
+            )
             true
         }.getOrDefault(false)
     }
@@ -103,7 +142,12 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         when (intent?.action) {
             ACTION_PREPARE -> startForeground(NOTIFICATION_ID, connectionNotification())
             ACTION_DISCONNECT -> {
-                terminateDesiredConnection(clearRecovery = true)
+                // Notification/service commands are delivered on the main thread. Native Xray
+                // shutdown and recovery-store cleanup may block, so keep teardown on the service
+                // IO scope just like binder-driven disconnects.
+                serviceScope.launch {
+                    terminateDesiredConnection(clearRecovery = true, startId = startId)
+                }
                 return START_NOT_STICKY
             }
             null -> {
@@ -130,7 +174,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 }
 
                 desiredConnection.set(true)
-                val result = engine.connect(ConnectionRequest(restored))
+                val result = synchronized(nativeLifecycleLock) { engine.connect(ConnectionRequest(restored)) }
                 if (result.isFailure) {
                     terminateDesiredConnection(clearRecovery = true, startId = startId)
                 }
@@ -169,7 +213,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 return
             }
 
-            val result = engine.reconnect(ConnectionRequest(restored))
+            val result = synchronized(nativeLifecycleLock) { engine.reconnect(ConnectionRequest(restored)) }
             if (result.isSuccess) {
                 reconnectCoordinator.markConnected(epoch)
                 return
@@ -198,7 +242,8 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         reconnectJob?.cancel()
         reconnectJob = null
         if (clearRecovery) recoveryStore.clear()
-        engine.disconnect()
+        synchronized(nativeLifecycleLock) { engine.disconnect() }
+        VpnRuntimeState.publish(engine.currentState())
         stopForeground(STOP_FOREGROUND_REMOVE)
         if (startId == null) stopSelf() else stopSelf(startId)
     }
@@ -216,6 +261,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setBlocking(true)
         val descriptor = requireNotNull(builder.establish()) { "vpn.tun_permission_missing" }
+        VpnRuntimeState.publish(engine.currentState(), hasTunnel = true)
         ParcelTunnelDevice(descriptor)
     }
 
@@ -234,11 +280,125 @@ class GanjVpnService : VpnService(), TunnelPlatform {
             networkCallbackRegistered = false
         }
         serviceScope.cancel()
-        engine.close()
+        synchronized(nativeLifecycleLock) { engine.close() }
+        VpnRuntimeState.publish(engine.currentState())
         super.onDestroy()
     }
 
+    private fun protectedDnsServer(): String {
+        // Resolve the proxy endpoint using DNS reachable on the physical network.
+        // A hard-coded public UDP resolver can be blocked even when the VPN server is reachable.
+        val active = connectivityManager.activeNetwork?.takeIf {
+            connectivityManager.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN) == true
+        }
+        val networks = listOfNotNull(active) + underlyingNetworks.toList()
+        val servers = networks.flatMap { connectivityManager.getLinkProperties(it)?.dnsServers.orEmpty() }
+        val server = servers.firstOrNull { it is java.net.Inet4Address } ?: servers.firstOrNull()
+            ?: return "1.1.1.1:53"
+        val host = server.hostAddress ?: return "1.1.1.1:53"
+        return if (server is java.net.Inet6Address) "[$host]:53" else "$host:53"
+    }
+
+    private fun probeProfile(profile: ProvisionedProfile): NativeProbeResult {
+        return try {
+            if (engine.hasTunnel() && engine.currentState().phase != ConnectionPhase.CONNECTED) {
+                return NativeProbeResult.Failed("probe.active_tunnel_busy")
+            }
+            if (profile.isExpired(System.currentTimeMillis())) return NativeProbeResult.Failed("vpn.profile_expired")
+            val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
+            // Keep the active core's global DNS/protector intact. pingBatch uses a local
+            // core instance and inherits the already installed, protected socket dialer.
+            val installed = if (engine.hasTunnel()) com.ganj.vpn.core.xray.NativeCallResult(true)
+            else native.installSocketProtector(SocketProtector { fd -> fd >= 0 && (!engine.hasTunnel() || protect(fd)) })
+            if (!installed.success) NativeProbeResult.Failed(installed.errorCode ?: "xray.socket_protection_unavailable")
+            else XrayConfigCompiler().compileProbe(profile).use { config ->
+                if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
+                    native.probeDetailed(config, noBackupFilesDir, listOf(NATIVE_FIXTURE_PROBE_URL))
+                } else native.probeDetailed(config, noBackupFilesDir)
+            }
+        } finally { profile.close() }
+    }
+
+    private fun NativeProbeResult.asLatencyResult(): LatencyProbeResult = when (this) {
+        is NativeProbeResult.Measured -> LatencyProbeResult.Measured(millis)
+        is NativeProbeResult.Failed -> LatencyProbeResult.Failed(
+            if (code.startsWith("probe.")) ConnectionFailures.probe(code) else ConnectionFailures.runtime(code),
+        )
+    }
+
+    private fun probeEstablishedTunnel(): NativeProbeResult {
+        if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
+            // The isolated benchmark endpoint uses plaintext only inside the test VLESS fixture.
+            // Keep Android's production cleartext policy intact and verify its exact marker.
+            return try {
+                val started = SystemClock.elapsedRealtime()
+                Socket().use { socket ->
+                    socket.soTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MS
+                    socket.connect(InetSocketAddress("198.18.0.1", 18080), ACTIVE_TUNNEL_PROBE_TIMEOUT_MS)
+                    socket.getOutputStream().write(
+                        "GET /ganj-tun-check HTTP/1.1\r\nHost: test.invalid\r\nConnection: close\r\n\r\n".toByteArray(),
+                    )
+                    val response = socket.getInputStream().bufferedReader().readText()
+                    if (response.contains("ganj-tun-vless-roundtrip-ok")) {
+                        NativeProbeResult.Measured((SystemClock.elapsedRealtime() - started).coerceAtLeast(0L))
+                    } else NativeProbeResult.Failed("probe.http_failed")
+                }
+            } catch (error: Exception) {
+                NativeProbeResult.Failed(NativeFailureClassifier.probe(error))
+            }
+        }
+        // Bind every attempt to this VPN network. A disconnect between attempts must
+        // fail instead of quietly timing a direct connection on the physical network.
+        val vpnNetwork = connectivityManager.allNetworks.firstOrNull {
+            connectivityManager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        } ?: return NativeProbeResult.Failed("probe.network_unreachable")
+        return ProxyProbeFallback.measure { target ->
+            var connection: HttpURLConnection? = null
+            try {
+                val started = SystemClock.elapsedRealtime()
+                connection = vpnNetwork.openConnection(URL(target)) as HttpURLConnection
+                connection.connectTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MS
+                connection.readTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MS
+                connection.instanceFollowRedirects = false
+                connection.requestMethod = "HEAD"
+                connection.useCaches = false
+                connection.setRequestProperty("Cache-Control", "no-store")
+                connection.setRequestProperty("Connection", "close")
+                // Like libXray, a received HTTP response measures latency even when the target denies access.
+                if (connection.responseCode in 100..599) {
+                    NativeProbeResult.Measured((SystemClock.elapsedRealtime() - started).coerceAtLeast(0L))
+                } else NativeProbeResult.Failed("probe.http_failed")
+            } finally { connection?.disconnect() }
+        }
+    }
+
+
     inner class LocalBinder internal constructor() : Binder() {
+        suspend fun probe(profile: ProvisionedProfile): Long? = probeDetailed(profile).latencyMillis
+
+        suspend fun probeDetailed(profile: ProvisionedProfile): LatencyProbeResult = withContext(Dispatchers.IO) {
+            synchronized(nativeLifecycleLock) {
+                if (engine.hasTunnel() && engine.currentState().phase != ConnectionPhase.CONNECTED) {
+                    profile.close()
+                    LatencyProbeResult.Failed(ConnectionFailures.probe("probe.active_tunnel_busy"))
+                } else probeProfile(profile).asLatencyResult()
+            }
+        }
+
+        suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
+            withContext(Dispatchers.IO) {
+                val state = engine.currentState()
+                if (!engine.hasTunnel()) return@withContext ActiveTunnelProbe.NotActive
+                if (state.phase != ConnectionPhase.CONNECTED) return@withContext ActiveTunnelProbe.OtherTunnelActive
+                if (state.serviceId != serviceId || state.serverId != serverId) {
+                    return@withContext ActiveTunnelProbe.OtherTunnelActive
+                }
+                when (val measured = probeEstablishedTunnel()) {
+                    is NativeProbeResult.Measured -> ActiveTunnelProbe.Measured(measured.millis)
+                    is NativeProbeResult.Failed -> ActiveTunnelProbe.Measured(null, measured.code)
+                }
+            }
+
         suspend fun connect(request: ConnectionRequest): Result<Unit> = withContext(Dispatchers.IO) {
             reconnectCoordinator.invalidate()
             reconnectJob?.cancel()
@@ -248,22 +408,31 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
             val persisted = recoveryStore.save(request.profile)
             if (persisted.isFailure) {
-                desiredConnection.set(false)
                 request.profile.close()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+                if (!engine.hasTunnel()) {
+                    desiredConnection.set(false)
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
                 return@withContext Result.failure(
-                    persisted.exceptionOrNull()
-                        ?: IllegalStateException("vpn.profile_recovery_write_failed"),
+                    VpnRuntimeException("vpn.profile_recovery_write_failed"),
                 )
             }
 
             desiredConnection.set(true)
-            engine.connect(request).onFailure {
-                desiredConnection.set(false)
-                recoveryStore.clear()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+            val result = synchronized(nativeLifecycleLock) {
+                if (engine.hasTunnel()) engine.reconnect(request) else engine.connect(request)
+            }
+            VpnRuntimeState.publish(engine.currentState(), engine.hasTunnel())
+            result.onFailure {
+                if (engine.hasTunnel()) {
+                    scheduleNetworkReconnect()
+                } else {
+                    desiredConnection.set(false)
+                    recoveryStore.clear()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
             }
         }
 
@@ -274,7 +443,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
             reconnectJob?.cancel()
             reconnectJob = null
             recoveryStore.clear()
-            engine.disconnect().also {
+            synchronized(nativeLifecycleLock) { engine.disconnect() }.also {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -346,6 +515,8 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         const val ACTION_DISCONNECT = "com.ganj.vpn.action.DISCONNECT"
         private const val NOTIFICATION_CHANNEL_ID = "ganj_vpn_connection"
         private const val NOTIFICATION_ID = 4201
+        private const val NATIVE_FIXTURE_PROBE_URL = "http://198.18.0.1:18080/ganj-tun-check"
+        private const val ACTIVE_TUNNEL_PROBE_TIMEOUT_MS = 5_000
         private const val IPV4_CLIENT_ADDRESS = "10.111.222.2"
         private const val IPV4_PREFIX_LENGTH = 32
         private const val IPV4_DEFAULT_ROUTE = "0.0.0.0"

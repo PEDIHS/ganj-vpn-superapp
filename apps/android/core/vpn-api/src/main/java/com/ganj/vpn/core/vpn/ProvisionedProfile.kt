@@ -10,6 +10,7 @@ sealed interface ProvisionedTransport {
     data object Tcp : ProvisionedTransport
     data class WebSocket(val path: String, val host: String? = null) : ProvisionedTransport
     data class Grpc(val serviceName: String) : ProvisionedTransport
+    data class XHttp(val path: String, val host: String? = null, val mode: String = "auto") : ProvisionedTransport
 }
 
 sealed interface ProvisionedSecurity {
@@ -139,6 +140,11 @@ private fun validateTransport(value: ProvisionedTransport) {
             value.serviceName.length in 1..256 &&
                 value.serviceName.matches(Regex("^[A-Za-z0-9._/-]+$")),
         )
+        is ProvisionedTransport.XHttp -> {
+            require(value.path.startsWith('/') && value.path.length <= 2048)
+            value.host?.let { require(it.isSafeHost()) }
+            require(value.mode in setOf("auto", "packet-up", "stream-up", "stream-one"))
+        }
     }
 }
 
@@ -168,8 +174,10 @@ private fun validateProtocolCompatibility(
     if (security is ProvisionedSecurity.Reality) {
         require(protocol == VpnProtocol.VLESS) { "REALITY is supported only for VLESS" }
         require(
-            transport == ProvisionedTransport.Tcp || transport is ProvisionedTransport.Grpc,
-        ) { "REALITY requires TCP or gRPC transport" }
+            transport == ProvisionedTransport.Tcp ||
+                transport is ProvisionedTransport.Grpc ||
+                transport is ProvisionedTransport.XHttp,
+        ) { "REALITY requires TCP, gRPC, or XHTTP transport" }
     }
     require(protocol != VpnProtocol.TROJAN || security is ProvisionedSecurity.Tls) {
         "Trojan requires authenticated TLS"

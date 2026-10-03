@@ -162,6 +162,9 @@ test('active legacy service creates exactly one projected entitlement', async ()
   assert.deepEqual(service.allowed_protocols, ['trojan', 'vless']);
   assert.equal(repository.projections.size, 1);
   assert.equal(repository.audit.length, 1);
+  assert.equal(repository.audit[0].actorSubject, 'system:legacy-reconciler');
+  assert.equal(repository.audit[0].resourceType, 'service');
+  assert.equal(repository.audit[0].outcome, 'success');
   assert.equal(JSON.stringify(repository.audit).includes('legacy-service-9001'), false);
 });
 
@@ -224,6 +227,86 @@ test('unlinked Telegram customer becomes an operator conflict without entitlemen
   const detail = [...repository.conflicts.values()][0].detail;
   assert.equal('telegram_subject' in detail, false);
   assert.equal(typeof detail.telegram_subject_digest, 'string');
+});
+
+test('an unlinked-customer conflict is retried after Telegram linking without a new event id', async () => {
+  const repository = new FakeLegacyRepository();
+  repository.users.clear();
+  const service = reconciler(repository);
+
+  const first = await service.reconcile(event());
+  assert.equal(first.conflictCode, 'legacy_customer_unlinked');
+  repository.users.set('telegram-subject-42', { id: USER_ID });
+
+  const retried = await service.reconcile(event());
+  assert.equal(retried.outcome, 'applied');
+  assert.equal(retried.replay, false);
+  assert.equal(repository.services.size, 1);
+});
+
+test('a missing-plan conflict is retried after an operator adds the plan mapping', async () => {
+  const repository = new FakeLegacyRepository();
+  repository.plans.clear();
+  const service = reconciler(repository);
+
+  const first = await service.reconcile(event());
+  assert.equal(first.conflictCode, 'legacy_plan_mapping_missing');
+  repository.plans.set('premium-30d', { id: PLAN_ID, tier: 'premium' });
+
+  const retried = await service.reconcile(event());
+  assert.equal(retried.outcome, 'applied');
+  assert.equal(retried.replay, false);
+  assert.equal(repository.services.size, 1);
+});
+
+test('missing plan mapping can only restrict an existing projected service', async () => {
+  const repository = new FakeLegacyRepository();
+  const service = reconciler(repository);
+  await service.reconcile(event());
+  const original = structuredClone(repository.services.get(SERVICE_ID));
+  repository.plans.clear();
+
+  const result = await service.reconcile(event({
+    event_id: 'evt-expired-unmapped-plan',
+    plan_code: 'legacy-unmapped-current-product',
+    status: 'expired',
+    device_limit: 99,
+    allowed_protocols: ['shadowsocks'],
+    source_updated_at: '2026-08-28T05:02:00.000Z',
+  }));
+
+  assert.equal(result.outcome, 'conflict');
+  assert.equal(result.conflictCode, 'legacy_plan_mapping_missing');
+  const stored = repository.services.get(SERVICE_ID);
+  assert.equal(stored.status, 'expired');
+  assert.equal(stored.planId, original.planId);
+  assert.equal(stored.tier, original.tier);
+  assert.equal(stored.device_limit, original.device_limit);
+  assert.deepEqual(stored.allowed_protocols, original.allowed_protocols);
+  assert.equal(repository.createCount, 1);
+  assert.equal(repository.updateCount, 1);
+  assert.equal(repository.audit.at(-1).action, 'legacy_service_restricted_without_plan_mapping');
+});
+
+test('missing plan mapping never expands an existing active entitlement', async () => {
+  const repository = new FakeLegacyRepository();
+  const service = reconciler(repository);
+  await service.reconcile(event());
+  const original = structuredClone(repository.services.get(SERVICE_ID));
+  repository.plans.clear();
+
+  const result = await service.reconcile(event({
+    event_id: 'evt-active-unmapped-plan',
+    plan_code: 'legacy-unmapped-upgrade',
+    device_limit: 99,
+    allowed_protocols: ['shadowsocks'],
+    source_updated_at: '2026-08-28T05:02:00.000Z',
+  }));
+
+  assert.equal(result.outcome, 'conflict');
+  assert.equal(result.conflictCode, 'legacy_plan_mapping_missing');
+  assert.deepEqual(repository.services.get(SERVICE_ID), original);
+  assert.equal(repository.updateCount, 0);
 });
 
 test('existing customer mapping to another user is not silently overwritten', async () => {

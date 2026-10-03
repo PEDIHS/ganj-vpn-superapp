@@ -35,6 +35,8 @@ class AndroidXrayEngine(
 
     override fun currentState(): ConnectionState = state.get()
 
+    fun hasTunnel(): Boolean = tunnel != null
+
     override fun connect(request: ConnectionRequest): Result<Unit> = start(request, reconnect = false)
 
     override fun reconnect(request: ConnectionRequest): Result<Unit> = start(request, reconnect = true)
@@ -84,11 +86,7 @@ class AndroidXrayEngine(
                     previous.phase != ConnectionPhase.DISCONNECTED &&
                     previous.phase != ConnectionPhase.ERROR
                 ) {
-                    return@synchronized failure(
-                        profile = profile,
-                        code = "vpn.connection_already_active",
-                        closeTunnel = true,
-                    )
+                    return@synchronized Result.failure(VpnRuntimeException("vpn.connection_already_active"))
                 }
                 if (profile.isExpired(clock())) {
                     return@synchronized failure(
@@ -104,6 +102,8 @@ class AndroidXrayEngine(
                         phase = if (reconnect) ConnectionPhase.RECONNECTING else ConnectionPhase.PREPARING,
                         serverId = profile.serverId,
                         connectedAtEpochMillis = previous.connectedAtEpochMillis,
+                        serviceId = profile.serviceId,
+                        profileId = profile.profileId,
                     ),
                 )
 
@@ -142,8 +142,7 @@ class AndroidXrayEngine(
                 val protector = runCatching {
                     native.installSocketProtector(
                         SocketProtector { fileDescriptor ->
-                            val protected = isCurrent(operation) &&
-                                fileDescriptor >= 0 &&
+                            val protected = fileDescriptor >= 0 &&
                                 platform.protect(fileDescriptor)
                             if (!protected) socketProtectionFailed.set(true)
                             protected
@@ -190,6 +189,8 @@ class AndroidXrayEngine(
                         phase = ConnectionPhase.CONNECTED,
                         serverId = profile.serverId,
                         connectedAtEpochMillis = previous.connectedAtEpochMillis ?: clock(),
+                        serviceId = profile.serviceId,
+                        profileId = profile.profileId,
                     ),
                 )
                 Result.success(Unit)
@@ -217,6 +218,8 @@ class AndroidXrayEngine(
                 phase = ConnectionPhase.ERROR,
                 serverId = profile.serverId,
                 errorCode = code,
+                serviceId = profile.serviceId,
+                profileId = profile.profileId,
             ),
         )
         return Result.failure(VpnRuntimeException(code))
