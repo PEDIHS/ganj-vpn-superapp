@@ -122,4 +122,9 @@
     <string name="connection_switch_selection">اتصال به انتخاب جدید</string>
     <string name="connection_switch_selection_hint">کانفیگ جدید انتخاب شده است؛ برای تغییر اتصال دکمهٔ اتصال را بزنید.</string>
     <string name="failure_server_selection_required">ابتدا کانفیگ اتصال را از اشتراک انتخاب‌شده انتخاب کنید.</string>
+    <string name="subscription_overview_title">Subscription overview</string>
+    <string name="subscription_overview_active">Active subscriptions</string>
+    <string name="subscription_overview_total">All subscriptions</string>
+    <string name="subscription_overview_selected">Selected: %1$s</string>
+    <string name="subscription_remaining_traffic">Remaining: %1$s</string>
 </resources>
