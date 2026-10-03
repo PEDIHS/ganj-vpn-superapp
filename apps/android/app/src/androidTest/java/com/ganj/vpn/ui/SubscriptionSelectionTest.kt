@@ -49,11 +49,11 @@ class SubscriptionSelectionTest {
                             else StitchConnectionScreen(state,
                                 onConnect = { connectedChoice = state.selectedConnectionServer }, onDisconnect = {},
                                 onOpenServers = { if (state.selectedService == null) subscriptions = true else picker = true },
-                                onOpenSubscriptions = { subscriptions = true }, loadServers = { ApiResult.Success(configs) },
+                                onOpenSubscriptions = { subscriptions = true }, loadServers = { ApiResult.Success(configs, ResponseMetadata("ui-fixture")) },
                                 onSelectAndConnect = { _, _ -> }, onOpenStore = {}, onRetry = {})
                             if (picker) state.selectedService?.let { service ->
                                 StitchConfigSelectionSheet(service, state.selectedServer,
-                                    loadServers = { requested += it; ApiResult.Success(configs) }, latency = null,
+                                    loadServers = { requested += it; ApiResult.Success(configs, ResponseMetadata("ui-fixture")) }, latency = null,
                                     onSelect = {
                                         state = reducer.reduce(state, GanjUiEvent.SelectServer(service.entitlementId, it))
                                         picker = false; subscriptions = false
