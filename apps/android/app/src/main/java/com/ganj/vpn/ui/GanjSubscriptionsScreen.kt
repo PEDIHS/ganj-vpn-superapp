@@ -3,7 +3,6 @@ package com.ganj.vpn.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -269,10 +268,10 @@ internal fun GanjSubscriptionCard(service: ServiceUiModel, selected: Boolean, on
             }
         }
 
-        Row(
+        FlowRow(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             GanjStatusPill(
                 text = serviceStatusText(service.status),
@@ -332,29 +331,32 @@ internal fun GanjSubscriptionCard(service: ServiceUiModel, selected: Boolean, on
                 )
             }
         }
-        Row(
+        Column(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(stringResource(R.string.subscription_used_traffic,
+            Text(
+                stringResource(
+                    R.string.subscription_used_traffic,
                     if (service.trafficUsageAvailable) subscriptionTraffic(service.trafficUsedBytes)
-                    else stringResource(R.string.subscription_usage_unavailable)),
+                    else stringResource(R.string.subscription_usage_unavailable),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (service.trafficLimitBytes != null && service.trafficUsageAvailable) {
+                Text(
+                    stringResource(R.string.subscription_remaining_traffic, subscriptionTraffic(service.remainingBytes)),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (service.trafficLimitBytes != null && service.trafficUsageAvailable) {
-                    Text(stringResource(R.string.subscription_remaining_traffic,
-                        subscriptionTraffic(service.remainingBytes)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Text(
                 stringResource(
                     if (service.isActive) R.string.subscription_choose_config
                     else R.string.subscription_inactive,
                 ) + if (service.isActive) " ←" else "",
+                modifier = Modifier.align(Alignment.End),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = if (service.isActive) MaterialTheme.colorScheme.primary
