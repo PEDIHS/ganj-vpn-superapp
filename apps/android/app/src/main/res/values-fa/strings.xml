@@ -127,6 +127,5 @@
     <string name="subscription_overview_total">مجموع اشتراک‌ها</string>
     <string name="subscription_overview_selected">اشتراک انتخاب‌شده: %1$s</string>
     <string name="subscription_remaining_traffic">باقی‌مانده: %1$s</string>
-    <string name="ping_not_measured">هنوز اندازه‌گیری نشده</string>
     <string name="ping_last_result">آخرین اندازه‌گیری</string>
 </resources>
