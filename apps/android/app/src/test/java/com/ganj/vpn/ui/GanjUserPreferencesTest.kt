@@ -1,10 +1,16 @@
 package com.ganj.vpn.ui
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GanjUserPreferencesTest {
+    @Test
+    fun `new installs default to the Zomorod dark emerald theme`() {
+        assertEquals(GanjThemePreference.DARK, GanjUserPreferences().theme)
+    }
+
     @Test
     fun `system theme follows system value`() {
         assertTrue(

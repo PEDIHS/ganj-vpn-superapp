@@ -13,6 +13,7 @@ class GanjLiquidGlassPolicyTest {
     @Test
     fun contentCards_areNotGlassByDefault() {
         assertFalse(GanjLiquidGlassPolicy.ContentCardsGlassByDefault)
+        assertFalse(GanjLiquidGlassPolicy.FullScreenBackdropBlurByDefault)
     }
 
     @Test

@@ -359,7 +359,8 @@ internal fun GanjSubscriptionCard(service: ServiceUiModel, selected: Boolean, on
                             style = MaterialTheme.typography.labelSmall, color = labelColor)
                     }
                 }
-                GanjTrafficRing(fraction, progress, accent, labelColor, selected)
+                GanjTrafficRing(fraction, progress, accent, labelColor, selected,
+                    service.trafficLimitBytes == null && service.trafficUsageAvailable)
             }
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -401,6 +402,7 @@ private fun GanjTrafficRing(
     accent: Color,
     muted: Color,
     selected: Boolean,
+    unlimited: Boolean,
 ) {
     Box(Modifier.size(102.dp), contentAlignment = Alignment.Center) {
         Canvas(
@@ -424,10 +426,7 @@ private fun GanjTrafficRing(
             }
         }
         Text(fraction?.let { ((it * 100).roundToInt()).toPersianDigits() + "٪" }
-            ?: stringResource(
-                if (fraction == null) R.string.subscription_usage_unavailable
-                else R.string.subscription_unlimited,
-            ),
+            ?: if (unlimited) "∞" else "—",
             style = if (fraction == null) MaterialTheme.typography.labelSmall
                 else MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold, color = if (fraction == null) muted else accent,

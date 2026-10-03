@@ -13,7 +13,7 @@ enum class GanjThemePreference {
 
 @Immutable
 data class GanjUserPreferences(
-    val theme: GanjThemePreference = GanjThemePreference.SYSTEM,
+    val theme: GanjThemePreference = GanjThemePreference.DARK,
     val reduceMotion: Boolean = false,
     val reduceTransparency: Boolean = false,
     val onboardingCompleted: Boolean = false,
@@ -27,8 +27,8 @@ internal class AndroidGanjUserPreferencesStore(context: Context) {
 
     fun restore(): GanjUserPreferences = GanjUserPreferences(
         theme = GanjThemePreference.entries.firstOrNull {
-            it.name == preferences.getString(KEY_THEME, GanjThemePreference.SYSTEM.name)
-        } ?: GanjThemePreference.SYSTEM,
+            it.name == preferences.getString(KEY_THEME, GanjThemePreference.DARK.name)
+        } ?: GanjThemePreference.DARK,
         reduceMotion = preferences.getBoolean(KEY_REDUCE_MOTION, false),
         reduceTransparency = preferences.getBoolean(KEY_REDUCE_TRANSPARENCY, false),
         onboardingCompleted = preferences.getBoolean(KEY_ONBOARDING_COMPLETED, false),
