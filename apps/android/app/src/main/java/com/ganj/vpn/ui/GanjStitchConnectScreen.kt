@@ -698,3 +698,123 @@ private fun StitchSmartConnectCard(enabled: Boolean, onClick: () -> Unit) {
 @Composable
 private fun StitchPremiumCard(premium: Boolean, onOpenStore: () -> Unit) {
     GanjGlassSurface(
+        role = GanjGlassRole.Dense,
+        accent = StitchGold,
+        modifier = Modifier.fillMaxWidth(),
+        shapeRadius = 22.dp,
+        padding = PaddingValues(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = if (premium) "پریمیوم فعال است" else "پریمیوم شوید؛ نامحدود بمانید",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = StitchGoldBright,
+                )
+                Text(
+                    text = if (premium) {
+                        "به سرورهای پریمیوم و امکانات اشتراک خود دسترسی دارید."
+                    } else {
+                        "سرورهای بیشتر، اولویت بالاتر و تجربه سریع‌تر را فعال کنید."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            GanjLiquidAction(
+                onClick = onOpenStore,
+                accent = StitchGold,
+                shapeRadius = 999.dp,
+                modifier = Modifier.width(104.dp),
+            ) {
+                Text(
+                    text = if (premium) "مدیریت" else "ارتقا دهید",
+                    modifier = Modifier.align(Alignment.Center),
+                    color = Color(0xFF211600),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+}
+
+private fun ConnectionUiState.toStitchVisualState(service: ServiceUiModel?): GanjConnectionVisualState = when (this) {
+    is ConnectionUiState.Connected -> GanjConnectionVisualState.Connected
+    is ConnectionUiState.Requesting,
+    is ConnectionUiState.ProfileReady,
+    -> GanjConnectionVisualState.Connecting
+    is ConnectionUiState.Failed -> GanjConnectionVisualState.Failed
+    ConnectionUiState.AuthRequired -> GanjConnectionVisualState.Unavailable
+    ConnectionUiState.Idle -> if (service?.isActive == true) {
+        GanjConnectionVisualState.Disconnected
+    } else {
+        GanjConnectionVisualState.Unavailable
+    }
+}
+
+private fun connectionTitle(state: GanjConnectionVisualState): String = when (state) {
+    GanjConnectionVisualState.Disconnected -> "متصل نیستید"
+    GanjConnectionVisualState.Connecting -> "در حال اتصال امن"
+    GanjConnectionVisualState.Connected -> "اتصال امن برقرار است"
+    GanjConnectionVisualState.Reconnecting -> "در حال اتصال مجدد"
+    GanjConnectionVisualState.Failed -> "خطای اتصال"
+    GanjConnectionVisualState.Unavailable -> "سرور انتخاب نشده"
+}
+
+private fun connectionAction(state: GanjConnectionVisualState): String = when (state) {
+    GanjConnectionVisualState.Connected -> "قطع اتصال"
+    GanjConnectionVisualState.Connecting -> "در حال اتصال…"
+    GanjConnectionVisualState.Reconnecting -> "در حال بازیابی…"
+    GanjConnectionVisualState.Failed -> "تلاش دوباره"
+    GanjConnectionVisualState.Unavailable -> "انتخاب سرور"
+    GanjConnectionVisualState.Disconnected -> "اتصال"
+}
+
+private fun tierPersian(tier: UiTier): String = when (tier) {
+    UiTier.FREE -> "رایگان"
+    UiTier.PREMIUM -> "پریمیوم"
+    UiTier.VIP -> "وی‌آی‌پی"
+}
+
+private fun countryName(code: String?): String = when (code?.uppercase()) {
+    "DE" -> "آلمان"
+    "NL" -> "هلند"
+    "US" -> "آمریکا"
+    "GB", "UK" -> "بریتانیا"
+    "TR" -> "ترکیه"
+    "PL" -> "لهستان"
+    "FR" -> "فرانسه"
+    "CA" -> "کانادا"
+    "SG" -> "سنگاپور"
+    null -> "سرور جهانی"
+    else -> isolateTechnicalLtr(code.uppercase())
+}
+
+private fun countryEmoji(code: String?): String = when (code?.uppercase()) {
+    "DE" -> "🇩🇪"
+    "NL" -> "🇳🇱"
+    "US" -> "🇺🇸"
+    "GB", "UK" -> "🇬🇧"
+    "TR" -> "🇹🇷"
+    "PL" -> "🇵🇱"
+    "FR" -> "🇫🇷"
+    "CA" -> "🇨🇦"
+    "SG" -> "🇸🇬"
+    else -> "🌐"
+}
+
+@Composable
+internal fun responsiveHorizontalPadding(): Dp = GanjResponsivePolicy
+    .stitchHorizontalPaddingDp(LocalConfiguration.current.screenWidthDp)
+    .dp
