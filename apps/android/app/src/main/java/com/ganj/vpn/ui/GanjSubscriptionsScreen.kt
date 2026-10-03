@@ -313,9 +313,13 @@ internal fun GanjSubscriptionCard(service: ServiceUiModel, selected: Boolean, on
                     fontWeight = FontWeight.Bold,
                     color = if (fraction == null) MaterialTheme.colorScheme.onSurfaceVariant else accent,
                 )
-                Text(stringResource(R.string.subscription_used_percent),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (fraction != null) {
+                    Text(
+                        stringResource(R.string.subscription_used_percent),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
