@@ -72,9 +72,9 @@ import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.ServiceUiModel
 import com.ganj.vpn.presentation.UiTier
 
-private val StitchGold = Color(0xFFD5A63A)
-private val StitchGoldBright = Color(0xFFF0CD70)
-private val StitchEmeraldGlow = Color(0xFF72FCB6)
+private val StitchGold = GanjGold
+private val StitchGoldBright = GanjGoldBright
+private val StitchEmeraldGlow = GanjEmeraldBright
 
 @Composable
 internal fun StitchConnectionScreen(
@@ -442,8 +442,8 @@ private fun StitchConnectOrb(
                     Brush.radialGradient(
                         listOf(
                             accent.copy(alpha = if (activeServiceAvailable) 0.22f else 0.08f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.24f),
-                            Color(0xFF07110D).copy(alpha = 0.94f),
+                            GanjEmeraldDeep.copy(alpha = 0.48f),
+                            GanjDarkCanvas.copy(alpha = 0.96f),
                         ),
                     ),
                 )

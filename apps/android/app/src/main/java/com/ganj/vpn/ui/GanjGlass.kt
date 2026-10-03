@@ -1,7 +1,7 @@
 package com.ganj.vpn.ui
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,6 +46,9 @@ internal object GanjLiquidGlassPolicy {
     const val ContentCardsGlassByDefault = false
     const val ReduceTransparencyFallbackRequired = true
     const val PerformanceTieringRequired = true
+    // Liquid Glass is a material hierarchy: avoid a full-screen backdrop blur.
+    // Per-control highlights and translucent scrims degrade to opaque fills for accessibility.
+    const val FullScreenBackdropBlurByDefault = false
 }
 
 // Blend ambient tints over the active theme, never over the platform splash window.
@@ -105,10 +108,10 @@ internal fun GanjGlassSurface(
     }
     val shape = RoundedCornerShape(shapeRadius)
     val base = when (effectiveRole) {
-        GanjGlassRole.Clear -> MaterialTheme.colorScheme.surface.copy(alpha = 0.38f)
-        GanjGlassRole.Regular -> MaterialTheme.colorScheme.surface.copy(alpha = 0.58f)
-        GanjGlassRole.Dense -> MaterialTheme.colorScheme.surface.copy(alpha = 0.76f)
-        GanjGlassRole.Prominent -> MaterialTheme.colorScheme.surface.copy(alpha = 0.70f)
+        GanjGlassRole.Clear -> MaterialTheme.colorScheme.surface.copy(alpha = 0.44f)
+        GanjGlassRole.Regular -> MaterialTheme.colorScheme.surface.copy(alpha = 0.68f)
+        GanjGlassRole.Dense -> MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)
+        GanjGlassRole.Prominent -> MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
         GanjGlassRole.OpaqueFallback -> glass.opaqueFallback.copy(alpha = 0.98f)
     }
     val accentStrength = when (effectiveRole) {
@@ -124,8 +127,9 @@ internal fun GanjGlassSurface(
     }
     val highlightAlpha = when {
         effects.reduceTransparency -> 0.025f
-        effectiveRole == GanjGlassRole.Clear -> 0.10f
-        else -> 0.07f
+        effectiveRole == GanjGlassRole.Clear -> 0.16f
+        effectiveRole == GanjGlassRole.Prominent -> 0.14f
+        else -> 0.10f
     }
 
     Column(
@@ -137,6 +141,8 @@ internal fun GanjGlassSurface(
                         glass.highlight.copy(alpha = highlightAlpha),
                         base,
                         accent.copy(alpha = accentStrength),
+                        glass.goldTint.copy(alpha =
+                            if (effectiveRole == GanjGlassRole.Prominent && !effects.reduceTransparency) 0.055f else 0.015f),
                     ),
                 ),
             )
@@ -161,7 +167,7 @@ internal fun GanjLiquidAction(
     val effects = LocalGanjVisualEffectsPolicy.current
     val scale by animateFloatAsState(
         targetValue = if (!effects.reduceMotion && pressed) 0.975f else 1f,
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
+        animationSpec = tween(durationMillis = if (effects.reduceMotion) 0 else 125),
         label = "ganjLiquidPressScale",
     )
     val shape = RoundedCornerShape(shapeRadius)
@@ -181,14 +187,15 @@ internal fun GanjLiquidAction(
             .background(
                 Brush.linearGradient(
                     listOf(
+                        glass.highlight.copy(alpha = if (!effects.reduceTransparency && enabled) 0.18f else 0.025f),
                         effectiveAccent.copy(alpha = if (enabled) strongAlpha else 0.34f),
-                        effectiveAccent.copy(alpha = if (enabled) strongAlpha - 0.22f else 0.24f),
+                        effectiveAccent.copy(alpha = if (enabled) strongAlpha - 0.18f else 0.24f),
                     ),
                 ),
             )
             .border(
                 width = 1.dp,
-                color = glass.highlight.copy(alpha = if (enabled && !effects.reduceTransparency) 0.22f else 0.08f),
+                color = glass.highlight.copy(alpha = if (enabled && !effects.reduceTransparency) 0.32f else 0.10f),
                 shape = shape,
             )
             .clickable(

@@ -72,7 +72,7 @@ internal fun GanjLiquidBottomNavigation(
         fontScale = fontScale,
     )
     val glass = LocalGanjGlassPalette.current
-    val navShape = RoundedCornerShape(30.dp)
+    val navShape = RoundedCornerShape(28.dp)
     val horizontalPadding = GanjResponsivePolicy
         .stitchNavigationHorizontalPaddingDp(windowWidthDp)
         .dp
@@ -108,13 +108,14 @@ internal fun GanjLiquidBottomNavigation(
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            glass.highlight.copy(alpha = 0.09f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.075f),
+                            glass.highlight.copy(alpha = 0.13f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.91f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.11f),
+                            GanjGold.copy(alpha = 0.055f),
                         ),
                     ),
                 )
-                .border(1.dp, glass.borderSoft.copy(alpha = 0.74f), navShape)
+                .border(1.dp, glass.borderSoft.copy(alpha = 0.76f), navShape)
                 .padding(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -159,7 +160,10 @@ private fun GanjNavigationItem(
     modifier: Modifier = Modifier,
 ) {
     val label = stringResource(destination.labelRes)
-    val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val tint = if (selected) {
+        if (MaterialTheme.colorScheme.background == GanjDarkCanvas) GanjGoldBright
+        else MaterialTheme.colorScheme.secondary
+    } else MaterialTheme.colorScheme.onSurfaceVariant
     val effects = LocalGanjVisualEffectsPolicy.current
     val itemScale = animateFloatAsState(
         targetValue = if (!effects.reduceMotion && selected) 1.025f else 1f,
@@ -189,7 +193,7 @@ private fun GanjNavigationItem(
             .scale(itemScale)
             .clip(RoundedCornerShape(20.dp))
             .background(
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
                 else Color.Transparent,
             )
             .semantics {
@@ -230,6 +234,11 @@ private fun GanjNavigationItem(
                     }
                 }
             }
+            if (selected) {
+                Spacer(Modifier.height(3.dp))
+                Box(Modifier.size(width = 17.dp, height = 2.dp)
+                    .clip(CircleShape).background(tint.copy(alpha = 0.90f)))
+            }
             if (showLabel) {
                 Spacer(Modifier.height(3.dp))
                 Text(
@@ -252,7 +261,7 @@ private fun GanjCenterConnectDestination(
     modifier: Modifier = Modifier,
 ) {
     val label = stringResource(R.string.nav_connect)
-    val accent = if (selected) Color(0xFF72FCB6) else MaterialTheme.colorScheme.primary
+    val accent = if (selected) GanjGoldBright else MaterialTheme.colorScheme.primary
     val effects = LocalGanjVisualEffectsPolicy.current
     val centerScale = animateFloatAsState(
         targetValue = if (!effects.reduceMotion && selected) 1.055f else 1f,
@@ -282,15 +291,15 @@ private fun GanjCenterConnectDestination(
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            accent.copy(alpha = if (selected) 0.40f else 0.28f),
-                            Color(0xFF063E2F),
-                            Color(0xFF07110D),
+                            MaterialTheme.colorScheme.primary.copy(alpha = if (selected) 0.43f else 0.29f),
+                            Color(0xFF064C38),
+                            GanjDarkCanvas,
                         ),
                     ),
                 )
                 .border(
                     width = if (selected) 2.dp else 1.5.dp,
-                    color = if (selected) Color(0xFF72FCB6) else MaterialTheme.colorScheme.primary.copy(alpha = 0.76f),
+                    color = if (selected) GanjGoldBright else MaterialTheme.colorScheme.primary.copy(alpha = 0.76f),
                     shape = CircleShape,
                 )
                 .semantics {

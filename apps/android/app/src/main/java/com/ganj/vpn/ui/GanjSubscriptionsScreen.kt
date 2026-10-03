@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,7 +22,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -64,11 +68,9 @@ internal fun StitchSubscriptionsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            StitchSimpleHeader(
+            GanjSubscriptionsHeader(
                 title = stringResource(R.string.subscriptions_title),
                 subtitle = stringResource(R.string.subscriptions_subtitle),
-                badge = stringResource(R.string.subscriptions_active_count, activeCount.toPersianDigits()),
-                goldBadge = state.serviceItems.any { it.isActive && it.tier != UiTier.FREE },
             )
         }
         item {
@@ -127,55 +129,97 @@ internal fun StitchSubscriptionsScreen(
 internal fun subscriptionUsername(service: ServiceUiModel): String = service.username?.let(::isolateTechnicalLtr)
     ?: stringResource(if (service.tier == UiTier.FREE) R.string.subscription_free else R.string.subscription_username_unavailable)
 
+// Royal Emerald is deliberately built from Compose primitives: no bitmaps, runtime blur,
+// nested shadows or infinite animations. Static geometry stays in the draw phase.
+@Composable
+private fun GanjSubscriptionsHeader(title: String, subtitle: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Box(
+            modifier = Modifier.size(54.dp).clip(RoundedCornerShape(17.dp))
+                .background(Brush.linearGradient(listOf(Color(0xFF0C5033), Color(0xFF10261B))))
+                .border(1.dp, GanjGold.copy(alpha = 0.65f), RoundedCornerShape(17.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("◆", style = MaterialTheme.typography.headlineSmall,
+                color = GanjGoldBright, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
 @Composable
 private fun GanjSubscriptionsOverview(
     activeCount: Int,
     totalCount: Int,
     selectedUsername: String?,
 ) {
-    val shape = remember { RoundedCornerShape(26.dp) }
-    Column(
-        modifier = Modifier.fillMaxWidth()
-            .clip(shape)
-            .background(
-                androidx.compose.ui.graphics.Brush.linearGradient(
-                    listOf(Color(0xFF075638), Color(0xFF0E281D), Color(0xFF111C16)),
-                ),
-            )
-            .border(1.dp, GanjGold.copy(alpha = 0.25f), shape)
-            .padding(horizontal = 18.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    val shape = remember { RoundedCornerShape(28.dp) }
+    Box(
+        modifier = Modifier.fillMaxWidth().clip(shape)
+            .background(Brush.linearGradient(listOf(
+                Color(0xFF0F6440), Color(0xFF0A3627), Color(0xFF091A13),
+            )))
+            .border(1.dp, GanjGold.copy(alpha = 0.40f), shape),
     ) {
-        Text(
-            stringResource(R.string.subscription_overview_title),
-            style = MaterialTheme.typography.titleMedium,
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text(activeCount.toPersianDigits(), style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold, color = Color(0xFF88EBB1))
-                Text(stringResource(R.string.subscription_overview_active),
-                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFD0E3D7))
+        // The crest is a static watermark. Canvas avoids per-frame layout or bitmap allocation.
+        Canvas(
+            Modifier.align(Alignment.TopStart).size(112.dp).padding(11.dp),
+        ) {
+            val gold = Color(0xFFF0CD70)
+            drawCircle(gold.copy(alpha = 0.13f), radius = size.minDimension * 0.45f,
+                style = Stroke(width = 1.dp.toPx()))
+            drawCircle(gold.copy(alpha = 0.08f), radius = size.minDimension * 0.30f,
+                style = Stroke(width = 1.dp.toPx()))
+            drawArc(gold.copy(alpha = 0.19f), 205f, 135f, false,
+                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 19.dp),
+            verticalArrangement = Arrangement.spacedBy(13.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(GanjEmeraldBright))
+                Text(stringResource(R.string.subscription_overview_title),
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                    color = Color.White)
             }
-            Column(Modifier.weight(1f)) {
-                Text(totalCount.toPersianDigits(), style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold, color = GanjGoldBright)
-                Text(stringResource(R.string.subscription_overview_total),
-                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFD0E3D7))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                GanjOverviewMetric(activeCount.toPersianDigits(),
+                    stringResource(R.string.subscription_overview_active),
+                    Color(0xFF8BEAB6), Modifier.weight(1f))
+                Box(Modifier.width(1.dp).height(48.dp)
+                    .background(Color.White.copy(alpha = 0.12f)))
+                GanjOverviewMetric(totalCount.toPersianDigits(),
+                    stringResource(R.string.subscription_overview_total),
+                    GanjGoldBright, Modifier.weight(1f))
+            }
+            if (selectedUsername != null) {
+                HorizontalDivider(color = GanjGold.copy(alpha = 0.20f))
+                Text(stringResource(R.string.subscription_overview_selected, selectedUsername),
+                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFE5F5EB),
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
-        if (selectedUsername != null) {
-            HorizontalDivider(color = Color.White.copy(alpha = 0.14f))
-            Text(
-                stringResource(R.string.subscription_overview_selected, selectedUsername),
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFE2F4E7),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+    }
+}
+
+@Composable
+private fun GanjOverviewMetric(value: String, name: String, color: Color, modifier: Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold, color = color)
+        Text(name, style = MaterialTheme.typography.bodySmall,
+            color = Color(0xFFD2E5D9))
     }
 }
 
@@ -186,41 +230,47 @@ internal fun GanjSubscriptionCard(service: ServiceUiModel, selected: Boolean, on
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        if (pressed && !reduceMotion) 0.985f else 1f,
-        if (reduceMotion) snap() else tween(120),
-        label = "subscriptionPress",
+        if (pressed && !reduceMotion) 0.988f else 1f,
+        if (reduceMotion) snap() else tween(110),
+        label = "royalSubscriptionPress",
     )
     val fraction = service.usageFraction
+    val premium = service.tier == UiTier.VIP
     val accent = when {
         !service.isActive -> MaterialTheme.colorScheme.onSurfaceVariant
-        fraction != null && fraction >= 0.9f -> MaterialTheme.colorScheme.error
+        fraction != null && fraction >= 0.90f -> MaterialTheme.colorScheme.error
+        premium -> GanjGoldBright
         else -> MaterialTheme.colorScheme.primary
     }
     val borderColor by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
-        if (reduceMotion) snap() else tween(170),
-        label = "subscriptionSelection",
+        if (selected) GanjGold.copy(alpha = 0.78f)
+        else MaterialTheme.colorScheme.outline.copy(alpha = 0.26f),
+        if (reduceMotion) snap() else tween(180),
+        label = "royalSubscriptionBorder",
     )
     val progress by animateFloatAsState(
         fraction ?: 0f,
-        if (reduceMotion) snap() else tween(340),
-        label = "subscriptionUsage",
+        if (reduceMotion) snap() else tween(420),
+        label = "royalTrafficArc",
     )
+    val labelColor = if (selected) Color(0xFFBAD3C3)
+        else MaterialTheme.colorScheme.onSurfaceVariant
+    val mainColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurface
+    val shape = remember { RoundedCornerShape(26.dp) }
     val description = stringResource(
         if (selected) R.string.subscription_selected else R.string.subscription_not_selected,
     )
-    val shape = remember { RoundedCornerShape(24.dp) }
-    val premium = service.tier == UiTier.VIP
 
     Column(
         modifier = Modifier.fillMaxWidth()
             .testTag("subscription-" + service.entitlementId)
             .scale(scale)
             .clip(shape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.055f)
-                else MaterialTheme.colorScheme.surface,
-            )
+            .background(if (selected) Brush.linearGradient(
+                listOf(Color(0xFF103F2D), Color(0xFF10251C), Color(0xFF0C1B14)),
+            ) else Brush.linearGradient(
+                listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surface),
+            ))
             .border(if (selected) 1.5.dp else 1.dp, borderColor, shape)
             .semantics(mergeDescendants = true) { stateDescription = description }
             .selectable(
@@ -230,143 +280,157 @@ internal fun GanjSubscriptionCard(service: ServiceUiModel, selected: Boolean, on
                 interactionSource = interaction,
                 indication = null,
                 onClick = onClick,
-            )
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            ),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        // A single gold foil edge conveys the selected tier without a costly shadow/blur.
+        Box(Modifier.fillMaxWidth().height(if (selected) 3.dp else 1.dp)
+            .background(if (selected) Brush.horizontalGradient(
+                listOf(GanjGold.copy(alpha = 0.14f), GanjGoldBright, GanjGold.copy(alpha = 0.14f)),
+            ) else Brush.horizontalGradient(
+                listOf(borderColor.copy(alpha = 0.26f), borderColor.copy(alpha = 0.26f)),
+            )))
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 17.dp),
+            verticalArrangement = Arrangement.spacedBy(13.dp),
         ) {
-            Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
-                    .background(
-                        if (premium) GanjGold.copy(alpha = 0.13f)
-                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.11f),
-                    ),
-                contentAlignment = Alignment.Center,
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(11.dp),
             ) {
-                Text(if (premium) "◆" else "◈", style = MaterialTheme.typography.titleLarge,
-                    color = if (premium) GanjGold else MaterialTheme.colorScheme.primary)
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.subscription_username_label),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(subscriptionUsername(service), style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            Box(
-                Modifier.size(28.dp).clip(CircleShape)
-                    .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                    .border(1.5.dp, borderColor, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (selected) Text("✓", color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        FlowRow(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            GanjStatusPill(
-                text = serviceStatusText(service.status),
-                tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Neutral,
-            )
-            if (premium) GanjStatusPill(
-                text = stringResource(R.string.visual_signature),
-                tone = GanjStatusTone.Premium,
-            )
-            if (selected) Text(stringResource(R.string.subscription_selected),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary)
-        }
-
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.13f))
-
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.subscription_total_traffic),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(subscriptionTraffic(service.trafficLimitBytes),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold)
-            }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    fraction?.let { ((it * 100).roundToInt()).toPersianDigits() + "٪" }
-                        ?: stringResource(
-                            if (service.trafficUsageAvailable && service.trafficLimitBytes == null)
-                                R.string.subscription_unlimited else R.string.subscription_usage_unavailable,
-                        ),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = if (fraction == null) MaterialTheme.colorScheme.onSurfaceVariant else accent,
-                )
-                if (fraction != null) {
-                    Text(
-                        stringResource(R.string.subscription_used_percent),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
+                    .background(if (premium) GanjGold.copy(alpha = 0.15f)
+                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                    .border(1.dp, if (premium) GanjGold.copy(alpha = 0.34f)
+                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                        RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
+                    Text(if (premium) "◆" else "◈", style = MaterialTheme.typography.titleLarge,
+                        color = if (premium) GanjGoldBright else MaterialTheme.colorScheme.primary)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(stringResource(R.string.subscription_username_label),
+                        style = MaterialTheme.typography.bodySmall, color = labelColor)
+                    Text(subscriptionUsername(service), style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold, color = mainColor,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                Box(Modifier.size(28.dp).clip(CircleShape)
+                    .background(if (selected) GanjGold else Color.Transparent)
+                    .border(1.5.dp, if (selected) GanjGoldBright
+                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.43f), CircleShape),
+                    contentAlignment = Alignment.Center) {
+                    if (selected) Text("✓", style = MaterialTheme.typography.labelLarge,
+                        color = Color(0xFF142216), fontWeight = FontWeight.Bold)
                 }
             }
-        }
 
-        if (fraction != null) {
-            Box(
-                Modifier.fillMaxWidth().height(8.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .semantics { progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f) },
+            FlowRow(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
             ) {
-                Box(
-                    Modifier.fillMaxWidth(progress).fillMaxHeight().clip(CircleShape)
-                        .background(accent),
-                )
+                GanjStatusPill(text = serviceStatusText(service.status),
+                    tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Neutral)
+                if (premium) GanjStatusPill(
+                    text = stringResource(R.string.visual_signature),
+                    tone = GanjStatusTone.Premium)
+                if (selected) Text(stringResource(R.string.subscription_selected),
+                    style = MaterialTheme.typography.labelMedium, color = GanjGoldBright,
+                    fontWeight = FontWeight.SemiBold)
             }
-        }
-        Column(
-            Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                stringResource(
-                    R.string.subscription_used_traffic,
+
+            HorizontalDivider(color = if (selected) GanjGold.copy(alpha = 0.20f)
+                else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(stringResource(R.string.subscription_total_traffic),
+                        style = MaterialTheme.typography.bodySmall, color = labelColor)
+                    Text(subscriptionTraffic(service.trafficLimitBytes),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold, color = mainColor)
+                    if (fraction != null) {
+                        Text(stringResource(R.string.subscription_used_percent),
+                            style = MaterialTheme.typography.labelSmall, color = labelColor)
+                    }
+                }
+                GanjTrafficRing(fraction, progress, accent, labelColor, selected,
+                    service.trafficLimitBytes == null && service.trafficUsageAvailable)
+            }
+
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(stringResource(R.string.subscription_used_traffic,
                     if (service.trafficUsageAvailable) subscriptionTraffic(service.trafficUsedBytes)
-                    else stringResource(R.string.subscription_usage_unavailable),
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (service.trafficLimitBytes != null && service.trafficUsageAvailable) {
-                Text(
-                    stringResource(R.string.subscription_remaining_traffic, subscriptionTraffic(service.remainingBytes)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                    else stringResource(R.string.subscription_usage_unavailable)),
+                    style = MaterialTheme.typography.bodySmall, color = labelColor)
+                if (service.trafficLimitBytes != null && service.trafficUsageAvailable) {
+                    Text(stringResource(R.string.subscription_remaining_traffic,
+                        subscriptionTraffic(service.remainingBytes)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (selected) Color(0xFF94EDB4)
+                            else MaterialTheme.colorScheme.primary)
+                }
             }
-            Text(
-                stringResource(
+            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
+                .background(if (selected) GanjGold.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.075f))
+                .padding(horizontal = 13.dp, vertical = 11.dp)) {
+                Text(stringResource(
                     if (service.isActive) R.string.subscription_choose_config
                     else R.string.subscription_inactive,
-                ) + if (service.isActive) " ←" else "",
-                modifier = Modifier.align(Alignment.End),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = if (service.isActive) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+                ) + if (service.isActive) "  ←" else "",
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (selected) GanjGoldBright
+                        else if (service.isActive) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
+    }
+}
+
+@Composable
+private fun GanjTrafficRing(
+    fraction: Float?,
+    progress: Float,
+    accent: Color,
+    muted: Color,
+    selected: Boolean,
+    unlimited: Boolean,
+) {
+    Box(Modifier.size(102.dp), contentAlignment = Alignment.Center) {
+        Canvas(
+            Modifier.fillMaxSize().padding(9.dp)
+                .semantics {
+                    if (fraction != null) {
+                        progressBarRangeInfo = ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f)
+                    }
+                },
+        ) {
+            val stroke = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
+            drawArc(
+                color = if (selected) Color.White.copy(alpha = 0.13f)
+                    else muted.copy(alpha = 0.17f),
+                startAngle = -90f, sweepAngle = 360f, useCenter = false, style = stroke,
+            )
+            if (fraction != null && progress > 0f) {
+                drawArc(color = accent, startAngle = -90f,
+                    sweepAngle = 360f * progress.coerceIn(0f, 1f),
+                    useCenter = false, style = stroke)
+            }
+        }
+        Text(fraction?.let { ((it * 100).roundToInt()).toPersianDigits() + "٪" }
+            ?: if (unlimited) "∞" else "—",
+            style = if (fraction == null) MaterialTheme.typography.labelSmall
+                else MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold, color = if (fraction == null) muted else accent,
+            maxLines = 1)
     }
 }
 
