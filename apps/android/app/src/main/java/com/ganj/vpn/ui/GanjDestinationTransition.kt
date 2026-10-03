@@ -31,6 +31,7 @@ internal object GanjDestinationMotionPolicy {
 internal fun GanjDestinationTransition(
     destination: GanjDestination,
     modifier: Modifier = Modifier,
+    stateOwner: Any? = null,
     content: @Composable (GanjDestination) -> Unit,
 ) {
     val effects = LocalGanjVisualEffectsPolicy.current
@@ -38,7 +39,7 @@ internal fun GanjDestinationTransition(
         tier = effects.tier,
         reduceMotion = effects.reduceMotion,
     )
-    val savedDestinations = rememberSaveableStateHolder()
+    val savedDestinations = key(stateOwner) { rememberSaveableStateHolder() }
     val density = LocalDensity.current
     // Mount one screen, preserving saved scroll/search without keeping offscreen effects alive.
     val reveal = remember(destination, animate) { Animatable(if (animate) 0f else 1f) }
@@ -48,7 +49,7 @@ internal fun GanjDestinationTransition(
         alpha = reveal.value
         translationY = with(density) { 6.dp.toPx() } * (1f - reveal.value)
     }) {
-        key(destination) {
+        key(stateOwner, destination) {
             savedDestinations.SaveableStateProvider(destination.name) { content(destination) }
         }
     }

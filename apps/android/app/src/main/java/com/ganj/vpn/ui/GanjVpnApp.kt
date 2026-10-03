@@ -575,6 +575,7 @@ fun GanjVpnApp(
                     GanjDestinationTransition(
                         destination = selectedDestination,
                         modifier = Modifier.padding(padding),
+                        stateOwner = composition,
                     ) { destination ->
                         when (destination) {
                             GanjDestination.Home -> StitchHomeScreen(
