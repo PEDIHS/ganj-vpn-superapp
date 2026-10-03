@@ -1011,3 +1011,17 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Leaf items completed: none; multi-width/font-scale, TalkBack and physical-device frame pacing remain pending.
 - Remaining unchecked items in touched sections: 9/15/16/16/9/16/17.
 - Overall UI completion: 196/492 = 39.8% (calculator output; Final Gate remains open).
+
+### Batch 2026-10-04 — 0.3.17 fluid navigation and full-bleed flags
+
+- UI Ledger sections touched: 2, 3, 12, 13, 15, 20, 23, 24, 25.
+- Leaf items completed: none; emulator/build evidence pending and physical-device/TalkBack gates remain open.
+- Remaining unchecked items in touched sections: 2=6, 3=7, 12=15, 13=16, 15=17, 20=22, 23=9, 24=16, 25=17.
+- Overall UI completion: **196/492 = 39.8%**, 296 remaining, calculated by `node scripts/ui-progress.mjs docs/ui/UI_100_PERCENT_PROGRESS.fa.md --sections`.
+- Flags: existing 100 local WebP assets fill the rounded 55×51 dp badge with Crop, no enclosing border/padding, policy-aware shadow. No emoji/network image dependency.
+- Navigation: one shared spring lens, RTL placement, minimum 66 dp tall selectable tabs, animations read during drawing/layer updates. Reduced-motion/low-RAM fallback retained.
+- Destination rendering: only the active destination is mounted; saveable scroll/input state retained while outgoing effects are disposed immediately. Store and profile use keyed lazy rows; account controls share the profile scroll container for large text.
+- Real loading sections: local rotating arc and neutral skeleton sheen, no invented progress; navbar stays interactive. Motion stops outside STARTED lifecycle and respects reduced motion.
+- Sources consulted: [Android Compose performance guidance](https://developer.android.com/develop/ui/compose/performance/bestpractices) and [AndroidLiquidGlass LiquidBottomTabs](https://github.com/Kyant0/AndroidLiquidGlass/blob/kmp/app/src/commonMain/kotlin/com/kyant/backdrop/catalog/components/LiquidBottomTabs.kt). Shared deforming lens concept inspired the implementation; no source copied and no shader/backdrop dependency added.
+- Validation added: interrupted rapid tab changes mount only the latest screen, restore saved input, permit leaving a loading page, and retain 48 dp targets in RTL/200% font. Build/UI results will be recorded after execution. This does not claim physical-device jank or full UI completion.
+- Stacked alpha maintenance: based on the exact published 0.3.16 commit `ffe5df39b49c61cfbb9d02fa4adc028a7584c42a`; PR targets its predecessor branch to keep this change reviewable until the historical alpha stack is reconciled with main. No main/other branch overwrite.

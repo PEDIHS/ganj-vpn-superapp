@@ -1,47 +1,45 @@
 package com.ganj.vpn.ui
 
 import androidx.annotation.StringRes
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.ganj.vpn.R
 import com.ganj.vpn.composition.NotificationCompositionRegistry
@@ -50,278 +48,136 @@ import com.ganj.vpn.core.controlapi.ApiError
 import com.ganj.vpn.core.controlapi.ApiResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 internal enum class GanjDestination(@StringRes val labelRes: Int) {
-    Home(R.string.nav_home),
-    Servers(R.string.nav_servers),
-    Connect(R.string.nav_connect),
-    Store(R.string.nav_store),
-    Account(R.string.nav_account),
+    Home(R.string.nav_home), Servers(R.string.nav_servers), Connect(R.string.nav_connect),
+    Store(R.string.nav_store), Account(R.string.nav_account),
 }
 
+/** One shared, interruptible lens. Animation values are read only by draw/layer modifiers. */
 @Composable
 internal fun GanjLiquidBottomNavigation(
     selectedDestination: GanjDestination,
     onDestinationSelected: (GanjDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val fontScale = LocalDensity.current.fontScale
-    val windowWidthDp = LocalConfiguration.current.screenWidthDp
+    val configuration = LocalConfiguration.current
     val showAllLabels = GanjResponsivePolicy.shouldShowAllNavigationLabels(
-        widthDp = windowWidthDp,
-        fontScale = fontScale,
+        configuration.screenWidthDp, LocalDensity.current.fontScale,
     )
+    val effects = LocalGanjVisualEffectsPolicy.current
     val glass = LocalGanjGlassPalette.current
-    val navShape = RoundedCornerShape(28.dp)
-    val horizontalPadding = GanjResponsivePolicy
-        .stitchNavigationHorizontalPaddingDp(windowWidthDp)
-        .dp
+    val colors = MaterialTheme.colorScheme
+    val shape = remember { RoundedCornerShape(28.dp) }
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val motion = GanjDestinationMotionPolicy.shouldAnimate(effects.tier, effects.reduceMotion)
+    val position = animateFloatAsState(selectedDestination.ordinal.toFloat(),
+        if (motion) spring(dampingRatio = 0.88f, stiffness = 650f) else snap(), label = "navLensPosition")
+    val tail = animateFloatAsState(selectedDestination.ordinal.toFloat(),
+        if (motion) spring(dampingRatio = 1f, stiffness = 390f) else snap(), label = "navLensTail")
     val unreadCount by NotificationUnreadRegistry.count.collectAsState()
-    val unreadRefreshGeneration by NotificationUnreadRegistry.refreshGeneration.collectAsState()
+    val generation by NotificationUnreadRegistry.refreshGeneration.collectAsState()
     val notificationApi = NotificationCompositionRegistry.currentApi()
-
-    LaunchedEffect(notificationApi, unreadRefreshGeneration) {
+    LaunchedEffect(notificationApi, generation) {
         val active = notificationApi ?: return@LaunchedEffect
         when (val result = withContext(Dispatchers.IO) { active.notifications(limit = 1) }) {
             is ApiResult.Success -> NotificationUnreadRegistry.update(result.value.unreadCount)
-            is ApiResult.Failure -> if (
-                result.error is ApiError.AuthenticationRequired || result.error is ApiError.AuthenticationExpired
-            ) {
-                NotificationUnreadRegistry.clear()
-            }
+            is ApiResult.Failure -> if (result.error is ApiError.AuthenticationRequired ||
+                result.error is ApiError.AuthenticationExpired) NotificationUnreadRegistry.clear()
         }
     }
-
-    Box(
-        modifier = modifier
-            .navigationBarsPadding()
-            .padding(horizontal = horizontalPadding, vertical = 6.dp)
-            .fillMaxWidth()
-            .height(94.dp),
-    ) {
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(72.dp)
-                .clip(navShape)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            glass.highlight.copy(alpha = 0.13f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.91f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.11f),
-                            GanjGold.copy(alpha = 0.055f),
-                        ),
-                    ),
-                )
-                .border(1.dp, glass.borderSoft.copy(alpha = 0.76f), navShape)
-                .padding(horizontal = 6.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            GanjDestination.entries.forEach { destination ->
-                if (destination == GanjDestination.Connect) {
-                    Spacer(Modifier.weight(1f))
-                } else {
-                    GanjNavigationItem(
-                        destination = destination,
-                        selected = destination == selectedDestination,
-                        showLabel = showAllLabels || destination == selectedDestination,
-                        badgeText = if (destination == GanjDestination.Account) {
-                            notificationBadgeText(unreadCount ?: 0)
-                        } else {
-                            null
-                        },
-                        unreadCount = if (destination == GanjDestination.Account) unreadCount ?: 0 else 0,
-                        onClick = { onDestinationSelected(destination) },
-                        modifier = Modifier.weight(1f),
-                    )
+    Box(modifier.navigationBarsPadding().padding(
+        horizontal = GanjResponsivePolicy.stitchNavigationHorizontalPaddingDp(configuration.screenWidthDp).dp,
+        vertical = 8.dp)) {
+        Box(Modifier.fillMaxWidth()
+            .shadow(if (effects.tier == GanjEffectsTier.Reduced) 0.dp else 10.dp, shape, clip = false)
+            .clip(shape)
+            .background(if (effects.reduceTransparency) glass.opaqueFallback else colors.surface.copy(alpha = 0.94f))
+            .background(Brush.verticalGradient(listOf(
+                glass.highlight.copy(alpha = if (effects.reduceTransparency) 0f else 0.09f),
+                Color.Transparent, glass.emeraldTint.copy(alpha = 0.035f))))
+            .border(0.75.dp, glass.borderSoft, shape)
+            .padding(5.dp).testTag("liquid-bottom-navigation")) {
+            Canvas(Modifier.matchParentSize()) {
+                val slot = size.width / GanjDestination.entries.size
+                val leading = position.value.coerceIn(0f, 4f)
+                val trailing = tail.value.coerceIn(0f, 4f)
+                val stretch = (abs(leading - trailing) * slot * 0.24f).coerceAtMost(slot * 0.32f)
+                val centerIndex = if (rtl) 4f - leading else leading
+                val lensWidth = slot - 4.dp.toPx() + stretch
+                val lensHeight = size.height - 4.dp.toPx()
+                val origin = Offset((centerIndex + 0.5f) * slot - lensWidth / 2, 2.dp.toPx())
+                val lensSize = Size(lensWidth, lensHeight)
+                val radius = CornerRadius(23.dp.toPx())
+                drawRoundRect(colors.primary.copy(alpha = if (effects.reduceTransparency) 0.17f else 0.12f),
+                    origin, lensSize, radius)
+                if (!effects.reduceTransparency) {
+                    drawRoundRect(Brush.verticalGradient(listOf(glass.highlight.copy(alpha = 0.19f),
+                        Color.Transparent, glass.emeraldTint.copy(alpha = 0.08f))), origin, lensSize, radius)
+                    drawRoundRect(glass.highlight.copy(alpha = 0.20f), origin, lensSize, radius,
+                        style = Stroke(0.65.dp.toPx()))
+                }
+                drawRoundRect(colors.secondary.copy(alpha = 0.70f),
+                    Offset(origin.x + lensWidth * 0.32f, origin.y + lensHeight - 3.dp.toPx()),
+                    Size(lensWidth * 0.36f, 1.5.dp.toPx()), CornerRadius(2.dp.toPx()))
+            }
+            Row(Modifier.fillMaxWidth().selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
+                GanjDestination.entries.forEach { destination ->
+                    GanjNavigationItem(destination, destination == selectedDestination,
+                        showAllLabels || destination == selectedDestination,
+                        if (destination == GanjDestination.Account) unreadCount ?: 0 else 0,
+                        onClick = { if (destination != selectedDestination) onDestinationSelected(destination) },
+                        modifier = Modifier.weight(1f))
                 }
             }
         }
-
-        GanjCenterConnectDestination(
-            selected = selectedDestination == GanjDestination.Connect,
-            onClick = { onDestinationSelected(GanjDestination.Connect) },
-            modifier = Modifier.align(Alignment.TopCenter),
-        )
     }
 }
 
 @Composable
 private fun GanjNavigationItem(
-    destination: GanjDestination,
-    selected: Boolean,
-    showLabel: Boolean,
-    badgeText: String?,
-    unreadCount: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    destination: GanjDestination, selected: Boolean, showLabel: Boolean, unreadCount: Int,
+    onClick: () -> Unit, modifier: Modifier = Modifier,
 ) {
     val label = stringResource(destination.labelRes)
-    val tint = if (selected) {
-        if (MaterialTheme.colorScheme.background == GanjDarkCanvas) GanjGoldBright
-        else MaterialTheme.colorScheme.secondary
-    } else MaterialTheme.colorScheme.onSurfaceVariant
     val effects = LocalGanjVisualEffectsPolicy.current
-    val itemScale = animateFloatAsState(
-        targetValue = if (!effects.reduceMotion && selected) 1.025f else 1f,
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
-        label = "navItemScale",
-    ).value
-    val itemOffset = animateDpAsState(
-        targetValue = if (!effects.reduceMotion && selected) (-2).dp else 0.dp,
-        animationSpec = spring(dampingRatio = 0.80f, stiffness = 560f),
-        label = "navItemOffset",
-    ).value
-    val baseDescription = UiAccessibilityPolicy.destinationDescription(
-        label = label,
-        selected = selected,
-        selectedSuffix = stringResource(R.string.a11y_selected),
-    )
-    val description = if (unreadCount > 0) {
-        "$baseDescription، ${unreadCount.toPersianDigits()} اعلان خوانده‌نشده"
-    } else {
-        baseDescription
-    }
-
-    Box(
-        modifier = modifier
-            .heightIn(min = 58.dp)
-            .offset(y = itemOffset)
-            .scale(itemScale)
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
-                else Color.Transparent,
-            )
-            .semantics {
-                this.selected = selected
-                contentDescription = description
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val animate = GanjDestinationMotionPolicy.shouldAnimate(effects.tier, effects.reduceMotion)
+    val scale = animateFloatAsState(if (animate && pressed) 0.94f else 1f,
+        if (animate) spring(0.9f, 850f) else snap(), label = "navPress")
+    val lift = animateFloatAsState(if (animate && selected) -1.5f else 0f,
+        if (animate) spring(0.9f, 650f) else snap(), label = "navIconLift")
+    val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val description = UiAccessibilityPolicy.destinationDescription(label, selected, stringResource(R.string.a11y_selected)) +
+        if (unreadCount > 0) "، ${unreadCount.toPersianDigits()} اعلان خوانده‌نشده" else ""
+    Column(modifier.heightIn(min = 66.dp).testTag("nav-${destination.name}")
+        .clip(RoundedCornerShape(23.dp)).semantics { contentDescription = description }
+        .selectable(selected, interactionSource = interaction, indication = null, role = Role.Tab, onClick = onClick)
+        .padding(horizontal = 2.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Box(Modifier.size(30.dp).graphicsLayer {
+            translationY = lift.value * density; scaleX = scale.value; scaleY = scale.value
+        }, contentAlignment = Alignment.Center) {
+            if (destination == GanjDestination.Connect) {
+                Box(Modifier.size(30.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = if (selected) 0.16f else 0.06f)))
             }
-            .clickable(role = Role.Tab, onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 7.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                GanjNavigationIcon(
-                    destination = destination,
-                    tint = tint,
-                    modifier = Modifier.size(if (selected) 22.dp else 21.dp),
-                )
-                if (badgeText != null) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = 10.dp, y = (-7).dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(MaterialTheme.colorScheme.error)
-                            .padding(horizontal = 5.dp, vertical = 1.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = badgeText,
-                            color = MaterialTheme.colorScheme.onError,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                        )
-                    }
+            GanjNavigationIcon(destination, tint, Modifier.size(if (destination == GanjDestination.Connect) 25.dp else 23.dp))
+            notificationBadgeText(unreadCount)?.let { badge ->
+                Box(Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-3).dp)
+                    .clip(CircleShape).background(MaterialTheme.colorScheme.error)
+                    .padding(horizontal = 4.dp, vertical = 1.dp)) {
+                    Text(badge, color = MaterialTheme.colorScheme.onError,
+                        style = MaterialTheme.typography.labelSmall, maxLines = 1,
+                        modifier = Modifier.clearAndSetSemantics {})
                 }
             }
-            if (selected) {
-                Spacer(Modifier.height(3.dp))
-                Box(Modifier.size(width = 17.dp, height = 2.dp)
-                    .clip(CircleShape).background(tint.copy(alpha = 0.90f)))
-            }
-            if (showLabel) {
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = label,
-                    color = tint,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun GanjCenterConnectDestination(
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val label = stringResource(R.string.nav_connect)
-    val accent = if (selected) GanjGoldBright else MaterialTheme.colorScheme.primary
-    val effects = LocalGanjVisualEffectsPolicy.current
-    val centerScale = animateFloatAsState(
-        targetValue = if (!effects.reduceMotion && selected) 1.055f else 1f,
-        animationSpec = spring(dampingRatio = 0.72f, stiffness = 430f),
-        label = "centerConnectScale",
-    ).value
-    val centerOffset = animateDpAsState(
-        targetValue = if (!effects.reduceMotion && selected) (-3).dp else 0.dp,
-        animationSpec = spring(dampingRatio = 0.76f, stiffness = 460f),
-        label = "centerConnectOffset",
-    ).value
-    val description = UiAccessibilityPolicy.destinationDescription(
-        label = label,
-        selected = selected,
-        selectedSuffix = stringResource(R.string.a11y_selected),
-    )
-
-    Column(
-        modifier = modifier.offset(y = 1.dp + centerOffset),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .scale(centerScale)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = if (selected) 0.43f else 0.29f),
-                            Color(0xFF064C38),
-                            GanjDarkCanvas,
-                        ),
-                    ),
-                )
-                .border(
-                    width = if (selected) 2.dp else 1.5.dp,
-                    color = if (selected) GanjGoldBright else MaterialTheme.colorScheme.primary.copy(alpha = 0.76f),
-                    shape = CircleShape,
-                )
-                .semantics {
-                    this.selected = selected
-                    contentDescription = description
-                }
-                .clickable(role = Role.Tab, onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            GanjNavigationIcon(
-                destination = GanjDestination.Connect,
-                tint = accent,
-                modifier = Modifier.size(if (selected) 30.dp else 28.dp),
-            )
         }
         Spacer(Modifier.height(3.dp))
-        Text(
-            text = label,
-            color = accent,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-        )
+        Text(if (showLabel) label else "", color = tint, style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics {})
     }
 }

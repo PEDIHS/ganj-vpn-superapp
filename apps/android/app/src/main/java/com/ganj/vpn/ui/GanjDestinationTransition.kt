@@ -1,15 +1,18 @@
 package com.ganj.vpn.ui
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 
 internal object GanjDestinationMotionPolicy {
     fun shouldAnimate(
@@ -35,26 +38,18 @@ internal fun GanjDestinationTransition(
         tier = effects.tier,
         reduceMotion = effects.reduceMotion,
     )
-    if (!animate) {
-        Box(modifier = modifier.fillMaxSize()) {
-            content(destination)
-        }
-        return
-    }
-
+    val savedDestinations = rememberSaveableStateHolder()
+    val density = LocalDensity.current
+    // Mount one screen, preserving saved scroll/search without keeping offscreen effects alive.
+    val reveal = remember(destination, animate) { Animatable(if (animate) 0f else 1f) }
     val duration = GanjDestinationMotionPolicy.durationMillis(effects.tier)
-    AnimatedContent(
-        targetState = destination,
-        modifier = modifier.fillMaxSize(),
-        transitionSpec = {
-            (fadeIn(tween(durationMillis = duration)) +
-                scaleIn(
-                    initialScale = 0.992f,
-                    animationSpec = tween(durationMillis = duration),
-                )) togetherWith fadeOut(tween(durationMillis = (duration * 0.72f).toInt()))
-        },
-        label = "ganjLiquidDestinationTransition",
-    ) { target ->
-        content(target)
+    LaunchedEffect(reveal) { if (animate) reveal.animateTo(1f, tween(durationMillis = duration)) }
+    Box(modifier.fillMaxSize().graphicsLayer {
+        alpha = reveal.value
+        translationY = with(density) { 6.dp.toPx() } * (1f - reveal.value)
+    }) {
+        key(destination) {
+            savedDestinations.SaveableStateProvider(destination.name) { content(destination) }
+        }
     }
 }

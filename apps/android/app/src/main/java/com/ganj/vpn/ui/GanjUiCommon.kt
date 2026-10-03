@@ -275,14 +275,7 @@ private fun StateCard(
 }
 
 @Composable
-internal fun LoadingCard(text: String) = StateCard(
-    title = text,
-    body = stringResource(R.string.common_wait),
-    accent = MaterialTheme.colorScheme.primary,
-    tone = GanjStatusTone.Neutral,
-    status = "در حال بارگذاری",
-    glyph = "…",
-)
+internal fun LoadingCard(text: String) = GanjLoadingState(text)
 
 @Composable
 internal fun EmptyCard(

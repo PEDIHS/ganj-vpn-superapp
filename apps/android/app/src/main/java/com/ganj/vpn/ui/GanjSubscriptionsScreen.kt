@@ -23,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -637,26 +638,21 @@ internal fun GanjConfigFlagBadge(
     val normalized = remember(countryCode) { ganjNormalizedCountry(countryCode) }
     val imageRes = remember(normalized) { ganjFlagDrawable(normalized) }
     val isGlobal = imageRes == R.drawable.ic_ganj_world
-    val flagShape = remember { RoundedCornerShape(7.dp) }
-    val badgeShape = remember { RoundedCornerShape(17.dp) }
+    val badgeShape = remember { RoundedCornerShape(14.dp) }
+    val effects = LocalGanjVisualEffectsPolicy.current
     Box(
         modifier = modifier.size(55.dp, 51.dp)
+            .shadow(if (effects.tier == GanjEffectsTier.Reduced) 0.dp else if (selected) 6.dp else 3.dp,
+                badgeShape, clip = false)
             .clip(badgeShape)
-            .background(Brush.linearGradient(
-                listOf(Color(0xFF4C926B), Color(0xFF15462F)),
-            ))
-            .border(if (selected) 1.5.dp else 1.dp,
-                if (selected) GanjGoldBright
-                else Color(0xFF9BD8B0).copy(alpha = 0.70f), badgeShape),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         Image(
             painter = painterResource(imageRes),
             contentDescription = null, // Country is described in the adjacent server details.
-            modifier = if (isGlobal) Modifier.size(31.dp)
-                else Modifier.size(43.dp, 31.dp).clip(flagShape)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.24f), flagShape),
-            contentScale = ContentScale.Fit,
+            modifier = if (isGlobal) Modifier.size(31.dp) else Modifier.fillMaxSize(),
+            contentScale = if (isGlobal) ContentScale.Fit else ContentScale.Crop,
             colorFilter = if (isGlobal) ColorFilter.tint(GanjGoldBright) else null,
         )
     }
