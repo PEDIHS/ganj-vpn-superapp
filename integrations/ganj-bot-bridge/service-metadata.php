@@ -32,7 +32,8 @@ foreach ($body['records'] as $record) {
 try {
     $root = dirname(__DIR__, 4);
     require_once $root . '/config.php';
-    require_once $root . '/functions.php';
+    require_once $root . '/function.php';
+    require_once $root . '/panels.php';
     if (!isset($pdo) || !($pdo instanceof PDO)) ganjMetadataFail(503, 'database_unavailable');
     $sql = 'SELECT id_invoice,id_user,username,Service_location FROM invoice WHERE id_invoice IN ('
         . implode(',', array_fill(0, count($records), '?')) . ')';

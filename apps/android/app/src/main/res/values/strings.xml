@@ -91,7 +91,6 @@
     <string name="subscriptions_active_count">%1$s اشتراک فعال</string>
     <string name="subscription_search">جستجوی نام کاربری اشتراک</string>
     <string name="common_clear">پاک کردن</string>
-    <string name="common_refresh">تازه‌سازی</string>
     <string name="subscription_choose_hint">ابتدا اشتراک، سپس کانفیگ اتصال را انتخاب کنید</string>
     <string name="subscriptions_loading">در حال دریافت اشتراک‌ها</string>
     <string name="subscriptions_empty">اشتراکی پیدا نشد</string>
