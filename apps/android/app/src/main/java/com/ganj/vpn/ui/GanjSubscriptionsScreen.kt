@@ -3,7 +3,6 @@ package com.ganj.vpn.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -49,20 +48,34 @@ internal fun StitchSubscriptionsScreen(
     modifier: Modifier = Modifier,
 ) {
     var query by remember { mutableStateOf("") }
-    val services = state.serviceItems.filter {
-        query.isBlank() || it.username?.contains(query, ignoreCase = true) == true
+    // Recalculate search results only when the fetched service snapshot or query changes.
+    // Connection-state and latency updates must not repeatedly filter the subscription list.
+    val services = remember(state.services, query) {
+        state.serviceItems.filter {
+            query.isBlank() ||
+                it.username?.contains(query, ignoreCase = true) == true ||
+                it.displayName.contains(query, ignoreCase = true)
+        }
     }
+    val activeCount = remember(state.services) { state.serviceItems.count { it.isActive } }
     LazyColumn(
         modifier = modifier.fillMaxSize().testTag("subscriptions-screen").selectableGroup(),
         contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             StitchSimpleHeader(
                 title = stringResource(R.string.subscriptions_title),
                 subtitle = stringResource(R.string.subscriptions_subtitle),
-                badge = stringResource(R.string.subscriptions_active_count, state.serviceItems.count { it.isActive }.toPersianDigits()),
+                badge = stringResource(R.string.subscriptions_active_count, activeCount.toPersianDigits()),
                 goldBadge = state.serviceItems.any { it.isActive && it.tier != UiTier.FREE },
+            )
+        }
+        item {
+            GanjSubscriptionsOverview(
+                activeCount = activeCount,
+                totalCount = state.serviceItems.size,
+                selectedUsername = state.selectedService?.let { subscriptionUsername(it) },
             )
         }
         item {
@@ -115,79 +128,244 @@ internal fun subscriptionUsername(service: ServiceUiModel): String = service.use
     ?: stringResource(if (service.tier == UiTier.FREE) R.string.subscription_free else R.string.subscription_username_unavailable)
 
 @Composable
+private fun GanjSubscriptionsOverview(
+    activeCount: Int,
+    totalCount: Int,
+    selectedUsername: String?,
+) {
+    val shape = remember { RoundedCornerShape(26.dp) }
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .clip(shape)
+            .background(
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    listOf(Color(0xFF075638), Color(0xFF0E281D), Color(0xFF111C16)),
+                ),
+            )
+            .border(1.dp, GanjGold.copy(alpha = 0.25f), shape)
+            .padding(horizontal = 18.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            stringResource(R.string.subscription_overview_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(activeCount.toPersianDigits(), style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold, color = Color(0xFF88EBB1))
+                Text(stringResource(R.string.subscription_overview_active),
+                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFD0E3D7))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(totalCount.toPersianDigits(), style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold, color = GanjGoldBright)
+                Text(stringResource(R.string.subscription_overview_total),
+                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFD0E3D7))
+            }
+        }
+        if (selectedUsername != null) {
+            HorizontalDivider(color = Color.White.copy(alpha = 0.14f))
+            Text(
+                stringResource(R.string.subscription_overview_selected, selectedUsername),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFE2F4E7),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
 internal fun GanjSubscriptionCard(service: ServiceUiModel, selected: Boolean, onClick: () -> Unit) {
     val effects = LocalGanjVisualEffectsPolicy.current
     val reduceMotion = effects.reduceMotion || effects.tier == GanjEffectsTier.Reduced
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed && !reduceMotion) 0.99f else 1f,
-        if (reduceMotion) snap() else spring(dampingRatio = 1f, stiffness = 520f), label = "subscriptionPress")
+    val scale by animateFloatAsState(
+        if (pressed && !reduceMotion) 0.985f else 1f,
+        if (reduceMotion) snap() else tween(120),
+        label = "subscriptionPress",
+    )
+    val fraction = service.usageFraction
     val accent = when {
         !service.isActive -> MaterialTheme.colorScheme.onSurfaceVariant
-        (service.usageFraction ?: 0f) >= 0.85f -> MaterialTheme.colorScheme.error
+        fraction != null && fraction >= 0.9f -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.primary
     }
-    val edge by animateColorAsState(if (selected) accent else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-        if (reduceMotion) snap() else tween(170), label = "subscriptionSelection")
-    val fraction = service.usageFraction
-    val progress by animateFloatAsState(fraction ?: 0f,
-        if (reduceMotion) snap() else tween(360), label = "subscriptionUsage")
-    val description = stringResource(if (selected) R.string.subscription_selected else R.string.subscription_not_selected)
-    val shape = RoundedCornerShape(24.dp)
+    val borderColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
+        if (reduceMotion) snap() else tween(170),
+        label = "subscriptionSelection",
+    )
+    val progress by animateFloatAsState(
+        fraction ?: 0f,
+        if (reduceMotion) snap() else tween(340),
+        label = "subscriptionUsage",
+    )
+    val description = stringResource(
+        if (selected) R.string.subscription_selected else R.string.subscription_not_selected,
+    )
+    val shape = remember { RoundedCornerShape(24.dp) }
+    val premium = service.tier == UiTier.VIP
+
     Column(
-        modifier = Modifier.fillMaxWidth().testTag("subscription-${service.entitlementId}")
-            .scale(scale).clip(shape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(if (selected) 1.5.dp else 1.dp, edge, shape)
+        modifier = Modifier.fillMaxWidth()
+            .testTag("subscription-" + service.entitlementId)
+            .scale(scale)
+            .clip(shape)
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.055f)
+                else MaterialTheme.colorScheme.surface,
+            )
+            .border(if (selected) 1.5.dp else 1.dp, borderColor, shape)
             .semantics(mergeDescendants = true) { stateDescription = description }
-            .selectable(selected = selected, enabled = service.isActive, role = Role.RadioButton,
-                interactionSource = interaction, indication = null, onClick = onClick)
+            .selectable(
+                selected = selected,
+                enabled = service.isActive,
+                role = Role.RadioButton,
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+            )
             .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
+                    .background(
+                        if (premium) GanjGold.copy(alpha = 0.13f)
+                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.11f),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(if (premium) "◆" else "◈", style = MaterialTheme.typography.titleLarge,
+                    color = if (premium) GanjGold else MaterialTheme.colorScheme.primary)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.subscription_username_label),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(subscriptionUsername(service), style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Box(
+                Modifier.size(28.dp).clip(CircleShape)
+                    .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                    .border(1.5.dp, borderColor, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) Text("✓", color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            GanjStatusPill(
+                text = serviceStatusText(service.status),
+                tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Neutral,
+            )
+            if (premium) GanjStatusPill(
+                text = stringResource(R.string.visual_signature),
+                tone = GanjStatusTone.Premium,
+            )
+            if (selected) Text(stringResource(R.string.subscription_selected),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary)
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.13f))
+
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.subscription_username_label), style = MaterialTheme.typography.labelSmall,
+                Text(stringResource(R.string.subscription_total_traffic),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(subscriptionUsername(service), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(subscriptionTraffic(service.trafficLimitBytes),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold)
             }
-            Box(Modifier.size(28.dp).clip(CircleShape).background(if (selected) accent else Color.Transparent)
-                .border(1.dp, edge, CircleShape), contentAlignment = Alignment.Center) {
-                if (selected) Text("✓", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    fraction?.let { ((it * 100).roundToInt()).toPersianDigits() + "٪" }
+                        ?: stringResource(
+                            if (service.trafficUsageAvailable && service.trafficLimitBytes == null)
+                                R.string.subscription_unlimited else R.string.subscription_usage_unavailable,
+                        ),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (fraction == null) MaterialTheme.colorScheme.onSurfaceVariant else accent,
+                )
+                if (fraction != null) {
+                    Text(
+                        stringResource(R.string.subscription_used_percent),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.subscription_total_traffic), style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(subscriptionTraffic(service.trafficLimitBytes), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(fraction?.let { "${(it * 100).roundToInt().toPersianDigits()}٪" }
-                    ?: stringResource(if (service.trafficUsageAvailable && service.trafficLimitBytes == null)
-                        R.string.subscription_unlimited else R.string.subscription_usage_unavailable),
-                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = accent)
-                if (fraction != null) Text(stringResource(R.string.subscription_used_percent),
-                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+
         if (fraction != null) {
-            Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .semantics { progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f) }) {
-                Box(Modifier.fillMaxWidth(progress).fillMaxHeight().clip(CircleShape).background(accent))
+            Box(
+                Modifier.fillMaxWidth().height(8.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .semantics { progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f) },
+            ) {
+                Box(
+                    Modifier.fillMaxWidth(progress).fillMaxHeight().clip(CircleShape)
+                        .background(accent),
+                )
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                if (service.trafficUsageAvailable) Text(stringResource(R.string.subscription_used_traffic,
-                    subscriptionTraffic(service.trafficUsedBytes)), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(serviceStatusText(service.status), style = MaterialTheme.typography.labelMedium, color = accent)
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                stringResource(
+                    R.string.subscription_used_traffic,
+                    if (service.trafficUsageAvailable) subscriptionTraffic(service.trafficUsedBytes)
+                    else stringResource(R.string.subscription_usage_unavailable),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (service.trafficLimitBytes != null && service.trafficUsageAvailable) {
+                Text(
+                    stringResource(R.string.subscription_remaining_traffic, subscriptionTraffic(service.remainingBytes)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            Text(stringResource(if (service.isActive) R.string.subscription_choose_config else R.string.subscription_inactive),
-                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = accent)
+            Text(
+                stringResource(
+                    if (service.isActive) R.string.subscription_choose_config
+                    else R.string.subscription_inactive,
+                ) + if (service.isActive) " ←" else "",
+                modifier = Modifier.align(Alignment.End),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (service.isActive) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
