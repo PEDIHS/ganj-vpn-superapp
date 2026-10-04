@@ -1058,3 +1058,4 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Overall UI completion: **196/492 = 39.8%**, 296 remaining (calculator; no Final Gate claim).
 
 - Build follow-up: initial compile found a missing search trailing-icon branch delimiter; corrected before any release. Final rerun evidence remains in PR #65.
+- Fixture follow-up: settings appearance taps target the merged actionable radio node, preserving real accessibility click semantics.

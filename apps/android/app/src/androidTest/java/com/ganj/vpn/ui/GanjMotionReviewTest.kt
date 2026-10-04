@@ -110,7 +110,7 @@ class GanjMotionReviewTest {
         capture("settings-light-large")
         compose.onNodeWithText("حساب و دستگاه‌ها").performScrollTo().performClick()
         compose.runOnIdle { assertTrue(accountOpened) }
-        compose.onNodeWithText("تیره", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithText("تیره").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(GanjThemePreference.DARK, chosen) }
         capture("settings-appearance-light-large")
     }
