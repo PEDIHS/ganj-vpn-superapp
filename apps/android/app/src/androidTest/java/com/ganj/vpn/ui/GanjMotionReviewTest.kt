@@ -1,9 +1,5 @@
 package com.ganj.vpn.ui
 
-import android.os.Handler
-import android.os.HandlerThread
-import android.view.FrameMetrics
-import android.view.Window
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
@@ -23,33 +19,19 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
-import java.util.Collections
 
-/** Isolated UI state fixtures plus actual Window frame timings; no synthetic VPN success claim. */
-@androidx.test.filters.SdkSuppress(minSdkVersion = 31)
+/** Isolated UI state/semantics fixtures; performance has its own system-clock benchmark. */
 @RunWith(AndroidJUnit4::class)
 class GanjMotionReviewTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
-    @Test fun interruptedConnectionStatesRejectBusyTapsAndRecordRenderedFrameTimings() {
+    @Test fun interruptedConnectionStatesRejectBusyTaps() {
         val state = mutableStateOf(GanjConnectionVisualState.Disconnected)
         val disconnecting = mutableStateOf(false)
         val preparing = mutableStateOf(false)
         var taps = 0
-        val frames = Collections.synchronizedList(mutableListOf<Long>())
-        val deadlines = Collections.synchronizedList(mutableListOf<Long>())
-        var droppedCallbacks = 0
-        val thread = HandlerThread("ganj-ui-frame-review").apply { start() }
-        val listener = Window.OnFrameMetricsAvailableListener { _, metrics, drops ->
-            frames.add(metrics.getMetric(FrameMetrics.TOTAL_DURATION))
-            deadlines.add(metrics.getMetric(FrameMetrics.DEADLINE))
-            droppedCallbacks += drops
-        }
-        var listenerAttached = false
         try {
             compose.activityRule.scenario.onActivity { activity ->
-                activity.window.addOnFrameMetricsAvailableListener(listener, Handler(thread.looper))
-                listenerAttached = true
                 activity.setContent {
                     GanjTheme(darkTheme = false, visualEffectsPolicy = GanjVisualEffectsPolicy(GanjEffectsTier.Full, false, false, false)) {
                         Surface(Modifier.fillMaxSize()) {
@@ -65,10 +47,10 @@ class GanjMotionReviewTest {
             compose.onNodeWithTag("connect-action").assertIsNotEnabled().performTouchInput { click() }
             capture("connection-preparing-light")
             compose.runOnIdle { preparing.value = false }
-            // Wall-clock observation records actual rendered frames, rather than advancing only the test clock.
-            Thread.sleep(1800)
+            // This fixture checks interruption/semantics; real frame timings use the separate system-clock benchmark.
+            compose.mainClock.advanceTimeBy(1800)
             compose.runOnIdle { state.value = GanjConnectionVisualState.Connected }
-            Thread.sleep(600)
+            compose.mainClock.advanceTimeBy(600)
             capture("connection-confirmed-light")
             compose.runOnIdle { state.value = GanjConnectionVisualState.Reconnecting }
             capture("connection-recovering-light")
@@ -80,18 +62,8 @@ class GanjMotionReviewTest {
             capture("connection-failed-light")
             compose.onNodeWithTag("connect-action").assertIsEnabled()
             compose.runOnIdle { assertEquals(1, taps) }
-            compose.activityRule.scenario.onActivity { it.window.removeOnFrameMetricsAvailableListener(listener); listenerAttached = false }
-            thread.quitSafely(); thread.join(2000)
-            val observed = synchronized(frames) { frames.toList() }
-            assertTrue("Actual rendered frames must be recorded", observed.size > 10)
-            val sorted = observed.sorted()
-            val limits = synchronized(deadlines) { deadlines.toList() }
-            val missed = observed.indices.count { it < limits.size && limits[it] > 0 && observed[it] > limits[it] }
-            val report = "{\"scope\":\"API35 emulator UI fixture; physical performance unverified\",\"frames\":${sorted.size},\"medianMs\":${sorted[sorted.size / 2] / 1e6},\"p95Ms\":${sorted[((sorted.size - 1) * .95).toInt()] / 1e6},\"overDeadline\":$missed,\"droppedCallbacks\":$droppedCallbacks}"
-            File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "motion-frame-metrics.json").writeText(report)
         } finally {
-            if (listenerAttached) compose.activityRule.scenario.onActivity { it.window.removeOnFrameMetricsAvailableListener(listener) }
-            thread.quitSafely()
+            compose.mainClock.autoAdvance = true
         }
     }
 
