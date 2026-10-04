@@ -10,8 +10,8 @@ class GanjDestinationMotionPolicyTest {
     fun `full and balanced tiers animate when motion is allowed`() {
         assertTrue(GanjDestinationMotionPolicy.shouldAnimate(GanjEffectsTier.Full, reduceMotion = false))
         assertTrue(GanjDestinationMotionPolicy.shouldAnimate(GanjEffectsTier.Balanced, reduceMotion = false))
-        assertEquals(220, GanjDestinationMotionPolicy.durationMillis(GanjEffectsTier.Full))
-        assertEquals(150, GanjDestinationMotionPolicy.durationMillis(GanjEffectsTier.Balanced))
+        assertEquals(280, GanjDestinationMotionPolicy.durationMillis(GanjEffectsTier.Full))
+        assertEquals(200, GanjDestinationMotionPolicy.durationMillis(GanjEffectsTier.Balanced))
     }
 
     @Test

@@ -33,8 +33,8 @@ class GanjNavigationTest {
         show(dark = true, large = false, motion = true)
         compose.onNodeWithTag("edit-state").performClick()
         compose.mainClock.autoAdvance = false
-        listOf(GanjDestination.Store, GanjDestination.Account, GanjDestination.Servers,
-            GanjDestination.Connect, GanjDestination.Home).forEach { destination ->
+        listOf(GanjDestination.Servers, GanjDestination.Settings, GanjDestination.Servers,
+            GanjDestination.Settings, GanjDestination.Connect).forEach { destination ->
             compose.onNodeWithTag("nav-${destination.name}").performClick()
             compose.mainClock.advanceTimeByFrame()
             compose.onNodeWithTag("screen-${destination.name}").assertExists()
@@ -42,18 +42,18 @@ class GanjNavigationTest {
         }
         compose.mainClock.autoAdvance = true
         compose.onNodeWithText("saved-1").assertExists()
-        compose.onNodeWithTag("nav-Store").performClick()
+        compose.onNodeWithTag("nav-Servers").performClick()
         compose.onNodeWithTag("loading-state").assertExists()
-        compose.onNodeWithTag("nav-Account").performClick()
-        compose.onNodeWithTag("screen-Account").assertExists()
+        compose.onNodeWithTag("nav-Settings").performClick()
+        compose.onNodeWithTag("screen-Settings").assertExists()
         capture("navigation-dark")
     }
 
     @Test fun largeTextRtlNavigationRemainsClickableWhileLoading() {
         show(dark = false, large = true, motion = false)
-        compose.onNodeWithTag("nav-Store").performClick()
+        compose.onNodeWithTag("nav-Servers").performClick()
         compose.onNodeWithTag("loading-state").assertExists()
-        GanjDestination.entries.forEach { destination ->
+        GanjPrimaryDestinations.forEach { destination ->
             val bounds = compose.onNodeWithTag("nav-${destination.name}").fetchSemanticsNode().boundsInRoot
             compose.runOnIdle {
                 val density = compose.activity.resources.displayMetrics.density
@@ -75,7 +75,7 @@ class GanjNavigationTest {
                     LocalLayoutDirection provides LayoutDirection.Rtl) {
                     GanjTheme(darkTheme = dark, visualEffectsPolicy = GanjVisualEffectsPolicy(
                         if (motion) GanjEffectsTier.Full else GanjEffectsTier.Reduced, false, !motion, false)) {
-                        var destination by remember { mutableStateOf(GanjDestination.Home) }
+                        var destination by remember { mutableStateOf(GanjDestination.Connect) }
                         Scaffold(bottomBar = { GanjLiquidBottomNavigation(destination, { destination = it }) }) { padding ->
                             GanjDestinationTransition(destination, Modifier.padding(padding)) { current ->
                                 DisposableEffect(current) {
@@ -86,7 +86,7 @@ class GanjNavigationTest {
                                     var saved by rememberSaveable { mutableIntStateOf(0) }
                                     Text("saved-$saved")
                                     Button(onClick = { saved++ }, Modifier.testTag("edit-state")) { Text("Edit") }
-                                    if (current == GanjDestination.Store) LoadingCard("در حال دریافت پلن‌ها")
+                                    if (current == GanjDestination.Servers) LoadingCard("در حال دریافت پلن‌ها")
                                 }
                             }
                         }

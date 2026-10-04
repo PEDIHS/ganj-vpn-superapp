@@ -102,6 +102,12 @@ internal fun GanjNavigationIcon(
                 )
             }
 
+            GanjDestination.Settings -> {
+                listOf(0.28f, 0.50f, 0.72f).forEachIndexed { index, y ->
+                    drawLine(tint, Offset(w * 0.18f, h * y), Offset(w * 0.82f, h * y), strokeWidth, StrokeCap.Round)
+                    drawCircle(tint, w * 0.085f, Offset(w * if (index == 1) 0.62f else 0.38f, h * y))
+                }
+            }
             GanjDestination.Account -> {
                 drawCircle(
                     color = tint,

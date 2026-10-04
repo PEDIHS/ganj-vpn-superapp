@@ -112,7 +112,7 @@ internal fun GanjGlassSurface(
         GanjGlassRole.Regular -> MaterialTheme.colorScheme.surface.copy(alpha = 0.68f)
         GanjGlassRole.Dense -> MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)
         GanjGlassRole.Prominent -> MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
-        GanjGlassRole.OpaqueFallback -> glass.opaqueFallback.copy(alpha = 0.98f)
+        GanjGlassRole.OpaqueFallback -> MaterialTheme.colorScheme.surface
     }
     val accentStrength = when (effectiveRole) {
         GanjGlassRole.Clear -> 0.035f
@@ -135,14 +135,14 @@ internal fun GanjGlassSurface(
     Column(
         modifier = modifier
             .clip(shape)
+            .background(base)
             .background(
                 Brush.linearGradient(
                     colors = listOf(
                         glass.highlight.copy(alpha = highlightAlpha),
-                        base,
-                        accent.copy(alpha = accentStrength),
-                        glass.goldTint.copy(alpha =
-                            if (effectiveRole == GanjGlassRole.Prominent && !effects.reduceTransparency) 0.055f else 0.015f),
+                        Color.Transparent,
+                        accent.copy(alpha = if (effectiveRole == GanjGlassRole.OpaqueFallback) 0f else accentStrength),
+                        Color.Transparent,
                     ),
                 ),
             )
@@ -167,7 +167,7 @@ internal fun GanjLiquidAction(
     val effects = LocalGanjVisualEffectsPolicy.current
     val scale = animateFloatAsState(
         targetValue = if (!effects.reduceMotion && effects.tier != GanjEffectsTier.Reduced && pressed) 0.975f else 1f,
-        animationSpec = tween(durationMillis = if (effects.reduceMotion) 0 else 125),
+        animationSpec = tween(durationMillis = if (effects.reduceMotion) 0 else GanjMotion.Press),
         label = "ganjLiquidPressScale",
     )
     val shape = remember(shapeRadius) { RoundedCornerShape(shapeRadius) }
@@ -184,6 +184,7 @@ internal fun GanjLiquidAction(
             .heightIn(min = GanjLiquidGlassPolicy.MinimumTouchTargetDp.dp)
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
             .clip(shape)
+            .background(effectiveAccent)
             .background(
                 Brush.linearGradient(
                     listOf(

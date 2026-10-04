@@ -43,10 +43,13 @@ internal fun StitchSettingsScreen(
     onReduceMotionChanged: (Boolean) -> Unit,
     onReduceTransparencyChanged: (Boolean) -> Unit,
     onRestartOnboarding: () -> Unit,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    onOpenAccount: (() -> Unit)? = null,
+    onOpenHome: (() -> Unit)? = null,
+    initialNotifications: Boolean = false,
 ) {
-    var showNotificationHub by remember { mutableStateOf(false) }
+    var showNotificationHub by remember(initialNotifications) { mutableStateOf(initialNotifications) }
     var showSupportHub by remember { mutableStateOf(false) }
     var showPrivacyCenter by remember { mutableStateOf(false) }
     var supportDeepLinkTicketId by remember { mutableStateOf<String?>(null) }
@@ -113,7 +116,7 @@ internal fun StitchSettingsScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SettingsBackButton(onBack)
+            if (onBack != null) SettingsBackButton(onBack)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "تنظیمات",
@@ -129,9 +132,20 @@ internal fun StitchSettingsScreen(
             }
         }
 
+        if (onOpenAccount != null || onOpenHome != null) {
+            ContentCard(accent = MaterialTheme.colorScheme.primary) {
+                onOpenAccount?.let { SettingsActionRow(
+                    title = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.settings_account_title),
+                    description = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.settings_account_body), onClick = it) }
+                onOpenHome?.let { SettingsActionRow(
+                    title = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.nav_home),
+                    description = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.settings_home_body), onClick = it) }
+            }
+        }
+
         SettingsSectionTitle("اعلان‌ها")
         GanjGlassSurface(
-            role = GanjGlassRole.Regular,
+            role = GanjGlassRole.OpaqueFallback,
             accent = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth(),
             shapeRadius = 24.dp,
@@ -146,7 +160,7 @@ internal fun StitchSettingsScreen(
 
         SettingsSectionTitle("حریم خصوصی")
         GanjGlassSurface(
-            role = GanjGlassRole.Regular,
+            role = GanjGlassRole.OpaqueFallback,
             accent = MaterialTheme.colorScheme.tertiary,
             modifier = Modifier.fillMaxWidth(),
             shapeRadius = 24.dp,
@@ -161,7 +175,7 @@ internal fun StitchSettingsScreen(
 
         SettingsSectionTitle("پشتیبانی")
         GanjGlassSurface(
-            role = GanjGlassRole.Regular,
+            role = GanjGlassRole.OpaqueFallback,
             accent = GanjGold,
             modifier = Modifier.fillMaxWidth(),
             shapeRadius = 24.dp,
@@ -176,7 +190,7 @@ internal fun StitchSettingsScreen(
 
         SettingsSectionTitle("ظاهر")
         GanjGlassSurface(
-            role = GanjGlassRole.Regular,
+            role = GanjGlassRole.OpaqueFallback,
             accent = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth(),
             shapeRadius = 24.dp,
@@ -220,7 +234,7 @@ internal fun StitchSettingsScreen(
 
         SettingsSectionTitle("دسترس‌پذیری")
         GanjGlassSurface(
-            role = GanjGlassRole.Regular,
+            role = GanjGlassRole.OpaqueFallback,
             accent = MaterialTheme.colorScheme.tertiary,
             modifier = Modifier.fillMaxWidth(),
             shapeRadius = 24.dp,

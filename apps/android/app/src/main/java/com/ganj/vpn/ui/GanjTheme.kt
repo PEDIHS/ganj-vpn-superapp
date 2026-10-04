@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-internal val GanjEmerald = Color(0xFF148B54)
+internal val GanjEmerald = Color(0xFF087F68)
 internal val GanjEmeraldBright = Color(0xFF52DF9C)
 internal val GanjEmeraldDeep = Color(0xFF064C38)
 internal val GanjGold = Color(0xFFC9992D)
@@ -28,23 +28,23 @@ internal val GanjJade = Color(0xFF3AA58D)
 internal val GanjDanger = Color(0xFFD94A4A)
 internal val GanjWarning = Color(0xFFE0A33C)
 
-internal val GanjDarkCanvas = Color(0xFF10271D)
-internal val GanjDarkSurface = Color(0xFF1A3729)
-internal val GanjDarkSurfaceSecondary = Color(0xFF244735)
+internal val GanjDarkCanvas = Color(0xFF0B1512)
+internal val GanjDarkSurface = Color(0xFF14211C)
+internal val GanjDarkSurfaceSecondary = Color(0xFF1D2D26)
 internal val GanjDarkText = Color(0xFFF5F7F2)
-internal val GanjDarkMuted = Color(0xFFC7D9CA)
+internal val GanjDarkMuted = Color(0xFFB6C9C0)
 
-internal val GanjLightCanvas = Color(0xFFF7F8F5)
+internal val GanjLightCanvas = Color(0xFFF4F7F5)
 internal val GanjLightSurface = Color(0xFFFFFFFF)
-internal val GanjLightSurfaceSecondary = Color(0xFFECFDF5)
-internal val GanjLightText = Color(0xFF0F1E19)
-internal val GanjLightMuted = Color(0xFF5F6E67)
+internal val GanjLightSurfaceSecondary = Color(0xFFEDF3EF)
+internal val GanjLightText = Color(0xFF172D29)
+internal val GanjLightMuted = Color(0xFF647570)
 
 private val GanjLightColors = lightColorScheme(
-    primary = Color(0xFF005133),
+    primary = Color(0xFF087F68),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF006C45),
-    onPrimaryContainer = Color(0xFF92EAB9),
+    primaryContainer = Color(0xFFDAEEE6),
+    onPrimaryContainer = Color(0xFF075747),
     secondary = Color(0xFF7C5800),
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFFEC659),
@@ -65,10 +65,10 @@ private val GanjLightColors = lightColorScheme(
 )
 
 private val GanjDarkColors = darkColorScheme(
-    primary = Color(0xFF59D995),
+    primary = Color(0xFF78DFBD),
     onPrimary = Color(0xFF091D13),
-    primaryContainer = Color(0xFF075237),
-    onPrimaryContainer = Color(0xFF92EAB9),
+    primaryContainer = Color(0xFF164737),
+    onPrimaryContainer = Color(0xFFA5F0D3),
     secondary = GanjGoldBright,
     onSecondary = Color(0xFF271900),
     secondaryContainer = Color(0xFF4B3919),
@@ -209,7 +209,7 @@ private val GanjDarkGlass = GanjGlassPalette(
 
 private val GanjLightGlass = GanjGlassPalette(
     neutralTint = Color(0xFFF9FCF8),
-    emeraldTint = Color(0xFF005133),
+    emeraldTint = Color(0xFF087F68),
     goldTint = Color(0xFF7C5800),
     borderSoft = Color(0xFFD6DED7),
     borderStrong = Color(0xFFBAC5BC),
@@ -233,7 +233,7 @@ internal data class GanjContentPalette(
 )
 
 internal val GanjDarkContent = GanjContentPalette(
-    selectedSurface = Color(0xFF214D38),
+    selectedSurface = Color(0xFF193E31),
     onSelected = GanjDarkText,
     selectedMuted = Color(0xFFD4E6D8),
     premiumText = GanjGoldBright,
@@ -248,7 +248,7 @@ internal val LocalGanjContentPalette = staticCompositionLocalOf { GanjDarkConten
 
 @Composable
 internal fun GanjTheme(
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = false,
     visualEffectsPolicy: GanjVisualEffectsPolicy? = null,
     content: @Composable () -> Unit,
 ) {

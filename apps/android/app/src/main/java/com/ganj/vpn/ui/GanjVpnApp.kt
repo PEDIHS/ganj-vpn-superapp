@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -116,9 +117,10 @@ fun GanjVpnApp(
     val deviceApi = remember(composition) { DeviceCompositionRegistry.api(composition) }
     val scope = rememberCoroutineScope()
 
-    var selectedDestination by remember { mutableStateOf(GanjDestination.Connect) }
+    var selectedDestination by rememberSaveable { mutableStateOf(GanjDestination.Connect) }
     var configPickerServiceId by remember(composition) { mutableStateOf<String?>(null) }
-    var accountSurface by remember { mutableStateOf(GanjAccountSurface.PROFILE) }
+    var accountSurface by rememberSaveable { mutableStateOf(GanjAccountSurface.PROFILE) }
+    var openNotifications by remember { mutableStateOf(false) }
     var purchaseConfirmationPlan by remember { mutableStateOf<PlanUiModel?>(null) }
     var accountSyncFeedback by remember { mutableStateOf<TelegramServiceSyncFeedback?>(null) }
     var walletState by remember(composition) {
@@ -140,6 +142,7 @@ fun GanjVpnApp(
     }
     var refreshJob by remember { mutableStateOf<Job?>(null) }
     var checkoutJob by remember { mutableStateOf<Job?>(null) }
+    var disconnectRequested by remember(composition) { mutableStateOf(false) }
     var connectionJob by remember { mutableStateOf<Job?>(null) }
     var enterpriseJob by remember { mutableStateOf<Job?>(null) }
     var walletJob by remember { mutableStateOf<Job?>(null) }
@@ -151,6 +154,12 @@ fun GanjVpnApp(
             accountSurface != GanjAccountSurface.PROFILE,
     ) {
         accountSurface = GanjAccountSurface.PROFILE
+    }
+
+    BackHandler(enabled = userPreferences.onboardingCompleted &&
+        selectedDestination !in GanjPrimaryDestinations &&
+        (selectedDestination != GanjDestination.Account || accountSurface == GanjAccountSurface.PROFILE)) {
+        selectedDestination = selectedDestination.primaryDestination()
     }
 
     fun commit(next: GanjUiState) {
@@ -410,6 +419,7 @@ fun GanjVpnApp(
             ?: ApiResult.Failure(ApiError.Server(null, 503, "server_catalog_unavailable", true)) }
 
     fun requestProfile(entitlementId: String) {
+        if (disconnectRequested || connectionJob?.isActive == true) return
         val choice = state.selectedConnectionServer?.takeIf { it.entitlementId == entitlementId }
         if (choice == null) { openConfigs(); return }
         connectionJob?.cancel()
@@ -434,9 +444,12 @@ fun GanjVpnApp(
     }
 
     fun disconnectTunnel() {
+        if (disconnectRequested) return
+        disconnectRequested = true
         connectionJob?.cancel()
         connectionJob = scope.launch {
-            commit(controller.onDisconnectResult(state, composition.disconnectVpn()))
+            try { commit(controller.onDisconnectResult(state, composition.disconnectVpn())) }
+            finally { disconnectRequested = false }
         }
     }
 
@@ -569,6 +582,7 @@ fun GanjVpnApp(
                             selectedDestination = selectedDestination,
                             onDestinationSelected = { destination ->
                                 selectedDestination = destination
+                                openNotifications = false
                                 if (destination == GanjDestination.Account) {
                                     accountSurface = GanjAccountSurface.PROFILE
                                 }
@@ -601,6 +615,7 @@ fun GanjVpnApp(
                                     openConfigs()
                                 },
                                 onRetry = ::refresh,
+                                onOpenStore = { selectedDestination = GanjDestination.Store },
                             )
 
                             GanjDestination.Connect -> StitchConnectionScreen(
@@ -608,6 +623,8 @@ fun GanjVpnApp(
                                 onProbe = composition::probeServer,
                                 latency = composition.latency,
                                 sessionTimer = connectionSessionTimer,
+                                disconnectRequested = disconnectRequested,
+                                onOpenNotifications = { openNotifications = true; selectedDestination = GanjDestination.Settings },
                                 onConnect = ::requestProfile,
                                 onDisconnect = ::disconnectTunnel,
                                 onOpenServers = ::openConfigs,
@@ -630,6 +647,19 @@ fun GanjVpnApp(
                                 },
                                 onPurchase = { plan -> purchaseConfirmationPlan = plan },
                                 onRetry = ::refresh,
+                            )
+
+                            GanjDestination.Settings -> StitchSettingsScreen(
+                                preferences = userPreferences,
+                                onThemeChanged = onThemePreferenceChanged,
+                                onReduceMotionChanged = onReduceMotionChanged,
+                                onReduceTransparencyChanged = onReduceTransparencyChanged,
+                                onRestartOnboarding = onRestartOnboarding,
+                                onBack = null,
+                                onOpenAccount = { accountSurface = GanjAccountSurface.PROFILE; selectedDestination = GanjDestination.Account },
+                                onOpenHome = { selectedDestination = GanjDestination.Home },
+                                initialNotifications = openNotifications,
+                                modifier = Modifier.fillMaxSize(),
                             )
 
                             GanjDestination.Account -> when (accountSurface) {

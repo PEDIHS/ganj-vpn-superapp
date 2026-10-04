@@ -93,6 +93,8 @@ internal fun StitchConnectionScreen(
     latency: SessionLatencyManager? = null,
     modifier: Modifier = Modifier,
     sessionTimer: ConnectionSessionTimer? = null,
+    onOpenNotifications: (() -> Unit)? = null,
+    disconnectRequested: Boolean = false,
 ) {
     val connection = state.connection
     val service = state.selectedService
@@ -111,13 +113,12 @@ internal fun StitchConnectionScreen(
     val ping = reading?.result?.latencyMillis
     val pingBusy = pingKey in latencyState.measuring
     val pingFailure = (reading?.result as? LatencyProbeResult.Failed)?.failure
-    val visualState = when (state.runtimeConnection.phase) {
-        com.ganj.vpn.core.vpn.ConnectionPhase.RECONNECTING -> GanjConnectionVisualState.Reconnecting
-        com.ganj.vpn.core.vpn.ConnectionPhase.DISCONNECTING -> GanjConnectionVisualState.Connecting
-        else -> connection.toStitchVisualState(service)
-    }
-    val disconnecting = state.runtimeConnection.phase == ConnectionPhase.DISCONNECTING
-    val connectionBusy = visualState == GanjConnectionVisualState.Connecting ||
+    val visualState = ganjConnectionVisualState(state.runtimeConnection.phase, connection, service?.isActive == true)
+    val disconnecting = disconnectRequested || state.runtimeConnection.phase == ConnectionPhase.DISCONNECTING
+    val preparing = state.runtimeConnection.phase == ConnectionPhase.PREPARING ||
+        (state.runtimeConnection.phase in setOf(ConnectionPhase.DISCONNECTED, ConnectionPhase.CONNECTED) &&
+            (connection is ConnectionUiState.Requesting || connection is ConnectionUiState.ProfileReady))
+    val connectionBusy = preparing || visualState == GanjConnectionVisualState.Connecting ||
         visualState == GanjConnectionVisualState.Reconnecting || disconnecting
     val hasPremium = remember(state.services) { state.serviceItems.any {
         it.isActive && (it.tier == UiTier.PREMIUM || it.tier == UiTier.VIP)
@@ -130,13 +131,14 @@ internal fun StitchConnectionScreen(
             .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        StitchBrandHeader(premium = hasPremium, onOpenStore = onOpenStore)
+        StitchBrandHeader(premium = hasPremium, onOpenStore = onOpenStore, onOpenNotifications = onOpenNotifications)
         GanjConnectionHero(
             state = visualState,
             action = if (switchingSelection) stringResource(R.string.connection_switch_selection) else connectionAction(visualState),
             title = connectionTitle(visualState),
             disconnecting = disconnecting,
             selecting = smartBusy,
+            preparing = preparing,
             onClick = {
                 when {
                     connection is ConnectionUiState.Connected && !switchingSelection -> onDisconnect()
@@ -165,7 +167,7 @@ internal fun StitchConnectionScreen(
             Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall)
             ConnectionFailureDetails(failure)
         }
-        GanjGlassSurface(role = GanjGlassRole.Dense, modifier = Modifier.fillMaxWidth().testTag("selected-subscription")
+        GanjGlassSurface(role = GanjGlassRole.OpaqueFallback, modifier = Modifier.fillMaxWidth().testTag("selected-subscription")
             .clickable(role = Role.Button, onClick = onOpenSubscriptions).padding(2.dp), shapeRadius = 22.dp) {
             Text(stringResource(R.string.subscription_selected_label), style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -247,9 +249,14 @@ internal fun StitchConnectionScreen(
 }
 
 @Composable
-private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit) {
+private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit, onOpenNotifications: (() -> Unit)?) {
     val largeText = LocalDensity.current.fontScale >= 1.3f
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        onOpenNotifications?.let { handler ->
+            TextButton(onClick = handler, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.connection_notifications))
+            }
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically) {
@@ -424,20 +431,6 @@ private fun StitchPremiumCard(premium: Boolean, onOpenStore: () -> Unit) {
                 )
             }
         }
-    }
-}
-
-private fun ConnectionUiState.toStitchVisualState(service: ServiceUiModel?): GanjConnectionVisualState = when (this) {
-    is ConnectionUiState.Connected -> GanjConnectionVisualState.Connected
-    is ConnectionUiState.Requesting,
-    is ConnectionUiState.ProfileReady,
-    -> GanjConnectionVisualState.Connecting
-    is ConnectionUiState.Failed -> GanjConnectionVisualState.Failed
-    ConnectionUiState.AuthRequired -> GanjConnectionVisualState.Unavailable
-    ConnectionUiState.Idle -> if (service?.isActive == true) {
-        GanjConnectionVisualState.Disconnected
-    } else {
-        GanjConnectionVisualState.Unavailable
     }
 }
 

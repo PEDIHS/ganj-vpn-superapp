@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -52,7 +54,15 @@ import kotlin.math.abs
 
 internal enum class GanjDestination(@StringRes val labelRes: Int) {
     Home(R.string.nav_home), Servers(R.string.nav_servers), Connect(R.string.nav_connect),
-    Store(R.string.nav_store), Account(R.string.nav_account),
+    Store(R.string.nav_store), Account(R.string.nav_account), Settings(R.string.nav_settings),
+}
+
+internal val GanjPrimaryDestinations = listOf(GanjDestination.Connect, GanjDestination.Servers, GanjDestination.Settings)
+
+internal fun GanjDestination.primaryDestination(): GanjDestination = when (this) {
+    GanjDestination.Home, GanjDestination.Account -> GanjDestination.Settings
+    GanjDestination.Store -> GanjDestination.Servers
+    else -> this
 }
 
 /** One shared, interruptible lens. Animation values are read only by draw/layer modifiers. */
@@ -62,20 +72,21 @@ internal fun GanjLiquidBottomNavigation(
     onDestinationSelected: (GanjDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptic = LocalHapticFeedback.current
     val configuration = LocalConfiguration.current
     val largeText = LocalDensity.current.fontScale >= 1.5f
-    val showAllLabels = GanjResponsivePolicy.shouldShowAllNavigationLabels(
-        configuration.screenWidthDp, LocalDensity.current.fontScale,
-    )
+    val showAllLabels = true
     val effects = LocalGanjVisualEffectsPolicy.current
     val glass = LocalGanjGlassPalette.current
     val colors = MaterialTheme.colorScheme
     val shape = remember { RoundedCornerShape(28.dp) }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val motion = GanjDestinationMotionPolicy.shouldAnimate(effects.tier, effects.reduceMotion)
-    val position = animateFloatAsState(selectedDestination.ordinal.toFloat(),
+    val selectedPrimary = selectedDestination.primaryDestination()
+    val targetIndex = GanjPrimaryDestinations.indexOf(selectedPrimary).toFloat()
+    val position = animateFloatAsState(targetIndex,
         if (motion) spring(dampingRatio = 0.88f, stiffness = 650f) else snap(), label = "navLensPosition")
-    val tail = animateFloatAsState(selectedDestination.ordinal.toFloat(),
+    val tail = animateFloatAsState(targetIndex,
         if (motion) spring(dampingRatio = 1f, stiffness = 390f) else snap(), label = "navLensTail")
     val unreadCount by NotificationUnreadRegistry.count.collectAsState()
     val generation by NotificationUnreadRegistry.refreshGeneration.collectAsState()
@@ -101,18 +112,18 @@ internal fun GanjLiquidBottomNavigation(
             .border(0.75.dp, glass.borderSoft, shape)
             .padding(5.dp).testTag("liquid-bottom-navigation")) {
             if (largeText) {
-                Text(stringResource(selectedDestination.labelRes), color = colors.primary,
+                Text(stringResource(selectedPrimary.labelRes), color = colors.primary,
                     style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 4.dp)
                         .clearAndSetSemantics {})
             }
             Box(Modifier.fillMaxWidth()) {
                 Canvas(Modifier.matchParentSize()) {
-                    val slot = size.width / GanjDestination.entries.size
-                    val leading = position.value.coerceIn(0f, 4f)
-                    val trailing = tail.value.coerceIn(0f, 4f)
+                    val slot = size.width / GanjPrimaryDestinations.size
+                    val leading = position.value.coerceIn(0f, 2f)
+                    val trailing = tail.value.coerceIn(0f, 2f)
                     val stretch = (abs(leading - trailing) * slot * 0.24f).coerceAtMost(slot * 0.32f)
-                    val centerIndex = if (rtl) 4f - leading else leading
+                    val centerIndex = if (rtl) 2f - leading else leading
                     val lensWidth = slot - 4.dp.toPx() + stretch
                     val lensHeight = size.height - 4.dp.toPx()
                     val origin = Offset((centerIndex + 0.5f) * slot - lensWidth / 2, 2.dp.toPx())
@@ -126,16 +137,19 @@ internal fun GanjLiquidBottomNavigation(
                         drawRoundRect(glass.highlight.copy(alpha = 0.20f), origin, lensSize, radius,
                             style = Stroke(0.65.dp.toPx()))
                     }
-                    drawRoundRect(colors.secondary.copy(alpha = 0.70f),
+                    drawRoundRect(colors.primary.copy(alpha = 0.70f),
                         Offset(origin.x + lensWidth * 0.32f, origin.y + lensHeight - 3.dp.toPx()),
                         Size(lensWidth * 0.36f, 1.5.dp.toPx()), CornerRadius(2.dp.toPx()))
                 }
                 Row(Modifier.fillMaxWidth().selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
-                    GanjDestination.entries.forEach { destination ->
-                        GanjNavigationItem(destination, destination == selectedDestination,
-                            !largeText && (showAllLabels || destination == selectedDestination), !largeText,
-                            if (destination == GanjDestination.Account) unreadCount ?: 0 else 0,
-                            onClick = { if (destination != selectedDestination) onDestinationSelected(destination) },
+                    GanjPrimaryDestinations.forEach { destination ->
+                        GanjNavigationItem(destination, destination == selectedPrimary,
+                            !largeText && (showAllLabels || destination == selectedPrimary), !largeText,
+                            if (destination == GanjDestination.Settings) unreadCount ?: 0 else 0,
+                            onClick = { if (destination != selectedDestination) {
+                                if (!effects.reduceMotion) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onDestinationSelected(destination)
+                            } },
                             modifier = Modifier.weight(1f))
                     }
                 }

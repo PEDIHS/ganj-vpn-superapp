@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -59,6 +61,7 @@ internal fun StitchSubscriptionsScreen(
     onSelectService: (String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenStore: (() -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     // Recalculate search results only when the fetched service snapshot or query changes.
@@ -81,6 +84,11 @@ internal fun StitchSubscriptionsScreen(
                 title = stringResource(R.string.subscriptions_title),
                 subtitle = stringResource(R.string.subscriptions_subtitle),
             )
+        }
+        if (onOpenStore != null) item {
+            TextButton(onClick = onOpenStore, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.subscriptions_shop))
+            }
         }
         item {
             GanjSubscriptionsOverview(
@@ -174,9 +182,9 @@ private fun GanjSubscriptionsOverview(
     Box(
         modifier = Modifier.fillMaxWidth().clip(shape)
             .background(Brush.linearGradient(listOf(
-                Color(0xFF0F6440), Color(0xFF0A3627), Color(0xFF091A13),
+                MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant,
             )))
-            .border(1.dp, GanjGold.copy(alpha = 0.40f), shape),
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), shape),
     ) {
         // The crest is a static watermark. Canvas avoids per-frame layout or bitmap allocation.
         Canvas(
@@ -199,22 +207,22 @@ private fun GanjSubscriptionsOverview(
                 Box(Modifier.size(7.dp).clip(CircleShape).background(GanjEmeraldBright))
                 Text(stringResource(R.string.subscription_overview_title),
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                    color = Color.White)
+                    color = MaterialTheme.colorScheme.onSurface)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 GanjOverviewMetric(activeCount.toPersianDigits(),
                     stringResource(R.string.subscription_overview_active),
-                    Color(0xFF8BEAB6), Modifier.weight(1f))
+                    MaterialTheme.colorScheme.primary, Modifier.weight(1f))
                 Box(Modifier.width(1.dp).height(48.dp)
                     .background(Color.White.copy(alpha = 0.12f)))
                 GanjOverviewMetric(totalCount.toPersianDigits(),
                     stringResource(R.string.subscription_overview_total),
-                    GanjGoldBright, Modifier.weight(1f))
+                    LocalGanjContentPalette.current.premiumText, Modifier.weight(1f))
             }
             if (selectedUsername != null) {
                 HorizontalDivider(color = GanjGold.copy(alpha = 0.20f))
                 Text(stringResource(R.string.subscription_overview_selected, selectedUsername),
-                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFE5F5EB),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -227,7 +235,7 @@ private fun GanjOverviewMetric(value: String, name: String, color: Color, modifi
         Text(value, style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold, color = color)
         Text(name, style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFFD2E5D9))
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -455,6 +463,10 @@ internal fun StitchConfigSelectionSheet(
     onSelect: (ConnectionServer) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
+    val effects = LocalGanjVisualEffectsPolicy.current
+    var query by rememberSaveable(service.entitlementId) { mutableStateOf("") }
+    var sortByPing by rememberSaveable(service.entitlementId) { mutableStateOf(false) }
     var catalog by remember(service.entitlementId) { mutableStateOf<ContentState<ConnectionServer>>(ContentState.Loading) }
     var refresh by remember(service.entitlementId) { mutableIntStateOf(0) }
     LaunchedEffect(service.entitlementId, refresh) {
@@ -468,6 +480,16 @@ internal fun StitchConfigSelectionSheet(
     }
     val readings = latency?.state?.collectAsState()?.value ?: LatencySnapshot()
     val servers = (catalog as? ContentState.Ready)?.items.orEmpty()
+    val filteredServers = remember(servers, query, sortByPing, readings.readings, service.entitlementId) {
+        val filtered = servers.filter { server ->
+            query.isBlank() || server.name.contains(query, true) ||
+                server.protocols.any { it.name.contains(query, true) } ||
+                server.countryCode?.contains(query, true) == true ||
+                server.countryCode?.let { java.util.Locale("", it).getDisplayCountry(java.util.Locale("fa")).contains(query, true) } == true
+        }
+        if (sortByPing) filtered.sortedBy { readings.readings[LatencyKey(service.entitlementId, it.id)]?.result?.latencyMillis ?: Long.MAX_VALUE }
+        else filtered
+    }
     val busy = readings.measuring.any { it.serviceId == service.entitlementId }
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.65f
     GanjLiquidBottomSheet(title = stringResource(R.string.config_picker_title),
@@ -481,6 +503,12 @@ internal fun StitchConfigSelectionSheet(
                     TextButton(onClick = { refresh++ }) { Text(stringResource(R.string.common_refresh)) }
                 }
             }
+            item {
+                OutlinedTextField(query, { query = it }, singleLine = true,
+                    label = { Text(stringResource(R.string.config_search)) },
+                    modifier = Modifier.fillMaxWidth().testTag("config-search"), shape = RoundedCornerShape(16.dp),
+                    trailingIcon = if (query.isNotEmpty()) { { TextButton(onClick = { query = "" }) { Text(stringResource(R.string.common_clear)) } } else null)
+            }
             when (val content = catalog) {
                 ContentState.Loading -> item { LoadingCard(stringResource(R.string.config_picker_loading)) }
                 ContentState.Empty -> item { EmptyCard(stringResource(R.string.config_picker_empty), stringResource(R.string.config_picker_empty_body)) { refresh++ } }
@@ -493,12 +521,21 @@ internal fun StitchConfigSelectionSheet(
                             Text(stringResource(if (busy) R.string.ping_measuring else R.string.ping_all))
                         }
                     }
-                    items(content.items, key = { it.id }, contentType = { "config" }) { server ->
+                    item {
+                        TextButton(onClick = { sortByPing = !sortByPing }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(if (sortByPing) R.string.config_sort_original else R.string.config_sort_ping))
+                        }
+                        if (filteredServers.isEmpty()) Text(stringResource(R.string.config_no_match))
+                    }
+                    items(filteredServers, key = { it.id }, contentType = { "config" }) { server ->
                         val key = LatencyKey(service.entitlementId, server.id)
                         val reading = readings.readings[key]
                         val measuring = key in readings.measuring
                         GanjConfigOption(server, server.id == selectedServer?.id, reading, measuring,
-                            onSelect = { onSelect(server) }, onPing = { latency?.measure(service.entitlementId, listOf(server.id)) },
+                            onSelect = {
+                                if (!effects.reduceMotion) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSelect(server)
+                            }, onPing = { latency?.measure(service.entitlementId, listOf(server.id)) },
                             canPing = latency != null)
                     }
                 }
@@ -530,7 +567,7 @@ private fun GanjConfigOption(
         if (reduceMotion) snap() else tween(115), label = "configPress",
     )
     val rim by animateColorAsState(
-        if (selected) palette.premiumText else MaterialTheme.colorScheme.primary.copy(alpha = 0.42f),
+        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.18f),
         if (reduceMotion) snap() else tween(185), label = "configSelectedRim",
     )
     val shape = remember { RoundedCornerShape(22.dp) }

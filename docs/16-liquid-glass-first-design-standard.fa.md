@@ -573,7 +573,7 @@ Bottom Navigation باید Signature component اپ باشد.
 
 ## 12.2 Tabs
 
-Home / Servers / Connect / Store / Account
+اتصال / اشتراک‌ها / تنظیمات — طبق تصمیم محصول ۲۰۲۶-۱۰-۰۴. Home/Account/Store صفحات ثانویه با مسیر واقعی باقی می‌مانند.
 
 Selected:
 

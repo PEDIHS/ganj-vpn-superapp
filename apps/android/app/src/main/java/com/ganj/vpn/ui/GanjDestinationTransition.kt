@@ -21,8 +21,8 @@ internal object GanjDestinationMotionPolicy {
     ): Boolean = !reduceMotion && tier != GanjEffectsTier.Reduced
 
     fun durationMillis(tier: GanjEffectsTier): Int = when (tier) {
-        GanjEffectsTier.Full -> 220
-        GanjEffectsTier.Balanced -> 150
+        GanjEffectsTier.Full -> GanjMotion.Page
+        GanjEffectsTier.Balanced -> 200
         GanjEffectsTier.Reduced -> 0
     }
 }
