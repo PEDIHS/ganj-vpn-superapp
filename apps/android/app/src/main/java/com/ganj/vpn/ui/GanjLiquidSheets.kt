@@ -2,6 +2,7 @@ package com.ganj.vpn.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
@@ -18,10 +19,14 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -55,11 +60,16 @@ internal fun GanjLiquidBottomSheet(
         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
         dragHandle = { GanjSheetDragHandle() },
     ) {
+        val initialFocus = remember { FocusRequester() }
+        // Keep opening a selection sheet from automatically focusing its search input on API 24.
+        LaunchedEffect(Unit) { initialFocus.requestFocus() }
         GanjGlassSurface(
             role = GanjGlassRole.Dense,
             accent = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .fillMaxWidth()
+                .focusRequester(initialFocus)
+                .focusable()
                 .padding(horizontal = responsiveHorizontalPadding(), vertical = 10.dp),
             shapeRadius = 26.dp,
             padding = PaddingValues(18.dp),

@@ -9,6 +9,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -64,6 +67,9 @@ internal fun StitchSubscriptionsScreen(
     onOpenStore: (() -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    val initialFocus = remember { FocusRequester() }
+    // Older Android windows otherwise focus the first editable descendant and open the IME.
+    LaunchedEffect(Unit) { initialFocus.requestFocus() }
     // Recalculate search results only when the fetched service snapshot or query changes.
     // Connection-state and latency updates must not repeatedly filter the subscription list.
     val services = remember(state.services, query) {
@@ -75,7 +81,8 @@ internal fun StitchSubscriptionsScreen(
     }
     val activeCount = remember(state.services) { state.serviceItems.count { it.isActive } }
     LazyColumn(
-        modifier = modifier.fillMaxSize().testTag("subscriptions-screen").selectableGroup(),
+        modifier = modifier.fillMaxSize().testTag("subscriptions-screen")
+            .focusRequester(initialFocus).focusable().selectableGroup(),
         contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

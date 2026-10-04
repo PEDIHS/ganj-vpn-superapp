@@ -72,8 +72,10 @@ class SubscriptionSelectionTest {
         capture("subscriptions-dark")
         compose.onNodeWithTag("subscriptions-screen").performScrollToNode(hasTestTag("subscription-service-b"))
         compose.onNodeWithTag("subscription-service-b").performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-two").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-one").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("config-picker").assertExists()
+        compose.onNodeWithTag("config-search").assertIsNotFocused()
+        compose.onNodeWithTag("config-picker").performScrollToNode(hasTestTag("config-option-config-two"))
         capture("config-picker-dark")
         compose.onNodeWithTag("config-option-config-two").performScrollTo().performClick()
         compose.onNodeWithTag("config-picker").assertDoesNotExist()
@@ -128,9 +130,12 @@ class SubscriptionSelectionTest {
                 }
             }
         }
-        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-two").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-one").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("config-search").assertIsNotFocused()
+        compose.onNodeWithTag("config-picker").performScrollToNode(hasTestTag("config-option-config-two"))
         compose.onNodeWithTag("config-option-config-two").performScrollTo().assertIsSelected()
         capture("config-picker-light-large")
+        compose.onNodeWithTag("config-picker").performScrollToNode(hasTestTag("config-option-config-two"))
         compose.onNodeWithTag("config-option-config-two").performClick()
         compose.runOnIdle { assertEquals(longConfig, chosen) }
     }
