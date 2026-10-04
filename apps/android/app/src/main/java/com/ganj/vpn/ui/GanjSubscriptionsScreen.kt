@@ -507,7 +507,10 @@ internal fun StitchConfigSelectionSheet(
                 OutlinedTextField(query, { query = it }, singleLine = true,
                     label = { Text(stringResource(R.string.config_search)) },
                     modifier = Modifier.fillMaxWidth().testTag("config-search"), shape = RoundedCornerShape(16.dp),
-                    trailingIcon = if (query.isNotEmpty()) { { TextButton(onClick = { query = "" }) { Text(stringResource(R.string.common_clear)) } } else null)
+                    trailingIcon = if (query.isNotEmpty()) {
+                        { TextButton(onClick = { query = "" }) { Text(stringResource(R.string.common_clear)) } }
+                    } else null,
+                )
             }
             when (val content = catalog) {
                 ContentState.Loading -> item { LoadingCard(stringResource(R.string.config_picker_loading)) }

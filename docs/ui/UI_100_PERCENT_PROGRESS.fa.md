@@ -1056,3 +1056,5 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Leaf items completed: none; complete DoD still includes physical-device/font-width/TalkBack and account end-to-end gates.
 - Remaining unchecked items in touched sections: 1=9, 2=6, 7=18, 11=12, 12=15, 13=16, 14=16, 20=22, 21=12, 22=13, 23=9, 24=16, 25=17, 26=10.
 - Overall UI completion: **196/492 = 39.8%**, 296 remaining (calculator; no Final Gate claim).
+
+- Build follow-up: initial compile found a missing search trailing-icon branch delimiter; corrected before any release. Final rerun evidence remains in PR #65.
