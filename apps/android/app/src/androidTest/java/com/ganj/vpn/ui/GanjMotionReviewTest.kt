@@ -26,7 +26,6 @@ import java.io.File
 import java.util.Collections
 
 /** Isolated UI state fixtures plus actual Window frame timings; no synthetic VPN success claim. */
-@androidx.annotation.RequiresApi(31)
 @androidx.test.filters.SdkSuppress(minSdkVersion = 31)
 @RunWith(AndroidJUnit4::class)
 class GanjMotionReviewTest {
@@ -46,9 +45,11 @@ class GanjMotionReviewTest {
             deadlines.add(metrics.getMetric(FrameMetrics.DEADLINE))
             droppedCallbacks += drops
         }
+        var listenerAttached = false
         try {
             compose.activityRule.scenario.onActivity { activity ->
                 activity.window.addOnFrameMetricsAvailableListener(listener, Handler(thread.looper))
+                listenerAttached = true
                 activity.setContent {
                     GanjTheme(darkTheme = false, visualEffectsPolicy = GanjVisualEffectsPolicy(GanjEffectsTier.Full, false, false, false)) {
                         Surface(Modifier.fillMaxSize()) {
@@ -79,7 +80,7 @@ class GanjMotionReviewTest {
             capture("connection-failed-light")
             compose.onNodeWithTag("connect-action").assertIsEnabled()
             compose.runOnIdle { assertEquals(1, taps) }
-            compose.activityRule.scenario.onActivity { it.window.removeOnFrameMetricsAvailableListener(listener) }
+            compose.activityRule.scenario.onActivity { it.window.removeOnFrameMetricsAvailableListener(listener); listenerAttached = false }
             thread.quitSafely(); thread.join(2000)
             val observed = synchronized(frames) { frames.toList() }
             assertTrue("Actual rendered frames must be recorded", observed.size > 10)
@@ -89,7 +90,7 @@ class GanjMotionReviewTest {
             val report = "{\"scope\":\"API35 emulator UI fixture; physical performance unverified\",\"frames\":${sorted.size},\"medianMs\":${sorted[sorted.size / 2] / 1e6},\"p95Ms\":${sorted[((sorted.size - 1) * .95).toInt()] / 1e6},\"overDeadline\":$missed,\"droppedCallbacks\":$droppedCallbacks}"
             File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "motion-frame-metrics.json").writeText(report)
         } finally {
-            compose.activityRule.scenario.onActivity { it.window.removeOnFrameMetricsAvailableListener(listener) }
+            if (listenerAttached) compose.activityRule.scenario.onActivity { it.window.removeOnFrameMetricsAvailableListener(listener) }
             thread.quitSafely()
         }
     }

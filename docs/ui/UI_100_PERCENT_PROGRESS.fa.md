@@ -1060,3 +1060,4 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Build follow-up: initial compile found a missing search trailing-icon branch delimiter; corrected before any release. Final rerun evidence remains in PR #65.
 - Fixture follow-up: settings appearance taps target the merged actionable radio node, preserving real accessibility click semantics.
 - Emulator-fixture compile follow-up: the app compiles; added the missing `dp` extension import to the new frame-review test. No production change or publication before the final rerun.
+- API35 execution follow-up: 9/10 UI tests pass and state screenshots/frame report are captured. The frame fixture double-removed its listener during cleanup; now detaches exactly once. Android lint requires `SdkSuppress` alone for test API gating, so the redundant `RequiresApi` annotation is removed. Rerun remains required; no app/native runtime change.
