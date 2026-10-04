@@ -8,7 +8,7 @@ capture() {
   adb logcat -d > startup-evidence/emulator-logcat.txt || true
   adb exec-out run-as com.ganj.vpn cat cache/vpn-failure.png > startup-evidence/vpn-failure.png 2>/dev/null || true
   adb exec-out run-as com.ganj.vpn cat cache/vpn-failure.xml > startup-evidence/vpn-failure.xml 2>/dev/null || true
-  for image in subscriptions-dark config-picker-dark connection-selected subscriptions-light-large subscriptions-unknown-large; do
+  for image in subscriptions-dark config-picker-dark config-picker-light-large connection-selected subscriptions-light-large subscriptions-unknown-large; do
     adb exec-out run-as com.ganj.vpn cat "cache/$image.png" > "startup-evidence/$image.png" 2>/dev/null || true
   done
   adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true

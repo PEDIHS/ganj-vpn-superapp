@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -82,7 +85,7 @@ internal fun StitchHomeScreen(
     onOpenProfile: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val activeServices = state.serviceItems.filter { it.isActive }
+    val activeServices = remember(state.services) { state.serviceItems.filter { it.isActive } }
     val premium = activeServices.any { it.tier != UiTier.FREE }
     val selected = state.selectedService
 
@@ -220,47 +223,55 @@ internal fun StitchStoreScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val premiumActive = state.serviceItems.any { it.isActive && it.tier != UiTier.FREE }
+    val premiumActive = remember(state.services) { state.serviceItems.any { it.isActive && it.tier != UiTier.FREE } }
 
-    StitchPage(modifier) {
-        StitchSimpleHeader(
-            title = "فروشگاه",
-            subtitle = "انتخاب یا ارتقای اشتراک گنج VPN",
-            badge = if (premiumActive) "فعال" else "پلن‌ها",
-            goldBadge = premiumActive,
-        )
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item(key = "store-header", contentType = "header") {
+            StitchSimpleHeader(
+                title = "فروشگاه",
+                subtitle = "انتخاب یا ارتقای اشتراک گنج VPN",
+                badge = if (premiumActive) "فعال" else "پلن‌ها",
+                goldBadge = premiumActive,
+            )
 
-        GanjGlassSurface(
-            role = GanjGlassRole.Prominent,
-            accent = StitchProductGold,
-            modifier = Modifier.fillMaxWidth(),
-            shapeRadius = 24.dp,
-            padding = PaddingValues(18.dp),
-        ) {
-            Text(
-                text = if (premiumActive) "اشتراک شما فعال است" else "سرورهای بیشتر، تجربه سریع‌تر",
-                style = MaterialTheme.typography.headlineSmall,
-                color = StitchProductGoldBright,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = if (premiumActive) {
-                    "از همین بخش می‌توانید سرویس دیگری بخرید یا اشتراک خود را مدیریت کنید."
-                } else {
-                    "پلن مناسب خود را انتخاب کنید و دسترسی پریمیوم را فعال کنید."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
+        item(key = "store-summary", contentType = "summary") {
+            GanjGlassSurface(
+                role = GanjGlassRole.Prominent,
+                accent = StitchProductGold,
+                modifier = Modifier.fillMaxWidth(),
+                shapeRadius = 24.dp,
+                padding = PaddingValues(18.dp),
+            ) {
+                Text(
+                    text = if (premiumActive) "اشتراک شما فعال است" else "سرورهای بیشتر، تجربه سریع‌تر",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = StitchProductGoldBright,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = if (premiumActive) {
+                        "از همین بخش می‌توانید سرویس دیگری بخرید یا اشتراک خود را مدیریت کنید."
+                    } else {
+                        "پلن مناسب خود را انتخاب کنید و دسترسی پریمیوم را فعال کنید."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
-        StitchSectionLabel("پلن‌های اشتراک")
+        }
+        item(key = "store-section", contentType = "heading") { StitchSectionLabel("پلن‌های اشتراک") }
         when (val catalog = state.catalog) {
-            ContentState.Loading -> LoadingCard("در حال دریافت پلن‌ها")
-            ContentState.Empty -> EmptyCard("پلنی موجود نیست", "بعداً دوباره تلاش کنید.", onRetry)
-            ContentState.AuthRequired -> AuthCard(onRetry)
-            is ContentState.Error -> ErrorCard(catalog.failure, onRetry)
-            is ContentState.Ready -> catalog.items.forEach { plan ->
+            ContentState.Loading -> item(key = "catalog-state") { LoadingCard("در حال دریافت پلن‌ها") }
+            ContentState.Empty -> item(key = "catalog-state") { EmptyCard("پلنی موجود نیست", "بعداً دوباره تلاش کنید.", onRetry) }
+            ContentState.AuthRequired -> item(key = "catalog-state") { AuthCard(onRetry) }
+            is ContentState.Error -> item(key = "catalog-state") { ErrorCard(catalog.failure, onRetry) }
+            is ContentState.Ready -> items(catalog.items, key = { "plan-${it.id}" }, contentType = { "plan" }) { plan ->
                 StitchPlanCard(
                     plan = plan,
                     selected = plan.id == state.selectedPlanId,
@@ -272,10 +283,10 @@ internal fun StitchStoreScreen(
 
         when (state.checkout) {
             CheckoutUiState.Idle -> Unit
-            else -> StitchCheckoutStatus(
+            else -> item(key = "checkout", contentType = "checkout") { StitchCheckoutStatus(
                 checkout = state.checkout,
                 onRetry = { state.selectedPlan?.let(onPurchase) ?: onRetry() },
-            )
+            ) }
         }
     }
 }

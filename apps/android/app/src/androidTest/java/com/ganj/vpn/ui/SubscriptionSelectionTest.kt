@@ -57,7 +57,7 @@ class SubscriptionSelectionTest {
                                     loadServers = { requested += it; ApiResult.Success(configs, ResponseMetadata("ui-fixture", null)) }, latency = null,
                                     onSelect = {
                                         state = reducer.reduce(state, GanjUiEvent.SelectServer(service.entitlementId, it))
-                                        state = state.copy(connection = ConnectionUiState.Connected(first.entitlementId, "fixture-profile", configs[0].id))
+                                        state = state.copy(connection = ConnectionUiState.Connected(first.entitlementId, "fixture-profile", configs[0].id), runtimeConnection = com.ganj.vpn.core.vpn.ConnectionState(com.ganj.vpn.core.vpn.ConnectionPhase.CONNECTED, serverId = configs[0].id, serviceId = first.entitlementId))
                                         picker = false; subscriptions = false
                                     }, onDismiss = { picker = false })
                             }
@@ -72,8 +72,10 @@ class SubscriptionSelectionTest {
         capture("subscriptions-dark")
         compose.onNodeWithTag("subscriptions-screen").performScrollToNode(hasTestTag("subscription-service-b"))
         compose.onNodeWithTag("subscription-service-b").performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-two").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-one").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("config-picker").assertExists()
+        compose.onNodeWithTag("config-search").assertIsNotFocused()
+        compose.onNodeWithTag("config-picker").performScrollToNode(hasTestTag("config-option-config-two"))
         capture("config-picker-dark")
         compose.onNodeWithTag("config-option-config-two").performScrollTo().performClick()
         compose.onNodeWithTag("config-picker").assertDoesNotExist()
@@ -128,9 +130,12 @@ class SubscriptionSelectionTest {
                 }
             }
         }
-        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-two").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-one").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("config-search").assertIsNotFocused()
+        compose.onNodeWithTag("config-picker").performScrollToNode(hasTestTag("config-option-config-two"))
         compose.onNodeWithTag("config-option-config-two").performScrollTo().assertIsSelected()
         capture("config-picker-light-large")
+        compose.onNodeWithTag("config-picker").performScrollToNode(hasTestTag("config-option-config-two"))
         compose.onNodeWithTag("config-option-config-two").performClick()
         compose.runOnIdle { assertEquals(longConfig, chosen) }
     }

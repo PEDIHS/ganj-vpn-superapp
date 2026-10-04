@@ -128,4 +128,15 @@
     <string name="subscription_overview_selected">اشتراک انتخاب‌شده: %1$s</string>
     <string name="subscription_remaining_traffic">باقی‌مانده: %1$s</string>
     <string name="ping_last_result">آخرین اندازه‌گیری</string>
+    <string name="nav_settings">تنظیمات</string>
+    <string name="connection_preparing_label">در حال آماده‌سازی اتصال</string>
+    <string name="connection_notifications">اعلان‌ها</string>
+    <string name="settings_account_title">حساب و دستگاه‌ها</string>
+    <string name="settings_account_body">ورود تلگرام، کیف پول، دستگاه‌ها و اطلاعات اشتراک</string>
+    <string name="settings_home_body">مرور وضعیت حساب و سرویس‌های شما</string>
+    <string name="subscriptions_shop">خرید و مدیریت پلن‌ها</string>
+    <string name="config_search">جست‌وجوی کشور، سرور یا پروتکل</string>
+    <string name="config_sort_ping">مرتب‌سازی با پینگ اندازه‌گیری‌شده</string>
+    <string name="config_sort_original">بازگشت به ترتیب اصلی</string>
+    <string name="config_no_match">سروری با این جست‌وجو پیدا نشد.</string>
 </resources>

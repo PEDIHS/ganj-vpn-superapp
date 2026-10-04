@@ -1,7 +1,7 @@
 name: GANJ native UI visual review
 on:
   push:
-    branches: [feat/ganj-flagglass-config-20261003]
+    branches: [feat/ganj-flagglass-config-20261003, feat/ganj-fluid-navigation-0.3.17]
 permissions:
   contents: read
   actions: read
@@ -58,7 +58,7 @@ jobs:
           api-level: 35
           target: google_apis
           arch: x86_64
-          disable-animations: true
+          disable-animations: false
           script: bash .github/scripts/ganj-ui-review.sh
       - uses: actions/upload-artifact@v7
         if: always()

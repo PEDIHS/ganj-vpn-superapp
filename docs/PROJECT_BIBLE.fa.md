@@ -869,3 +869,7 @@ Every large merge must classify each capability as exactly one of:
 Project completion criterion:
 
 > A real user can install Ganj VPN, obtain a device-bound identity/session, link Telegram or use an allowed account mode, see an already-owned or newly purchased entitlement, obtain a server-authorized encrypted profile without manual config, connect reliably on real devices/networks, survive network transitions, have purchase/renewal/refund states reconciled correctly, and be supported/operated through monitored, secure, recoverable production systems with release rollback and privacy/compliance evidence.
+
+### تصمیم محصول ۲۰۲۶-۱۰-۰۴ — سه مقصد اصلی و طراحی روشن
+
+طبق درخواست مالک محصول، مقصدهای اصلی نوار پایین «اتصال / اشتراک‌ها / تنظیمات» هستند. حساب و دستگاه‌ها از تنظیمات، خانه از تنظیمات و خرید پلن از اشتراک‌ها و اتصال در دسترس می‌مانند؛ هیچ قابلیت حساب، خرید، اعلان یا پشتیبانی حذف نمی‌شود. پیش‌فرض نصب جدید Light است و انتخاب ذخیره‌شدهٔ کاربران قبلی حفظ می‌شود. مرجع رفتار اتصال وضعیت native است؛ انیمیشن هیچ‌گاه اتصال، موفقیت یا درصد پیشرفت را ایجاد نمی‌کند.

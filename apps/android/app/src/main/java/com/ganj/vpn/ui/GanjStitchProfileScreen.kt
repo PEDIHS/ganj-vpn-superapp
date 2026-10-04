@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,113 +58,118 @@ internal fun StitchProfileScreen(
     onClearBug: () -> Unit,
     onClearDiagnostic: () -> Unit,
     modifier: Modifier = Modifier,
+    headerContent: @Composable () -> Unit = {},
 ) {
-    val activeServices = state.serviceItems.filter { it.isActive }
+    val activeServices = remember(state.services) { state.serviceItems.filter { it.isActive } }
     val premium = activeServices.any { it.tier != UiTier.FREE }
     val selected = state.selectedService
 
-    Column(
-        modifier = modifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "پروفایل",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = "اشتراک‌ها، دستگاه و پشتیبانی",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            ProfileBadge(text = if (premium) "پریمیوم" else "رایگان", gold = premium)
-        }
-
-        GanjGlassSurface(
-            role = GanjGlassRole.Prominent,
-            accent = if (premium) ProfileGold else MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth(),
-            shapeRadius = 24.dp,
-            padding = PaddingValues(18.dp),
-        ) {
+        item(key = "account-actions", contentType = "account") { headerContent() }
+        item(key = "profile-header", contentType = "header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(62.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                        .border(
-                            1.dp,
-                            if (premium) ProfileGold.copy(alpha = 0.52f)
-                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                            CircleShape,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.ganj_logo_official),
-                        contentDescription = "نشان رسمی گنج VPN",
-                        modifier = Modifier.size(48.dp),
-                    )
-                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "حساب گنج VPN",
-                        style = MaterialTheme.typography.titleLarge,
+                        text = "پروفایل",
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                     Text(
-                        text = when {
-                            premium -> "اشتراک پریمیوم فعال"
-                            activeServices.isNotEmpty() -> "سرویس فعال رایگان"
-                            else -> "بدون سرویس فعال"
-                        },
+                        text = "اشتراک‌ها، دستگاه و پشتیبانی",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                ProfileBadge(text = if (premium) "پریمیوم" else "رایگان", gold = premium)
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                ProfileStat(
-                    label = "سرویس فعال",
-                    value = activeServices.size.toPersianDigits(),
-                    modifier = Modifier.weight(1f),
-                )
-                ProfileStat(
-                    label = "دستگاه مجاز",
-                    value = selected?.deviceLimit?.toPersianDigits() ?: "—",
-                    modifier = Modifier.weight(1f),
-                    gold = premium,
-                )
-            }
         }
+        item(key = "profile-summary", contentType = "summary") {
+            GanjGlassSurface(
+                role = GanjGlassRole.Prominent,
+                accent = if (premium) ProfileGold else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth(),
+                shapeRadius = 24.dp,
+                padding = PaddingValues(18.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(62.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                            .border(
+                                1.dp,
+                                if (premium) ProfileGold.copy(alpha = 0.52f)
+                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                CircleShape,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.ganj_logo_official),
+                            contentDescription = "نشان رسمی گنج VPN",
+                            modifier = Modifier.size(48.dp),
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "حساب گنج VPN",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = when {
+                                premium -> "اشتراک پریمیوم فعال"
+                                activeServices.isNotEmpty() -> "سرویس فعال رایگان"
+                                else -> "بدون سرویس فعال"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
 
-        ProfileSectionTitle("سرویس‌های من")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ProfileStat(
+                        label = "سرویس فعال",
+                        value = activeServices.size.toPersianDigits(),
+                        modifier = Modifier.weight(1f),
+                    )
+                    ProfileStat(
+                        label = "دستگاه مجاز",
+                        value = selected?.deviceLimit?.toPersianDigits() ?: "—",
+                        modifier = Modifier.weight(1f),
+                        gold = premium,
+                    )
+                }
+            }
+
+        }
+        item(key = "services-heading", contentType = "heading") { ProfileSectionTitle("سرویس‌های من") }
         when (val services = state.services) {
-            ContentState.Loading -> LoadingCard("در حال دریافت سرویس‌ها")
-            ContentState.Empty -> ProfileEmptyServices(onBuy)
-            ContentState.AuthRequired -> AuthCard(onRetry)
-            is ContentState.Error -> ErrorCard(services.failure, onRetry)
-            is ContentState.Ready -> services.items.forEach { service ->
+            ContentState.Loading -> item(key = "services-state") { LoadingCard("در حال دریافت سرویس‌ها") }
+            ContentState.Empty -> item(key = "services-state") { ProfileEmptyServices(onBuy) }
+            ContentState.AuthRequired -> item(key = "services-state") { AuthCard(onRetry) }
+            is ContentState.Error -> item(key = "services-state") { ErrorCard(services.failure, onRetry) }
+            is ContentState.Ready -> items(services.items, key = { "service-${it.entitlementId}" }, contentType = { "service" }) { service ->
                 ProfileServiceCard(
                     service = service,
                     selected = service.entitlementId == state.selectedEntitlementId,
@@ -172,31 +179,33 @@ internal fun StitchProfileScreen(
             }
         }
 
-        GanjLiquidAction(
-            onClick = onBuy,
-            accent = if (premium) ProfileGold else MaterialTheme.colorScheme.primary,
-            shapeRadius = 999.dp,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = "خرید یا ارتقای سرویس",
-                modifier = Modifier.align(Alignment.Center),
-                color = if (premium) Color(0xFF211600) else MaterialTheme.colorScheme.onPrimary,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        item(key = "buy-service", contentType = "action") {
+            GanjLiquidAction(
+                onClick = onBuy,
+                accent = if (premium) ProfileGold else MaterialTheme.colorScheme.primary,
+                shapeRadius = 999.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = "خرید یا ارتقای سرویس",
+                    modifier = Modifier.align(Alignment.Center),
+                    color = if (premium) Color(0xFF211600) else MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
 
-        ProfileSectionTitle("امنیت و پشتیبانی")
-        EnterpriseStatusCard(enterpriseState.availability, onEnterpriseRefresh)
+        }
+        item(key = "support-heading", contentType = "heading") { ProfileSectionTitle("امنیت و پشتیبانی") }
+        item(key = "enterprise-status", contentType = "status") { EnterpriseStatusCard(enterpriseState.availability, onEnterpriseRefresh) }
         if (enterpriseState.features.bugReportsEnabled) {
-            BugReportPanel(enterpriseState.bugReport, onSubmitBug, onClearBug)
+            item(key = "bug-report", contentType = "form") { BugReportPanel(enterpriseState.bugReport, onSubmitBug, onClearBug) }
         }
         if (enterpriseState.features.diagnosticsEnabled) {
-            DiagnosticPanel(enterpriseState.diagnostic, onSubmitDiagnostics, onClearDiagnostic)
+            item(key = "diagnostics", contentType = "form") { DiagnosticPanel(enterpriseState.diagnostic, onSubmitDiagnostics, onClearDiagnostic) }
         }
 
-        Spacer(Modifier.height(12.dp))
+        item(key = "profile-bottom") { Spacer(Modifier.height(12.dp)) }
     }
 }
 

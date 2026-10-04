@@ -790,13 +790,13 @@ Minimum touch target: 48dp interactive area.
 
 # 20. Bottom Navigation
 
-پنج Tab:
+سه Tab طبق تصمیم محصول ۲۰۲۶-۱۰-۰۴:
 
-1. Home؛
-2. Servers؛
-3. Connect؛
-4. Store؛
-5. Account.
+1. اتصال؛
+2. اشتراک‌ها؛
+3. تنظیمات.
+
+Home و Account از تنظیمات، Store از اشتراک‌ها و اتصال باز می‌شوند.
 
 ## 20.1 Visual
 
@@ -1305,7 +1305,7 @@ Light باید premium و تمیز باشد، نه سبز کم‌رنگ در ه�
 
 ## 38.3 System
 
-Default recommendation: `System`.
+Default for new installs: `Light` (product decision 2026-10-04). Persisted choices remain unchanged.
 
 ---
 
