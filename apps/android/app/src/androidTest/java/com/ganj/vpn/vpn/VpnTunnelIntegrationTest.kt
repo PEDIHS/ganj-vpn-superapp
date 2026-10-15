@@ -20,6 +20,7 @@ import java.net.Socket
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -69,11 +70,17 @@ class VpnTunnelIntegrationTest {
                 }
                 assertNotNull("active VPN profile must measure latency without issuing another lease", latency)
                 println("VPN test: native proxy latency passed")
-                assertNotNull("independent config latency must work beside the active VPN", client.probe(fixtureProfile(OTHER_SERVER_ID)))
-                assertNull("wrong credentials must never produce a successful latency", client.probe(fixtureProfile(OTHER_SERVER_ID, "40000000-0000-4000-8000-000000000099")))
+                // libXray v26.7.28 shares Go dialer/DNS globals: starting a temporary
+                // native core beside the managed TUN can corrupt the active connection.
+                // Reject other-config ping safely while preserving the current tunnel.
+                val other = client.probeDetailed(fixtureProfile(OTHER_SERVER_ID))
+                assertTrue("independent profile must not launch a second native core", other is LatencyProbeResult.Failed)
+                assertEquals("probe.active_tunnel_busy", (other as LatencyProbeResult.Failed).failure.diagnosticCode)
+                val invalid = client.probeDetailed(fixtureProfile(OTHER_SERVER_ID, "40000000-0000-4000-8000-000000000099"))
+                assertTrue("wrong credentials must never produce a successful latency", invalid is LatencyProbeResult.Failed)
                 assertTrue("probes must preserve the connected server", VpnRuntimeState.state.value.serverId == SERVER_ID)
                 assertTrue("probes must keep the active TUN", VpnRuntimeState.tunnelActive)
-                println("VPN test: independent config latency, rejected credentials and active core preservation passed")
+                println("VPN test: active latency, safe independent probe refusal and active core preservation passed")
                 assertTrue("switching config must retain a working TUN", client.connect(ConnectionRequest(fixtureProfile())).isSuccess)
                 Socket().use { socket ->
                     socket.soTimeout = 8_000
