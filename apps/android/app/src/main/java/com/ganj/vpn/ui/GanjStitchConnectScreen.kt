@@ -228,7 +228,7 @@ internal fun StitchConnectionScreen(
                             latency.measure(selected.entitlementId, servers.map { it.id })
                             kotlinx.coroutines.coroutineScope {
                                 servers.map { server ->
-                                    kotlinx.coroutines.async {
+                                    async {
                                         server.id to latency.awaitCurrent(selected.entitlementId, server.id)
                                     }
                                 }.awaitAll()
