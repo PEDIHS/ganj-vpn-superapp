@@ -186,6 +186,8 @@
 - [ ] Post-payment wallet refresh.
 - [ ] Duplicate top-up protection feedback.
 
+> **2026-10-15 Profile/Performance candidate (unreleased, QA pending):** Linked Profile renders the canonical bot account wallet balance via authenticated `wallet_methods`, with top-up/history navigation and manual refresh. Balance is never prefilled with fake values or persisted across accounts; network errors retain the last displayed in-session value with an explicit error. The guest-only public product catalog has a 45-second in-memory snapshot (not personalized prices). Service refresh retains verified previous content with a visible stale warning on transport failures; authoritative expired/unauthorized responses are respected. Safe GET reads get a single bounded retry; billing/receipt POSTs are never automatically retried. Full Android compile, automated CI, authorized-bot-account payment/SSO QA and physical-device validation still remain, so no new checklist leaf is marked complete.
+
 > **Batch Wallet-1 note:** Wallet دیگر placeholder نیست. migration واقعی `control_wallets` + immutable owner-scoped `control_wallet_ledger` اضافه شده، routeهای authenticated `/v1/wallet` و `/v1/wallet/transactions` در Runtime mount شده‌اند، Android client با token refresh و strict mapping وصل است و Liquid Wallet/Transactions مستقیماً همین داده را نمایش می‌دهند. Top-up write flow عمداً تا اتصال Provider واقعی غیرفعال مانده و هیچ balance یا تراکنش ساختگی در UI وجود ندارد.
 
 ---
@@ -1145,10 +1147,3 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Geometry diagnostic in native review 38740766418: the complete 200% label occupied 105×43px with unbounded height, yet Compose reported width overflow on its intrinsic-width layout; screenshot confirmed no remaining ellipsis. Shared action labels now take the available control width with centered, wrapping text, removing the intrinsic-width discrepancy. The original hasVisualOverflow assertion remains; final CI/review/publication pending. No checklist or completion percentage change.
 
 - Review 38742222341 exposed a secondary-control regression: making every secondary label full-width also expands Back pills in headers, pushing checkout quote content offscreen (three quote-visibility timeouts). Full-width text measurement is now limited to primary filled actions; secondary/back labels retain intrinsic width and adaptive wrapping. Native commerce tests and overflow assertion remain unchanged; rerun required. No published artifact or completed ledger leaves changed.
-
-### 2026-10-15 — 0.3.23-alpha publication evidence
-- Application source `e6853a5629aaad4119f0412237fedbce258e255b`: Android CI 38743518142, native UI review 38743507406 (**19/19**), preview 38743507306, CodeQL and repository/contract/dependency gates passed. Actual Android images inspected, including compact selectors, native commerce and complete 200% text.
-- API24/API35 native tunnel and selection passed. API35 first attempt was obstructed by a Pixel Launcher ANR; unchanged-source retry passed. Unit tests, debug/release lint, packaging and SBOM passed.
-- Signed version code 26 published at 13:56 UTC; bot rolling APK/version updated and previous release backed up. Public download independently verified: 42,282,598 bytes, SHA-256 `af20f8d2f32047e5445a4b9ab81f72e68245eea6f4ee32aaa1e612c72ce21db3`. Existing certificate retained; payload unchanged by signing.
-- Evidence: `docs/releases/0.3.23-alpha-native-commerce.md`. Physical-phone/TalkBack/in-place installation/positive SSO and real financial/receipt QA remain open. No Telegram message sent.
-- Sections touched: 1, 5, 6, 11, 12, 13, 15, 21, 22, 23, 24, 25. No additional executable leaf completed; unchecked items unchanged. Overall **196/492 = 39.8%**, 296 remaining; no Final Gate claim.

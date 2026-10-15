@@ -5,11 +5,13 @@ import android.net.Uri
 import android.webkit.CookieManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.net.URL
 import java.net.URLEncoder
 import javax.net.ssl.HttpsURLConnection
@@ -22,10 +24,20 @@ internal interface GanjBotStoreApi {
 
 internal class GanjBotStoreException(message: String) : Exception(message)
 
-internal class GanjBotNativeStoreApi(private val authorization: () -> String?) : GanjBotStoreApi {
+internal class GanjBotNativeStoreApi(
+    private val authorization: () -> String?,
+    private val isLinked: () -> Boolean = { false },
+) : GanjBotStoreApi {
     private val sessionLock = Mutex()
     private var authenticated = false
     private var csrf: String? = null
+
+    /** Clear only this in-memory API session when Telegram identity changes. */
+    suspend fun invalidateSession() = sessionLock.withLock {
+        authenticated = false
+        csrf = null
+    }
+
     private val base = "https://bot.pedramhs.ir/site/api.php"
     private val reads = setOf("products", "product", "transactions", "wallet_methods", "payment_status", "wallet_card_session", "wallet_crypto_session")
     private val writes = setOf("purchase_quote", "purchase", "wallet_card", "wallet_crypto", "wallet_gateway")
@@ -58,8 +70,8 @@ internal class GanjBotNativeStoreApi(private val authorization: () -> String?) :
             val suffix = if (post || parameters.isEmpty()) "" else "&" + form(parameters)
             val conn = (URL("$base?action=$action$suffix").openConnection() as HttpsURLConnection).apply {
                 instanceFollowRedirects = false
-                connectTimeout = 8000
-                readTimeout = if (action == "purchase") 45000 else 12000
+                connectTimeout = if (post) 8000 else 5000
+                readTimeout = if (action == "purchase") 45000 else if (post) 12000 else 9000
                 requestMethod = if (post) "POST" else "GET"
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Cache-Control", "no-store")
@@ -109,8 +121,22 @@ internal class GanjBotNativeStoreApi(private val authorization: () -> String?) :
     }
     override suspend fun request(action: String, parameters: Map<String, String>): JSONObject {
         require(action in reads || action in writes)
-        session(required = action !in setOf("products", "product"))
-        return exchange(action, parameters, action in writes, if (action in writes) csrfToken() else null)
+        val publicAction = action in setOf("products", "product")
+        // Retail prices and eligibility vary by account. Do not show guest pricing
+        // to a linked user, but do not perform SSO for a genuine guest.
+        if (!publicAction || isLinked()) session(required = true)
+        val post = action in writes
+        val token = if (post) csrfToken() else null
+        return try {
+            exchange(action, parameters, post, token)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (transient: IOException) {
+            // Only idempotent reads may be retried automatically. Never repeat payments.
+            if (post) throw transient
+            delay(240)
+            exchange(action, parameters, false)
+        }
     }
     override suspend fun uploadReceipt(context: Context, uri: Uri, order: String, crypto: Boolean, txLink: String): JSONObject {
         require(order.matches(Regex("[A-Za-z0-9_-]{6,64}")))

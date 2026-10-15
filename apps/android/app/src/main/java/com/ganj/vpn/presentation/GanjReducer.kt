@@ -39,26 +39,29 @@ class GanjUiReducer {
     fun reduce(state: GanjUiState, event: GanjUiEvent): GanjUiState = when (event) {
         GanjUiEvent.RefreshRequested -> state.copy(
             catalog = ContentState.Loading,
-            services = ContentState.Loading,
+            services = state.services.takeIf { it is ContentState.Ready } ?: ContentState.Loading,
             refreshInProgress = true,
         )
         is GanjUiEvent.CatalogResolved -> {
             val selected = state.selectedPlanId?.takeIf { id ->
                 (event.content as? ContentState.Ready<PlanUiModel>)?.items?.any { it.id == id } == true
             } ?: (event.content as? ContentState.Ready<PlanUiModel>)?.items?.firstOrNull()?.id
-            state.copy(catalog = event.content, selectedPlanId = selected, refreshInProgress = false)
+            state.copy(catalog = event.content, selectedPlanId = selected)
         }
         is GanjUiEvent.ServicesResolved -> {
-            // A list refresh never chooses an arbitrary subscription. Transient failures retain
-            // the explicit choice; authoritative removal/expiry and logout invalidate it.
-            val selected = when (event.content) {
+            // A transient error is not evidence that a user lost purchased services.
+            // Keep a previously verified list, but explicitly mark it out of date.
+            // Empty/AuthRequired/authoritative inactive results still invalidate selection.
+            val stale = event.content is ContentState.Error && state.services is ContentState.Ready
+            val current = if (stale) state.services else event.content
+            val selected = when (current) {
                 is ContentState.Ready -> state.selectedEntitlementId?.takeIf { id ->
-                    event.content.items.any { it.entitlementId == id && it.isActive }
+                    current.items.any { it.entitlementId == id && it.isActive }
                 }
                 ContentState.Empty, ContentState.AuthRequired -> null
                 else -> state.selectedEntitlementId
             }
-            state.copy(services = event.content, selectedEntitlementId = selected,
+            state.copy(services = current, servicesStale = stale, selectedEntitlementId = selected,
                 selectedConnectionServer = state.selectedConnectionServer?.takeIf { it.entitlementId == selected },
                 refreshInProgress = false)
         }

@@ -133,6 +133,7 @@ data class GanjUiState(
     val checkout: CheckoutUiState = CheckoutUiState.Idle,
     val connection: ConnectionUiState = ConnectionUiState.Idle,
     val refreshInProgress: Boolean = false,
+    val servicesStale: Boolean = false,
     val runtimeConnection: com.ganj.vpn.core.vpn.ConnectionState = com.ganj.vpn.core.vpn.ConnectionState(),
 ) {
     val plans: List<PlanUiModel>

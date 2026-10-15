@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -59,6 +60,7 @@ private enum class GanjAccountSurface {
     SUBSCRIPTION_DETAILS,
     WALLET,
     TRANSACTIONS,
+    PAYMENT,
     DEVICES,
 }
 
@@ -114,6 +116,15 @@ fun GanjVpnApp(
     val enterpriseController = remember(composition) { composition.enterpriseController }
     val enterpriseReducer = remember(composition) { composition.enterpriseReducer }
     val walletApi = remember(composition) { WalletCompositionRegistry.api(composition) }
+    // One SSO session across native retail store and profile; bearer callback stays current.
+    val storeAuth = rememberUpdatedState(onStoreBridgeAuthorization)
+    val storeLinked = rememberUpdatedState(telegramLinked)
+    val botStoreApi = remember(composition) {
+        GanjBotNativeStoreApi(
+            authorization = { storeAuth.value() },
+            isLinked = { storeLinked.value },
+        )
+    }
     val serverController = remember(composition) { com.ganj.vpn.composition.ConnectionServerCompositionRegistry.controller(composition) }
     val deviceApi = remember(composition) { DeviceCompositionRegistry.api(composition) }
     val scope = rememberCoroutineScope()
@@ -121,6 +132,9 @@ fun GanjVpnApp(
     var selectedDestination by rememberSaveable { mutableStateOf(GanjDestination.Connect) }
     var configPickerServiceId by remember(composition) { mutableStateOf<String?>(null) }
     var accountSurface by rememberSaveable { mutableStateOf(GanjAccountSurface.PROFILE) }
+    var accountPaymentOrder by rememberSaveable { mutableStateOf("") }
+    var accountPaymentCrypto by rememberSaveable { mutableStateOf(false) }
+    var accountPaymentReturn by rememberSaveable { mutableStateOf(GanjAccountSurface.WALLET) }
     var openNotifications by remember { mutableStateOf(false) }
     var purchaseConfirmationPlan by remember { mutableStateOf<PlanUiModel?>(null) }
     var accountSyncFeedback by remember { mutableStateOf<TelegramServiceSyncFeedback?>(null) }
@@ -261,7 +275,7 @@ fun GanjVpnApp(
         commit(reducer.reduce(state, GanjUiEvent.RefreshRequested))
         val loadingState = state
         refreshJob = scope.launch {
-            val refreshed = withContext(Dispatchers.IO) { controller.refresh(loadingState) }
+            val refreshed = controller.refreshFast(loadingState)
             commit(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
                 GanjUiEvent.ServicesResolved(refreshed.services)))
         }
@@ -382,9 +396,7 @@ fun GanjVpnApp(
         val loadingState = state
         accountSyncFeedback = if (telegramLinked) TelegramServiceSyncFeedback.Syncing else null
         refreshJob = scope.launch {
-            val refreshed = withContext(Dispatchers.IO) {
-                controller.refresh(loadingState)
-            }
+            val refreshed = controller.refreshFast(loadingState)
             commit(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
                 GanjUiEvent.ServicesResolved(refreshed.services)))
             accountSyncFeedback = if (telegramLinked) {
@@ -481,6 +493,7 @@ fun GanjVpnApp(
             refreshWallet()
             refreshDevices()
         } else {
+            botStoreApi.invalidateSession()
             composition.latency.clear()
             walletJob?.cancel()
             walletState = WalletUiState.AuthRequired
@@ -644,6 +657,8 @@ fun GanjVpnApp(
 
                             GanjDestination.Store -> StitchNativeBotStoreDestination(
                                 onStoreBridgeAuthorization = onStoreBridgeAuthorization,
+                                suppliedApi = botStoreApi,
+                                allowGuestCatalogCache = !telegramLinked,
                                 onOpenSubscriptions = { refresh(); selectedDestination = GanjDestination.Servers },
                                 onOpenAccount = {
                                     accountSurface = GanjAccountSurface.PROFILE
@@ -675,21 +690,42 @@ fun GanjVpnApp(
                                     modifier = Modifier.fillMaxSize(),
                                 )
 
-                                GanjAccountSurface.WALLET -> StitchBotFinanceScreen(
-                                    startUrl = GANJ_WEB_WALLET,
-                                    onStoreBridgeAuthorization = onStoreBridgeAuthorization,
-                                    title = "کیف پول گنج",
-                                    onClose = { accountSurface = GanjAccountSurface.PROFILE },
-                                    onTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
+                                GanjAccountSurface.WALLET -> StitchNativeBotWallet(
+                                    api = botStoreApi,
+                                    initialAmount = 0L,
+                                    onBack = { accountSurface = GanjAccountSurface.PROFILE },
+                                    onPayment = { id, crypto ->
+                                        accountPaymentOrder = id
+                                        accountPaymentCrypto = crypto
+                                        accountPaymentReturn = GanjAccountSurface.WALLET
+                                        accountSurface = GanjAccountSurface.PAYMENT
+                                    },
+                                    onAccount = { accountSurface = GanjAccountSurface.PROFILE },
                                 )
 
-                                GanjAccountSurface.TRANSACTIONS -> StitchBotFinanceScreen(
-                                    startUrl = GANJ_WEB_TRANSACTIONS,
-                                    onStoreBridgeAuthorization = onStoreBridgeAuthorization,
-                                    title = "تراکنش‌های گنج",
-                                    onClose = { accountSurface = GanjAccountSurface.PROFILE },
-                                    onTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
+                                GanjAccountSurface.TRANSACTIONS -> StitchNativeBotTransactions(
+                                    api = botStoreApi,
+                                    onBack = { accountSurface = GanjAccountSurface.PROFILE },
+                                    onAccount = { accountSurface = GanjAccountSurface.PROFILE },
+                                    onPayment = { id, crypto ->
+                                        accountPaymentOrder = id
+                                        accountPaymentCrypto = crypto
+                                        accountPaymentReturn = GanjAccountSurface.TRANSACTIONS
+                                        accountSurface = GanjAccountSurface.PAYMENT
+                                    },
                                 )
+
+                                GanjAccountSurface.PAYMENT -> if (accountPaymentOrder.isBlank()) {
+                                    accountSurface = GanjAccountSurface.PROFILE
+                                } else {
+                                    StitchNativeBotPayment(
+                                        api = botStoreApi,
+                                        order = accountPaymentOrder,
+                                        crypto = accountPaymentCrypto,
+                                        onBack = { accountSurface = accountPaymentReturn },
+                                        onContinue = { accountSurface = accountPaymentReturn },
+                                    )
+                                }
 
                                 GanjAccountSurface.DEVICES -> StitchDevicesScreen(
                                     state = devicesState,
@@ -757,6 +793,7 @@ fun GanjVpnApp(
                                     linked = telegramLinked,
                                     onOpenWallet = { accountSurface = GanjAccountSurface.WALLET },
                                     onOpenTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
+                                    botStoreApi = botStoreApi,
                                     onOpenDevices = { accountSurface = GanjAccountSurface.DEVICES; refreshDevices() },
                                     onOpenNotifications = { openNotifications = true; selectedDestination = GanjDestination.Settings },
                                     onOpenDetails = { accountSurface = GanjAccountSurface.SUBSCRIPTION_DETAILS },
