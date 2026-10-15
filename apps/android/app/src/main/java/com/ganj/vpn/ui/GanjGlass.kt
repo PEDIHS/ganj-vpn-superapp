@@ -167,7 +167,7 @@ internal fun GanjLiquidAction(
     val pressed by interactionSource.collectIsPressedAsState()
     val effects = LocalGanjVisualEffectsPolicy.current
     val scale = animateFloatAsState(
-        targetValue = if (!effects.reduceMotion && effects.tier != GanjEffectsTier.Reduced && pressed) 0.975f else 1f,
+        targetValue = if (!effects.reduceMotion && pressed) 0.975f else 1f,
         animationSpec = tween(durationMillis = if (effects.reduceMotion) 0 else GanjMotion.Press),
         label = "ganjLiquidPressScale",
     )

@@ -233,6 +233,18 @@ internal fun StitchSettingsScreen(
         }
 
         SettingsSectionTitle("دسترس‌پذیری")
+        val effects = LocalGanjVisualEffectsPolicy.current
+        Text(
+            text = when {
+                preferences.reduceMotion -> "حرکت‌ها به انتخاب شما خاموش‌اند؛ برای فعال‌کردن، «کاهش حرکت» را خاموش کنید."
+                effects.reduceMotion -> "انیمیشن‌های اندروید خاموش‌اند؛ تنظیم حذف انیمیشن‌ها یا مقیاس انیمیشن را در تنظیمات گوشی بررسی کنید."
+                effects.tier == GanjEffectsTier.Reduced -> "انیمیشن‌ها فعال‌اند؛ افکت‌های شیشه‌ای در حالت سبک اجرا می‌شوند."
+                effects.tier == GanjEffectsTier.Balanced -> "انیمیشن‌ها فعال‌اند؛ مصرف افکت‌ها برای ذخیرهٔ باتری کاهش یافته است."
+                else -> "انیمیشن‌های برنامه فعال‌اند."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         GanjGlassSurface(
             role = GanjGlassRole.OpaqueFallback,
             accent = MaterialTheme.colorScheme.tertiary,

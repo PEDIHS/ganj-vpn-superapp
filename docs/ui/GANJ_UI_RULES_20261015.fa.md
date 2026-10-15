@@ -146,3 +146,9 @@ This document extends the canonical brand and liquid-glass standards.
   not evidence that the approved visual has been faithfully implemented.
 
 - Power ambient fidelity: a low amplitude 4.5–5s thin gold arc/idle icon breath is allowed only while foregrounded and motion policy permits it, matching the approved preview. It conveys no VPN progress. Disable it with reduced motion; genuine pending work retains the distinct rotating arcs. Shared gold is exactly `#E0BE79`, including secondary buttons and premium text.
+
+## 0.3.22 motion availability correction
+- Low-memory/opaque rendering is a material/performance choice, not a request to remove motion. Keep lightweight power arcs, press feedback and navigation transitions enabled in Reduced tier when the user/system permits motion.
+- Only explicit app Reduce Motion or disabled Android animator scale suppresses those animations. Observe system changes and resume events so the displayed reason and custom animation policy stay current.
+- Settings must report whether motion is active, lightweight, user-disabled or Android-disabled. Do not claim a specific user's device caused a report without device evidence.
+- Motion validation must compare rendered frames in Reduced tier and verify a true static control under explicit Reduce Motion; state-label screenshots alone do not prove animation.

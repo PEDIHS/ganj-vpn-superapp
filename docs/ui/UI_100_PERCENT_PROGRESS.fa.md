@@ -1103,3 +1103,11 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - UI Ledger sections touched: 1, 2, 7, 10, 11, 12, 13, 14, 15, 20, 21, 23, 24, 25, 26.
 - Leaf items completed: none; remaining unchecked leaves unchanged; no parent or Final Gate claim.
 - Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining.
+
+### 2026-10-15 — 0.3.22 motion availability correction
+- User reports missing animation in published 0.3.21. Native code review confirms the common transition policy disables essential motion for every low-memory Reduced tier, independently of explicit/system Reduce Motion. The exact affected user's device/settings remain unverified.
+- Reduced tier now retains lightweight interaction/loading/power/navigation motion and 160ms page transitions; opaque surfaces and reduced ambient backgrounds remain. Explicit app/system reduced motion still stops motion.
+- Device animation scale/power-save/resume changes are observed; Settings explains the current motion policy. No account, native connection state or payment handler is changed.
+- Regression coverage: real rendered pixel differences for low-memory power arcs and tab lens; unchanged pixels for explicit motion reduction; a live Android animator-scale observer test restores the emulator setting afterwards. Version 0.3.22-alpha / code25 prepared; CI/publication pending.
+- UI Ledger sections touched: 7, 12, 21, 22, 23, 24, 25. Leaf items completed: none. Remaining unchecked leaves unchanged; physical-device/TalkBack/positive account payment QA remain open.
+- Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining; no Final Gate claim.
