@@ -75,6 +75,7 @@ internal fun StitchProfileScreen(
     onOpenTransactions: (() -> Unit)? = null,
     botStoreApi: GanjBotStoreApi? = null,
     onOpenDevices: (() -> Unit)? = null,
+    onOpenFamily: (() -> Unit)? = null,
     onOpenNotifications: (() -> Unit)? = null,
     onOpenPrivacy: (() -> Unit)? = null,
     onOpenSupport: (() -> Unit)? = null,
@@ -183,6 +184,7 @@ internal fun StitchProfileScreen(
                         ProfileSectionTitle("حساب و سرویس‌ها")
                         GanjReferenceMenuRow("اشتراک‌های من",if(state.services is ContentState.Ready) activeServices.size.toPersianDigits()+" سرویس فعال" else "بررسی و انتخاب اشتراک",icon=GanjDestination.Servers,modifier=Modifier.testTag("profile-to-subscriptions"),onClick=onOpenSubscriptions)
                         if(linked) {
+                            onOpenFamily?.let { GanjReferenceMenuRow("اعضا و ظرفیت اشتراک","دعوت، خروج و مدیریت اعضا",onClick=it) }
                             onOpenDevices?.let { GanjReferenceMenuRow("دستگاه‌های من","مدیریت دسترسی دستگاه‌ها",onClick=it) }
                             onOpenTransactions?.let { GanjReferenceMenuRow("تراکنش‌ها","سوابق همان حساب گنج",icon=GanjDestination.Store,onClick=it) }
                         }

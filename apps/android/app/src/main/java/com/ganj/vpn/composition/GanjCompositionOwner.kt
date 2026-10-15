@@ -30,6 +30,7 @@ class GanjCompositionOwner internal constructor(
     private val deviceApi: DeviceApi?,
     private val notificationApi: NotificationApi?,
     private val supportApi: SupportApi?,
+    internal val familyApi: com.ganj.vpn.core.controlapi.FamilyApi? = null,
 ) : ViewModel() {
     internal fun currentAccount(): ApiResult<CurrentAccount>? = accountSession?.currentAccount()
     /** Short-lived control API bearer used only by native HTTPS bot store bridge. */
@@ -115,6 +116,7 @@ class GanjCompositionOwner internal constructor(
                 deviceApi = deviceApi,
                 notificationApi = notificationApi,
                 supportApi = supportApi,
+                familyApi = com.ganj.vpn.core.controlapi.FamilyApiFactory.create(endpoint,sessionManager,sessionManager::signAccountBody),
             ) as T
         }
 

@@ -214,13 +214,50 @@ export class PostgresRepository {
     return rows[0] ?? null;
   }
 
+  async listAccessibleServices(userId) {
+    return this.serviceQuery(`s.user_id=$1 OR EXISTS(SELECT 1 FROM control_service_members m
+      WHERE m.service_id=s.id AND m.user_id=$1 AND m.revoked_at IS NULL)`, [userId]);
+  }
+
+  async findAccessibleService(userId, id) {
+    if (this.context.getStore()) {
+      const lock = await this.database().query('SELECT id FROM control_services WHERE id=$1 FOR UPDATE', [id]);
+      if (!lock.rowCount) return null;
+    }
+    const rows = await this.serviceQuery(`s.id=$2 AND (s.user_id=$1 OR EXISTS(SELECT 1 FROM control_service_members m
+      WHERE m.service_id=s.id AND m.user_id=$1 AND m.revoked_at IS NULL))`, [userId,id]);
+    return rows[0] ?? null;
+  }
+
+  async familySlots(serviceId) {
+    const r = await this.database().query(`SELECT
+      (SELECT count(*) FROM control_service_devices WHERE service_id=s.id) +
+      (SELECT count(*) FROM control_service_members m WHERE m.service_id=s.id AND m.revoked_at IS NULL
+        AND NOT EXISTS(SELECT 1 FROM control_service_devices d WHERE d.service_id=s.id AND d.user_id=m.user_id)) +
+      CASE WHEN EXISTS(SELECT 1 FROM control_service_devices d WHERE d.service_id=s.id AND d.user_id=s.user_id) THEN 0 ELSE 1 END AS used
+      FROM control_services s WHERE s.id=$1`,[serviceId]);
+    return Number(r.rows[0]?.used ?? 0);
+  }
+
+  async bindAccessibleDevice(principal, service) {
+    const db=this.database();
+    const device=await db.query("SELECT id FROM control_devices WHERE id=$1 AND user_id=$2 AND status='active' FOR SHARE",[principal.deviceId,principal.userId]);
+    if (!device.rowCount) throw new ApiError(403,'device_not_trusted','Device is unavailable.');
+    if(service.deviceIds.includes(principal.deviceId)) return;
+    // An unbound owner/member already reserves one slot; additional devices consume another.
+    const existing=await db.query('SELECT 1 FROM control_service_devices WHERE service_id=$1 AND user_id=$2',[service.id,principal.userId]);
+    if(existing.rowCount && await this.familySlots(service.id)>=service.device_limit) throw new ApiError(403,'device_limit_reached','Service device limit has been reached.');
+    if(await this.familySlots(service.id)>service.device_limit) throw new ApiError(403,'device_limit_reached','Service device limit has been reached.');
+    await db.query(`INSERT INTO control_service_devices(service_id,device_id,user_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[service.id,principal.deviceId,principal.userId]);
+  }
+
   async replaceServiceDevices(value) {
     await this.database().query('DELETE FROM control_service_devices WHERE service_id = $1', [value.id]);
     for (const deviceId of value.deviceIds ?? []) {
       const inserted = await this.database().query(
         `INSERT INTO control_service_devices (service_id, device_id, user_id)
          SELECT $1, d.id, d.user_id FROM control_devices d
-          WHERE d.id = $2 AND d.user_id = $3 AND d.status = 'active'
+          WHERE d.id = $2 AND d.status = 'active' AND (d.user_id=$3 OR EXISTS(SELECT 1 FROM control_service_members m WHERE m.service_id=$1 AND m.user_id=d.user_id AND m.revoked_at IS NULL))
          ON CONFLICT DO NOTHING RETURNING device_id`,
         [value.id, deviceId, value.userId],
       );

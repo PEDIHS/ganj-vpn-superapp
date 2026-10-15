@@ -61,6 +61,7 @@ test('GET /v1/me/devices is owner scoped and marks current device', async () => 
     platform: 'android',
     name: null,
     app_version: null,
+    os_version: null,
     status: 'active',
     current: true,
     last_seen_at: '2026-08-30T07:59:00.000Z',
@@ -107,9 +108,10 @@ test('DELETE revokes owned device sessions and service bindings atomically', asy
 
   assert.equal(response.status, 204);
   assert.equal(transactionCalls, 1);
-  assert.equal(calls.length, 4);
+  assert.equal(calls.length, 5);
   assert.match(calls[1].sql, /UPDATE control_devices/);
   assert.match(calls[2].sql, /UPDATE control_auth_sessions/);
-  assert.match(calls[3].sql, /DELETE FROM control_service_devices/);
+  assert.match(calls[3].sql, /UPDATE control_refresh_tokens/);
+  assert.match(calls[4].sql, /DELETE FROM control_service_devices/);
   for (const call of calls) assert.deepEqual(call.params, [principal.userId, target]);
 });

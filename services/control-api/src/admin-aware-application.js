@@ -9,6 +9,7 @@ import { ApiError, failure } from './errors.js';
 import { createLiveConnectionRouter } from './live-connection-routes.js';
 import { createNotificationRouter } from './notification-routes.js';
 import { createSupportThreadRouter } from './support-thread-routes.js';
+import { createFamilyRouter } from './family-routes.js';
 import { createWalletRouter } from './wallet-routes.js';
 
 /**
@@ -18,6 +19,7 @@ import { createWalletRouter } from './wallet-routes.js';
 export function createAdminAwareApplication(runtime, { clock = () => new Date() } = {}) {
   const base = createApplication({ ...runtime, clock });
   const accountRouter = createAccountRouter({ auth: runtime.auth, repository: runtime.repository, authSession: runtime.authSession, clock });
+  const familyRouter=createFamilyRouter({auth:runtime.auth,repository:runtime.repository,clock});
   const deviceRouter = createDeviceRouter({ auth: runtime.auth, repository: runtime.repository, clock });
   const notificationRouter = createNotificationRouter({ auth: runtime.auth, repository: runtime.repository, parseBody, clock });
   const supportThreadRouter = createSupportThreadRouter({ auth: runtime.auth, repository: runtime.repository, parseBody, clock });
@@ -40,6 +42,7 @@ export function createAdminAwareApplication(runtime, { clock = () => new Date() 
 
   return async function handle(request) {
     const url = new URL(request.url);
+    const familyPath=url.pathname.startsWith('/v1/family/') || /^\/v1\/services\/[0-9a-f-]{36}\/family(?:\/|$)/i.test(url.pathname);
     const botApprovalPath = url.pathname.startsWith('/v1/auth/telegram/bot/') || url.pathname === '/v1/internal/telegram/bot-approval';
     const accountPath = url.pathname === '/v1/me' || url.pathname === '/v1/me/store-identity';
     const devicePath = url.pathname === '/v1/me/devices' || url.pathname.startsWith('/v1/me/devices/');
@@ -52,7 +55,7 @@ export function createAdminAwareApplication(runtime, { clock = () => new Date() 
     );
     const adminPath = url.pathname.startsWith('/v1/admin/control-plane/');
     const adminSupportPath = url.pathname.startsWith('/v1/admin/support/');
-    if (!botApprovalPath && !accountPath && !devicePath && !notificationPath && !supportThreadPath
+    if (!familyPath && !botApprovalPath && !accountPath && !devicePath && !notificationPath && !supportThreadPath
       && !walletPath && !liveConnectionPath && !adminPath && !adminSupportPath) {
       return base(request);
     }
@@ -60,6 +63,7 @@ export function createAdminAwareApplication(runtime, { clock = () => new Date() 
     const requestIdHeader = request.headers.get('x-request-id');
     const requestId = /^[0-9a-f-]{36}$/i.test(requestIdHeader ?? '') ? requestIdHeader : randomUUID();
     try {
+      if(familyPath)return await familyRouter({request,url,requestId});
       if (botApprovalPath) {
         const response = await botApprovalRouter({ request, url, requestId });
         return response ?? failure(new ApiError(404, 'route_not_found', 'Route was not found.'), requestId, clock);

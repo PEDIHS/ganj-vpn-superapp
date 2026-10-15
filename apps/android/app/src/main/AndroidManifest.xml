@@ -36,6 +36,12 @@
                     android:host="${telegramAuthHost}"
                     android:path="${telegramAuthPath}" />
             </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="bot.pedramhs.ir" android:path="/app/join" />
+            </intent-filter>
         </activity>
 
         <service

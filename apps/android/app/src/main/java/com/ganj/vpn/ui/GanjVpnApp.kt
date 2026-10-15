@@ -62,6 +62,7 @@ private enum class GanjAccountSurface {
     TRANSACTIONS,
     PAYMENT,
     DEVICES,
+    FAMILY,
 }
 
 internal sealed interface TelegramServiceSyncFeedback {
@@ -108,6 +109,7 @@ fun GanjVpnApp(
     onLaunchGooglePlay: suspend (CheckoutActionHandle) -> CheckoutEffectResult,
     onLaunchVpn: suspend (ConnectionActionHandle) -> ConnectionEffectResult,
     onPrepareVpnPermission: suspend () -> Boolean = { true },
+    familyApi: com.ganj.vpn.core.controlapi.FamilyApi? = null,
 ) {
     val connectionSessionTimer = remember(composition) { ConnectionSessionTimer(
         wallClock = System::currentTimeMillis, monotonicClock = SystemClock::elapsedRealtime) }
@@ -727,6 +729,11 @@ fun GanjVpnApp(
                                     )
                                 }
 
+                                GanjAccountSurface.FAMILY -> GanjFamilyScreen(
+                                    api=familyApi,services=(state.services as? ContentState.Ready)?.items.orEmpty(),
+                                    selectedServiceId=state.selectedEntitlementId,onBack={accountSurface=GanjAccountSurface.PROFILE},
+                                    onRefreshServices=::refreshLinkedAccount,onRevokeDevice={accountSurface=GanjAccountSurface.DEVICES;refreshDevices()},
+                                )
                                 GanjAccountSurface.DEVICES -> StitchDevicesScreen(
                                     state = devicesState,
                                     revokingDeviceId = revokingDeviceId,
@@ -794,6 +801,7 @@ fun GanjVpnApp(
                                     onOpenWallet = { accountSurface = GanjAccountSurface.WALLET },
                                     onOpenTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
                                     botStoreApi = botStoreApi,
+                                    onOpenFamily = { accountSurface = GanjAccountSurface.FAMILY },
                                     onOpenDevices = { accountSurface = GanjAccountSurface.DEVICES; refreshDevices() },
                                     onOpenNotifications = { openNotifications = true; selectedDestination = GanjDestination.Settings },
                                     onOpenDetails = { accountSurface = GanjAccountSurface.SUBSCRIPTION_DETAILS },

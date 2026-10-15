@@ -247,6 +247,10 @@ internal class AndroidAuthSessionManager(
         return value
     }
 
+    internal fun signAccountBody(path: String, body: ByteArray): String? = synchronized(lock) {
+        if (!path.startsWith("/v1/")) null else signProof(path,body)
+    }
+
     private fun signProof(path: String, unsignedBody: ByteArray): String? {
         val nonceBytes = ByteArray(24)
         random.nextBytes(nonceBytes)
