@@ -205,9 +205,9 @@ internal fun StitchNativeBotCheckout(
                 }
             } }
             item {
-                GanjLiquidTextField(discount, { discount = it.take(100); quote = null }, "کد تخفیف (اختیاری)",
+                GanjLiquidTextField(discount, { discount = it.take(100); quote = null }, "کد تخفیف",
                     Modifier.fillMaxWidth().testTag("native-purchase-discount"), enabled = !busy && !attempted)
-                GanjGlassButton("بررسی قیمت و کد تخفیف", { if (!busy) retry++ }, Modifier.fillMaxWidth(),
+                GanjGlassButton("بررسی قیمت", { if (!busy) retry++ }, Modifier.fillMaxWidth(),
                     enabled = !busy && !loading && !attempted, filled = false)
             }
             item {
@@ -223,7 +223,7 @@ internal fun StitchNativeBotCheckout(
                     accent = LocalGanjContentPalette.current.premiumText)
             }
             item {
-                GanjGlassButton(if (busy) "در حال آماده‌سازی سرویس…" else if (attempted) "پیگیری همان خرید" else "تأیید خرید و ساخت سرویس", {
+                GanjGlassButton(if (busy) "در حال خرید…" else if (attempted) "پیگیری خرید" else "تأیید خرید", {
                     if (!busy && quote?.enough == true) {
                         busy = true; attempted = true; error = null
                         scope.launch {
@@ -456,7 +456,7 @@ internal fun StitchNativeBotPayment(
                         GanjGlassButton(if (receipt == null) "انتخاب فایل رسید" else "رسید انتخاب شد؛ تغییر فایل", {
                             picker.launch(arrayOf("image/jpeg", "image/png", "image/webp", "application/pdf"))
                         }, Modifier.fillMaxWidth().testTag("native-receipt-select"), enabled = !busy, filled = false)
-                        GanjGlassButton(if (busy) "در حال ارسال رسید…" else "ارسال رسید برای بررسی", {
+                        GanjGlassButton(if (busy) "در حال ارسال رسید…" else "ارسال رسید", {
                             val file = receipt
                             if (!busy && file != null) {
                                 busy = true; error = null

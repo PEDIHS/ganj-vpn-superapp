@@ -1137,3 +1137,5 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Fixture synchronization also waits for the returned unpaid status (not merely the start of its asynchronous request), and captures the wallet only after its payment CTA is enabled. This avoids a timing-dependent false failure and misleading loading screenshot.
 
 - Preview run 38735059993 found one Android lint SuspiciousIndentation error in the extracted catalog parser; parser/sheet indentation is corrected without changing the API contract or behavior. Required debug/release lint and final native review must pass on the corrected source before signing/publication.
+
+- Native review 38736410705 passed all 19 tests. Actual screenshots of compact selection, native wallet/card invoice, catalog and 200% text were inspected. Large-font checkout CTA/coupon labels visibly ellipsized; native action labels are shortened and a rendered TextLayoutResult assertion now requires the 200% purchase label to have no overflow. Final source must rerun CI/review before publication.

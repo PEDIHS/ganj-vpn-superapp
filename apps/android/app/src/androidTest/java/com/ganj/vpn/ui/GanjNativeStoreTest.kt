@@ -72,7 +72,7 @@ class GanjNativeStoreTest {
         render { StitchNativeBotCheckout(api, "native-product", "native-panel", {}, {}, {}, {}) }
         compose.waitUntil(10000) { compose.onAllNodesWithTag("native-purchase-quote").fetchSemanticsNodes().isNotEmpty() }
         scroll("native-store-checkout", "native-purchase-confirm").performClick()
-        compose.waitUntil(10000) { compose.onAllNodesWithText("پیگیری همان خرید").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10000) { compose.onAllNodesWithText("پیگیری خرید").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("native-purchase-services").assertDoesNotExist()
         scroll("native-store-checkout", "native-purchase-discount").assertIsNotEnabled()
         scroll("native-store-checkout", "native-purchase-confirm").performClick()
@@ -91,6 +91,10 @@ class GanjNativeStoreTest {
         compose.waitUntil(10000) { compose.onAllNodesWithTag("native-purchase-quote").fetchSemanticsNodes().isNotEmpty() }
         scroll("native-store-checkout", "native-purchase-discount").performTextInput("invalid")
         scroll("native-store-checkout", "native-purchase-confirm").assertIsNotEnabled()
+        val layout = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.onNodeWithText("تأیید خرید", useUnmergedTree = true)
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layout) }
+        assertFalse("The 200% purchase label must remain complete", layout.single().hasVisualOverflow)
         compose.runOnIdle { assertTrue(api.calls.none { it.first == "purchase" }); assertFalse(hasWebView(compose.activity.window.decorView)) }
         capture("native-checkout-large-light")
     }
