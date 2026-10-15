@@ -301,7 +301,9 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
     private fun probeProfile(profile: ProvisionedProfile): NativeProbeResult {
         return try {
-            if (engine.hasTunnel() && engine.currentState().phase != ConnectionPhase.CONNECTED) {
+            // v26.7.28 temporary native cores can overwrite process-wide Xray
+            // dialer/DNS while the managed VPN is running. Never overlap them.
+            if (engine.hasTunnel()) {
                 return NativeProbeResult.Failed("probe.active_tunnel_busy")
             }
             if (profile.isExpired(System.currentTimeMillis())) return NativeProbeResult.Failed("vpn.profile_expired")
