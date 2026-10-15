@@ -41,4 +41,9 @@ class GanjBotCatalogTest {
             product.purchaseUrl,
         )
     }
+    @Test fun nativeAmountInputNormalizesPersianAndArabicDigitsWithoutGroupingCharacters() {
+        assertEquals("140000", botStoreAmountDigits("۱۴۰٬۰۰۰"))
+        assertEquals("250000", botStoreAmountDigits("٢٥٠,٠٠٠ تومان"))
+        assertEquals("", botStoreAmountDigits("نامعتبر"))
+    }
 }

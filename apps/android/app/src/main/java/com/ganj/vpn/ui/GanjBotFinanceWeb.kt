@@ -26,12 +26,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -140,6 +136,7 @@ internal fun StitchBotFinanceScreen(
     var statusPopup by remember(startUrl) { mutableStateOf<String?>(null) }
     var ssoError by remember(startUrl) { mutableStateOf<String?>(null) }
     var signedIn by remember(startUrl) { mutableStateOf(false) }
+    var ssoRetryKey by remember(startUrl) { mutableIntStateOf(0) }
     val openDocument = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { selected ->
         fileCallback?.onReceiveValue(selected?.let { arrayOf(it) })
         fileCallback = null
@@ -160,7 +157,9 @@ internal fun StitchBotFinanceScreen(
         if (view != null && view.canGoBack()) view.goBack() else onClose()
     }
 
-    LaunchedEffect(startUrl) {
+    LaunchedEffect(startUrl, ssoRetryKey) {
+        signedIn = false
+        ssoError = null
         val bearer = withContext(Dispatchers.IO) { onStoreBridgeAuthorization() }
         if (bearer.isNullOrBlank()) {
             ssoError = "ابتدا حساب تلگرام خود را در گنج متصل کنید."
@@ -181,12 +180,6 @@ internal fun StitchBotFinanceScreen(
         }
     }
 
-    LaunchedEffect(signedIn) {
-        if (signedIn) {
-            web?.loadUrl(startUrl)
-        }
-    }
-
     LaunchedEffect(order) {
         val target = order ?: return@LaunchedEffect
         var previous: String? = null
@@ -204,159 +197,290 @@ internal fun StitchBotFinanceScreen(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                // This observer cannot mutate the payment; the website retains source of truth.
+                // Read-only foreground observer; website remains payment source of truth.
             }
             delay(8_000L)
         }
     }
 
-    Column(modifier.fillMaxSize().testTag("bot-finance-screen"),
-        verticalArrangement = Arrangement.spacedBy(0.dp)) {
+    Column(
+        modifier = modifier.fillMaxSize().testTag("bot-finance-screen"),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         GanjGlassSurface(
-            role = GanjGlassRole.Dense,
-            modifier = Modifier.fillMaxWidth(),
-            shapeRadius = 16.dp,
+            role = GanjGlassRole.Prominent,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = responsiveHorizontalPadding(), vertical = 10.dp),
+            shapeRadius = 24.dp,
+            accent = financeAccent(invoiceStatus),
+            padding = androidx.compose.foundation.layout.PaddingValues(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Column(Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text("پرداخت و موجودی مشترک با ربات گنج",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        "پرداخت، کیف پول و رسیدها مستقیماً با ربات گنج همگام‌اند.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                TextButton(onClick = onClose, modifier = Modifier.testTag("bot-finance-close")) {
-                    Text("بازگشت")
-                }
+                GanjBackPill(
+                    onClick = onClose,
+                    modifier = Modifier.testTag("bot-finance-close"),
+                )
             }
-            if (invoiceStatus != null) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Text(botFinanceStatusText(invoiceStatus!!),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (invoiceStatus in setOf("reject", "rejected", "expire", "expired"))
-                            MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
-                    TextButton(onClick = onTransactions) { Text("تراکنش‌ها") }
-                }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GanjStatusPill(
+                    text = invoiceStatus?.let(::botFinanceStatusText)
+                        ?: if (signedIn) "اتصال امن فروشگاه برقرار است" else "در حال ورود امن",
+                    tone = financeStatusTone(invoiceStatus, signedIn, ssoError),
+                    modifier = Modifier.weight(1f),
+                )
+                GanjGlassButton(
+                    text = "تراکنش‌ها",
+                    onClick = onTransactions,
+                    accent = GanjGold,
+                    filled = false,
+                )
             }
         }
-        if (progress in 1..99) LinearProgressIndicator(
-            progress = { progress / 100f }, modifier = Modifier.fillMaxWidth())
-        Box(Modifier.weight(1f)) {
-            if (ssoError != null) {
-                Column(Modifier.fillMaxWidth().padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(ssoError!!, color = MaterialTheme.colorScheme.error)
-                    Button(onClick = onClose) { Text("بازگشت") }
+
+        if (progress in 1..99) {
+            GanjSlimProgress(
+                progress = progress / 100f,
+                modifier = Modifier.padding(horizontal = responsiveHorizontalPadding()),
+                accent = MaterialTheme.colorScheme.primary,
+            )
+        }
+
+        when {
+            ssoError != null -> {
+                Box(
+                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = responsiveHorizontalPadding()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    GanjInlineStatusPanel(
+                        title = "ورود فروشگاه کامل نشد",
+                        body = ssoError!!,
+                        accent = MaterialTheme.colorScheme.error,
+                        tone = GanjStatusTone.Danger,
+                        actionText = "تلاش دوباره",
+                        onAction = { ssoRetryKey++ },
+                        secondaryActionText = "بازگشت",
+                        onSecondaryAction = onClose,
+                    )
                 }
-            } else if (!botFinanceIsTrusted(startUrl)) {
-                Text("آدرس فروشگاه گنج معتبر نیست.", modifier = Modifier.padding(18.dp),
-                    color = MaterialTheme.colorScheme.error)
-            } else if (signedIn) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize().testTag("bot-finance-webview"),
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.allowFileAccess = false
-                            settings.allowContentAccess = true
-                            settings.javaScriptCanOpenWindowsAutomatically = true
-                            settings.setSupportMultipleWindows(true)
-                            settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                settings.safeBrowsingEnabled = true
-                            }
-                            CookieManager.getInstance().setAcceptCookie(true)
-                            CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
-                            webViewClient = object : WebViewClient() {
-                                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                                    if (!request.isForMainFrame) return false
-                                    val destination = request.url.toString()
-                                    if (botFinanceIsTrusted(destination)) return false
-                                    openExternal(destination)
-                                    return true
-                                }
-                                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                                    pageFailed = false
-                                    botFinanceOrder(url)?.let { order = it }
-                                }
-                                override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
-                                    super.doUpdateVisitedHistory(view, url, isReload)
-                                    url?.let(::botFinanceOrder)?.let { order = it }
-                                }
-                                override fun onReceivedError(
-                                    view: WebView, request: WebResourceRequest,
-                                    error: android.webkit.WebResourceError,
-                                ) {
-                                    if (request.isForMainFrame) pageFailed = true
-                                }
-                            }
-                            webChromeClient = object : WebChromeClient() {
-                                override fun onProgressChanged(view: WebView, newProgress: Int) {
-                                    progress = newProgress.coerceIn(0, 100)
-                                }
-                                override fun onShowFileChooser(
-                                    view: WebView,
-                                    callback: ValueCallback<Array<Uri>>,
-                                    parameters: FileChooserParams,
-                                ): Boolean {
-                                    fileCallback?.onReceiveValue(null)
-                                    fileCallback = callback
-                                    openDocument.launch(arrayOf("image/jpeg", "image/png", "image/webp", "application/pdf"))
-                                    return true
-                                }
-                                override fun onPermissionRequest(request: PermissionRequest) {
-                                    request.deny()
-                                }
-                                override fun onGeolocationPermissionsShowPrompt(
-                                    origin: String?, callback: GeolocationPermissions.Callback?,
-                                ) { callback?.invoke(origin, false, false) }
-                                override fun onCreateWindow(
-                                    view: WebView, dialog: Boolean, userGesture: Boolean, resultMsg: Message,
-                                ): Boolean {
-                                    if (!userGesture) return false
-                                    val popup = WebView(ctx)
-                                    popup.webViewClient = object : WebViewClient() {
+            }
+
+            !botFinanceIsTrusted(startUrl) -> {
+                Box(
+                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = responsiveHorizontalPadding()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    GanjInlineStatusPanel(
+                        title = "آدرس نامعتبر",
+                        body = "این صفحه خارج از دامنه رسمی فروشگاه گنج است و داخل برنامه باز نمی‌شود.",
+                        accent = MaterialTheme.colorScheme.error,
+                        tone = GanjStatusTone.Danger,
+                        actionText = "بازگشت",
+                        onAction = onClose,
+                    )
+                }
+            }
+
+            !signedIn -> {
+                Box(
+                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = responsiveHorizontalPadding()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    GanjLoadingState("در حال ورود امن به فروشگاه گنج")
+                }
+            }
+
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(
+                            start = responsiveHorizontalPadding(),
+                            end = responsiveHorizontalPadding(),
+                            bottom = 10.dp,
+                        ),
+                ) {
+                    GanjGlassSurface(
+                        role = GanjGlassRole.Clear,
+                        accent = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxSize(),
+                        shapeRadius = 24.dp,
+                        padding = androidx.compose.foundation.layout.PaddingValues(2.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                    ) {
+                        AndroidView(
+                            modifier = Modifier.fillMaxSize().testTag("bot-finance-webview"),
+                            factory = { ctx ->
+                                WebView(ctx).apply {
+                                    settings.javaScriptEnabled = true
+                                    settings.domStorageEnabled = true
+                                    settings.allowFileAccess = false
+                                    settings.allowContentAccess = true
+                                    settings.javaScriptCanOpenWindowsAutomatically = true
+                                    settings.setSupportMultipleWindows(true)
+                                    settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        settings.safeBrowsingEnabled = true
+                                    }
+                                    CookieManager.getInstance().setAcceptCookie(true)
+                                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+                                    webViewClient = object : WebViewClient() {
                                         override fun shouldOverrideUrlLoading(
-                                            view: WebView, request: WebResourceRequest,
+                                            view: WebView,
+                                            request: WebResourceRequest,
                                         ): Boolean {
-                                            if (request.isForMainFrame) {
-                                                if (request.url.toString() == "about:blank") return false
-                                                openExternal(request.url.toString())
-                                                view.post { view.destroy() }
+                                            if (!request.isForMainFrame) return false
+                                            val destination = request.url.toString()
+                                            if (botFinanceIsTrusted(destination)) return false
+                                            openExternal(destination)
+                                            return true
+                                        }
+
+                                        override fun onPageStarted(
+                                            view: WebView,
+                                            url: String,
+                                            favicon: android.graphics.Bitmap?,
+                                        ) {
+                                            pageFailed = false
+                                            botFinanceOrder(url)?.let { order = it }
+                                        }
+
+                                        override fun doUpdateVisitedHistory(
+                                            view: WebView,
+                                            url: String?,
+                                            isReload: Boolean,
+                                        ) {
+                                            super.doUpdateVisitedHistory(view, url, isReload)
+                                            url?.let(::botFinanceOrder)?.let { order = it }
+                                        }
+
+                                        override fun onReceivedError(
+                                            view: WebView,
+                                            request: WebResourceRequest,
+                                            error: android.webkit.WebResourceError,
+                                        ) {
+                                            if (request.isForMainFrame) pageFailed = true
+                                        }
+                                    }
+                                    webChromeClient = object : WebChromeClient() {
+                                        override fun onProgressChanged(view: WebView, newProgress: Int) {
+                                            progress = newProgress.coerceIn(0, 100)
+                                        }
+
+                                        override fun onShowFileChooser(
+                                            view: WebView,
+                                            callback: ValueCallback<Array<Uri>>,
+                                            parameters: FileChooserParams,
+                                        ): Boolean {
+                                            fileCallback?.onReceiveValue(null)
+                                            fileCallback = callback
+                                            openDocument.launch(
+                                                arrayOf(
+                                                    "image/jpeg",
+                                                    "image/png",
+                                                    "image/webp",
+                                                    "application/pdf",
+                                                ),
+                                            )
+                                            return true
+                                        }
+
+                                        override fun onPermissionRequest(request: PermissionRequest) {
+                                            request.deny()
+                                        }
+
+                                        override fun onGeolocationPermissionsShowPrompt(
+                                            origin: String?,
+                                            callback: GeolocationPermissions.Callback?,
+                                        ) {
+                                            callback?.invoke(origin, false, false)
+                                        }
+
+                                        override fun onCreateWindow(
+                                            view: WebView,
+                                            dialog: Boolean,
+                                            userGesture: Boolean,
+                                            resultMsg: Message,
+                                        ): Boolean {
+                                            if (!userGesture) return false
+                                            val popup = WebView(ctx)
+                                            popup.webViewClient = object : WebViewClient() {
+                                                override fun shouldOverrideUrlLoading(
+                                                    view: WebView,
+                                                    request: WebResourceRequest,
+                                                ): Boolean {
+                                                    if (request.isForMainFrame) {
+                                                        if (request.url.toString() == "about:blank") return false
+                                                        openExternal(request.url.toString())
+                                                        view.post { view.destroy() }
+                                                    }
+                                                    return true
+                                                }
                                             }
+                                            (resultMsg.obj as WebView.WebViewTransport).webView = popup
+                                            resultMsg.sendToTarget()
                                             return true
                                         }
                                     }
-                                    (resultMsg.obj as WebView.WebViewTransport).webView = popup
-                                    resultMsg.sendToTarget()
-                                    return true
+                                    loadUrl(startUrl)
+                                    web = this
                                 }
-                            }
-                            loadUrl(startUrl)
-                            web = this
+                            },
+                            onRelease = { view ->
+                                fileCallback?.onReceiveValue(null)
+                                fileCallback = null
+                                CookieManager.getInstance().flush()
+                                view.stopLoading()
+                                view.loadUrl("about:blank")
+                                view.destroy()
+                                web = null
+                            },
+                        )
+                    }
+
+                    if (pageFailed) {
+                        Box(
+                            Modifier.fillMaxSize().padding(16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            GanjInlineStatusPanel(
+                                title = "بارگذاری صفحه انجام نشد",
+                                body = "اتصال صفحه پرداخت قطع شد. اطلاعات پرداخت در سرور گنج باقی می‌ماند.",
+                                accent = MaterialTheme.colorScheme.error,
+                                tone = GanjStatusTone.Danger,
+                                actionText = "تلاش دوباره",
+                                onAction = {
+                                    pageFailed = false
+                                    web?.reload()
+                                },
+                                secondaryActionText = "بازگشت",
+                                onSecondaryAction = onClose,
+                            )
                         }
-                    },
-                    onRelease = { view ->
-                        fileCallback?.onReceiveValue(null)
-                        fileCallback = null
-                        CookieManager.getInstance().flush()
-                        view.stopLoading()
-                        view.loadUrl("about:blank")
-                        view.destroy()
-                        web = null
-                    },
-                )
-            }
-            if (pageFailed) {
-                Column(Modifier.fillMaxWidth().padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("بارگذاری صفحه پرداخت انجام نشد",
-                        color = MaterialTheme.colorScheme.error)
-                    Button(onClick = { pageFailed = false; web?.reload() }) {
-                        Text("تلاش دوباره")
                     }
                 }
             }
@@ -364,18 +488,48 @@ internal fun StitchBotFinanceScreen(
     }
 
     statusPopup?.let { status ->
-        AlertDialog(
-            onDismissRequest = { statusPopup = null },
-            title = { Text("وضعیت پرداخت گنج") },
-            text = { Text(botFinanceStatusText(status)) },
-            confirmButton = {
-                TextButton(onClick = { statusPopup = null; onTransactions() }) {
-                    Text("مشاهده تراکنش‌ها")
-                }
+        val lower = status.lowercase()
+        val inspectTransactions = lower !in setOf("reject", "rejected", "expire", "expired")
+        GanjLiquidMessageDialog(
+            tone = financeDialogTone(status),
+            title = "وضعیت پرداخت گنج",
+            body = botFinanceStatusText(status),
+            actionText = if (inspectTransactions) "مشاهده تراکنش‌ها" else "متوجه شدم",
+            onAction = {
+                statusPopup = null
+                if (inspectTransactions) onTransactions()
             },
-            dismissButton = {
-                TextButton(onClick = { statusPopup = null }) { Text("متوجه شدم") }
-            },
+            onDismiss = { statusPopup = null },
         )
     }
+}
+
+@Composable
+private fun financeAccent(status: String?): androidx.compose.ui.graphics.Color = when (status?.lowercase()) {
+    "paid" -> MaterialTheme.colorScheme.primary
+    "reject", "rejected", "expire", "expired" -> MaterialTheme.colorScheme.error
+    "manual_review", "waiting", "waiting_review" -> GanjGold
+    else -> MaterialTheme.colorScheme.primary
+}
+
+private fun financeDialogTone(status: String): GanjMessageTone = when (status.lowercase()) {
+    "paid" -> GanjMessageTone.Success
+    "reject", "rejected", "expire", "expired" -> GanjMessageTone.Error
+    "manual_review" -> GanjMessageTone.Warning
+    else -> GanjMessageTone.Info
+}
+
+private fun financeStatusTone(
+    status: String?,
+    signedIn: Boolean,
+    ssoError: String?,
+): GanjStatusTone = when {
+    ssoError != null -> GanjStatusTone.Danger
+    status == null && signedIn -> GanjStatusTone.Positive
+    status == null -> GanjStatusTone.Neutral
+    status.lowercase() == "paid" -> GanjStatusTone.Positive
+    status.lowercase() in setOf("reject", "rejected", "expire", "expired") -> GanjStatusTone.Danger
+    status.lowercase() == "manual_review" -> GanjStatusTone.Warning
+    status.lowercase() in setOf("waiting", "waiting_review") -> GanjStatusTone.Premium
+    else -> GanjStatusTone.Neutral
 }

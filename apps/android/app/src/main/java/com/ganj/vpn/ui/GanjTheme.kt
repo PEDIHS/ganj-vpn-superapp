@@ -4,6 +4,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import android.app.Activity
+import android.content.ContextWrapper
+import androidx.core.view.WindowCompat
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -22,17 +27,17 @@ import androidx.compose.ui.unit.sp
 internal val GanjEmerald = Color(0xFF087F68)
 internal val GanjEmeraldBright = Color(0xFF52DF9C)
 internal val GanjEmeraldDeep = Color(0xFF064C38)
-internal val GanjGold = Color(0xFFC9992D)
-internal val GanjGoldBright = Color(0xFFF1CE74)
+internal val GanjGold = GanjReference.Gold
+internal val GanjGoldBright = GanjReference.Gold
 internal val GanjJade = Color(0xFF3AA58D)
 internal val GanjDanger = Color(0xFFD94A4A)
 internal val GanjWarning = Color(0xFFE0A33C)
 
-internal val GanjDarkCanvas = Color(0xFF0B1512)
-internal val GanjDarkSurface = Color(0xFF14211C)
-internal val GanjDarkSurfaceSecondary = Color(0xFF1D2D26)
+internal val GanjDarkCanvas = GanjReference.Canvas
+internal val GanjDarkSurface = GanjReference.Surface
+internal val GanjDarkSurfaceSecondary = Color(0xFF25332B)
 internal val GanjDarkText = Color(0xFFF5F7F2)
-internal val GanjDarkMuted = Color(0xFFB6C9C0)
+internal val GanjDarkMuted = GanjReference.Muted
 
 internal val GanjLightCanvas = Color(0xFFF4F7F5)
 internal val GanjLightSurface = Color(0xFFFFFFFF)
@@ -65,7 +70,7 @@ private val GanjLightColors = lightColorScheme(
 )
 
 private val GanjDarkColors = darkColorScheme(
-    primary = Color(0xFF78DFBD),
+    primary = GanjReference.Emerald,
     onPrimary = Color(0xFF091D13),
     primaryContainer = Color(0xFF164737),
     onPrimaryContainer = Color(0xFFA5F0D3),
@@ -85,7 +90,8 @@ private val GanjDarkColors = darkColorScheme(
     onSurface = GanjDarkText,
     surfaceVariant = GanjDarkSurfaceSecondary,
     onSurfaceVariant = GanjDarkMuted,
-    outline = Color(0xFF658273),
+    outline = Color(0xFF648774),
+    outlineVariant = GanjReference.Border,
 )
 
 private val GanjPersianFont = FontFamily(
@@ -248,11 +254,22 @@ internal val LocalGanjContentPalette = staticCompositionLocalOf { GanjDarkConten
 
 @Composable
 internal fun GanjTheme(
-    darkTheme: Boolean = false,
+    darkTheme: Boolean = true,
     visualEffectsPolicy: GanjVisualEffectsPolicy? = null,
     content: @Composable () -> Unit,
 ) {
     val effectiveVisualEffectsPolicy = visualEffectsPolicy ?: currentGanjVisualEffectsPolicy()
+    val view = LocalView.current
+    if (!view.isInEditMode) SideEffect {
+        var context = view.context
+        while (context is ContextWrapper && context !is Activity) context = context.baseContext
+        (context as? Activity)?.let { activity ->
+            WindowCompat.getInsetsController(activity.window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+    }
     CompositionLocalProvider(
         LocalGanjGlassPalette provides if (darkTheme) GanjDarkGlass else GanjLightGlass,
         LocalGanjContentPalette provides if (darkTheme) GanjDarkContent else GanjLightContent,

@@ -39,10 +39,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -65,6 +67,7 @@ internal fun StitchSubscriptionsScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenStore: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val initialFocus = remember { FocusRequester() }
@@ -81,28 +84,23 @@ internal fun StitchSubscriptionsScreen(
     }
     val activeCount = remember(state.services) { state.serviceItems.count { it.isActive } }
     LazyColumn(
-        modifier = modifier.fillMaxSize().testTag("subscriptions-screen")
+        modifier = modifier.fillMaxSize().imePadding().testTag("subscriptions-screen")
             .focusRequester(initialFocus).focusable().selectableGroup(),
-        contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            GanjSubscriptionsHeader(
-                title = stringResource(R.string.subscriptions_title),
-                subtitle = stringResource(R.string.subscriptions_subtitle),
-            )
-        }
-        if (onOpenStore != null) item {
-            TextButton(onClick = onOpenStore, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text(stringResource(R.string.subscriptions_shop))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                onBack?.let { AccountBackAction(it) }
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.subscriptions_title), style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold)
+                    Text("${activeCount.toPersianDigits()} اشتراک فعال · انتخاب برای اتصال",
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (onOpenStore != null) TextButton(onClick = onOpenStore) { Text("فروشگاه") }
             }
-        }
-        item {
-            GanjSubscriptionsOverview(
-                activeCount = activeCount,
-                totalCount = state.serviceItems.size,
-                selectedUsername = state.selectedService?.let { subscriptionUsername(it) },
-            )
         }
         item {
             OutlinedTextField(
@@ -114,7 +112,7 @@ internal fun StitchSubscriptionsScreen(
                 trailingIcon = if (query.isNotEmpty()) {
                     { TextButton(onClick = { query = "" }) { Text(stringResource(R.string.common_clear)) } }
                 } else null,
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -249,168 +247,54 @@ private fun GanjOverviewMetric(value: String, name: String, color: Color, modifi
 @Composable
 internal fun GanjSubscriptionCard(service: ServiceUiModel, selected: Boolean, onClick: () -> Unit) {
     val effects = LocalGanjVisualEffectsPolicy.current
-    val reduceMotion = effects.reduceMotion || effects.tier == GanjEffectsTier.Reduced
+    val palette = LocalGanjContentPalette.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale = animateFloatAsState(
-        if (pressed && !reduceMotion) 0.988f else 1f,
-        if (reduceMotion) snap() else tween(110),
-        label = "royalSubscriptionPress",
-    )
-    val palette = LocalGanjContentPalette.current
+    val scale by animateFloatAsState(if (pressed && !effects.reduceMotion) .988f else 1f,
+        if (effects.reduceMotion) snap() else tween(110), label = "subscriptionPress")
+    val rim by animateColorAsState(if (selected) palette.premiumText else MaterialTheme.colorScheme.outlineVariant,
+        if (effects.reduceMotion) snap() else tween(180), label = "subscriptionSelection")
     val fraction = service.usageFraction
-    val premium = service.tier == UiTier.VIP
-    val accent = when {
-        !service.isActive -> MaterialTheme.colorScheme.onSurfaceVariant
-        fraction != null && fraction >= 0.90f -> MaterialTheme.colorScheme.error
-        premium -> palette.premiumText
-        else -> MaterialTheme.colorScheme.primary
-    }
-    val borderColor by animateColorAsState(
-        if (selected) GanjGold.copy(alpha = 0.78f)
-        else MaterialTheme.colorScheme.outline.copy(alpha = 0.26f),
-        if (reduceMotion) snap() else tween(180),
-        label = "royalSubscriptionBorder",
-    )
-    val progress = animateFloatAsState(
-        fraction ?: 0f,
-        if (reduceMotion) snap() else tween(420),
-        label = "royalTrafficArc",
-    )
-    val labelColor = if (selected) palette.selectedMuted
-        else MaterialTheme.colorScheme.onSurfaceVariant
-    val mainColor = if (selected) palette.onSelected else MaterialTheme.colorScheme.onSurface
-    val shape = remember { RoundedCornerShape(26.dp) }
-    val description = stringResource(
-        if (selected) R.string.subscription_selected else R.string.subscription_not_selected,
-    )
-
-    Column(
-        modifier = Modifier.fillMaxWidth()
-            .testTag("subscription-" + service.entitlementId)
-            .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
-            .clip(shape)
-            .background(if (selected) palette.selectedSurface else MaterialTheme.colorScheme.surface)
-            .border(if (selected) 1.5.dp else 1.dp, borderColor, shape)
-            .semantics(mergeDescendants = true) { stateDescription = description }
-            .selectable(
-                selected = selected,
-                enabled = service.isActive,
-                role = Role.RadioButton,
-                interactionSource = interaction,
-                indication = null,
-                onClick = onClick,
-            ),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
-    ) {
-        // A single gold foil edge conveys the selected tier without a costly shadow/blur.
-        Box(Modifier.fillMaxWidth().height(if (selected) 3.dp else 1.dp)
-            .background(if (selected) Brush.horizontalGradient(
-                listOf(GanjGold.copy(alpha = 0.14f), GanjGoldBright, GanjGold.copy(alpha = 0.14f)),
-            ) else Brush.horizontalGradient(
-                listOf(borderColor.copy(alpha = 0.26f), borderColor.copy(alpha = 0.26f)),
-            )))
-        Column(
-            Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 17.dp),
-            verticalArrangement = Arrangement.spacedBy(13.dp),
-        ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(11.dp),
-            ) {
-                Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
-                    .background(if (premium) GanjGold.copy(alpha = 0.15f)
-                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                    .border(1.dp, if (premium) GanjGold.copy(alpha = 0.34f)
-                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                        RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
-                    GanjSecurityIcon(tint = if (premium) palette.premiumText
-                        else MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(stringResource(R.string.subscription_username_label),
-                        style = MaterialTheme.typography.bodySmall, color = labelColor)
-                    Text(subscriptionUsername(service), style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold, color = mainColor,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                Box(Modifier.size(28.dp).clip(CircleShape)
-                    .background(if (selected) GanjGold else Color.Transparent)
-                    .border(1.5.dp, if (selected) GanjGoldBright
-                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.43f), CircleShape),
-                    contentAlignment = Alignment.Center) {
-                    if (selected) Text("✓", style = MaterialTheme.typography.labelLarge,
-                        color = Color(0xFF142216), fontWeight = FontWeight.Bold)
-                }
-            }
-
-            FlowRow(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                GanjStatusPill(text = serviceStatusText(service.status),
-                    tone = if (service.isActive) GanjStatusTone.Positive else GanjStatusTone.Neutral)
-                if (premium) GanjStatusPill(
-                    text = stringResource(R.string.visual_signature),
-                    tone = GanjStatusTone.Premium)
-                if (selected) Text(stringResource(R.string.subscription_selected),
-                    style = MaterialTheme.typography.labelMedium, color = palette.premiumText,
-                    fontWeight = FontWeight.SemiBold)
-            }
-
-            HorizontalDivider(color = if (selected) GanjGold.copy(alpha = 0.20f)
-                else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(stringResource(R.string.subscription_total_traffic),
-                        style = MaterialTheme.typography.bodySmall, color = labelColor)
-                    Text(subscriptionTraffic(service.trafficLimitBytes),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold, color = mainColor)
-                    if (fraction != null) {
-                        Text(stringResource(R.string.subscription_used_percent),
-                            style = MaterialTheme.typography.labelSmall, color = labelColor)
-                    }
-                }
-                GanjTrafficRing(fraction, { progress.value }, accent, labelColor,
-                    service.trafficLimitBytes == null && service.trafficUsageAvailable)
-            }
-
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text(stringResource(R.string.subscription_used_traffic,
-                    if (service.trafficUsageAvailable) subscriptionTraffic(service.trafficUsedBytes)
-                    else stringResource(R.string.subscription_usage_unavailable)),
-                    style = MaterialTheme.typography.bodySmall, color = labelColor)
-                if (service.trafficLimitBytes != null && service.trafficUsageAvailable) {
-                    Text(stringResource(R.string.subscription_remaining_traffic,
-                        subscriptionTraffic(service.remainingBytes)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary)
-                }
-            }
-            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
-                .background(if (selected) GanjGold.copy(alpha = 0.15f)
-                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.075f))
-                .padding(horizontal = 13.dp, vertical = 11.dp)) {
-                Text(stringResource(
-                    if (service.isActive) R.string.subscription_choose_config
-                    else R.string.subscription_inactive,
-                ) + if (service.isActive) "  ←" else "",
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (selected) palette.premiumText
-                        else if (service.isActive) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+    val progress by animateFloatAsState(fraction ?: 0f,
+        if (effects.reduceMotion) snap() else tween(360), label = "subscriptionUsage")
+    val accent = if (fraction != null && fraction >= .9f) MaterialTheme.colorScheme.error
+        else MaterialTheme.colorScheme.primary
+    val shape = RoundedCornerShape(13.dp)
+    Column(Modifier.fillMaxWidth().testTag("subscription-" + service.entitlementId)
+        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .clip(shape).background(if (selected) palette.selectedSurface else MaterialTheme.colorScheme.surface)
+        .border(1.dp, rim, shape)
+        .semantics(mergeDescendants = true) {
+            stateDescription = if (selected) "انتخاب شده" else if (!service.isActive) "غیرفعال" else "انتخاب نشده"
         }
+        .selectable(selected, enabled = service.isActive, role = Role.RadioButton,
+            interactionSource = interaction, indication = null, onClick = onClick)
+        .padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(subscriptionUsername(service), style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(serviceStatusText(service.status) + if (service.tier == UiTier.VIP) " · VIP" else "",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (service.isActive) accent else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(if (selected) "✓" else "‹", color = if (selected) palette.premiumText else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleMedium)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(subscriptionTraffic(service.trafficLimitBytes), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface)
+            Text(if (fraction != null) "${(fraction * 100).roundToInt().toPersianDigits()}٪ مصرف"
+                else if (!service.trafficUsageAvailable) stringResource(R.string.subscription_usage_unavailable) else "حجم نامحدود",
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (fraction != null) LinearProgressIndicator(progress = { progress },
+            modifier = Modifier.fillMaxWidth().height(3.dp), color = accent,
+            trackColor = accent.copy(alpha = .12f))
+        Text(if (service.trafficUsageAvailable) stringResource(R.string.subscription_used_traffic, subscriptionTraffic(service.trafficUsedBytes))
+            else stringResource(R.string.subscription_usage_unavailable), style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -500,24 +384,24 @@ internal fun StitchConfigSelectionSheet(
     val busy = readings.measuring.any { it.serviceId == service.entitlementId }
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.65f
     GanjLiquidBottomSheet(title = stringResource(R.string.config_picker_title),
-        subtitle = subscriptionUsername(service), onDismiss = onDismiss, skipPartiallyExpanded = true) {
+        subtitle = subscriptionUsername(service), onDismiss = onDismiss, skipPartiallyExpanded = true, compact = true) {
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxHeight).testTag("config-picker").selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.config_picker_scope), modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = { refresh++ }) { Text(stringResource(R.string.common_refresh)) }
-                }
-            }
-            item {
-                OutlinedTextField(query, { query = it }, singleLine = true,
-                    label = { Text(stringResource(R.string.config_search)) },
-                    modifier = Modifier.fillMaxWidth().testTag("config-search"), shape = RoundedCornerShape(16.dp),
+                OutlinedTextField(query, { query = it.take(120) }, singleLine = true,
+                    placeholder = { Text(stringResource(R.string.config_search), style = MaterialTheme.typography.bodySmall) },
+                    textStyle = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.fillMaxWidth().testTag("config-search"), shape = RoundedCornerShape(11.dp),
                     trailingIcon = if (query.isNotEmpty()) {
                         { TextButton(onClick = { query = "" }) { Text(stringResource(R.string.common_clear)) } }
-                    } else null,
-                )
+                    } else null)
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${filteredServers.size.toPersianDigits()} کانفیگ", Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { refresh++ }) { Text(stringResource(R.string.common_refresh), style = MaterialTheme.typography.labelSmall) }
+                }
             }
             when (val content = catalog) {
                 ContentState.Loading -> item { LoadingCard(stringResource(R.string.config_picker_loading)) }
@@ -526,16 +410,14 @@ internal fun StitchConfigSelectionSheet(
                 is ContentState.Error -> item { ErrorCard(content.failure) { refresh++ } }
                 is ContentState.Ready -> {
                     item {
-                        TextButton(enabled = !busy && latency != null,
-                            onClick = { latency?.measure(service.entitlementId, servers.map { it.id }) }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(if (busy) R.string.ping_measuring else R.string.ping_all))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            GanjGlassButton(if (busy) "سنجش…" else "پینگ همه",
+                                { latency?.measure(service.entitlementId, servers.map { it.id }) },
+                                Modifier.weight(1f), enabled = !busy && latency != null, filled = false)
+                            GanjGlassButton(if (sortByPing) "ترتیب اصلی" else "ترتیب پینگ",
+                                { sortByPing = !sortByPing }, Modifier.weight(1f), filled = false)
                         }
-                    }
-                    item {
-                        TextButton(onClick = { sortByPing = !sortByPing }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(if (sortByPing) R.string.config_sort_original else R.string.config_sort_ping))
-                        }
-                        if (filteredServers.isEmpty()) Text(stringResource(R.string.config_no_match))
+                        if (filteredServers.isEmpty()) Text(stringResource(R.string.config_no_match), style = MaterialTheme.typography.bodySmall)
                     }
                     items(filteredServers, key = { it.id }, contentType = { "config" }) { server ->
                         val key = LatencyKey(service.entitlementId, server.id)
@@ -566,7 +448,11 @@ private fun GanjConfigOption(
 ) {
     val palette = LocalGanjContentPalette.current
     val effects = LocalGanjVisualEffectsPolicy.current
-    val reduceMotion = effects.reduceMotion || effects.tier == GanjEffectsTier.Reduced
+    val reduceMotion = effects.reduceMotion
+    val entry = remember(server.id) { androidx.compose.animation.core.Animatable(if (reduceMotion) 1f else 0f) }
+    LaunchedEffect(server.id, reduceMotion) {
+        if (reduceMotion) entry.snapTo(1f) else entry.animateTo(1f, tween(180))
+    }
     val identity = remember(server.name, server.countryCode) {
         ganjConfigIdentity(server.name, server.countryCode)
     }
@@ -580,7 +466,8 @@ private fun GanjConfigOption(
         if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.18f),
         if (reduceMotion) snap() else tween(185), label = "configSelectedRim",
     )
-    val shape = remember { RoundedCornerShape(22.dp) }
+    val shape = remember { RoundedCornerShape(12.dp) }
+    val pingDescription = stringResource(if (measuring) R.string.ping_measuring else R.string.config_ping)
     val latencyMs = reading?.result?.latencyMillis
     val latencyColor = when {
         latencyMs == null -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -592,7 +479,7 @@ private fun GanjConfigOption(
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Box(
             modifier = Modifier.fillMaxWidth().testTag("config-option-" + server.id)
-                .graphicsLayer { scaleX = pressScale.value; scaleY = pressScale.value }
+                .graphicsLayer { scaleX = pressScale.value; scaleY = pressScale.value; alpha = entry.value; translationX = (1f-entry.value)*8.dp.toPx() }
                 .clip(shape)
                 .background(if (selected) palette.selectedSurface else MaterialTheme.colorScheme.surface)
                 .border(if (selected) 1.5.dp else 1.dp, rim, shape)
@@ -609,28 +496,28 @@ private fun GanjConfigOption(
                     ))))
             }
             Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 92.dp)
-                    .padding(horizontal = 11.dp, vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GanjConfigFlagBadge(identity.countryCode, selected)
+                GanjConfigFlagBadge(identity.countryCode, selected, Modifier.size(
+                    if (LocalDensity.current.fontScale >= 1.5f) 76.dp else 48.dp,
+                    if (LocalDensity.current.fontScale >= 1.5f) 50.dp else 32.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(identity.title, style = MaterialTheme.typography.titleMedium,
+                    Text(identity.title, style = MaterialTheme.typography.titleSmall,
                         color = if (selected) palette.onSelected else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(isolateTechnicalLtr(server.protocols.joinToString("  •  ") { it.name }),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (selected) palette.selectedMuted else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (selected) Text("✓  انتخاب‌شده",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = palette.premiumText, fontWeight = FontWeight.SemiBold)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Box(
                         modifier = Modifier.testTag("ping-" + server.id)
+                            .semantics { contentDescription = pingDescription }
                             .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                             .clip(RoundedCornerShape(14.dp))
                             .background(latencyColor.copy(alpha =
@@ -639,7 +526,7 @@ private fun GanjConfigOption(
                                 RoundedCornerShape(14.dp))
                             .clickable(enabled = canPing && !measuring,
                                 role = Role.Button, onClick = onPing)
-                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                            .padding(horizontal = 6.dp, vertical = 5.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -654,17 +541,6 @@ private fun GanjConfigOption(
                             color = latencyColor, fontWeight = FontWeight.Bold, maxLines = 1,
                         )
                     }
-                    Text(
-                        when {
-                            measuring -> stringResource(R.string.ping_measuring)
-                            reading?.result is LatencyProbeResult.Failed ->
-                                latencyFailureLabel(reading.result.failure)
-                            else -> stringResource(R.string.config_ping)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (selected) palette.selectedMuted else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
                 Text(if (selected) "✓" else "›",
                     style = MaterialTheme.typography.titleLarge,
@@ -704,7 +580,7 @@ internal fun GanjConfigFlagBadge(
         } else {
             // Preserve the complete source image and its national aspect ratio; no cropped canton/symbol.
             Image(painter, contentDescription = null,
-                modifier = Modifier.size(flagWidth.dp, flagHeight.dp).shadow(elevation, badgeShape, clip = false).clip(badgeShape),
+                modifier = Modifier.fillMaxSize().shadow(elevation, badgeShape, clip = false).clip(badgeShape),
                 contentScale = ContentScale.Fit)
         }
     }

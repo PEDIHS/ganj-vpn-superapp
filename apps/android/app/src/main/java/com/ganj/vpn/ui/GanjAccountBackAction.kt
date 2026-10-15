@@ -18,21 +18,8 @@ internal fun AccountBackAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    GanjGlassSurface(
-        role = GanjGlassRole.Clear,
-        accent = MaterialTheme.colorScheme.primary,
-        shapeRadius = 999.dp,
-        padding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .semantics { contentDescription = "بازگشت به صفحه قبل" }
-            .clickable(role = Role.Button, onClick = onClick),
-    ) {
-        Text(
-            text = "بازگشت",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-        )
-    }
+    GanjBackPill(
+        onClick = onClick,
+        modifier = modifier.semantics { contentDescription = "بازگشت به صفحه قبل" },
+    )
 }

@@ -1063,3 +1063,92 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - API35 execution follow-up: 9/10 UI tests passed and state screenshots were captured; the frame report was absent. The frame fixture double-removed its listener during cleanup; now detaches exactly once. Android lint requires `SdkSuppress` alone for test API gating, so the redundant `RequiresApi` annotation is removed. Rerun remained required before publication.
 - Frame-measurement correction: Compose UI tests own a synthetic animation clock, so sleeping cannot supply representative animation frames. State/semantics fixtures now advance their test clock explicitly; performance moves to a separate ActivityScenario + system Choreographer fixture with no Compose test-clock interception. Real Window timings, initial-draw exclusion, deadlines and callback-drop count are recorded there. The previous frame artifact was absent, so no frame-performance pass is claimed from that run.
 - API24 selection follow-up: the new search input could acquire initial window focus and open the IME, changing the list viewport. Subscription content and sheet content now request initial non-editing focus once on mount; explicit user focus remains available. Lazy-list tests scroll through the actual list to the second option rather than assuming it is already composed. API24 screenshots now include the large-font picker. Final rerun evidence stays in PR #65.
+
+### 2026-10-15 — Approved preview fidelity, alpha 0.3.21
+- Continue active PR #67 / `feat/ganj-ui-unify-20261015` from `3ac8111`, preserving the
+  customer bot finance/receipt/SSO integration and the functional 0.3.18 lineage.
+- Replace the rounded-square hero with the reference circular face, internal status and
+  independently ticking real session timer, finite red failure response and compact gold
+  Smart Connect. No synthetic runtime or financial state is introduced.
+- Three destinations keep real routes; wave geometry, raised center and interruptible
+  selection lens replace the flat navigation approximation. Profile is a grouped account
+  overview; real account/service/diagnostic actions remain accessible on secondary content.
+- Live bot Store retains actual catalog eligibility/prices, adds selectable reference cards,
+  real period filters and selected-order summary; VIP view exists only for actual VIP products.
+- Shared reference palette, compact radii, controls and the Dark appearance refresh propagate
+  through settings, devices, account, sheets and payment chrome. Subsequent appearance choices are respected.
+- UI Ledger sections touched: 1, 2, 7, 10, 11, 12, 13, 14, 15, 20, 21, 23, 24, 25, 26.
+- Leaf items completed: none pending full Definition of Done and device evidence.
+- Remaining unchecked leaves unchanged; unit/lint/build/emulator screenshots and publication
+  evidence must be recorded after they run. Physical-phone/TalkBack/provider QA remain open.
+- Overall UI completion: 196/492 = 39.8% (calculator; no Final Gate claim).
+
+- Fidelity follow-up: subscription and selected server share the reference 14dp panel; real measured latency remains inside it. The brand header and status line match the compact reference hierarchy. API200% flag allocation remains 76×50dp; normal reference allocation is 52×35dp. Preview/review jobs now produce a fresh provenance-verified pinned runtime instead of requesting an expired artifact. Final execution evidence pending.
+
+- Final fidelity refinement: shared gold now uses the exact reference token; the foreground power control has the reference subtle idle/connected breath, with reduced-motion/lifecycle gates. Native review includes Store/VIP header captures as well as selected-order views. No checklist completion claim before execution.
+
+- First native review compiled and passed 12/14 fixtures; Store lazy-item lookup and Profile pointer-scrolling fixture failed. Store review now scrolls the owning lazy list before locating a plan; Profile review scrolls the owning list before pointer taps and identifies each real callback separately. No failing test is reported as passed. Selected checkout is adjacent to its plan even in large catalogs; unknown subscription counts/tier are not shown as confirmed zero/free. The requested appearance refresh applies Dark on upgrade once, preserving subsequent Light/System selections and all other preferences; regression coverage added. Final rerun pending.
+
+- Native screenshot inspection found the unknown-clock helper clipping against the circular edge at 200% font and system bar icons following device theme instead of app theme. The unavailable helper now wraps below the circle while the truthful unavailable timer stays inside; system icon contrast follows the active theme. Connect review now includes the real shared navigation and canvas inset geometry. Final build/device evidence remains pending.
+
+- Review rerun 38715516114 passed 13/14 tests, including all Profile pointer callbacks and exact selected-product checkout URL. Remaining failure was the fixture attempting to find the recycled VIP entry before scrolling back up; it now scrolls the owning lazy list. The original approved HTML reference is committed under design/references for future design fidelity checks. Full final rerun still required.
+
+- Native review 38716456616 passed all 14 tests. Screenshot inspection then found the Smart Connect trailing explanation squeezing its title into individual characters at 200% font. Large-font Smart Connect now stacks its explanation beneath a full-width title row, with a readable-line-count regression and dedicated capture. Unknown account badges are omitted until subscription data is known; names cap at two lines with full account details still accessible. Canonical JSON tokens are synchronized with the approved runtime palette/geometry. No Final Gate completion claim.
+
+### 2026-10-15 — 0.3.21-alpha publication evidence
+- Final application source `8af428ce0bceabb4554f0bc18480cc7e9bc02313`: Android CI 38717474007, native review 38717467806 (14/14), preview 38717467956, CodeQL 38717473856 and repository/docs/dependency checks passed. API24/35 native tunnel and selection, Debug/Release lint, unit tests, packaging and SBOM passed.
+- Actual Android screenshots were inspected. Large-font timer helper/Smart Connect wrapping and system-icon contrast were corrected before release. Emulator frame measurements and screenshots are retained; physical-device performance is unverified.
+- Signed 0.3.21-alpha / code24 published at 2026-10-15 10:22:57 UTC. External public HTTPS bytes and checksum independently matched signed SHA-256 `52e9d4a65c8c41beee26c8bf7dded36241b6bdc07f63b7c2fde0d3a9775e9ec1`. Existing certificate retained; signing changed no payload entries. Bot rolling APK/version updated, previous release backed up.
+- Evidence: `docs/releases/0.3.21-alpha-native-reference.md`. Backend and canonical finance handlers remain unchanged from the current server baseline. Physical-phone/TalkBack/authorized positive SSO and payment-receipt QA remain open.
+- UI Ledger sections touched: 1, 2, 7, 10, 11, 12, 13, 14, 15, 20, 21, 23, 24, 25, 26.
+- Leaf items completed: none; remaining unchecked leaves unchanged; no parent or Final Gate claim.
+- Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining.
+
+### 2026-10-15 — 0.3.22 motion availability correction
+- User reports missing animation in published 0.3.21. Native code review confirms the common transition policy disables essential motion for every low-memory Reduced tier, independently of explicit/system Reduce Motion. The exact affected user's device/settings remain unverified.
+- Reduced tier now retains lightweight interaction/loading/power/navigation motion and 160ms page transitions; opaque surfaces and reduced ambient backgrounds remain. Explicit app/system reduced motion still stops motion.
+- Device animation scale/power-save/resume changes are observed; Settings explains the current motion policy. No account, native connection state or payment handler is changed.
+- Regression coverage: real rendered pixel differences for low-memory power arcs and tab lens; unchanged pixels for explicit motion reduction; a live Android animator-scale observer test restores the emulator setting afterwards. Version 0.3.22-alpha / code25 prepared; CI/publication pending.
+- UI Ledger sections touched: 7, 12, 21, 22, 23, 24, 25. Leaf items completed: none. Remaining unchecked leaves unchanged; physical-device/TalkBack/positive account payment QA remain open.
+- Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining; no Final Gate claim.
+
+### 2026-10-15 — 0.3.22-alpha motion publication evidence
+- Application source `8bcd3aebbf774f9ed517e20d1690391d21379d69`; Android CI 38721730337, native review 38721723716 (16/16), preview 38721723788, CodeQL 38721730162 and repository/docs/dependency checks passed.
+- Actual rendered-pixel assertions passed for low-memory power motion and navigation lens motion. Explicit Reduce Motion produces unchanged pixels after settling. Live Android animator-scale changes were observed without restarting the Activity. API24/API35 startup, unit tests, Debug/Release lint, packaging and SBOM checks passed.
+- Signed 0.3.22-alpha / code25 published at 2026-10-15 11:44:51 UTC. Public HTTPS APK was independently downloaded in full: 42,176,102 bytes and SHA-256 `d98788fdf9d61d7a8826e3989f752f55037163108fd773f840d7f2f45e455372`, matching the signed server file and public checksum. Existing signing certificate retained; all non-META-INF payload entries match the CI APK.
+- Bot rolling APK/version now points to 0.3.22-alpha; previous release backed up. No Telegram message was sent. Audit: `docs/releases/0.3.22-alpha-motion.md`.
+- User device/settings were not provided, so the exact cause on that device is unverified. Explicit app/system animation reduction remains respected. Physical-device/TalkBack/authorized positive SSO and payment-receipt QA remain open.
+- UI Ledger sections touched: 7, 12, 21, 22, 23, 24, 25. Leaf items completed: none; remaining unchecked leaves unchanged.
+- Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining; no Final Gate claim.
+
+### 2026-10-15 — 0.3.23 compact selection and native storefront batch
+- User requests denser subscription/config selection and the GANJ web storefront's product hierarchy implemented natively, without opening the web app.
+- Replace oversized subscription rings/overview with compact username/status/quota/usage rows. Config rows, sheet padding, search/ping/sort toolbar and Connect's manual selection panel are compact; system font scale and >=48dp action targets remain respected. Essential press/selection motion remains active in low-memory mode when allowed.
+- Store catalog keeps real product/location/category/period data and adds canonical storefront sorting and volume artwork. Product detail, server quote/discount, wallet purchase, top-up methods, card/TRX invoice/receipt and transactions use native Compose and the existing bot API/SSO/CSRF/session. Only an actual external gateway/Telegram payment opens an Android intent. No backend financial rules or account authority changed.
+- Regression fixtures cover exact product/panel purchase routing without a WebView, insufficient balance to native invoice, uncertain-purchase retry with the same idempotency key, invalidation of quote on discount edits, compact row geometry and large text. Fixture data is isolated from real accounts/providers. Build/emulator/visual validation and publication pending.
+- UI Ledger sections touched: 5, 6, 11, 12, 13, 15, 21, 22, 23, 24, 25.
+- Leaf items completed: none; full DoD/device/provider QA not yet met. Remaining unchecked leaves unchanged: 5=19, 6=8, 11=12, 12=15, 13=16, 15=17, 21=12, 22=13, 23=9, 24=16, 25=17.
+- Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining. No Final Gate/physical-device/positive SSO or real financial QA claim.
+
+- Selection/commerce follow-up: config rows have a bounded 180ms entry reveal with explicit Reduce Motion fallback, ping controls expose semantic labels and 48dp targets, and native forms use IME insets. Transaction dates are formatted from server timestamps; owned payment entries reopen their native status view. Catalog HTTPS/schema was checked with the native User-Agent: 48 real products, required keys present. Final Android execution remains pending.
+
+- First native run 38735060037 compiled and passed 17/19 fixtures (including compact geometry, exact subscription/config selection and same-key uncertain-purchase retry). Two new commerce fixtures failed: clicking while wallet methods were still loading, and locating an uncomposed large-font lazy item. Fixtures now wait for the enabled real CTA and scroll the owning list; no failure is reported as passed. Config toolbar labels are shorter to avoid visible ellipses at 320dp. Full final rerun remains required.
+
+- Fixture synchronization also waits for the returned unpaid status (not merely the start of its asynchronous request), and captures the wallet only after its payment CTA is enabled. This avoids a timing-dependent false failure and misleading loading screenshot.
+
+- Preview run 38735059993 found one Android lint SuspiciousIndentation error in the extracted catalog parser; parser/sheet indentation is corrected without changing the API contract or behavior. Required debug/release lint and final native review must pass on the corrected source before signing/publication.
+
+- Native review 38736410705 passed all 19 tests. Actual screenshots of compact selection, native wallet/card invoice, catalog and 200% text were inspected. Large-font checkout CTA/coupon labels visibly ellipsized; native action labels are shortened and a rendered TextLayoutResult assertion now requires the 200% purchase label to have no overflow. Final source must rerun CI/review before publication.
+
+- Final review 38737567980 reproduced real large-font action-label overflow (18/19 passed); shortening the label alone was insufficient. Shared primary/secondary action text now wraps with vertical content padding and centered alignment while retaining 48dp minimum targets. The overflow assertion remains intact. Final source validation/publication pending; no physical-device/payment QA or new completed leaves claimed. Sections touched: 1, 15, 21, 24, 25; overall 196/492 = 39.8%, unchanged.
+
+- Geometry diagnostic in native review 38740766418: the complete 200% label occupied 105×43px with unbounded height, yet Compose reported width overflow on its intrinsic-width layout; screenshot confirmed no remaining ellipsis. Shared action labels now take the available control width with centered, wrapping text, removing the intrinsic-width discrepancy. The original hasVisualOverflow assertion remains; final CI/review/publication pending. No checklist or completion percentage change.
+
+- Review 38742222341 exposed a secondary-control regression: making every secondary label full-width also expands Back pills in headers, pushing checkout quote content offscreen (three quote-visibility timeouts). Full-width text measurement is now limited to primary filled actions; secondary/back labels retain intrinsic width and adaptive wrapping. Native commerce tests and overflow assertion remain unchanged; rerun required. No published artifact or completed ledger leaves changed.
+
+### 2026-10-15 — 0.3.23-alpha publication evidence
+- Application source `e6853a5629aaad4119f0412237fedbce258e255b`: Android CI 38743518142, native UI review 38743507406 (**19/19**), preview 38743507306, CodeQL and repository/contract/dependency gates passed. Actual Android images inspected, including compact selectors, native commerce and complete 200% text.
+- API24/API35 native tunnel and selection passed. API35 first attempt was obstructed by a Pixel Launcher ANR; unchanged-source retry passed. Unit tests, debug/release lint, packaging and SBOM passed.
+- Signed version code 26 published at 13:56 UTC; bot rolling APK/version updated and previous release backed up. Public download independently verified: 42,282,598 bytes, SHA-256 `af20f8d2f32047e5445a4b9ab81f72e68245eea6f4ee32aaa1e612c72ce21db3`. Existing certificate retained; payload unchanged by signing.
+- Evidence: `docs/releases/0.3.23-alpha-native-commerce.md`. Physical-phone/TalkBack/in-place installation/positive SSO and real financial/receipt QA remain open. No Telegram message sent.
+- Sections touched: 1, 5, 6, 11, 12, 13, 15, 21, 22, 23, 24, 25. No additional executable leaf completed; unchecked items unchanged. Overall **196/492 = 39.8%**, 296 remaining; no Final Gate claim.

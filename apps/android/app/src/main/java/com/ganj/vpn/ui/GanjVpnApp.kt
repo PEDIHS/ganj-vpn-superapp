@@ -123,7 +123,6 @@ fun GanjVpnApp(
     var accountSurface by rememberSaveable { mutableStateOf(GanjAccountSurface.PROFILE) }
     var openNotifications by remember { mutableStateOf(false) }
     var purchaseConfirmationPlan by remember { mutableStateOf<PlanUiModel?>(null) }
-    var storeCheckoutUrl by remember { mutableStateOf<String?>(null) }
     var accountSyncFeedback by remember { mutableStateOf<TelegramServiceSyncFeedback?>(null) }
     var walletState by remember(composition) {
         mutableStateOf<WalletUiState>(if (telegramLinked) WalletUiState.Loading else WalletUiState.AuthRequired)
@@ -618,6 +617,7 @@ fun GanjVpnApp(
                                 },
                                 onRetry = ::refresh,
                                 onOpenStore = { selectedDestination = GanjDestination.Store },
+                                onBack = { selectedDestination = GanjDestination.Connect },
                             )
 
                             GanjDestination.Connect -> StitchConnectionScreen(
@@ -642,31 +642,14 @@ fun GanjVpnApp(
                                 onRetry = ::refresh,
                             )
 
-                            GanjDestination.Store -> if (storeCheckoutUrl == null) {
-                                StitchBotSyncedStoreScreen(
-                                    onOpenProduct = { url -> storeCheckoutUrl = url },
-                                    onOpenWallet = {
-                                        accountSurface = GanjAccountSurface.WALLET
-                                        selectedDestination = GanjDestination.Account
-                                    },
-                                    onOpenTransactions = {
-                                        accountSurface = GanjAccountSurface.TRANSACTIONS
-                                        selectedDestination = GanjDestination.Account
-                                    },
-                                )
-                            } else {
-                                StitchBotFinanceScreen(
-                                    startUrl = storeCheckoutUrl!!,
-                                    onStoreBridgeAuthorization = onStoreBridgeAuthorization,
-                                    title = "فاکتور و خرید سرویس",
-                                    onClose = { storeCheckoutUrl = null },
-                                    onTransactions = {
-                                        accountSurface = GanjAccountSurface.TRANSACTIONS
-                                        selectedDestination = GanjDestination.Account
-                                        storeCheckoutUrl = null
-                                    },
-                                )
-                            }
+                            GanjDestination.Store -> StitchNativeBotStoreDestination(
+                                onStoreBridgeAuthorization = onStoreBridgeAuthorization,
+                                onOpenSubscriptions = { refresh(); selectedDestination = GanjDestination.Servers },
+                                onOpenAccount = {
+                                    accountSurface = GanjAccountSurface.PROFILE
+                                    selectedDestination = GanjDestination.Account
+                                },
+                            )
 
                             GanjDestination.Settings -> StitchSettingsScreen(
                                 preferences = userPreferences,
@@ -770,6 +753,13 @@ fun GanjVpnApp(
                                         )
                                     },
                                     modifier = Modifier.fillMaxSize(),
+                                    currentAccount = currentAccount,
+                                    linked = telegramLinked,
+                                    onOpenWallet = { accountSurface = GanjAccountSurface.WALLET },
+                                    onOpenTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
+                                    onOpenDevices = { accountSurface = GanjAccountSurface.DEVICES; refreshDevices() },
+                                    onOpenNotifications = { openNotifications = true; selectedDestination = GanjDestination.Settings },
+                                    onOpenDetails = { accountSurface = GanjAccountSurface.SUBSCRIPTION_DETAILS },
                                     headerContent = {
                                         Column {
                                             StitchTelegramAccountCard(

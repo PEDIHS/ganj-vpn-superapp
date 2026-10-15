@@ -15,9 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -423,23 +421,14 @@ private fun GanjEnterpriseTextField(
     singleLine: Boolean = false,
     minLines: Int = 1,
 ) {
-    OutlinedTextField(
+    GanjLiquidTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        label = { Text(label) },
+        label = label,
         singleLine = singleLine,
         minLines = minLines,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f),
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.48f),
-            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.28f),
-            focusedIndicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.56f),
-            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
-            disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.10f),
-        ),
     )
 }
 

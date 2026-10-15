@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -346,7 +345,7 @@ private fun DeviceRow(
         if (!device.current && active) {
             if (revoking) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    GanjCompactSpinner(size = 18.dp)
                     Text("در حال حذف دسترسی…", style = MaterialTheme.typography.bodySmall)
                 }
             } else {
@@ -380,18 +379,7 @@ private fun DevicesHeader(title: String, subtitle: String, onBack: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.58f))
-                .border(1.dp, LocalGanjGlassPalette.current.borderSoft.copy(alpha = 0.62f), RoundedCornerShape(999.dp))
-                .clickable(role = Role.Button, onClick = onBack)
-                .padding(horizontal = 14.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("بازگشت", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-        }
+        GanjBackPill(onClick = onBack)
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -409,7 +397,7 @@ private fun DevicesLoadingCard(message: String = "در حال دریافت دس�
         padding = PaddingValues(18.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+            GanjCompactSpinner(size = 22.dp)
             Text(message, style = MaterialTheme.typography.bodyMedium)
         }
     }
@@ -437,33 +425,25 @@ private fun DevicesMessageCard(
 
 @Composable
 private fun DevicesTextAction(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-    }
+    GanjGlassButton(
+        text = label,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        accent = MaterialTheme.colorScheme.primary,
+        filled = false,
+        shapeRadius = 16.dp,
+    )
 }
 
 @Composable
 private fun DevicesDestructiveAction(label: String, onClick: () -> Unit) {
-    val color = MaterialTheme.colorScheme.error
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(color.copy(alpha = 0.10f))
-            .border(1.dp, color.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = color, fontWeight = FontWeight.Bold)
-    }
+    GanjGlassButton(
+        text = label,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        accent = MaterialTheme.colorScheme.error,
+        filled = false,
+        contentColor = MaterialTheme.colorScheme.error,
+        shapeRadius = 16.dp,
+    )
 }

@@ -454,28 +454,16 @@ private fun AccountSecondaryAction(
     modifier: Modifier = Modifier,
     destructive: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(999.dp)
     val accent = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
-    Box(
-        modifier = modifier
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = if (enabled) 0.62f else 0.30f))
-            .border(1.dp, accent.copy(alpha = 0.30f), shape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(vertical = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = when {
-                !enabled -> MaterialTheme.colorScheme.onSurfaceVariant
-                destructive -> MaterialTheme.colorScheme.error
-                else -> MaterialTheme.colorScheme.onSurface
-            },
-        )
-    }
+    GanjGlassButton(
+        text = text,
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        accent = accent,
+        filled = false,
+        contentColor = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+    )
 }
 
 internal fun telegramIdentityDisplayName(account: CurrentAccount?): String? = account

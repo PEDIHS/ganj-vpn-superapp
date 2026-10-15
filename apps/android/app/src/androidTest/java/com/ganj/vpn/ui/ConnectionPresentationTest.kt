@@ -2,6 +2,8 @@ package com.ganj.vpn.ui
 
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
@@ -58,7 +60,7 @@ class ConnectionPresentationTest {
             } }
         } }
         compose.onNodeWithTag("connect-action").performScrollTo().assertIsEnabled().assertHeightIsAtLeast(48.dp)
-        compose.onNodeWithTag("connection-duration").assertTextEquals("—")
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true).assertDoesNotExist()
         capture("connection-off-light")
         compose.onNodeWithTag("connect-action").performClick().assertIsNotEnabled()
         compose.onNodeWithTag("connect-action").performTouchInput { click() }
@@ -82,13 +84,15 @@ class ConnectionPresentationTest {
                 }
             } }
         } }
-        compose.onNodeWithTag("connection-duration").performScrollTo()
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true).performScrollTo()
             .assertTextEquals(isolateTechnicalLtr("۰۱:۰۲:۰۵"))
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true)
+            .assert(hasAnyAncestor(hasTestTag("connect-action")))
         capture("connection-on-dark")
         compose.onNodeWithTag("fixture-toggle").performClick()
         compose.runOnIdle { now += 5_000 }
         compose.onNodeWithTag("fixture-toggle").performClick()
-        compose.onNodeWithTag("connection-duration").performScrollTo()
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true).performScrollTo()
             .assertTextEquals(isolateTechnicalLtr("۰۱:۰۲:۱۰"))
         compose.onNodeWithTag("connect-action").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, disconnects) }
@@ -104,7 +108,7 @@ class ConnectionPresentationTest {
             }
         } }
         capture("connection-header-light-large")
-        listOf("گنج VPN", "ارتباط امن، کنترل ساده").forEach { text ->
+        listOf("GANJ VPN", "ارتباط امن، کنترل ساده").forEach { text ->
             val layout = mutableListOf<TextLayoutResult>()
             compose.onNodeWithText(text).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layout) }
             val result = layout.single()
@@ -112,8 +116,14 @@ class ConnectionPresentationTest {
         }
         compose.onNodeWithTag("connect-action").performScrollTo().assertIsEnabled().assertHeightIsAtLeast(48.dp)
         capture("connection-on-light-large")
-        compose.onNodeWithTag("connection-duration").performScrollTo().assertTextEquals("—")
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true).performScrollTo().assertTextEquals("—")
         compose.onNodeWithText("زمان شروع در دسترس نیست").assertExists()
+        compose.onNodeWithTag("smart-connect-card").performScrollTo()
+        val smartLayout=mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText("اتصال هوشمند",useUnmergedTree=true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(smartLayout) }
+        assertFalse("Smart Connect must not become a vertical column of individual letters",smartLayout.single().lineCount>2)
+        capture("connection-smart-light-large")
         compose.onNodeWithTag("selected-config").performScrollTo().assertTextContains("کانفیگ آلمان", substring = true)
         compose.onNodeWithTag("selected-config-flag", useUnmergedTree = true).assertWidthIsEqualTo(76.dp).assertHeightIsEqualTo(50.dp)
         capture("connection-config-light-large")
@@ -121,9 +131,13 @@ class ConnectionPresentationTest {
 
     @Composable private fun screen(current: GanjUiState, timer: ConnectionSessionTimer? = null,
         connect: (String) -> Unit = {}, disconnect: () -> Unit = {}) {
-        StitchConnectionScreen(current, connect, disconnect, {}, {},
-            loadServers = { ApiResult.Success(listOf(server), ResponseMetadata("ui-fixture", null)) },
-            onSelectAndConnect = { _, _ -> }, onOpenStore = {}, onRetry = {}, sessionTimer = timer)
+        Scaffold(containerColor=MaterialTheme.colorScheme.background,
+            bottomBar={GanjLiquidBottomNavigation(GanjDestination.Connect,{})}) { padding ->
+            StitchConnectionScreen(current, connect, disconnect, {}, {},
+                loadServers = { ApiResult.Success(listOf(server), ResponseMetadata("ui-fixture", null)) },
+                onSelectAndConnect = { _, _ -> }, onOpenStore = {}, onRetry = {}, sessionTimer = timer,
+                modifier=Modifier.padding(padding))
+        }
     }
 
     private fun capture(name: String) {

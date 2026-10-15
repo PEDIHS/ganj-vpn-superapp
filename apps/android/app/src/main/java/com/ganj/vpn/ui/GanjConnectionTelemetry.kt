@@ -90,3 +90,26 @@ private fun GanjSelectedProxyLatency(ping: Long?, measuring: Boolean) {
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+/** Timer composes independently inside the circular action; it never resets on navigation. */
+@Composable
+internal fun GanjSessionDurationInline(runtime: ConnectionState, sessionTimer: ConnectionSessionTimer?) {
+    val timer = remember(sessionTimer) { sessionTimer ?: ConnectionSessionTimer(
+        wallClock = System::currentTimeMillis, monotonicClock = SystemClock::elapsedRealtime) }
+    val owner = LocalLifecycleOwner.current
+    val current by rememberUpdatedState(runtime)
+    var elapsed by remember(timer, runtime.phase, runtime.connectedAtEpochMillis) { mutableStateOf(timer.elapsedMillis(runtime)) }
+    LaunchedEffect(owner, timer, runtime.phase, runtime.connectedAtEpochMillis) {
+        owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            elapsed = timer.elapsedMillis(current)
+            if (elapsed != null) while (isActive) { delay(1000); elapsed = timer.elapsedMillis(current) }
+        }
+    }
+    Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+        Text(elapsed?.let { isolateTechnicalLtr(formatConnectionDuration(it).toPersianDigits()) } ?: "—",
+            style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+            color = androidx.compose.ui.graphics.Color(0xFFD6F1DF), fontWeight = FontWeight.Medium,
+            modifier = Modifier.testTag("connection-duration"))
+
+    }
+}

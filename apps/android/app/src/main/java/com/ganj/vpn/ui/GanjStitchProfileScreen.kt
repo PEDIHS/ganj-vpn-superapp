@@ -23,6 +23,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.graphics.Brush
+import com.ganj.vpn.core.controlapi.CurrentAccount
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,173 +69,131 @@ internal fun StitchProfileScreen(
     onClearDiagnostic: () -> Unit,
     modifier: Modifier = Modifier,
     headerContent: @Composable () -> Unit = {},
+    currentAccount: CurrentAccount? = null,
+    linked: Boolean = false,
+    onOpenWallet: (() -> Unit)? = null,
+    onOpenTransactions: (() -> Unit)? = null,
+    onOpenDevices: (() -> Unit)? = null,
+    onOpenNotifications: (() -> Unit)? = null,
+    onOpenPrivacy: (() -> Unit)? = null,
+    onOpenSupport: (() -> Unit)? = null,
+    onOpenDetails: (() -> Unit)? = null,
 ) {
     val activeServices = remember(state.services) { state.serviceItems.filter { it.isActive } }
     val premium = activeServices.any { it.tier != UiTier.FREE }
     val selected = state.selectedService
-
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item(key = "profile-header", contentType = "header") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "پروفایل",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Text(
-                        text = "مدیریت حساب، اشتراک‌ها و تنظیمات",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+    var panel by rememberSaveable { mutableStateOf("overview") }
+    BackHandler(panel != "overview") { panel = "overview" }
+    val ink = MaterialTheme.colorScheme.onSurface
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val name = telegramIdentityDisplayName(currentAccount) ?: if(linked) "حساب گنج" else "به گنج خوش آمدید"
+    val username = telegramIdentityUsername(currentAccount)
+    LazyColumn(modifier.fillMaxSize().testTag("reference-profile"),
+        contentPadding = PaddingValues(horizontal=responsiveHorizontalPadding(),vertical=20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item(key="profile-header") {
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                if(panel!="overview") AccountBackAction({panel="overview"})
+                Column(Modifier.weight(1f)) {
+                    Text(when(panel){"account"->"مدیریت حساب";"services"->"اشتراک‌های من";"support"->"گزارش و عیب‌یابی";else->"پروفایل"},
+                        style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold,color=ink)
+                    Text("حساب شما، همه‌چیز در یک نگاه",style=MaterialTheme.typography.labelSmall,color=muted)
                 }
-                ProfileBadge(text = if (premium) "پریمیوم" else "رایگان", gold = premium)
+                onOpenNotifications?.let { GanjReferenceNotificationButton(it) }
             }
-
         }
-        item(key = "profile-summary", contentType = "summary") {
-            GanjGlassSurface(
-                role = GanjGlassRole.Prominent,
-                accent = if (premium) ProfileGold else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth(),
-                shapeRadius = 24.dp,
-                padding = PaddingValues(18.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(62.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                            .border(
-                                1.dp,
-                                if (premium) ProfileGold.copy(alpha = 0.52f)
-                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                CircleShape,
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.ganj_logo_official),
-                            contentDescription = "نشان رسمی گنج VPN",
-                            modifier = Modifier.size(48.dp),
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "وضعیت اشتراک‌ها",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            text = when {
-                                premium -> "اشتراک پریمیوم فعال"
-                                activeServices.isNotEmpty() -> "سرویس فعال رایگان"
-                                else -> "بدون سرویس فعال"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+        when(panel) {
+            "account" -> item(key="account-actions") { headerContent() }
+            "services" -> {
+                when(val services=state.services) {
+                    ContentState.Loading -> item{ LoadingCard("در حال دریافت سرویس‌ها") }
+                    ContentState.Empty -> item{ ProfileEmptyServices(onBuy) }
+                    ContentState.AuthRequired -> item{ AuthCard(onRetry) }
+                    is ContentState.Error -> item{ ErrorCard(services.failure,onRetry) }
+                    is ContentState.Ready -> items(services.items,key={it.entitlementId}) { service ->
+                        ProfileServiceCard(service,service.entitlementId==state.selectedEntitlementId,{onSelectService(service.entitlementId)},onConnect)
                     }
                 }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    ProfileStat(
-                        label = "سرویس فعال",
-                        value = activeServices.size.toPersianDigits(),
-                        modifier = Modifier.weight(1f),
-                    )
-                    ProfileStat(
-                        label = "دستگاه مجاز",
-                        value = selected?.deviceLimit?.toPersianDigits() ?: "—",
-                        modifier = Modifier.weight(1f),
-                        gold = premium,
-                    )
+            }
+            "support" -> {
+                item { EnterpriseStatusCard(enterpriseState.availability,onEnterpriseRefresh) }
+                if(enterpriseState.features.bugReportsEnabled) item { BugReportPanel(enterpriseState.bugReport,onSubmitBug,onClearBug) }
+                if(enterpriseState.features.diagnosticsEnabled) item { DiagnosticPanel(enterpriseState.diagnostic,onSubmitDiagnostics,onClearDiagnostic) }
+            }
+            else -> {
+                item(key="profile-identity") {
+                    val shape=RoundedCornerShape(18.dp)
+                    Column(Modifier.fillMaxWidth().clip(shape)
+                        .background(if(referenceDark())Brush.linearGradient(listOf(Color(0xFF194632),Color(0xFF1B3328),Color(0xFF393E28)))
+                            else Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer,MaterialTheme.colorScheme.surface)))
+                        .border(1.dp,LocalGanjContentPalette.current.premiumText.copy(alpha=.45f),shape).padding(18.dp),
+                        verticalArrangement=Arrangement.spacedBy(14.dp)) {
+                        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                            Box(Modifier.size(55.dp).clip(RoundedCornerShape(17.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha=.20f))
+                                .border(1.dp,LocalGanjContentPalette.current.premiumText.copy(alpha=.7f),RoundedCornerShape(17.dp)),contentAlignment=Alignment.Center) {
+                                GanjNavigationIcon(GanjDestination.Account,MaterialTheme.colorScheme.primary,Modifier.size(28.dp))
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(name,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold,color=ink,maxLines=2,overflow=TextOverflow.Ellipsis)
+                                Text(username?.let(::isolateTechnicalLtr) ?: if(linked) "حساب تلگرام متصل" else "ورود با تلگرام",style=MaterialTheme.typography.labelSmall,color=muted)
+                            }
+                            if(state.services is ContentState.Ready) ProfileBadge(if(premium)"پریمیوم" else "استاندارد",premium)
+                        }
+                        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+                            Text(if(linked) "تلگرام متصل است" else "حساب هنوز متصل نیست",style=MaterialTheme.typography.labelSmall,color=muted)
+                            GanjGlassButton("مدیریت حساب",{panel="account"},filled=false,shapeRadius=8.dp)
+                        }
+                    }
+                }
+                item(key="profile-summary") {
+                    GanjGlassSurface(GanjGlassRole.OpaqueFallback,modifier=Modifier.fillMaxWidth(),shapeRadius=14.dp,padding=PaddingValues(15.dp)) {
+                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+                            Text("اشتراک انتخاب‌شده",style=MaterialTheme.typography.labelMedium,color=muted)
+                            if(selected!=null) GanjStatusPill(profileServiceStatus(selected),if(selected.isActive)GanjStatusTone.Positive else GanjStatusTone.Neutral)
+                        }
+                        Text(selected?.let { subscriptionUsername(it) } ?: "اشتراکی انتخاب نشده است",style=MaterialTheme.typography.titleMedium,color=ink,fontWeight=FontWeight.Medium)
+                        selected?.let { service ->
+                            if(service.trafficUsageAvailable && service.usageFraction != null) {
+                                Text(profileTraffic(service.trafficUsedBytes)+" از "+profileTraffic(service.trafficLimitBytes)+" مصرف شده",style=MaterialTheme.typography.bodyMedium,color=ink)
+                                GanjSlimProgress(service.usageFraction!!)
+                            }
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+                                Text(if(service.trafficUsageAvailable) profileTraffic(service.remainingBytes)+" باقی‌مانده" else "اطلاعات مصرف در دسترس نیست",style=MaterialTheme.typography.labelSmall,color=muted,modifier=Modifier.weight(1f))
+                                Text(profileExpiry(service.expiresAt),style=MaterialTheme.typography.labelSmall,color=muted)
+                            }
+                        }
+                        GanjGlassButton(if(selected==null)"انتخاب اشتراک" else "جزئیات اشتراک",{if(selected==null)onOpenSubscriptions() else onOpenDetails?.invoke() ?: run{panel="services"}},filled=false,modifier=Modifier.fillMaxWidth())
+                    }
+                }
+                if(linked && onOpenWallet!=null) item(key="wallet-summary") {
+                    GanjReferenceMenuRow("کیف پول","مشاهده موجودی و افزایش اعتبار",modifier=Modifier.testTag("profile-to-wallet"),accent=LocalGanjContentPalette.current.premiumText,icon=GanjDestination.Store,onClick=onOpenWallet)
+                }
+                item(key="account-services") {
+                    Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                        ProfileSectionTitle("حساب و سرویس‌ها")
+                        GanjReferenceMenuRow("اشتراک‌های من",if(state.services is ContentState.Ready) activeServices.size.toPersianDigits()+" سرویس فعال" else "بررسی و انتخاب اشتراک",icon=GanjDestination.Servers,modifier=Modifier.testTag("profile-to-subscriptions"),onClick=onOpenSubscriptions)
+                        if(linked) {
+                            onOpenDevices?.let { GanjReferenceMenuRow("دستگاه‌های من","مدیریت دسترسی دستگاه‌ها",onClick=it) }
+                            onOpenTransactions?.let { GanjReferenceMenuRow("تراکنش‌ها","سوابق همان حساب گنج",icon=GanjDestination.Store,onClick=it) }
+                        }
+                        GanjReferenceMenuRow("خرید یا ارتقا به VIP","بررسی پلن‌های موجود",accent=LocalGanjContentPalette.current.premiumText,icon=GanjDestination.Store,onClick=onBuy)
+                    }
+                }
+                item(key="settings-support") {
+                    Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                        ProfileSectionTitle("تنظیمات و پشتیبانی")
+                        GanjReferenceMenuRow("ظاهر و دسترس‌پذیری","تنظیمات رنگ، حرکت و شفافیت",icon=GanjDestination.Settings,modifier=Modifier.testTag("profile-to-settings"),onClick=onOpenSettings)
+                        GanjReferenceMenuRow("حریم خصوصی و امنیت",icon=GanjDestination.Settings,onClick=onOpenPrivacy ?: onOpenSettings)
+                        GanjReferenceMenuRow("پشتیبانی و گزارش مشکل",onClick=onOpenSupport ?: {panel="support"})
+                        GanjReferenceMenuRow("عیب‌یابی اتصال",icon=GanjDestination.Connect,onClick={panel="support"})
+                    }
+                }
+                item(key="account-session") {
+                    GanjGlassButton(if(linked) "مدیریت نشست و خروج از حساب" else "ورود با تلگرام",{panel="account"},filled=false,modifier=Modifier.fillMaxWidth())
+                    Text("GANJ VPN · "+com.ganj.vpn.BuildConfig.VERSION_NAME,style=MaterialTheme.typography.labelSmall,color=muted,modifier=Modifier.fillMaxWidth(),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }
-
         }
-        item(key = "profile-shortcuts", contentType = "actions") {
-            GanjGlassSurface(
-                role = GanjGlassRole.Dense,
-                accent = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.fillMaxWidth().testTag("profile-shortcuts"),
-                shapeRadius = 20.dp,
-                padding = PaddingValues(14.dp),
-            ) {
-                Text("دسترسی سریع", style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ProfileSecondaryAction(
-                        text = "اشتراک‌ها", enabled = true, onClick = onOpenSubscriptions,
-                        modifier = Modifier.weight(1f).testTag("profile-to-subscriptions"))
-                    ProfileSecondaryAction(
-                        text = "تنظیمات", enabled = true, onClick = onOpenSettings,
-                        modifier = Modifier.weight(1f).testTag("profile-to-settings"))
-                }
-            }
-        }
-        item(key = "account-actions", contentType = "account") { headerContent() }
-        item(key = "services-heading", contentType = "heading") { ProfileSectionTitle("سرویس‌های من") }
-        when (val services = state.services) {
-            ContentState.Loading -> item(key = "services-state") { LoadingCard("در حال دریافت سرویس‌ها") }
-            ContentState.Empty -> item(key = "services-state") { ProfileEmptyServices(onBuy) }
-            ContentState.AuthRequired -> item(key = "services-state") { AuthCard(onRetry) }
-            is ContentState.Error -> item(key = "services-state") { ErrorCard(services.failure, onRetry) }
-            is ContentState.Ready -> items(services.items, key = { "service-${it.entitlementId}" }, contentType = { "service" }) { service ->
-                ProfileServiceCard(
-                    service = service,
-                    selected = service.entitlementId == state.selectedEntitlementId,
-                    onSelect = { onSelectService(service.entitlementId) },
-                    onConnect = onConnect,
-                )
-            }
-        }
-
-        item(key = "buy-service", contentType = "action") {
-            GanjLiquidAction(
-                onClick = onBuy,
-                accent = if (premium) ProfileGold else MaterialTheme.colorScheme.primary,
-                shapeRadius = 999.dp,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = "خرید یا ارتقای سرویس",
-                    modifier = Modifier.align(Alignment.Center),
-                    color = if (premium) Color(0xFF211600) else MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-
-        }
-        item(key = "support-heading", contentType = "heading") { ProfileSectionTitle("امنیت و پشتیبانی") }
-        item(key = "enterprise-status", contentType = "status") { EnterpriseStatusCard(enterpriseState.availability, onEnterpriseRefresh) }
-        if (enterpriseState.features.bugReportsEnabled) {
-            item(key = "bug-report", contentType = "form") { BugReportPanel(enterpriseState.bugReport, onSubmitBug, onClearBug) }
-        }
-        if (enterpriseState.features.diagnosticsEnabled) {
-            item(key = "diagnostics", contentType = "form") { DiagnosticPanel(enterpriseState.diagnostic, onSubmitDiagnostics, onClearDiagnostic) }
-        }
-
-        item(key = "profile-bottom") { Spacer(Modifier.height(12.dp)) }
     }
 }
 
@@ -414,23 +379,14 @@ private fun ProfileSecondaryAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(999.dp)
-    Box(
-        modifier = modifier
-            .height(48.dp)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = if (enabled) 0.68f else 0.30f))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.22f), shape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
+    GanjGlassButton(
+        text = text,
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        accent = MaterialTheme.colorScheme.outline,
+        filled = false,
+    )
 }
 
 @Composable

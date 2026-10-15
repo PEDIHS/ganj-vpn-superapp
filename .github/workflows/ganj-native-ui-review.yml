@@ -1,12 +1,17 @@
 name: GANJ native UI visual review
 on:
   push:
-    branches: [feat/ganj-flagglass-config-20261003, feat/ganj-fluid-navigation-0.3.17]
+    branches: [feat/ganj-flagglass-config-20261003, feat/ganj-fluid-navigation-0.3.17, feat/ganj-ui-unify-20261015]
 permissions:
   contents: read
   actions: read
 jobs:
+  native:
+    uses: ./.github/workflows/android-native.yml
+    permissions:
+      contents: read
   visual-review:
+    needs: native
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -28,9 +33,6 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: alpha-pinned-libxray
-          repository: PEDIHS/ganj-vpn-superapp
-          run-id: 37093163551
-          github-token: ${{ github.token }}
           path: ${{ runner.temp }}/pinned-libxray
       - name: Verify identical native runtime and protect the production surface
         run: |

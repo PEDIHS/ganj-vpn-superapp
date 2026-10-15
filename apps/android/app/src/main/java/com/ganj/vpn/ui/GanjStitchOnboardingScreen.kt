@@ -113,21 +113,13 @@ internal fun StitchOnboardingScreen(
         }
 
         if (!lastStep) {
-            Box(
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .clickable(role = Role.Button, onClick = onComplete)
-                    .padding(horizontal = 18.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "رد کردن راهنما و شروع رایگان",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            GanjGlassButton(
+                text = "رد کردن راهنما و شروع رایگان",
+                onClick = onComplete,
+                modifier = Modifier.fillMaxWidth(),
+                accent = MaterialTheme.colorScheme.outline,
+                filled = false,
+            )
         }
     }
 }
@@ -149,29 +141,15 @@ private fun OnboardingTelegramAction(
     } else {
         "فقط برای بازیابی سرویس‌های خریداری‌شده؛ استفاده رایگان همچنان بدون ورود ممکن است."
     }
-
-    GanjGlassSurface(
-        role = GanjGlassRole.Regular,
+    GanjQuickActionTile(
+        title = title,
+        subtitle = body,
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
         accent = if (linked) MaterialTheme.colorScheme.primary else GanjGold,
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 64.dp)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
-        shapeRadius = 20.dp,
-        padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = if (linked) MaterialTheme.colorScheme.primary else GanjGold,
-        )
-        Text(
-            text = body,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+        marker = if (linked) "✓" else "↗",
+    )
 }
 
 @Composable

@@ -98,3 +98,68 @@ This document extends the canonical brand and liquid-glass standards.
   pricing support. App logout also expires WebView site cookies.
 - CI tests exercise subject ownership and deny unlinked/invalid IDs. Production
   end-to-end positive test requires an authorized linked Telegram test account.
+
+## 2026-10-15 visual unification pass
+- Active product surfaces must use the shared GANJ controls for primary/secondary actions,
+  selection pills, text fields, compact loading, back actions and inline states. Avoid raw
+  Material buttons/chips/dialogs in active screens unless they are an implementation detail
+  behind a GANJ wrapper.
+- Store, bot-owned finance, wallet, devices, profile, subscription details, Telegram account,
+  support, notifications and settings must share the same 20–26dp surface radius family,
+  restrained emerald/gold accents, neutral canvas, press-scale feedback and status pills.
+- Motion is short and functional: roughly 120ms press feedback and 240–280ms state/page
+  transitions. Infinite motion is limited to bounded loading indicators and must stop when
+  reduced-motion or lifecycle policies require it.
+- Error/payment states use the same liquid message hierarchy and never render legacy Material
+  alert dialogs over otherwise custom GANJ surfaces.
+- Web checkout remains visually framed by native GANJ chrome, while the website body remains
+  canonical and unmodified; no CSS injection or app-side financial state is introduced.
+
+## 2026-10-15 — Approved preview fidelity contract (supersedes cosmetic approximations)
+- Visual reference: `design/references/ganj-profile-complete-review.html` reviewed in the product conversation.
+  Reference data is NEVER production data; catalog, finance and account authority remain real.
+- Canvas `#111718`, content `#1A2324`, emerald accent `#39E5A8`, refined gold `#E0BE79`.
+- The primary connection face is a **circle**, 212dp within a 250dp orbital allocation at
+  standard text scale. At large fonts the circle grows within the actual available width.
+  A rounded square / tunnel-core replacement is prohibited without new product approval.
+- Power icon, state label and actual session duration live INSIDE the same circular hit area.
+  Disconnected: «برای اتصال کلیک کنید»; connected: «متصل هستید» + monotonic native timer;
+  unknown start time stays unavailable. No duplicate timer card beneath the control.
+- Failure is a red face with a finite 440ms shake and broken red orbital arcs. Native error
+  text sits immediately below it. Never generate fake success or allow duplicate busy taps.
+- Smart Connect is a compact 55dp-minimum gold ribbon above manual subscription/server
+  selection, with one bounded 1200ms sheen. Its existing real probe/selection handler remains.
+- Bottom navigation is physically Store/right, Connect/center, Profile/left in RTL. Draw a
+  concave continuous wave around a raised 62dp center lens; a flat capsule is not equivalent.
+  One interruptible spring lens travels between side tabs. Keep >=48dp semantic Tab hit areas.
+- Main content cards use 12–18dp radii, thin borders and 12–20dp padding. Do not substitute
+  oversized 24–28dp cards or pill-shaped actions throughout the app for the reference.
+- Store uses compact selectable product cards, actual available period/location filters,
+  one selected-order summary and one purchase CTA. VIP is a dedicated gold/emerald view
+  only when real catalog VIP products exist. Never invent devices/benefits/prices to match a mock.
+- Profile opens on real identity, selected-subscription usage, finance and grouped menu rows;
+  full services, account management and diagnostic forms open as secondary content rather than
+  occupying the whole overview. Bot financial pages keep their current trusted SSO/receipt route.
+- The 0.3.21 appearance refresh starts both new and upgraded installations in the approved Dark reference. Afterwards explicit Light/System choices remain supported; other saved account/accessibility/onboarding preferences are untouched. Every secondary page inherits the same component geometry.
+- Screenshots from the actual Android renderer (Connect/off/on/error, wave navigation, Store,
+  VIP, Profile and large text) must be inspected before publication. A passing build alone is
+  not evidence that the approved visual has been faithfully implemented.
+
+- Power ambient fidelity: a low amplitude 4.5–5s thin gold arc/idle icon breath is allowed only while foregrounded and motion policy permits it, matching the approved preview. It conveys no VPN progress. Disable it with reduced motion; genuine pending work retains the distinct rotating arcs. Shared gold is exactly `#E0BE79`, including secondary buttons and premium text.
+
+## 0.3.22 motion availability correction
+- Low-memory/opaque rendering is a material/performance choice, not a request to remove motion. Keep lightweight power arcs, press feedback and navigation transitions enabled in Reduced tier when the user/system permits motion.
+- Only explicit app Reduce Motion or disabled Android animator scale suppresses those animations. Observe system changes and resume events so the displayed reason and custom animation policy stay current.
+- Settings must report whether motion is active, lightweight, user-disabled or Android-disabled. Do not claim a specific user's device caused a report without device evidence.
+- Motion validation must compare rendered frames in Reduced tier and verify a true static control under explicit Reduce Motion; state-label screenshots alone do not prove animation.
+
+## 0.3.23 compact selection and native bot commerce (product-directed override)
+- Subscription selection is a compact username/status/quota row with a thin usage bar; do not restore the oversized 102dp quota ring or duplicate overview cards in this selector.
+- Normal config rows target 72dp, 48×32dp full-aspect flags, 12dp corners and compact metadata. Preserve 48dp ping targets; expand naturally with system font size. Do not reduce Android fontScale to simulate density.
+- Config sheets use one compact padded surface, not nested inset glass cards. Preserve scoped identities, search, explicit ping and selected-server callbacks. Low-RAM material fallbacks must retain essential motion when allowed.
+- The Store destination, product detail, quote, discount, wallet top-up, invoice, receipt selection/upload and transaction list render with native Compose. Do not open the storefront/product/payment web app in a WebView or inject CSS.
+- Existing bot HTTPS API, HttpOnly session cookies, native bearer-to-bot SSO and CSRF checks remain authoritative. No credentials in URLs/JS, no client entitlement grant, no duplicated wallet database or app-side receipt approval.
+- External bank/gateway or server-configured Telegram payment handoff uses Android intents after explicit user action. Its returned financial result is only accepted via the authenticated bot payment_status endpoint; no fake success.
+- Reuse the same purchase idempotency key and frozen payload after an uncertain response; disable duplicate submissions. Editing a discount invalidates the displayed quote until the server recomputes it.
+- Receipt types/8MiB limit match the canonical site; native file picker requires no broad storage permission. Poll payment status only while the page is foreground/resumed and preserve server-owned pending invoices.
+- These rules supersede the earlier WebView requirement for Store-owned commerce. Existing Profile finance entry points remain operational; no server business logic is replaced by client code.

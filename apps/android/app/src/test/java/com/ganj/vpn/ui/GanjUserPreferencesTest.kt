@@ -7,8 +7,17 @@ import org.junit.Test
 
 class GanjUserPreferencesTest {
     @Test
-    fun `new installs default to the light emerald theme`() {
-        assertEquals(GanjThemePreference.LIGHT, GanjUserPreferences().theme)
+    fun `new installs default to approved dark reference theme`() {
+        assertEquals(GanjThemePreference.DARK, GanjUserPreferences().theme)
+    }
+
+    @Test
+    fun `appearance refresh applies dark to legacy installs but preserves later explicit choices`() {
+        assertEquals(GanjThemePreference.DARK, GanjUserPreferencesPolicy.restoreReferenceTheme("LIGHT", false))
+        assertEquals(GanjThemePreference.DARK, GanjUserPreferencesPolicy.restoreReferenceTheme("SYSTEM", false))
+        assertEquals(GanjThemePreference.LIGHT, GanjUserPreferencesPolicy.restoreReferenceTheme("LIGHT", true))
+        assertEquals(GanjThemePreference.SYSTEM, GanjUserPreferencesPolicy.restoreReferenceTheme("SYSTEM", true))
+        assertEquals(GanjThemePreference.DARK, GanjUserPreferencesPolicy.restoreReferenceTheme("unknown", true))
     }
 
     @Test

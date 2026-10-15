@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -394,24 +393,12 @@ private fun WalletFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val accent = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    Box(
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(999.dp))
-            .background(accent.copy(alpha = if (selected) 0.16f else 0.06f))
-            .border(1.dp, accent.copy(alpha = if (selected) 0.55f else 0.22f), RoundedCornerShape(999.dp))
-            .clickable(role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    GanjChoicePill(
+        text = label,
+        selected = selected,
+        onClick = onClick,
+        accent = MaterialTheme.colorScheme.primary,
+    )
 }
 
 @Composable
@@ -625,18 +612,7 @@ private fun WalletHeader(title: String, subtitle: String, onBack: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.58f))
-                .border(1.dp, LocalGanjGlassPalette.current.borderSoft.copy(alpha = 0.62f), RoundedCornerShape(999.dp))
-                .clickable(role = Role.Button, onClick = onBack)
-                .padding(horizontal = 14.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("بازگشت", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-        }
+        GanjBackPill(onClick = onBack)
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -658,7 +634,7 @@ private fun WalletLoadingCard(compact: Boolean = false) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+            GanjCompactSpinner(size = 22.dp)
             Text("در حال دریافت اطلاعات واقعی کیف پول…", style = MaterialTheme.typography.bodyMedium)
         }
     }
@@ -688,18 +664,14 @@ private fun WalletMessageCard(
 
 @Composable
 private fun WalletTextAction(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-    }
+    GanjGlassButton(
+        text = label,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        accent = MaterialTheme.colorScheme.primary,
+        filled = false,
+        shapeRadius = 16.dp,
+    )
 }
 
 private fun transactionTitle(type: WalletTransactionType): String = when (type) {

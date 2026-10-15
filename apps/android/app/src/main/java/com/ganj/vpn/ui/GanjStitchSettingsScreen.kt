@@ -233,6 +233,18 @@ internal fun StitchSettingsScreen(
         }
 
         SettingsSectionTitle("دسترس‌پذیری")
+        val effects = LocalGanjVisualEffectsPolicy.current
+        Text(
+            text = when {
+                preferences.reduceMotion -> "حرکت‌ها به انتخاب شما خاموش‌اند؛ برای فعال‌کردن، «کاهش حرکت» را خاموش کنید."
+                effects.reduceMotion -> "انیمیشن‌های اندروید خاموش‌اند؛ تنظیم حذف انیمیشن‌ها یا مقیاس انیمیشن را در تنظیمات گوشی بررسی کنید."
+                effects.tier == GanjEffectsTier.Reduced -> "انیمیشن‌ها فعال‌اند؛ افکت‌های شیشه‌ای در حالت سبک اجرا می‌شوند."
+                effects.tier == GanjEffectsTier.Balanced -> "انیمیشن‌ها فعال‌اند؛ مصرف افکت‌ها برای ذخیرهٔ باتری کاهش یافته است."
+                else -> "انیمیشن‌های برنامه فعال‌اند."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         GanjGlassSurface(
             role = GanjGlassRole.OpaqueFallback,
             accent = MaterialTheme.colorScheme.tertiary,
@@ -345,27 +357,7 @@ internal fun StitchSettingsEntry(
 
 @Composable
 private fun SettingsBackButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(999.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.58f))
-            .border(
-                1.dp,
-                LocalGanjGlassPalette.current.borderSoft.copy(alpha = 0.62f),
-                RoundedCornerShape(999.dp),
-            )
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "بازگشت",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
+    GanjBackPill(onClick = onClick)
 }
 
 @Composable
@@ -375,24 +367,13 @@ private fun ThemeChoice(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accent = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    val shape = RoundedCornerShape(999.dp)
-    Box(
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .clip(shape)
-            .background(accent.copy(alpha = if (selected) 0.16f else 0.06f))
-            .border(1.dp, accent.copy(alpha = if (selected) 0.58f else 0.24f), shape)
-            .clickable(role = Role.RadioButton, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-        )
-    }
+    GanjChoicePill(
+        text = label,
+        selected = selected,
+        onClick = onClick,
+        modifier = modifier,
+        accent = MaterialTheme.colorScheme.primary,
+    )
 }
 
 @Composable

@@ -69,6 +69,8 @@ class SubscriptionSelectionTest {
         compose.onNodeWithTag("selected-subscription").performScrollTo().assertTextContains("اول اشتراکتان را انتخاب کنید", substring = true).performClick()
         compose.onNodeWithTag("subscriptions-screen").assertExists()
         compose.onNodeWithText("۲۵٪", substring = true).assertExists()
+        val card = compose.onNodeWithTag("subscription-service-a").fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue("Subscription should be a compact row", card.height / compose.activity.resources.displayMetrics.density <= 170f)
         capture("subscriptions-dark")
         compose.onNodeWithTag("subscriptions-screen").performScrollToNode(hasTestTag("subscription-service-b"))
         compose.onNodeWithTag("subscription-service-b").performClick()
@@ -76,6 +78,8 @@ class SubscriptionSelectionTest {
         compose.onNodeWithTag("config-picker").assertExists()
         compose.onNodeWithTag("config-search").assertIsNotFocused()
         compose.onNodeWithTag("config-picker").performScrollToNode(hasTestTag("config-option-config-two"))
+        val row = compose.onNodeWithTag("config-option-config-two").fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue("Config row should stay compact", row.height / compose.activity.resources.displayMetrics.density <= 80f)
         capture("config-picker-dark")
         compose.onNodeWithTag("config-option-config-two").performScrollTo().performClick()
         compose.onNodeWithTag("config-picker").assertDoesNotExist()

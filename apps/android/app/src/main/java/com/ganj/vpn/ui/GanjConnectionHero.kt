@@ -7,24 +7,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -32,13 +28,12 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ganj.vpn.R
-import kotlin.math.PI
-import kotlin.math.sin
 
-/** Tunnel core: interrupted motion follows runtime truth, with no delayed state/action writes. */
+/** Circular reference control. Labels/time are inside the hit area; motion cannot create VPN state. */
 @Composable
 internal fun GanjConnectionHero(
     state: GanjConnectionVisualState,
@@ -48,185 +43,149 @@ internal fun GanjConnectionHero(
     selecting: Boolean,
     onClick: () -> Unit,
     preparing: Boolean = false,
+    duration: @Composable () -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
+    val dark = referenceDark()
     val effects = LocalGanjVisualEffectsPolicy.current
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
     val motion = lifecycle.isAtLeast(Lifecycle.State.STARTED) &&
         GanjDestinationMotionPolicy.shouldAnimate(effects.tier, effects.reduceMotion)
     val connected = state == GanjConnectionVisualState.Connected && !disconnecting && !selecting && !preparing
-    val recovering = state == GanjConnectionVisualState.Reconnecting
-    val busy = selecting || preparing || disconnecting || recovering || state == GanjConnectionVisualState.Connecting
     val failed = state == GanjConnectionVisualState.Failed
-    // A single bounded failure response; never shake continuously or under reduced motion.
-    val failureShake = remember { Animatable(0f) }
-    LaunchedEffect(failed, motion) {
-        failureShake.snapTo(0f)
-        if (failed && motion) failureShake.animateTo(0f, keyframes {
-            durationMillis = 400
-            -8f at 65
-            6f at 145
-            -3f at 230
-            1.5f at 310
-            0f at 400
-        })
-    }
+    val busy = selecting || preparing || disconnecting || state == GanjConnectionVisualState.Reconnecting || state == GanjConnectionVisualState.Connecting
     val caption = when {
         selecting -> stringResource(R.string.connection_selecting_config)
         disconnecting -> stringResource(R.string.connection_disconnecting_label)
         preparing -> stringResource(R.string.connection_preparing_label)
-        else -> title
+        connected -> stringResource(R.string.reference_connected)
+        failed -> stringResource(R.string.reference_failed)
+        busy -> title
+        else -> stringResource(R.string.reference_tap_connect)
     }
-    val subtitle = stringResource(when {
-        selecting -> R.string.connection_selecting_hint
-        disconnecting -> R.string.connection_disconnecting_hint
-        recovering -> R.string.connection_recovering_hint
-        connected -> R.string.connection_active_hint
-        busy -> R.string.connection_establishing_hint
-        failed -> R.string.connection_failed_hint
-        state == GanjConnectionVisualState.Unavailable -> R.string.subscription_choose_hint
-        else -> R.string.connection_idle_hint
-    })
-    val targetAccent = when {
-        failed -> colors.error
-        recovering -> colors.secondary
-        else -> colors.primary
+    val hint = when {
+        connected -> ""
+        selecting -> stringResource(R.string.connection_selecting_hint)
+        disconnecting -> stringResource(R.string.connection_disconnecting_hint)
+        busy -> stringResource(R.string.connection_establishing_hint)
+        failed -> stringResource(R.string.reference_tap_retry)
+        state == GanjConnectionVisualState.Unavailable -> stringResource(R.string.subscription_choose_hint)
+        else -> stringResource(R.string.reference_ready)
     }
-    val accent = animateColorAsState(targetAccent, tween(if (motion) GanjMotion.State else 0), label = "coreAccent")
-    val face = animateColorAsState(if (connected) colors.primary else colors.surface,
-        tween(if (motion) GanjMotion.Confirmation else 0), label = "coreFace")
-    val ink = animateColorAsState(if (connected) colors.onPrimary else targetAccent,
-        tween(if (motion) GanjMotion.State else 0), label = "coreInk")
-    val activation = animateFloatAsState(if (connected) 1f else 0f,
-        tween(if (motion) GanjMotion.Confirmation else 0, easing = FastOutSlowInEasing), label = "coreSeal")
-    val contraction = animateFloatAsState(if (disconnecting) 1f else 0f,
-        tween(if (motion) GanjMotion.State else 0), label = "coreRelease")
+    val topTarget = when {
+        failed -> if (dark) GanjReference.PowerErrorTop else colors.errorContainer
+        connected -> GanjReference.PowerOnTop
+        else -> GanjReference.PowerOffTop
+    }
+    val bottomTarget = when {
+        failed -> if (dark) GanjReference.PowerErrorBottom else colors.errorContainer
+        connected -> GanjReference.PowerOnBottom
+        else -> GanjReference.PowerOffBottom
+    }
+    val top = animateColorAsState(topTarget, tween(if (motion) 520 else 0), label = "powerFaceTop")
+    val bottom = animateColorAsState(bottomTarget, tween(if (motion) 520 else 0), label = "powerFaceBottom")
+    val accentTarget = when { failed -> colors.error; busy -> GanjReference.Gold; else -> GanjReference.Emerald }
+    val accent = animateColorAsState(accentTarget, tween(if (motion) 300 else 0), label = "powerRim")
+    val cycle: State<Float> = if (busy && motion) {
+        rememberInfiniteTransition(label = "powerWork").animateFloat(0f, 360f,
+            infiniteRepeatable(tween(1800, easing = LinearEasing)), label = "powerArc")
+    } else remember { mutableFloatStateOf(0f) }
+    val breath: State<Float> = if (motion && !busy && !failed) {
+        rememberInfiniteTransition(label = "powerAmbient").animateFloat(.45f, .85f,
+            infiniteRepeatable(tween(if(connected)2250 else 2500), androidx.compose.animation.core.RepeatMode.Reverse), label = "powerBreath")
+    } else remember { mutableFloatStateOf(.65f) }
+    val shake = remember { Animatable(0f) }
+    val confirmation = remember { Animatable(1f) }
+    var previousConnected by remember { mutableStateOf(connected) }
+    LaunchedEffect(failed, motion) {
+        shake.snapTo(0f)
+        if (failed && motion) shake.animateTo(0f, keyframes {
+            durationMillis = 440; -5f at 70; 5f at 145; -3f at 230; 2f at 310; 0f at 440
+        })
+    }
+    LaunchedEffect(connected, motion) {
+        val run = connected && !previousConnected && motion
+        previousConnected = connected
+        if (run) { confirmation.snapTo(0f); confirmation.animateTo(1f, tween(850)) }
+        else confirmation.snapTo(1f)
+    }
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val press = animateFloatAsState(if (pressed && motion && !busy) 1f else 0f,
-        if (motion) spring(0.82f, 650f) else snap(), label = "corePress")
-    // A nonlinear pair of arcs conveys ongoing work; sweep is not a completion percentage.
-    val cycle: State<Float> = if (busy && motion && effects.tier != GanjEffectsTier.Reduced) {
-        rememberInfiniteTransition(label = "tunnelWork").animateFloat(0f, 1f,
-            infiniteRepeatable(tween(GanjMotion.WorkCycle, easing = LinearEasing)), label = "tunnelArcPhase")
-    } else remember { mutableFloatStateOf(0.18f) }
-    val ripple = remember { Animatable(1f) }
-    var previousConnected by remember { mutableStateOf(connected) }
-    LaunchedEffect(connected, motion) {
-        val confirm = connected && !previousConnected && motion
-        previousConnected = connected
-        if (confirm) {
-            ripple.snapTo(0f)
-            ripple.animateTo(1f, tween(GanjMotion.Confirmation, easing = LinearOutSlowInEasing))
-        } else ripple.snapTo(1f)
-    }
+    val press = animateFloatAsState(if (pressed && motion) .97f else 1f,
+        if (motion) spring(.88f, 700f) else snap(), label = "powerPress")
     val haptic = LocalHapticFeedback.current
-    Column(Modifier.fillMaxWidth().testTag("connection-hero"),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GanjSecurityIcon(targetAccent, Modifier.size(20.dp))
-            Text(caption, color = colors.onSurface, style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f, fill = false).semantics { liveRegion = LiveRegionMode.Polite })
-        }
-        Box(Modifier.size(244.dp).graphicsLayer {
-            translationX = failureShake.value.dp.toPx()
-        }, contentAlignment = Alignment.Center) {
+    val fontScale = LocalDensity.current.fontScale
+    BoxWithConstraints(Modifier.fillMaxWidth().testTag("connection-hero"), contentAlignment = Alignment.Center) {
+        val size = minOf(maxWidth, if (fontScale >= 1.5f) 302.dp else 250.dp)
+        val face = size - 38.dp
+        Box(Modifier.size(size), contentAlignment = Alignment.Center) {
             Canvas(Modifier.matchParentSize()) {
+                val stroke = Stroke(1.dp.toPx())
                 val c = accent.value
-                val active = activation.value
-                val shrink = 1f - contraction.value * 0.10f
-                val inset = 10.dp.toPx() + contraction.value * 10.dp.toPx()
-                val origin = Offset(inset, inset)
-                val bounds = Size(size.width - 2 * inset, size.height - 2 * inset)
-                if (!effects.reduceTransparency) drawCircle(
-                    Brush.radialGradient(listOf(c.copy(alpha = 0.09f + active * 0.04f), Color.Transparent)),
-                    radius = size.minDimension / 2)
-                // Static broken perimeter makes the control recognisable even without motion.
-                repeat(4) { quadrant ->
-                    drawArc(c.copy(alpha = 0.18f), quadrant * 90f + 12f, 66f, false, origin, bounds,
+                if (failed) repeat(3) { i -> drawArc(c.copy(alpha = .75f), i * 120f + 10f, 102f, false,
+                    topLeft = androidx.compose.ui.geometry.Offset(6.dp.toPx(), 6.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(this.size.width - 12.dp.toPx(), this.size.height - 12.dp.toPx()), style = stroke) }
+                else drawCircle(c.copy(alpha = if (connected) .48f else .20f), radius = this.size.minDimension / 2 - 6.dp.toPx(), style = stroke)
+                drawCircle(c.copy(alpha = .20f), radius = this.size.minDimension / 2 - 14.dp.toPx(), style = stroke)
+                if (!busy && !failed) drawArc(GanjReference.Gold.copy(alpha=breath.value), -125f, 80f, false,
+                    androidx.compose.ui.geometry.Offset(6.dp.toPx(),6.dp.toPx()),
+                    androidx.compose.ui.geometry.Size(this.size.width-12.dp.toPx(),this.size.height-12.dp.toPx()),
+                    style=Stroke(1.2.dp.toPx(),cap=StrokeCap.Round))
+                if (busy) {
+                    drawArc(GanjReference.Gold, cycle.value - 35f, 105f, false,
+                        androidx.compose.ui.geometry.Offset(6.dp.toPx(), 6.dp.toPx()),
+                        androidx.compose.ui.geometry.Size(this.size.width - 12.dp.toPx(), this.size.height - 12.dp.toPx()),
+                        style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+                    drawArc(GanjReference.Emerald, -cycle.value + 120f, 80f, false,
+                        androidx.compose.ui.geometry.Offset(14.dp.toPx(), 14.dp.toPx()),
+                        androidx.compose.ui.geometry.Size(this.size.width - 28.dp.toPx(), this.size.height - 28.dp.toPx()),
                         style = Stroke(1.5.dp.toPx(), cap = StrokeCap.Round))
                 }
-                if (busy) {
-                    val phase = cycle.value
-                    val wave = (sin(phase * 2 * PI).toFloat() + 1f) / 2f
-                    val direction = if (disconnecting) -1f else 1f
-                    val angle = direction * (phase * 360f + wave * 24f) - 90f
-                    val sweep = if (preparing) 30f + wave * 35f else 40f + wave * 85f
-                    drawArc(c, angle, sweep * shrink, false, origin, bounds,
-                        style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
-                    drawArc(c.copy(alpha = 0.35f), angle + 180f, 35f + (1f - wave) * 45f,
-                        false, origin, bounds, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
-                } else if (active > 0f) {
-                    repeat(4) { quadrant -> drawArc(c.copy(alpha = active * 0.75f),
-                        quadrant * 90f + 12f, 66f * active, false, origin, bounds,
-                        style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round)) }
-                }
-                if (connected && ripple.value < 1f) drawCircle(c.copy(alpha = (1f - ripple.value) * 0.28f),
-                    radius = size.minDimension * (0.34f + ripple.value * 0.15f),
-                    style = Stroke(2.dp.toPx()))
+                if (connected && confirmation.value < 1f) drawCircle(c.copy(alpha = (1f - confirmation.value) * .5f),
+                    radius = this.size.minDimension * (.40f + confirmation.value * .1f), style = Stroke(1.5.dp.toPx()))
+                drawCircle(if (failed) colors.error else GanjReference.Gold, 2.dp.toPx(),
+                    center = androidx.compose.ui.geometry.Offset(center.x, this.size.height - 2.dp.toPx()))
             }
-            val shape = remember { RoundedCornerShape(40.dp) }
-            Box(Modifier.size(164.dp).graphicsLayer {
-                scaleX = 1f - press.value * 0.04f - contraction.value * 0.025f
-                scaleY = 1f - press.value * 0.035f - contraction.value * 0.025f
-                rotationZ = -2f * press.value
-                translationY = press.value * 2.dp.toPx()
-            }.shadow(if (effects.tier == GanjEffectsTier.Reduced) 0.dp else 10.dp, shape, clip = false)
-                .clip(shape).testTag("connect-action")
+            Box(Modifier.size(face).graphicsLayer {
+                scaleX = press.value; scaleY = press.value; translationX = shake.value.dp.toPx()
+            }.clip(CircleShape).testTag("connect-action")
                 .semantics { contentDescription = if (busy) caption else action; stateDescription = caption }
                 .clickable(enabled = !busy, interactionSource = interaction, indication = null, role = Role.Button,
-                    onClick = {
-                        if (!effects.reduceMotion) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onClick()
-                    })) {
+                    onClick = { if (!effects.reduceMotion) haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClick() }),
+                contentAlignment = Alignment.Center) {
                 Canvas(Modifier.matchParentSize()) {
-                    val base = face.value
-                    val seal = activation.value
-                    drawRoundRect(base, cornerRadius = CornerRadius(40.dp.toPx()))
+                    drawCircle(Brush.linearGradient(listOf(top.value, bottom.value)))
                     if (!effects.reduceTransparency) {
-                        drawRoundRect(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.20f),
-                            Color.Transparent, accent.value.copy(alpha = 0.09f))), cornerRadius = CornerRadius(40.dp.toPx()))
-                        drawRoundRect(colors.outline.copy(alpha = 0.18f), Offset(1.dp.toPx(), 1.dp.toPx()),
-                            Size(size.width - 2.dp.toPx(), size.height - 2.dp.toPx()), CornerRadius(39.dp.toPx()),
-                            style = Stroke(1.dp.toPx()))
+                        drawCircle(Brush.radialGradient(listOf(Color(0xFFB2FFD8).copy(alpha = .22f), Color.Transparent),
+                            center = androidx.compose.ui.geometry.Offset(this.size.width * .2f, 0f), radius = this.size.width * .9f))
+                        drawOval(Color.White.copy(alpha = .055f), topLeft = androidx.compose.ui.geometry.Offset(-this.size.width * .15f, -this.size.height * .32f),
+                            size = androidx.compose.ui.geometry.Size(this.size.width * 1.3f, this.size.height * .65f))
                     }
-                    val w = size.width
-                    val h = size.height
-                    val line = 4.dp.toPx()
-                    val icon = ink.value
-                    if (seal < 1f) {
-                        drawArc(icon.copy(alpha = 1f - seal), -42f, 264f, false,
-                            Offset(w * 0.32f, h * 0.32f), Size(w * 0.36f, h * 0.36f),
-                            style = Stroke(line, cap = StrokeCap.Round))
-                        drawLine(icon.copy(alpha = 1f - seal), Offset(w * 0.5f, h * 0.26f),
-                            Offset(w * 0.5f, h * 0.48f), line, cap = StrokeCap.Round)
-                    }
-                    if (seal > 0f) {
-                        val shield = Path().apply {
-                            moveTo(w * 0.5f, h * 0.23f)
-                            lineTo(w * 0.73f, h * 0.33f)
-                            cubicTo(w * 0.73f, h * 0.59f, w * 0.68f, h * 0.70f, w * 0.5f, h * 0.79f)
-                            cubicTo(w * 0.32f, h * 0.70f, w * 0.27f, h * 0.59f, w * 0.27f, h * 0.33f)
-                            close()
+                    drawCircle(if (failed) Color(0xFFF3908C) else Color(0xFFB8C887), radius = this.size.minDimension/2 - .7.dp.toPx(), style = Stroke(1.dp.toPx()))
+                    drawCircle(Color.White.copy(alpha = .10f), radius = this.size.minDimension/2 - 6.dp.toPx(), style = Stroke(.7.dp.toPx()))
+                }
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Canvas(Modifier.size(42.dp).graphicsLayer { alpha=if(!busy && !failed && !connected) .7f+breath.value*.3f else 1f }) {
+                        val ink = if (failed && !dark) colors.onErrorContainer else Color(0xFFE2F9EC)
+                        val line = 2.4.dp.toPx()
+                        if (failed) {
+                            drawCircle(ink, this.size.minDimension * .35f, style = Stroke(line))
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(this.size.width * .38f, this.size.height * .38f), androidx.compose.ui.geometry.Offset(this.size.width * .62f, this.size.height * .62f), line, StrokeCap.Round)
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(this.size.width * .62f, this.size.height * .38f), androidx.compose.ui.geometry.Offset(this.size.width * .38f, this.size.height * .62f), line, StrokeCap.Round)
+                        } else {
+                            drawArc(ink, -42f, 264f, false, androidx.compose.ui.geometry.Offset(this.size.width * .16f, this.size.height * .16f),
+                                androidx.compose.ui.geometry.Size(this.size.width * .68f, this.size.height * .68f), style = Stroke(line, cap = StrokeCap.Round))
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(this.size.width * .5f, this.size.height * .08f), androidx.compose.ui.geometry.Offset(this.size.width * .5f, this.size.height * .46f), line, StrokeCap.Round)
                         }
-                        drawPath(shield, icon.copy(alpha = seal), style = Stroke(2.5.dp.toPx()))
-                        val p1 = Offset(w * 0.39f, h * 0.51f)
-                        val p2 = Offset(w * 0.47f, h * 0.59f)
-                        val p3 = Offset(w * 0.63f, h * 0.42f)
-                        drawLine(icon.copy(alpha = seal), p1, Offset(p1.x + (p2.x - p1.x) * seal,
-                            p1.y + (p2.y - p1.y) * seal), line, cap = StrokeCap.Round)
-                        drawLine(icon.copy(alpha = seal), p2, Offset(p2.x + (p3.x - p2.x) * seal,
-                            p2.y + (p3.y - p2.y) * seal), line, cap = StrokeCap.Round)
                     }
+                    Text(caption, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 22.sp),
+                        color = if (failed && !dark) colors.onErrorContainer else Color(0xFFF0FFF4), fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center)
+                    if (connected) duration() else Text(hint, style = MaterialTheme.typography.labelSmall,
+                        color = if (failed && !dark) colors.onErrorContainer else Color(0xFFC0E8D2), textAlign = TextAlign.Center)
                 }
             }
         }
-        Text(if (busy) caption else action, style = MaterialTheme.typography.headlineSmall,
-            color = colors.onSurface, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().clearAndSetSemantics {})
-        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp))
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -49,7 +50,6 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -129,9 +129,22 @@ internal fun StitchConnectionScreen(
             .testTag("connection-screen")
             .verticalScroll(rememberScrollState())
             .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         StitchBrandHeader(premium = hasPremium, onOpenStore = onOpenStore, onOpenNotifications = onOpenNotifications)
+        val statusColor = when (visualState) {
+            GanjConnectionVisualState.Connected -> MaterialTheme.colorScheme.primary
+            GanjConnectionVisualState.Failed -> MaterialTheme.colorScheme.error
+            GanjConnectionVisualState.Connecting, GanjConnectionVisualState.Reconnecting -> StitchGoldBright
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
+        Row(Modifier.fillMaxWidth().padding(top=8.dp),horizontalArrangement=Arrangement.Center,
+            verticalAlignment=Alignment.CenterVertically) {
+            Box(Modifier.size(6.dp).background(statusColor,CircleShape))
+            Spacer(Modifier.width(7.dp))
+            Text(if(disconnecting) stringResource(R.string.connection_disconnecting_label) else connectionTitle(visualState),
+                style=MaterialTheme.typography.bodySmall,color=statusColor)
+        }
         GanjConnectionHero(
             state = visualState,
             action = if (switchingSelection) stringResource(R.string.connection_switch_selection) else connectionAction(visualState),
@@ -139,6 +152,7 @@ internal fun StitchConnectionScreen(
             disconnecting = disconnecting,
             selecting = smartBusy,
             preparing = preparing,
+            duration = { GanjSessionDurationInline(state.runtimeConnection, sessionTimer) },
             onClick = {
                 when {
                     connection is ConnectionUiState.Connected && !switchingSelection -> onDisconnect()
@@ -147,6 +161,10 @@ internal fun StitchConnectionScreen(
                 }
             },
         )
+        if (visualState == GanjConnectionVisualState.Connected && state.runtimeConnection.connectedAtEpochMillis == null) {
+            Text(stringResource(R.string.connection_duration_unknown),modifier=Modifier.fillMaxWidth(),
+                style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,textAlign=TextAlign.Center)
+        }
         if (visualState == GanjConnectionVisualState.Failed) {
             GanjGlassSurface(
                 role = GanjGlassRole.Dense,
@@ -182,21 +200,7 @@ internal fun StitchConnectionScreen(
                 }
             }
         }
-        GanjConnectionTelemetry(state.runtimeConnection, sessionTimer, ping, pingBusy)
-        reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (pingKey != null && latency != null) StitchMiniAction(
-            enabled = !pingBusy,
-            text = stringResource(if (pingBusy) R.string.ping_measuring else R.string.ping_selected),
-            accent = MaterialTheme.colorScheme.primary,
-            onClick = { if (!pingBusy) latency?.measure(pingKey.serviceId, listOf(pingKey.serverId)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        pingFailure?.let { failure ->
-            Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            ConnectionFailureDetails(failure)
-        }
+
         if (smartBusy) LoadingCard(stringResource(R.string.connection_selecting_config))
         smartFailure?.let { failure ->
             Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall)
@@ -233,16 +237,18 @@ internal fun StitchConnectionScreen(
                 }
             },
         )
-        GanjGlassSurface(role = GanjGlassRole.OpaqueFallback, modifier = Modifier.fillMaxWidth().testTag("selected-subscription")
-            .clickable(role = Role.Button, onClick = onOpenSubscriptions).padding(2.dp), shapeRadius = 22.dp) {
-            Text(stringResource(R.string.subscription_selected_label), style = MaterialTheme.typography.labelSmall,
+        StitchReferenceSelection(
+            service=service,server=displayedServer,ping=ping,pingBusy=pingBusy,
+            onOpenSubscriptions=onOpenSubscriptions,onOpenServers=onOpenServers,
+            onMeasure=if(pingKey!=null && latency!=null) ({latency.measure(pingKey.serviceId,listOf(pingKey.serverId))}) else null,
+        )
+        reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        pingFailure?.let { failure ->
+            Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(service?.let { subscriptionUsername(it) } ?: stringResource(R.string.subscription_choose_first),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(stringResource(R.string.subscription_change), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary)
+            ConnectionFailureDetails(failure)
         }
-        StitchSelectedServerCard(server = displayedServer, hasSubscription = service != null, onOpenServers = onOpenServers)
         if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
@@ -253,30 +259,26 @@ internal fun StitchConnectionScreen(
 private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit, onOpenNotifications: (() -> Unit)?) {
     val largeText = LocalDensity.current.fontScale >= 1.3f
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        onOpenNotifications?.let { handler ->
-            TextButton(onClick = handler, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
-                Text(stringResource(R.string.connection_notifications))
-            }
-        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
+                Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
                     .border(1.dp, StitchGold.copy(alpha = 0.48f), RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center) {
                     Image(painterResource(R.drawable.ganj_logo_official), contentDescription = "نشان گنج VPN",
-                        modifier = Modifier.size(38.dp))
+                        modifier = Modifier.size(28.dp))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("گنج VPN", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                    Text("GANJ VPN", style = MaterialTheme.typography.titleLarge.copy(letterSpacing=2.sp), fontWeight = FontWeight.Bold,
                         color = StitchEmeraldGlow, modifier = Modifier.fillMaxWidth())
                     Text("ارتباط امن، کنترل ساده", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
                 }
             }
+            onOpenNotifications?.let { handler -> GanjReferenceNotificationButton(handler) }
             if (!largeText) {
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 StitchHeaderUpgrade(premium, onOpenStore)
             }
         }
@@ -286,102 +288,96 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit, onOpenN
 
 @Composable
 private fun StitchHeaderUpgrade(premium: Boolean, onOpenStore: () -> Unit, modifier: Modifier = Modifier) {
-    GanjGlassSurface(role = GanjGlassRole.Clear, accent = StitchGold, shapeRadius = 999.dp,
-        padding = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
-        modifier = modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onOpenStore)) {
-        Text(if (premium) "پریمیوم" else "ارتقا", color = StitchGoldBright,
-            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-    }
+    GanjGlassButton(if(premium) "پریمیوم" else "ارتقا",onOpenStore,modifier=modifier,
+        filled=false,accent=StitchGold,contentColor=StitchGoldBright,shapeRadius=8.dp)
 }
 
 @Composable
-private fun StitchSelectedServerCard(server: ConnectionServer?, hasSubscription: Boolean, onOpenServers: () -> Unit) {
-    val identity = remember(server) { server?.let { ganjConfigIdentity(it.name, it.countryCode) } }
-    GanjGlassSurface(role = GanjGlassRole.Dense, accent = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth().testTag("selected-config")
-            .clickable(role = Role.Button, onClick = onOpenServers),
-        shapeRadius = 22.dp, padding = PaddingValues(16.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            GanjConfigFlagBadge(identity?.countryCode, server != null, Modifier.testTag("selected-config-flag"))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.connection_selected_config), style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(identity?.title ?: stringResource(if (hasSubscription) R.string.config_choose else R.string.subscription_choose_first),
-                    style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                server?.let {
-                    Text("${countryName(it.countryCode)} • ${it.protocols.joinToString(" / ") { protocol -> protocol.name }}",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+private fun StitchReferenceSelection(
+    service: ServiceUiModel?, server: ConnectionServer?, ping: Long?, pingBusy: Boolean,
+    onOpenSubscriptions: () -> Unit, onOpenServers: () -> Unit, onMeasure: (() -> Unit)?,
+) {
+    val identity=remember(server){server?.let{ganjConfigIdentity(it.name,it.countryCode)}}
+    val muted=MaterialTheme.colorScheme.onSurfaceVariant
+    val large=LocalDensity.current.fontScale>=1.5f
+    val pingDescription=stringResource(if(pingBusy)R.string.ping_measuring else R.string.ping_selected)
+    val shape=RoundedCornerShape(14.dp)
+    Column(Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface)
+        .border(1.dp,MaterialTheme.colorScheme.outlineVariant,shape)) {
+        Row(Modifier.fillMaxWidth().testTag("selected-subscription")
+            .clickable(role=Role.Button,onClick=onOpenSubscriptions).heightIn(min=52.dp).padding(horizontal=12.dp,vertical=6.dp),
+            horizontalArrangement=Arrangement.spacedBy(9.dp),verticalAlignment=Alignment.CenterVertically) {
+            GanjNavigationIcon(GanjDestination.Servers,StitchGoldBright,Modifier.size(17.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.subscription_selected_label),style=MaterialTheme.typography.labelSmall,color=muted)
+                Text(service?.let{subscriptionUsername(it)}?:stringResource(R.string.subscription_choose_first),
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurface)
             }
+            Text("تغییر",style=MaterialTheme.typography.labelSmall,color=StitchGoldBright)
         }
-        Text(stringResource(R.string.connection_change_config), style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+        androidx.compose.material3.HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
+        Row(Modifier.fillMaxWidth().testTag("selected-config").clickable(role=Role.Button,onClick=onOpenServers)
+            .heightIn(min=64.dp).padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            GanjConfigFlagBadge(identity?.countryCode,server!=null,
+                Modifier.size(if(large)76.dp else 44.dp,if(large)50.dp else 30.dp).testTag("selected-config-flag"))
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                Text(identity?.title?:stringResource(if(service!=null)R.string.config_choose else R.string.subscription_choose_first),
+                    style=MaterialTheme.typography.bodySmall,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurface,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                server?.let { Text("${countryName(it.countryCode)} • ${it.protocols.joinToString(" / "){p->p.name}}",
+                    style=MaterialTheme.typography.labelSmall,color=muted) }
+            }
+            if(onMeasure!=null) Box(Modifier.sizeIn(minWidth=48.dp,minHeight=48.dp)
+                .semantics { contentDescription = pingDescription }.clip(RoundedCornerShape(8.dp))
+                .clickable(enabled=!pingBusy,role=Role.Button,onClick=onMeasure).padding(6.dp),contentAlignment=Alignment.Center) {
+                Text(if(pingBusy) "…" else persianTechnicalMetric(ping?.toString()?:"—","ms"),
+                    style=MaterialTheme.typography.labelSmall,color=StitchGoldBright)
+            } else Text("‹",style=MaterialTheme.typography.titleMedium,color=muted)
+        }
     }
 }
 
 @Composable
 private fun StitchSmartConnectCard(activeSubscription: Boolean, busy: Boolean, onClick: () -> Unit) {
-    val emphasis by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (activeSubscription && !busy) 0.22f else 0.10f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 220),
-        label = "smartConnectGoldEmphasis",
-    )
-    GanjGlassSurface(
-        role = GanjGlassRole.Prominent,
-        accent = StitchGold,
-        modifier = Modifier.fillMaxWidth().testTag("smart-connect-card"),
-        shapeRadius = 22.dp,
-        padding = PaddingValues(16.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(StitchGold.copy(alpha = emphasis))
-                        .border(1.dp, StitchGold.copy(alpha = 0.42f), RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    GanjNavigationIcon(
-                        destination = GanjDestination.Connect,
-                        tint = StitchGold,
-                        modifier = Modifier.size(25.dp),
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "اتصال هوشمند",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = "انتخاب سریع‌ترین کانفیگ همین اشتراک",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                    )
-                }
+    val effects = LocalGanjVisualEffectsPolicy.current
+    val dark = referenceDark()
+    val shape = RoundedCornerShape(12.dp)
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val sheen = remember { androidx.compose.animation.core.Animatable(-.4f) }
+    LaunchedEffect(activeSubscription, effects.reduceMotion) {
+        if (activeSubscription && !effects.reduceMotion) {
+            sheen.snapTo(-.4f)
+            sheen.animateTo(1.4f, androidx.compose.animation.core.tween(1200))
+        }
+    }
+    Box(Modifier.fillMaxWidth().testTag("smart-connect-card").clip(shape)
+        .background(Brush.linearGradient(if (dark) listOf(GanjReference.GoldTop, GanjReference.GoldBottom) else listOf(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.surface)))
+        .border(1.dp, LocalGanjContentPalette.current.premiumText.copy(alpha=.7f),shape)
+        .clickable(enabled=!busy, interactionSource=interaction, indication=null, role=Role.Button,onClick=onClick)) {
+        if(!effects.reduceTransparency) androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+            val x = size.width*sheen.value
+            drawRect(Brush.linearGradient(listOf(Color.Transparent,Color.White.copy(alpha=.14f),Color.Transparent),
+                start=androidx.compose.ui.geometry.Offset(x-size.width*.2f,0f),end=androidx.compose.ui.geometry.Offset(x+size.width*.2f,size.height)))
+        }
+        val largeText=LocalDensity.current.fontScale>=1.3f
+        val title=if(busy) "در حال بررسی…" else "اتصال هوشمند"
+        val detail=if(activeSubscription) "انتخاب بهترین سرور" else "انتخاب اشتراک"
+        val titleInk=if(dark)Color(0xFFFFF0C7) else MaterialTheme.colorScheme.onSurface
+        val detailInk=if(dark)Color(0xFFE4D0A3) else MaterialTheme.colorScheme.onSurfaceVariant
+        if(largeText) Column(Modifier.fillMaxWidth().heightIn(min=55.dp).padding(horizontal=14.dp,vertical=12.dp),
+            verticalArrangement=Arrangement.spacedBy(5.dp)) {
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                if(busy) GanjCompactSpinner(accent=StitchGoldBright,size=20.dp)
+                else GanjNavigationIcon(GanjDestination.Connect,StitchGoldBright,Modifier.size(20.dp))
+                Text(title,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold,color=titleInk)
             }
-            TextButton(onClick = onClick, enabled = !busy, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text(
-                    text = if (busy) "در حال بررسی…" else if (activeSubscription) "اتصال سریع" else "انتخاب اشتراک",
-                    color = StitchGoldBright,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            Text(detail,style=MaterialTheme.typography.labelSmall,color=detailInk)
+        } else Row(Modifier.fillMaxWidth().heightIn(min=55.dp).padding(horizontal=14.dp,vertical=12.dp),
+            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            if(busy) GanjCompactSpinner(accent=StitchGoldBright,size=20.dp)
+            else GanjNavigationIcon(GanjDestination.Connect,StitchGoldBright,Modifier.size(20.dp))
+            Text(title,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold,color=titleInk)
+            Text(detail,style=MaterialTheme.typography.labelSmall,color=detailInk)
         }
     }
 }

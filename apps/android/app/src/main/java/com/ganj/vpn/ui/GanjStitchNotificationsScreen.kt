@@ -357,20 +357,14 @@ private fun NotificationSecondaryAction(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    GanjGlassSurface(
-        role = GanjGlassRole.Clear,
-        modifier = modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick),
-        padding = PaddingValues(horizontal = 12.dp, vertical = 11.dp),
-        shapeRadius = 999.dp,
-    ) {
-        Text(
-            text,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    GanjGlassButton(
+        text = text,
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        accent = MaterialTheme.colorScheme.primary,
+        filled = false,
+    )
 }
 
 internal fun notificationKindLabel(kind: NotificationKind): String = when (kind) {
