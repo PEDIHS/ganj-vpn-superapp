@@ -22,8 +22,8 @@ import androidx.compose.ui.unit.sp
 internal val GanjEmerald = Color(0xFF087F68)
 internal val GanjEmeraldBright = Color(0xFF52DF9C)
 internal val GanjEmeraldDeep = Color(0xFF064C38)
-internal val GanjGold = Color(0xFFC9992D)
-internal val GanjGoldBright = Color(0xFFF1CE74)
+internal val GanjGold = GanjReference.Gold
+internal val GanjGoldBright = GanjReference.Gold
 internal val GanjJade = Color(0xFF3AA58D)
 internal val GanjDanger = Color(0xFFD94A4A)
 internal val GanjWarning = Color(0xFFE0A33C)

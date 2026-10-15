@@ -90,6 +90,10 @@ internal fun GanjConnectionHero(
         rememberInfiniteTransition(label = "powerWork").animateFloat(0f, 360f,
             infiniteRepeatable(tween(1800, easing = LinearEasing)), label = "powerArc")
     } else remember { mutableFloatStateOf(0f) }
+    val breath: State<Float> = if (motion && !busy && !failed) {
+        rememberInfiniteTransition(label = "powerAmbient").animateFloat(.45f, .85f,
+            infiniteRepeatable(tween(if(connected)2250 else 2500), androidx.compose.animation.core.RepeatMode.Reverse), label = "powerBreath")
+    } else remember { mutableFloatStateOf(.65f) }
     val shake = remember { Animatable(0f) }
     val confirmation = remember { Animatable(1f) }
     var previousConnected by remember { mutableStateOf(connected) }
@@ -123,6 +127,10 @@ internal fun GanjConnectionHero(
                     size = androidx.compose.ui.geometry.Size(this.size.width - 12.dp.toPx(), this.size.height - 12.dp.toPx()), style = stroke) }
                 else drawCircle(c.copy(alpha = if (connected) .48f else .20f), radius = this.size.minDimension / 2 - 6.dp.toPx(), style = stroke)
                 drawCircle(c.copy(alpha = .20f), radius = this.size.minDimension / 2 - 14.dp.toPx(), style = stroke)
+                if (!busy && !failed) drawArc(GanjReference.Gold.copy(alpha=breath.value), -125f, 80f, false,
+                    androidx.compose.ui.geometry.Offset(6.dp.toPx(),6.dp.toPx()),
+                    androidx.compose.ui.geometry.Size(this.size.width-12.dp.toPx(),this.size.height-12.dp.toPx()),
+                    style=Stroke(1.2.dp.toPx(),cap=StrokeCap.Round))
                 if (busy) {
                     drawArc(GanjReference.Gold, cycle.value - 35f, 105f, false,
                         androidx.compose.ui.geometry.Offset(6.dp.toPx(), 6.dp.toPx()),
@@ -158,7 +166,7 @@ internal fun GanjConnectionHero(
                 }
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Canvas(Modifier.size(42.dp)) {
+                    Canvas(Modifier.size(42.dp).graphicsLayer { alpha=if(!busy && !failed && !connected) .7f+breath.value*.3f else 1f }) {
                         val ink = if (failed && !dark) colors.onErrorContainer else Color(0xFFE2F9EC)
                         val line = 2.4.dp.toPx()
                         if (failed) {

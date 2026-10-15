@@ -40,11 +40,13 @@ class GanjReferenceFidelityTest {
                 }
             }
         } }
+        capture("reference-store-top-dark")
         compose.onNodeWithTag("bot-product-reference:reference-premium").performScrollTo().performClick()
         compose.onNodeWithTag("bot-buy-reference:reference-premium").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(plans[0].purchaseUrl,opened) }
         capture("reference-store-dark")
         compose.onNodeWithTag("vip-upgrade-entry").performScrollTo().performClick()
+        capture("reference-vip-top-dark")
         compose.onNodeWithTag("bot-product-reference:reference-vip").performScrollTo().performClick()
         compose.onNodeWithTag("bot-buy-reference:reference-vip").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(plans[1].purchaseUrl,opened) }

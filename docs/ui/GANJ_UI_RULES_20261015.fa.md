@@ -145,3 +145,5 @@ This document extends the canonical brand and liquid-glass standards.
 - Screenshots from the actual Android renderer (Connect/off/on/error, wave navigation, Store,
   VIP, Profile and large text) must be inspected before publication. A passing build alone is
   not evidence that the approved visual has been faithfully implemented.
+
+- Power ambient fidelity: a low amplitude 4.5–5s thin gold arc/idle icon breath is allowed only while foregrounded and motion policy permits it, matching the approved preview. It conveys no VPN progress. Disable it with reduced motion; genuine pending work retains the distinct rotating arcs. Shared gold is exactly `#E0BE79`, including secondary buttons and premium text.

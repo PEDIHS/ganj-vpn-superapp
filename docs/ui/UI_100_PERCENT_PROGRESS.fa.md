@@ -1084,3 +1084,5 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Overall UI completion: 196/492 = 39.8% (calculator; no Final Gate claim).
 
 - Fidelity follow-up: subscription and selected server share the reference 14dp panel; real measured latency remains inside it. The brand header and status line match the compact reference hierarchy. API200% flag allocation remains 76×50dp; normal reference allocation is 52×35dp. Preview/review jobs now produce a fresh provenance-verified pinned runtime instead of requesting an expired artifact. Final execution evidence pending.
+
+- Final fidelity refinement: shared gold now uses the exact reference token; the foreground power control has the reference subtle idle/connected breath, with reduced-motion/lifecycle gates. Native review includes Store/VIP header captures as well as selected-order views. No checklist completion claim before execution.
