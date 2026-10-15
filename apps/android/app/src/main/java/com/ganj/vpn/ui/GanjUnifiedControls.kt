@@ -16,6 +16,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -257,15 +258,17 @@ internal fun GanjQuickActionTile(
     subtitle: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     accent: Color = MaterialTheme.colorScheme.primary,
     marker: String = "›",
+    leading: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val effects = LocalGanjVisualEffectsPolicy.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val animate = GanjDestinationMotionPolicy.shouldAnimate(effects.tier, effects.reduceMotion)
     val scale by animateFloatAsState(
-        if (animate && pressed) 0.975f else 1f,
+        if (animate && pressed && enabled) 0.975f else 1f,
         if (animate) spring(dampingRatio = 0.9f, stiffness = 780f) else snap(),
         label = "ganjQuickActionScale",
     )
@@ -291,6 +294,7 @@ internal fun GanjQuickActionTile(
             .clickable(
                 interactionSource = interaction,
                 indication = null,
+                enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,
             )
@@ -301,16 +305,25 @@ internal fun GanjQuickActionTile(
         Box(
             Modifier
                 .size(38.dp)
-                .background(accent.copy(alpha = 0.13f), CircleShape)
-                .border(1.dp, accent.copy(alpha = 0.28f), CircleShape),
+                .background(accent.copy(alpha = if (enabled) 0.13f else 0.05f), CircleShape)
+                .border(1.dp, accent.copy(alpha = if (enabled) 0.28f else 0.12f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text(marker, color = accent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (leading != null) {
+                leading()
+            } else {
+                Text(
+                    marker,
+                    color = if (enabled) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 title,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,

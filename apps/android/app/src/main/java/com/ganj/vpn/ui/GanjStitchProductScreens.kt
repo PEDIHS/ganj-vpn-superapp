@@ -444,25 +444,13 @@ private fun StitchQuickCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    GanjGlassSurface(
-        role = GanjGlassRole.Dense,
+    GanjQuickActionTile(
+        title = title,
+        subtitle = subtitle,
+        onClick = onClick,
+        modifier = modifier,
         accent = MaterialTheme.colorScheme.primary,
-        modifier = modifier.clickable(role = Role.Button, onClick = onClick),
-        shapeRadius = 20.dp,
-        padding = PaddingValues(14.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                .border(
-                    1.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
-                    RoundedCornerShape(14.dp),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
+        leading = {
             when (icon) {
                 StitchQuickIcon.SERVERS -> GanjNavigationIcon(
                     destination = GanjDestination.Servers,
@@ -484,21 +472,8 @@ private fun StitchQuickCard(
                     modifier = Modifier.size(23.dp),
                 )
             }
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+        },
+    )
 }
 
 @Composable
@@ -528,20 +503,13 @@ internal fun StitchMiniAction(
 
 @Composable
 private fun StitchPill(text: String, gold: Boolean = false, onClick: () -> Unit) {
-    GanjGlassSurface(
-        role = GanjGlassRole.Clear,
+    GanjGlassButton(
+        text = text,
+        onClick = onClick,
         accent = if (gold) StitchProductGold else MaterialTheme.colorScheme.primary,
-        shapeRadius = 999.dp,
-        padding = PaddingValues(horizontal = 13.dp, vertical = 8.dp),
-        modifier = Modifier.clickable(role = Role.Button, onClick = onClick),
-    ) {
-        Text(
-            text = text,
-            color = if (gold) StitchProductGoldBright else StitchProductEmerald,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-        )
-    }
+        filled = false,
+        contentColor = if (gold) StitchProductGoldBright else StitchProductEmerald,
+    )
 }
 
 @Composable
