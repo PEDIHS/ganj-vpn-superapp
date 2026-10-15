@@ -134,10 +134,10 @@ internal fun StitchProfileScreen(
                                 GanjNavigationIcon(GanjDestination.Account,MaterialTheme.colorScheme.primary,Modifier.size(28.dp))
                             }
                             Column(Modifier.weight(1f)) {
-                                Text(name,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold,color=ink)
+                                Text(name,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold,color=ink,maxLines=2,overflow=TextOverflow.Ellipsis)
                                 Text(username?.let(::isolateTechnicalLtr) ?: if(linked) "حساب تلگرام متصل" else "ورود با تلگرام",style=MaterialTheme.typography.labelSmall,color=muted)
                             }
-                            ProfileBadge(if(premium)"پریمیوم" else if(state.services is ContentState.Ready)"استاندارد" else "حساب گنج",premium)
+                            if(state.services is ContentState.Ready) ProfileBadge(if(premium)"پریمیوم" else "استاندارد",premium)
                         }
                         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
                             Text(if(linked) "تلگرام متصل است" else "حساب هنوز متصل نیست",style=MaterialTheme.typography.labelSmall,color=muted)

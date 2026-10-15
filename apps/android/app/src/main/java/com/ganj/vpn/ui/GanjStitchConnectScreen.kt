@@ -361,14 +361,25 @@ private fun StitchSmartConnectCard(activeSubscription: Boolean, busy: Boolean, o
             drawRect(Brush.linearGradient(listOf(Color.Transparent,Color.White.copy(alpha=.14f),Color.Transparent),
                 start=androidx.compose.ui.geometry.Offset(x-size.width*.2f,0f),end=androidx.compose.ui.geometry.Offset(x+size.width*.2f,size.height)))
         }
-        Row(Modifier.fillMaxWidth().heightIn(min=55.dp).padding(horizontal=14.dp,vertical=12.dp),
+        val largeText=LocalDensity.current.fontScale>=1.3f
+        val title=if(busy) "در حال بررسی…" else "اتصال هوشمند"
+        val detail=if(activeSubscription) "انتخاب بهترین سرور" else "انتخاب اشتراک"
+        val titleInk=if(dark)Color(0xFFFFF0C7) else MaterialTheme.colorScheme.onSurface
+        val detailInk=if(dark)Color(0xFFE4D0A3) else MaterialTheme.colorScheme.onSurfaceVariant
+        if(largeText) Column(Modifier.fillMaxWidth().heightIn(min=55.dp).padding(horizontal=14.dp,vertical=12.dp),
+            verticalArrangement=Arrangement.spacedBy(5.dp)) {
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                if(busy) GanjCompactSpinner(accent=StitchGoldBright,size=20.dp)
+                else GanjNavigationIcon(GanjDestination.Connect,StitchGoldBright,Modifier.size(20.dp))
+                Text(title,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold,color=titleInk)
+            }
+            Text(detail,style=MaterialTheme.typography.labelSmall,color=detailInk)
+        } else Row(Modifier.fillMaxWidth().heightIn(min=55.dp).padding(horizontal=14.dp,vertical=12.dp),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             if(busy) GanjCompactSpinner(accent=StitchGoldBright,size=20.dp)
             else GanjNavigationIcon(GanjDestination.Connect,StitchGoldBright,Modifier.size(20.dp))
-            Text(if(busy) "در حال بررسی…" else "اتصال هوشمند",Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,
-                fontWeight=FontWeight.SemiBold,color=if(dark)Color(0xFFFFF0C7) else MaterialTheme.colorScheme.onSurface)
-            Text(if(activeSubscription) "انتخاب بهترین سرور" else "انتخاب اشتراک",style=MaterialTheme.typography.labelSmall,
-                color=if(dark)Color(0xFFE4D0A3) else MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold,color=titleInk)
+            Text(detail,style=MaterialTheme.typography.labelSmall,color=detailInk)
         }
     }
 }

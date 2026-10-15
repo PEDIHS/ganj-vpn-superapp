@@ -118,6 +118,12 @@ class ConnectionPresentationTest {
         capture("connection-on-light-large")
         compose.onNodeWithTag("connection-duration", useUnmergedTree = true).performScrollTo().assertTextEquals("—")
         compose.onNodeWithText("زمان شروع در دسترس نیست").assertExists()
+        compose.onNodeWithTag("smart-connect-card").performScrollTo()
+        val smartLayout=mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText("اتصال هوشمند",useUnmergedTree=true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(smartLayout) }
+        assertFalse("Smart Connect must not become a vertical column of individual letters",smartLayout.single().lineCount>2)
+        capture("connection-smart-light-large")
         compose.onNodeWithTag("selected-config").performScrollTo().assertTextContains("کانفیگ آلمان", substring = true)
         compose.onNodeWithTag("selected-config-flag", useUnmergedTree = true).assertWidthIsEqualTo(76.dp).assertHeightIsEqualTo(50.dp)
         capture("connection-config-light-large")
