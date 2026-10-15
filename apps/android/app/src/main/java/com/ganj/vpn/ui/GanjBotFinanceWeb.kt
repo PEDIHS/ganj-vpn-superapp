@@ -283,6 +283,7 @@ internal fun StitchBotFinanceScreen(
                                             view: WebView, request: WebResourceRequest,
                                         ): Boolean {
                                             if (request.isForMainFrame) {
+                                                if (request.url.toString() == "about:blank") return false
                                                 openExternal(request.url.toString())
                                                 view.post { view.destroy() }
                                             }
