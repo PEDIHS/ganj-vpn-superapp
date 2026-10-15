@@ -253,7 +253,7 @@ internal fun StitchBotSyncedStoreScreen(modifier: Modifier = Modifier) {
             item(key = "bot-empty") {
                 EmptyCard("محصول فعالی در ربات نیست",
                     "با افزودن محصولات در ربات، این فهرست خودکار به‌روزرسانی می‌شود.",
-                    onRetry = { retryKey++ })
+                    onAction = { retryKey++ })
             }
         } else {
             item(key = "bot-search") {
