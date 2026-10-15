@@ -14,6 +14,26 @@ import libXray.LibXray
 
 class XrayRuntimeTest {
     @Test
+    fun nativePingBatchReturnsOneResultPerProfileAndDeletesPrivateFiles() {
+        LibXray.resetObservations()
+        val directory = java.nio.file.Files.createTempDirectory("ganj-native-batch").toFile()
+        try {
+            val bridge = ReflectiveLibXrayBridge(javaClass.classLoader!!)
+            val result = bridge.probeBatchDetailed(
+                listOf(SensitiveXrayConfig("{\"outbounds\":[]}"), SensitiveXrayConfig("{\"outbounds\":[]}")),
+                directory,
+                listOf("https://cp.cloudflare.com/"),
+            )
+            assertEquals(listOf(NativeProbeResult.Measured(21L), NativeProbeResult.Measured(22L)), result)
+            assertTrue(LibXray.observedRequest.orEmpty().contains("\"method\":\"pingBatch\""))
+            assertTrue(LibXray.observedRequest.orEmpty().contains("\"timeout\":4"))
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `latency config includes only authorized proxy with no TUN or direct bypass`() {
         profile().use { profile ->
             val json = XrayConfigCompiler().compileProbe(profile).consume()
