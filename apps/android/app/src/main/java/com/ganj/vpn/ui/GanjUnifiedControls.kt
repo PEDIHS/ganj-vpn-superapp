@@ -81,7 +81,7 @@ internal fun GanjGlassButton(
         ) {
             Text(
                 text = text,
-                modifier = Modifier.align(Alignment.Center).padding(horizontal = 14.dp, vertical = 10.dp),
+                modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = contentColor ?: MaterialTheme.colorScheme.onPrimary,
@@ -138,7 +138,7 @@ internal fun GanjGlassButton(
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
             color = if (enabled) (contentColor ?: MaterialTheme.colorScheme.onSurface)
