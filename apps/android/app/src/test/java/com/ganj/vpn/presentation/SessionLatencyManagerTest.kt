@@ -58,7 +58,7 @@ class SessionLatencyManagerTest {
         val manager = SessionLatencyManager(
             { _, _ -> singles++; LatencyProbeResult.Measured(999) },
             CoroutineScope(coroutineContext + SupervisorJob()),
-            batchProbe = { _, ids ->
+            probeBatch = { _, ids ->
                 batches++
                 entered.complete(ids)
                 release.await()
@@ -93,7 +93,7 @@ class SessionLatencyManagerTest {
         val manager = SessionLatencyManager(
             { _, _ -> singles++; LatencyProbeResult.Measured(14) },
             CoroutineScope(coroutineContext + SupervisorJob()),
-            batchProbe = { _, ids ->
+            probeBatch = { _, ids ->
                 batches.add(ids)
                 ids.associateWith { LatencyProbeResult.Measured(25) }
             },
