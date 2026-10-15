@@ -42,6 +42,11 @@ class LibXray private constructor() {
                 return "{\"success\":true,\"data\":{\"running\":$coreRunning}}"
             }
             observedRequest = request
+            if (request.contains("\"method\":\"pingBatch\"")) {
+                val count = Regex("\"outboundTag\":\"proxy\"").findAll(request).count()
+                val items = (1..count).joinToString(",") { "{\"success\":true,\"delay\":" + (20 + it) + "}" }
+                return "{\"success\":true,\"data\":{\"results\":[$items]}}"
+            }
             if (request.contains("\"method\":\"runXrayFromJson\"")) {
                 coreRunning = !simulateStoppedAfterStart
             }
