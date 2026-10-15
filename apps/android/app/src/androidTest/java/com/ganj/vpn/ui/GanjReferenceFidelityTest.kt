@@ -46,6 +46,7 @@ class GanjReferenceFidelityTest {
         compose.onNodeWithTag("bot-buy-reference:reference-premium").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(plans[0].purchaseUrl,opened) }
         capture("reference-store-dark")
+        compose.onNodeWithTag("bot-synced-store").performScrollToNode(hasTestTag("vip-upgrade-entry"))
         compose.onNodeWithTag("vip-upgrade-entry").performScrollTo().performClick()
         capture("reference-vip-top-dark")
         compose.onNodeWithTag("bot-synced-store").performScrollToNode(hasTestTag("bot-product-reference:reference-vip"))

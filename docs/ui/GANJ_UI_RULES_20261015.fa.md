@@ -116,7 +116,7 @@ This document extends the canonical brand and liquid-glass standards.
   canonical and unmodified; no CSS injection or app-side financial state is introduced.
 
 ## 2026-10-15 — Approved preview fidelity contract (supersedes cosmetic approximations)
-- Visual reference: `ganj-profile-complete-review.html` reviewed in the product conversation.
+- Visual reference: `design/references/ganj-profile-complete-review.html` reviewed in the product conversation.
   Reference data is NEVER production data; catalog, finance and account authority remain real.
 - Canvas `#111718`, content `#1A2324`, emerald accent `#39E5A8`, refined gold `#E0BE79`.
 - The primary connection face is a **circle**, 212dp within a 250dp orbital allocation at

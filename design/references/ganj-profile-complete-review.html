@@ -1,0 +1,486 @@
+<div id="ganj-profile-complete-review" class="viz-dotted-background" dir="rtl">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap');
+#ganj-profile-complete-review{padding:20px 8px;font-family:Vazirmatn,Tahoma,sans-serif}
+#ganj-profile-complete-review *{box-sizing:border-box}
+#ganj-profile-complete-review .review-options{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:18px}
+#ganj-profile-complete-review .review-options button{min-height:44px;font:500 12px Vazirmatn,Tahoma,sans-serif;padding:8px 12px;border:1px solid var(--border);color:var(--foreground);background:var(--background);border-radius:6px}
+#ganj-profile-complete-review .review-options button[aria-pressed=true]{color:var(--primary-foreground);background:var(--primary)}
+#ganj-profile-complete-review .g-app{--g-bg:#111718;--g-panel:#1A2324;--g-line:#2B3737;--g-text:#EEF3F1;--g-muted:#A2B3AE;--g-emerald:#39E5A8;--g-gold:#E0BE79;--g-error:#EE9993;max-width:400px;margin:auto;background:var(--g-bg);border:1px solid #33413E;border-radius:24px;color:var(--g-text);font-size:14px;line-height:1.7;overflow:hidden;color-scheme:dark}
+#ganj-profile-complete-review .g-app button{font-family:inherit;font-size:inherit;color:inherit}
+#ganj-profile-complete-review .g-system{direction:ltr;padding:15px 24px 0;display:flex;align-items:center;justify-content:space-between;font:500 12px Arial,sans-serif;color:#DCE5E1}
+#ganj-profile-complete-review .g-signal{display:flex;align-items:center;gap:6px}
+#ganj-profile-complete-review .g-signal svg{width:14px;height:14px}
+#ganj-profile-complete-review .g-header{display:flex;align-items:center;gap:11px;padding:24px 22px 0}
+#ganj-profile-complete-review .g-logo{height:38px;width:38px;border:1px solid #5C583E;border-radius:10px;display:grid;place-items:center;background:#192E27;flex-shrink:0}
+#ganj-profile-complete-review .g-logo img{width:27px;height:27px}
+#ganj-profile-complete-review .g-brand{flex:1}
+#ganj-profile-complete-review .g-name{font:700 21px Arial,sans-serif;letter-spacing:2.5px;direction:ltr;text-align:right;color:#E6EFEB}
+#ganj-profile-complete-review .g-name small{font-size:11px;letter-spacing:2px;color:var(--g-gold);font-weight:400}
+#ganj-profile-complete-review .g-tagline{color:var(--g-muted);font-size:11px;margin-top:2px}
+#ganj-profile-complete-review .g-upgrade{color:var(--g-gold);font-size:12px;display:flex;align-items:center;gap:6px;border:1px solid #4C4534;border-radius:8px;padding:6px 9px}
+#ganj-profile-complete-review .g-upgrade svg{width:14px;height:14px}
+#ganj-profile-complete-review .g-hero{padding:27px 20px 24px;text-align:center}
+#ganj-profile-complete-review .g-state-line{display:flex;justify-content:center;align-items:center;gap:7px;color:var(--g-muted);font-size:13px;height:24px}
+#ganj-profile-complete-review .g-dot{width:6px;height:6px;background:#87918D;border-radius:50%;transition:background 400ms}
+#ganj-profile-complete-review .g-power-area{width:250px;height:250px;position:relative;margin:4px auto;display:grid;place-items:center;isolation:isolate}
+#ganj-profile-complete-review .g-orbit{position:absolute;inset:6px;border:1px solid #35413B;border-radius:50%;transition:border-color 700ms}
+#ganj-profile-complete-review .g-orbit:before{content:'';position:absolute;inset:7px;border:1px solid #303C37;border-radius:50%;transition:border-color 700ms}
+#ganj-profile-complete-review .g-arc{position:absolute;inset:6px;border-radius:50%;border:2px solid transparent;border-top-color:#827455;border-bottom-color:#324B40;transform:rotate(-35deg);opacity:.6;transition:opacity 500ms}
+#ganj-profile-complete-review .g-arc-inner{inset:14px;border-width:1px;border-top-color:transparent;border-right-color:#475D52;border-bottom-color:transparent;transform:rotate(-35deg);opacity:.5}
+#ganj-profile-complete-review .g-ripple{position:absolute;inset:20px;border:1px solid var(--g-emerald);border-radius:50%;opacity:0;pointer-events:none}
+#ganj-profile-complete-review .g-power{position:relative;width:212px;height:212px;padding:24px 14px 22px;border:1px solid #70B68B;border-radius:50%;background:radial-gradient(ellipse at 25% 8%,#94FFD34A,transparent 65%),linear-gradient(145deg,#126C50,#073F30 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;box-shadow:inset 0 2px 2px #CCFFE14D,inset 0 -4px 12px #002B2366,0 12px 28px #00000030;transition:transform 250ms,background 650ms,border-color 650ms,box-shadow 650ms;z-index:2;isolation:isolate;overflow:hidden}
+#ganj-profile-complete-review .g-power:before{content:'';position:absolute;inset:5px;border-radius:50%;border:1px solid #ABC9AF16;pointer-events:none;z-index:-1}
+#ganj-profile-complete-review .g-power:after{content:'';position:absolute;width:140%;height:65%;left:-20%;top:-24%;border-radius:50%;background:linear-gradient(180deg,#DDEBD91C,#FFFFFF02);border-bottom:1px solid #DFECDD0B;pointer-events:none;z-index:-1;transform:rotate(-18deg)}
+#ganj-profile-complete-review .g-power:active{transform:scale(.965)}
+#ganj-profile-complete-review .g-power:focus-visible{outline:3px solid var(--g-gold);outline-offset:8px}
+#ganj-profile-complete-review .g-power-symbol{display:grid;place-items:center;width:48px;height:48px;color:#B7F5D9;transition:color 650ms,transform 500ms}
+#ganj-profile-complete-review .g-power-symbol svg{width:42px;height:42px;stroke-width:1.65}
+#ganj-profile-complete-review .g-power-area:after{content:'';position:absolute;bottom:2px;width:4px;height:4px;border-radius:50%;background:var(--g-gold);opacity:.7}
+#ganj-profile-complete-review .g-action-label{display:block;margin:1px 0 0;font-size:14px;line-height:1.8;font-weight:500;color:var(--g-text);white-space:nowrap}
+#ganj-profile-complete-review .g-power-detail{position:relative;display:grid;place-items:center;min-height:28px;min-width:145px}
+#ganj-profile-complete-review .g-guidance{grid-area:1/1;margin:0;color:#A9DFCC;font-size:11px;line-height:24px;transition:opacity 220ms}
+#ganj-profile-complete-review .g-timer{grid-area:1/1;font:500 22px/28px Arial,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:1.3px;color:#D6F1DF;visibility:hidden;opacity:0;transform:translateY(4px);transition:opacity 350ms,transform 350ms}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-timer{visibility:visible;opacity:1;transform:translateY(0)}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-guidance{visibility:hidden;opacity:0}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-action-label{color:#E4FFEF}
+#ganj-profile-complete-review .g-body{padding:0 20px 18px}
+#ganj-profile-complete-review .g-selection{background:var(--g-panel);border:1px solid var(--g-line);border-radius:14px;overflow:hidden}
+#ganj-profile-complete-review .g-subscription{padding:11px 14px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--g-line)}
+#ganj-profile-complete-review .g-subscription>svg{width:16px;height:16px;color:var(--g-gold)}
+#ganj-profile-complete-review .g-subscription-label{font-size:11px;color:var(--g-muted);flex:1}
+#ganj-profile-complete-review .g-subscription bdi{font:400 12px Arial,sans-serif;color:var(--g-text)}
+#ganj-profile-complete-review .g-subscription .g-change{font-size:11px;color:var(--g-gold);margin-right:6px}
+#ganj-profile-complete-review .g-server{padding:16px 14px 12px;display:flex;align-items:center;gap:12px}
+#ganj-profile-complete-review .g-flag{width:52px;height:35px;object-fit:cover;border-radius:5px;flex-shrink:0}
+#ganj-profile-complete-review .g-server-copy{flex:1;min-width:0}
+#ganj-profile-complete-review .g-server-copy strong{display:block;font-size:14px;font-weight:500}
+#ganj-profile-complete-review .g-server-copy small{display:block;font:400 11px/21px Arial,sans-serif;color:var(--g-muted);direction:ltr;text-align:right;letter-spacing:.2px}
+#ganj-profile-complete-review .g-server>svg{width:17px;height:17px;color:var(--g-muted)}
+#ganj-profile-complete-review .g-ping{padding:0 14px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:var(--g-muted)}
+#ganj-profile-complete-review .g-ping-value{display:flex;align-items:center;gap:6px}
+#ganj-profile-complete-review .g-ping-value svg{width:14px;height:14px}
+#ganj-profile-complete-review .g-ping bdi{color:#D8E5DF;font:400 12px Arial,sans-serif}
+#ganj-profile-complete-review .g-ping-action{color:var(--g-gold);font-size:11px}
+#ganj-profile-complete-review .g-smart{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;gap:9px;width:100%;margin:0 0 13px;border:1px solid #CBA65C;border-radius:12px;background:radial-gradient(ellipse at 8% 0%,#F6D98B30,transparent 70%),linear-gradient(120deg,#665027,#43391F 70%,#594727);min-height:55px;padding:12px 13px;box-shadow:inset 0 1px 0 #FFE8A54D,0 4px 12px #00000015;transition:transform 180ms,filter 180ms}
+#ganj-profile-complete-review .g-smart:before{content:'';position:absolute;inset:-40% auto -40% -40%;width:28%;background:linear-gradient(90deg,transparent,#FFF0B833,transparent);transform:skewX(-22deg);animation:g18-gold-sheen 5.5s ease-in-out infinite;pointer-events:none;z-index:-1}
+#ganj-profile-complete-review .g-smart:active{transform:scale(.985)}
+#ganj-profile-complete-review .g-smart:disabled{opacity:.65}
+#ganj-profile-complete-review .g-smart:disabled:before{animation-play-state:paused}
+#ganj-profile-complete-review .g-smart>svg{color:#FFE2A0;height:18px;width:18px;flex-shrink:0}
+#ganj-profile-complete-review .g-smart-copy{font-size:13px;font-weight:500;flex:1;color:#FFF0C7;text-align:right}
+#ganj-profile-complete-review .g-smart small{color:#E4D0A3;font-size:11px}
+#ganj-profile-complete-review .g-error{font-size:12px;line-height:1.9;text-align:right;color:#FFD5D0;margin:17px 0 0;padding:12px 14px;border:1px solid #A34F4F;border-radius:12px;background:linear-gradient(130deg,#652A2E,#3C2024);animation:g18-error-message 350ms ease-out both}
+#ganj-profile-complete-review .g-error[hidden]{display:none}
+#ganj-profile-complete-review .g-bottom-wrap{padding:8px 12px 13px;position:relative;isolation:isolate}
+#ganj-profile-complete-review .g-bottom-wrap:before{content:'';position:absolute;left:15%;right:15%;top:43px;height:47px;background:linear-gradient(90deg,#199B70,#0AC68B,#9C8C48);filter:blur(22px);opacity:.28;z-index:-1}
+#ganj-profile-complete-review .g-nav{position:relative;display:flex;direction:rtl;isolation:isolate;padding:25px 5px 0;min-height:105px;background:transparent}
+#ganj-profile-complete-review .g-nav-glass{position:absolute;inset:25px 0 0;z-index:-2;border-radius:23px;background:linear-gradient(135deg,#ADFFDB40,#18BD8C16 35%,#008F6833 65%,#95F5CA38),#075039ED;backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%);box-shadow:inset 0 1px 0 #D6F9BB80,inset 1px 0 0 #ABFFD754,inset -1px 0 0 #96F0BE40,inset 0 -1px 0 #A3F8CD36;mask-image:radial-gradient(circle 39px at 50% -3px,transparent 98%,black 101%);-webkit-mask-image:radial-gradient(circle 39px at 50% -3px,transparent 98%,black 101%)}
+#ganj-profile-complete-review .g-nav-curve{position:absolute;inset:25px 0 0;width:100%;height:80px;z-index:-1;pointer-events:none}
+#ganj-profile-complete-review .g-nav-lens{position:absolute;top:32px;bottom:7px;left:calc(40% + 1px);width:calc((100% - 10px)/5);border-radius:16px;background:linear-gradient(145deg,#BEFFDF55,#45F0AA33 40%,#27C88B24);border:1px solid #BCF7CA70;box-shadow:inset 0 1px 0 #E7EDD040,inset 0 -1px 0 #97C9A92B,0 3px 10px #00000014;transition:left 500ms cubic-bezier(.19,1,.22,1),opacity 200ms,transform 250ms;z-index:-1;opacity:0;transform:scale(.9)}
+#ganj-profile-complete-review .g-nav-lens:after{position:absolute;content:'';height:2px;width:18px;background:var(--g-gold);bottom:5px;left:50%;transform:translateX(-50%);border-radius:1px}
+#ganj-profile-complete-review .g-nav button{min-width:0;flex:1;padding:12px 1px 9px;min-height:80px;border:0;background:transparent;color:#B2E4D0;display:flex;align-items:center;flex-direction:column;justify-content:center;gap:5px;border-radius:16px;transition:color 220ms,transform 220ms}
+#ganj-profile-complete-review .g-nav button svg{width:21px;height:21px;stroke-width:1.7;transition:transform 300ms}
+#ganj-profile-complete-review .g-nav button span{font-size:11px;white-space:nowrap;line-height:18px}
+#ganj-profile-complete-review .g-nav button[aria-pressed=true]{color:#E1FFEC}
+#ganj-profile-complete-review .g-nav button[aria-pressed=true] svg{transform:translateY(-2px)}
+#ganj-profile-complete-review .g-nav button:active{transform:scale(.95)}
+#ganj-profile-complete-review .g-nav button[data-tab='2']{position:relative;justify-content:flex-end;padding-bottom:8px;gap:0}
+#ganj-profile-complete-review .g-nav-center{position:absolute;top:-34px;left:50%;transform:translateX(-50%);display:grid;place-items:center;width:62px;height:62px;border-radius:50%;background:radial-gradient(ellipse at 22% 0%,#B2FFE66B,transparent 65%),linear-gradient(145deg,#16865E,#07543C);border:1px solid #B8C887;box-shadow:inset 0 2px 2px #D5E5BA4D,inset 0 -2px 5px #00000030,0 6px 18px #00000032;transition:transform 400ms cubic-bezier(.2,.9,.3,1.1),background 400ms,box-shadow 400ms}
+#ganj-profile-complete-review .g-nav-center:before{content:'';position:absolute;inset:4px;border:1px solid #C6DDB42B;border-radius:50%}
+#ganj-profile-complete-review .g-nav-center:after{content:'';position:absolute;inset:-5px;border:1px solid #A8BC9333;border-radius:50%}
+#ganj-profile-complete-review .g-nav button[data-tab='2'] .g-nav-center svg{width:26px;height:26px;color:#E2F9CC;transform:none}
+#ganj-profile-complete-review .g-nav button[data-tab='2'][aria-pressed=true] .g-nav-center{transform:translateX(-50%) translateY(-2px);background:radial-gradient(ellipse at 22% 0%,#BBFFE063,transparent 65%),linear-gradient(145deg,#13AD75,#05714D);box-shadow:inset 0 2px 2px #D5E5BA50,0 5px 16px #00000030}
+#ganj-profile-complete-review .g-nav button[data-tab='2']>span:last-child{padding-bottom:5px;color:var(--g-gold)}
+#ganj-profile-complete-review .g-nav button[data-tab='2']:active .g-nav-center{transform:translateX(-50%) scale(.94)}
+#ganj-profile-complete-review .g-home-indicator{width:100px;height:3px;margin:14px auto 0;background:#86978D;border-radius:3px;opacity:.6}
+#ganj-profile-complete-review .g-app[data-state=disconnected] .g-power-symbol{animation:g18-idle 5s ease-in-out infinite}
+#ganj-profile-complete-review .g-app[data-state=connecting] .g-arc{border-top-color:var(--g-gold);border-bottom-color:#379B73;opacity:1;animation:g18-spin 1.8s linear infinite}
+#ganj-profile-complete-review .g-app[data-state=connecting] .g-arc-inner{border-top-color:transparent;border-right-color:var(--g-emerald);border-bottom-color:transparent;animation:g18-spin 2.7s linear infinite reverse}
+#ganj-profile-complete-review .g-app[data-state=connecting] .g-power{border-color:#D3B76E;background:linear-gradient(140deg,#187E58,#07503D)}
+#ganj-profile-complete-review .g-app[data-state=connecting] .g-power-symbol{color:var(--g-gold);animation:g18-idle 1.8s ease-in-out infinite}
+#ganj-profile-complete-review .g-app[data-state=connecting] .g-dot{background:var(--g-gold)}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-power{background:radial-gradient(ellipse at 25% 5%,#B2FFD859,transparent 70%),linear-gradient(145deg,#16B67C,#05734F 85%);border-color:#BFDA8E;box-shadow:inset 0 2px 2px #E2FFD680,inset 0 -4px 10px #00462D66,0 10px 26px #00000030,0 0 24px #12BD7C18}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-power-symbol{color:#EDFFF5}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-orbit{border-color:#47B789}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-orbit:before{border-color:#3BCD92}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-arc{border-top-color:var(--g-gold);border-bottom-color:var(--g-emerald);opacity:.9;animation:g18-connected 4.5s ease-in-out infinite}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-arc-inner{opacity:0;animation:none}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-ripple{animation:g18-confirm 900ms cubic-bezier(.18,.6,.25,1) 1}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-state-line{color:var(--g-emerald)}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-dot{background:var(--g-emerald)}
+#ganj-profile-complete-review .g-app[data-state=connected] .g-clock bdi{color:#B9DFCC}
+#ganj-profile-complete-review .g-app[data-state=disconnecting] .g-power-symbol{color:#A1AA9C;transform:scale(.92)}
+#ganj-profile-complete-review .g-app[data-state=error] .g-dot{background:var(--g-error)}
+#ganj-profile-complete-review .g-app[data-state=error] .g-state-line{color:var(--g-error)}
+#ganj-profile-complete-review .g-power-symbol .g-failure-icon{display:none}
+#ganj-profile-complete-review .g-app[data-state=error] .g-power{background:radial-gradient(ellipse at 25% 5%,#FFC1B83D,transparent 70%),linear-gradient(145deg,#AA3B46,#6A222F 85%);border-color:#F3908C;box-shadow:inset 0 2px 2px #FFD1C44D,inset 0 -4px 12px #410B1966,0 10px 24px #00000030;animation:g18-failure-shake 480ms cubic-bezier(.36,.07,.19,.97) both}
+#ganj-profile-complete-review .g-app[data-state=error] .g-power-symbol{color:#FFE6E0}
+#ganj-profile-complete-review .g-app[data-state=error] .g-power-symbol .g-normal-icon{display:none}
+#ganj-profile-complete-review .g-app[data-state=error] .g-power-symbol .g-failure-icon{display:block;animation:g18-failure-symbol 350ms ease-out both}
+#ganj-profile-complete-review .g-app[data-state=error] .g-action-label{color:#FFF1ED}
+#ganj-profile-complete-review .g-app[data-state=error] .g-guidance{color:#F9C0B9}
+#ganj-profile-complete-review .g-app[data-state=error] .g-orbit{border-color:#D46E71;mask-image:conic-gradient(#000 0deg 70deg,transparent 70deg 84deg,#000 84deg 180deg,transparent 180deg 194deg,#000 194deg 275deg,transparent 275deg 289deg,#000 289deg);animation:g18-fracture 520ms ease-out both}
+#ganj-profile-complete-review .g-app[data-state=error] .g-orbit:before{border-color:#903A48}
+#ganj-profile-complete-review .g-app[data-state=error] .g-arc{border-top-color:#FFAAA0;border-bottom-color:#DF5C70;opacity:.9;animation:g18-failure-arc 600ms ease-out both}
+#ganj-profile-complete-review .g-app[data-state=error] .g-arc-inner{border-top-color:transparent;border-right-color:#EF6E7A;border-bottom-color:transparent}
+#ganj-profile-complete-review .g-app[data-state=error] .g-power-area:after{background:#FF9D94}
+@keyframes g18-failure-shake{0%,100%{transform:translateX(0)}18%{transform:translateX(-5px)}36%{transform:translateX(5px)}54%{transform:translateX(-3px)}72%{transform:translateX(2px)}}
+@keyframes g18-fracture{0%{transform:scale(.98);opacity:.2}45%{transform:scale(1.035);opacity:1}100%{transform:scale(1);opacity:.8}}
+@keyframes g18-failure-arc{0%{transform:rotate(-35deg);opacity:0}100%{transform:rotate(-17deg);opacity:.9}}
+@keyframes g18-failure-symbol{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes g18-error-message{from{transform:translateY(-6px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes g18-gold-sheen{0%,45%{left:-40%}75%,100%{left:130%}}
+@keyframes g18-idle{0%,100%{opacity:.64}50%{opacity:1}}
+@keyframes g18-spin{to{transform:rotate(325deg)}}
+@keyframes g18-connected{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes g18-confirm{0%{transform:scale(.92);opacity:.65}100%{transform:scale(1.23);opacity:0}}
+@media(prefers-reduced-motion:reduce){#ganj-profile-complete-review *{animation:none!important;transition:none!important}}
+@media(max-width:360px){#ganj-profile-complete-review{padding:12px 0}#ganj-profile-complete-review .g-body{padding-left:14px;padding-right:14px}#ganj-profile-complete-review .g-header{padding-left:16px;padding-right:16px}#ganj-profile-complete-review .g-bottom-wrap{padding-left:8px;padding-right:8px}#ganj-profile-complete-review .g-smart small{font-size:11px}}
+</style>
+<style>
+#ganj-profile-complete-review .shop-switch{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+#ganj-profile-complete-review .shop-switch button{font:500 12px Vazirmatn,Tahoma,sans-serif;min-height:44px;padding:8px 18px;border:1px solid var(--border);border-radius:7px;color:var(--foreground);background:var(--background)}
+#ganj-profile-complete-review .shop-switch button[aria-pressed=true]{background:var(--primary);color:var(--primary-foreground)}
+#ganj-profile-complete-review .g-app{position:relative}
+#ganj-profile-complete-review .g-app:not([data-screen=connect])>.g-header,#ganj-profile-complete-review .g-app:not([data-screen=connect])>.g-hero,#ganj-profile-complete-review .g-app:not([data-screen=connect])>.g-body{display:none}
+#ganj-profile-complete-review [hidden]{display:none!important}
+#ganj-profile-complete-review .g-upgrade{background:transparent;min-height:40px}
+#ganj-profile-complete-review .s-page{padding:24px 20px 18px;animation:shop-enter 300ms cubic-bezier(.2,.8,.2,1)}
+#ganj-profile-complete-review .s-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px}
+#ganj-profile-complete-review .s-header h2{font-size:23px;line-height:1.5;font-weight:600;margin:0;color:#F0F7F3}
+#ganj-profile-complete-review .s-header p{font-size:12px;color:#A6BDB2;margin:3px 0 0}
+#ganj-profile-complete-review .s-header-mark{font:600 11px Arial,sans-serif;letter-spacing:2px;color:#92BDA7;border:1px solid #354D42;padding:8px 9px;border-radius:7px}
+#ganj-profile-complete-review .s-banner{position:relative;isolation:isolate;overflow:hidden;width:100%;text-align:right;padding:18px;border:1px solid #8E8653;border-radius:17px;background:radial-gradient(ellipse at 0% 0%,#9ED59F2B,transparent 60%),linear-gradient(120deg,#164633,#243B2B 55%,#4C4527);display:flex;gap:14px;align-items:center;box-shadow:inset 0 1px 0 #E9D69B36}
+#ganj-profile-complete-review .s-banner:after{content:'';position:absolute;left:-20px;top:-44px;height:144px;width:144px;border:1px solid #D0BD6F22;border-radius:50%;z-index:-1}
+#ganj-profile-complete-review .s-banner-copy{flex:1}
+#ganj-profile-complete-review .s-banner small{display:block;font:500 10px Arial,sans-serif;color:#E8CF91;letter-spacing:2px;margin-bottom:8px}
+#ganj-profile-complete-review .s-banner strong{display:block;font-size:17px;font-weight:600;color:#F5E7C0}
+#ganj-profile-complete-review .s-banner span{font-size:11px;color:#CBD7BF;display:block;margin-top:5px}
+#ganj-profile-complete-review .s-banner>svg{width:28px;height:28px;color:#E9CC86;stroke-width:1.4}
+#ganj-profile-complete-review .s-section-label{display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px;font-size:13px;font-weight:500;color:#DFEBE4}
+#ganj-profile-complete-review .s-section-label small{font-size:11px;color:#A2B7AD;font-weight:400}
+#ganj-profile-complete-review .s-periods{display:flex;gap:4px;padding:4px;border:1px solid #334139;border-radius:11px;background:#19241F}
+#ganj-profile-complete-review .s-periods button{flex:1;min-width:0;min-height:40px;border:1px solid transparent;border-radius:8px;background:transparent;color:#A4B9AE;font-size:12px;transition:background 180ms,color 180ms}
+#ganj-profile-complete-review .s-periods button[aria-pressed=true]{background:#2A4F3B;border-color:#598364;color:#E1F5E7;box-shadow:inset 0 1px 0 #BAD0AE26}
+#ganj-profile-complete-review .s-plans{display:grid;gap:10px;margin-top:15px}
+#ganj-profile-complete-review .s-plan{position:relative;width:100%;text-align:right;background:#19231F;border:1px solid #34463B;border-radius:13px;padding:15px;transition:background 220ms,border-color 220ms}
+#ganj-profile-complete-review .s-plan[aria-pressed=true]{border-color:#52C08F;background:linear-gradient(130deg,#183A2C,#1B2C23);box-shadow:inset 0 1px 0 #88E7B629}
+#ganj-profile-complete-review .s-plan[data-plan=vip][aria-pressed=true]{border-color:#C9B16E;background:linear-gradient(130deg,#37412A,#252D21);box-shadow:inset 0 1px 0 #E6D28D29}
+#ganj-profile-complete-review .s-plan-top{display:flex;align-items:center;gap:9px}
+#ganj-profile-complete-review .s-radio{height:17px;width:17px;border:1px solid #728277;border-radius:50%;display:grid;place-items:center;flex-shrink:0}
+#ganj-profile-complete-review .s-plan[aria-pressed=true] .s-radio{border-color:#68D49F}
+#ganj-profile-complete-review .s-plan[aria-pressed=true] .s-radio:after{content:'';width:7px;height:7px;background:#68D49F;border-radius:50%}
+#ganj-profile-complete-review .s-plan[data-plan=vip] .s-radio{border-color:#A49467}
+#ganj-profile-complete-review .s-plan[data-plan=vip][aria-pressed=true] .s-radio:after{background:#E3C57F}
+#ganj-profile-complete-review .s-plan-top strong{flex:1;font-size:14px;font-weight:500}
+#ganj-profile-complete-review .s-plan-top>svg{width:18px;height:18px;color:#DCC483}
+#ganj-profile-complete-review .s-price-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:13px 0}
+#ganj-profile-complete-review .s-price{font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.5;color:#F2F8F3}
+#ganj-profile-complete-review .s-price small{font-size:11px;font-weight:400;color:#AEBEB4;margin-right:4px}
+#ganj-profile-complete-review .s-price-row>small{font-size:11px;color:#AEBEB4}
+#ganj-profile-complete-review .s-metadata{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px;color:#B8CDBE}
+#ganj-profile-complete-review .s-metadata span{display:flex;gap:5px;align-items:center}
+#ganj-profile-complete-review .s-metadata svg{width:14px;height:14px;color:#8FAE9A}
+#ganj-profile-complete-review .s-order{border-top:1px solid #304037;margin-top:20px;padding-top:15px}
+#ganj-profile-complete-review .s-total{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#AABDAD;margin-bottom:12px;gap:10px}
+#ganj-profile-complete-review .s-total strong{font-size:17px;font-weight:500;color:#EDF7F0;font-variant-numeric:tabular-nums}
+#ganj-profile-complete-review .s-primary{width:100%;min-height:49px;border:1px solid #5AB789;border-radius:11px;background:linear-gradient(140deg,#15946A,#086947);box-shadow:inset 0 1px 0 #C5FFD039;color:#F0FFF4;font-size:14px!important;font-weight:500;display:flex;align-items:center;justify-content:center;gap:9px}
+#ganj-profile-complete-review .s-primary svg{width:17px;height:17px}
+#ganj-profile-complete-review .s-primary:active{transform:scale(.99)}
+#ganj-profile-complete-review .s-footnote{text-align:center;color:#97AFA0;font-size:11px;margin:10px 0 0}
+#ganj-profile-complete-review .s-back{width:42px;height:42px;border-radius:10px;border:1px solid #45503B;background:#222D23;display:grid;place-items:center;flex-shrink:0}
+#ganj-profile-complete-review .s-back svg{height:20px;width:20px;color:#DBC894}
+#ganj-profile-complete-review .v-title{flex:1}
+#ganj-profile-complete-review .v-hero{position:relative;isolation:isolate;overflow:hidden;border:1px solid #9C8C54;border-radius:18px;padding:21px 22px 18px;background:radial-gradient(ellipse at 5% 5%,#B6BD642D,transparent 70%),linear-gradient(130deg,#33513A,#233D2D 50%,#5A4C2D);box-shadow:inset 0 1px 0 #EDDFAB55}
+#ganj-profile-complete-review .v-hero:before{content:'';position:absolute;width:250px;height:250px;left:-110px;top:-80px;border:1px solid #DFCE9133;border-radius:50%;box-shadow:0 0 0 24px #D9C4810A,0 0 0 48px #D9C48106;z-index:-1}
+#ganj-profile-complete-review .v-emblem{display:flex;align-items:center;justify-content:space-between;direction:ltr;color:#F0D995}
+#ganj-profile-complete-review .v-emblem span{font:600 13px Arial,sans-serif;letter-spacing:3px}
+#ganj-profile-complete-review .v-emblem svg{width:27px;height:27px;stroke-width:1.4}
+#ganj-profile-complete-review .v-hero h3{font-size:25px;font-weight:600;color:#FFF0C4;margin:22px 0 4px;line-height:1.5}
+#ganj-profile-complete-review .v-hero p{font-size:12px;color:#D7DBC1;margin:0;max-width:240px;line-height:1.9}
+#ganj-profile-complete-review .v-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:20px;padding-top:12px;border-top:1px solid #D3BE7E33;color:#D7CA9F;font:400 11px Arial,sans-serif;letter-spacing:1.8px}
+#ganj-profile-complete-review .v-facts{display:flex;margin:16px 0 4px;padding:15px 0;border-bottom:1px solid #354337}
+#ganj-profile-complete-review .v-facts>div{flex:1;text-align:center;border-left:1px solid #344034}
+#ganj-profile-complete-review .v-facts>div:last-child{border-left:0}
+#ganj-profile-complete-review .v-facts strong{display:block;font-size:18px;font-weight:500;color:#E5D29A}
+#ganj-profile-complete-review .v-facts small{display:block;font-size:11px;color:#A9B8A9;margin-top:3px}
+#ganj-profile-complete-review .v-periods{display:grid;gap:9px}
+#ganj-profile-complete-review .v-period{display:flex;align-items:center;gap:10px;width:100%;min-height:69px;padding:13px;border:1px solid #3E4836;border-radius:12px;background:#1D271F;text-align:right}
+#ganj-profile-complete-review .v-period[aria-pressed=true]{border-color:#C9B06C;background:linear-gradient(120deg,#41472A,#273524);box-shadow:inset 0 1px 0 #E7D88B24}
+#ganj-profile-complete-review .v-period[aria-pressed=true] .s-radio{border-color:#E1C584}
+#ganj-profile-complete-review .v-period[aria-pressed=true] .s-radio:after{content:'';width:7px;height:7px;border-radius:50%;background:#E1C584}
+#ganj-profile-complete-review .v-period-name{flex:1;font-size:13px;font-weight:500;color:#E7EBCD}
+#ganj-profile-complete-review .v-period-name small{display:block;font-size:11px;font-weight:400;color:#AEB8A1;margin-top:2px}
+#ganj-profile-complete-review .v-period-price{font-size:17px;font-weight:500;color:#F6E9C0;font-variant-numeric:tabular-nums;white-space:nowrap}
+#ganj-profile-complete-review .v-period-price small{font-size:11px;font-weight:400;display:block;text-align:left;color:#BDAF8A}
+#ganj-profile-complete-review .v-purchase{position:relative;overflow:hidden;border-color:#E4C57E;background:linear-gradient(130deg,#E0C37A,#B8954D);color:#292615!important;box-shadow:inset 0 1px 0 #FFF0BB80}
+#ganj-profile-complete-review .v-purchase:before{position:absolute;content:'';inset:-30% auto -30% -40%;width:30%;background:linear-gradient(90deg,transparent,#FFF5C94D,transparent);transform:skewX(-20deg);animation:g18-gold-sheen 6s ease-in-out infinite;pointer-events:none}
+#ganj-profile-complete-review .s-checkout{position:absolute;inset:0;background:#06100EDB;z-index:20;display:flex;align-items:flex-end;padding:12px;backdrop-filter:blur(5px)}
+#ganj-profile-complete-review .s-sheet{width:100%;background:#19251F;border:1px solid #537157;border-radius:20px;padding:20px;box-shadow:0 -15px 60px #00000030;animation:shop-enter 280ms ease-out}
+#ganj-profile-complete-review .s-sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+#ganj-profile-complete-review .s-sheet-head h3{margin:0;font-size:19px;font-weight:500}
+#ganj-profile-complete-review .s-close{width:36px;height:36px;background:#28372C;border:1px solid #4B5C4B;border-radius:9px;display:grid;place-items:center}
+#ganj-profile-complete-review .s-close svg{width:18px;height:18px}
+#ganj-profile-complete-review .s-order-line{display:flex;justify-content:space-between;gap:12px;margin:13px 0;font-size:12px;color:#ADC2B0}
+#ganj-profile-complete-review .s-order-line strong{font-size:13px;font-weight:500;color:#EBF3E5}
+#ganj-profile-complete-review .s-review-note{padding:10px 12px;border-radius:9px;background:#293B2B;color:#D5E5CA;font-size:12px;margin:18px 0;line-height:1.9}
+#ganj-profile-complete-review .s-sheet hr{border:0;border-top:1px solid #3C503F;margin:18px 0}
+@keyframes shop-enter{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:360px){#ganj-profile-complete-review .s-page{padding-left:14px;padding-right:14px}#ganj-profile-complete-review .s-metadata{gap:8px}#ganj-profile-complete-review .v-hero{padding:18px}}
+@media(prefers-reduced-motion:reduce){#ganj-profile-complete-review *{animation:none!important;transition:none!important}}
+</style>
+<style>
+#ganj-profile-complete-review .p-page{padding:23px 20px 18px;animation:shop-enter 280ms ease-out}
+#ganj-profile-complete-review .p-head{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+#ganj-profile-complete-review .p-head-copy{flex:1}
+#ganj-profile-complete-review .p-head h2{font-size:23px;line-height:1.5;font-weight:600;margin:0;color:#F0F6F1}
+#ganj-profile-complete-review .p-head p{font-size:11px;color:#A5B9AE;margin:3px 0 0}
+#ganj-profile-complete-review .p-iconbutton{position:relative;display:grid;place-items:center;width:42px;height:42px;border:1px solid #3B5546;border-radius:12px;background:#1C3026;color:#DCECDF;flex-shrink:0}
+#ganj-profile-complete-review .p-iconbutton svg{width:20px;height:20px}
+#ganj-profile-complete-review .p-unread{position:absolute;top:8px;right:9px;width:5px;height:5px;border-radius:50%;background:#E2C27C}
+#ganj-profile-complete-review .p-identity{position:relative;overflow:hidden;padding:18px;border:1px solid #637650;border-radius:18px;background:radial-gradient(ellipse at 100% 0%,#5AB68529,transparent 75%),linear-gradient(125deg,#194632,#1B3328 70%,#393E28);box-shadow:inset 0 1px 0 #D3E6B336}
+#ganj-profile-complete-review .p-person{display:flex;align-items:center;gap:13px}
+#ganj-profile-complete-review .p-avatar{width:55px;height:55px;display:grid;place-items:center;border-radius:17px;background:linear-gradient(145deg,#3C8160,#16452F);border:1px solid #B8C58B;color:#E9F3CF;font:500 25px Arial,sans-serif;box-shadow:inset 0 1px 0 #D9F5BD44}
+#ganj-profile-complete-review .p-name{flex:1;min-width:0}
+#ganj-profile-complete-review .p-name strong{display:block;font-size:17px;font-weight:500;color:#EDF7EC}
+#ganj-profile-complete-review .p-name bdi{display:block;font:400 12px/24px Arial,sans-serif;color:#A5C7B2;text-align:right}
+#ganj-profile-complete-review .p-tier{display:flex;align-items:center;gap:4px;border:1px solid #968D58;border-radius:6px;background:#6E603325;padding:3px 7px;font-size:11px;color:#EED596}
+#ganj-profile-complete-review .p-tier svg{width:13px;height:13px}
+#ganj-profile-complete-review .p-identity-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #6E8B6136;padding-top:13px;margin-top:15px;font-size:11px;color:#C3D7C6}
+#ganj-profile-complete-review .p-identity-foot span{display:flex;gap:6px;align-items:center}
+#ganj-profile-complete-review .p-identity-foot svg{width:14px;height:14px;color:#6AD79C}
+#ganj-profile-complete-review .p-link{border:0;background:none;padding:5px 0;color:#E0CA92!important;font-size:11px!important;min-height:32px}
+#ganj-profile-complete-review .p-summary{margin-top:12px;background:#1A2820;border:1px solid #354F3D;border-radius:14px;padding:15px}
+#ganj-profile-complete-review .p-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#ganj-profile-complete-review .p-label{font-size:12px;color:#B6CABC}
+#ganj-profile-complete-review .p-live{font-size:11px;color:#79DCAA;display:flex;align-items:center;gap:5px}
+#ganj-profile-complete-review .p-live:before{content:'';width:5px;height:5px;border-radius:50%;background:#62D89C}
+#ganj-profile-complete-review .p-usage{font-size:20px;font-weight:500;color:#E7F2E7;line-height:1.5;margin:13px 0 8px;font-variant-numeric:tabular-nums}
+#ganj-profile-complete-review .p-usage small{font-size:11px;color:#9EB7A5;font-weight:400}
+#ganj-profile-complete-review .p-track{height:5px;border-radius:3px;background:#31483A;overflow:hidden;margin:10px 0}
+#ganj-profile-complete-review .p-track>span{display:block;width:40%;height:100%;background:linear-gradient(90deg,#1AA273,#85DCA1);border-radius:3px}
+#ganj-profile-complete-review .p-caption{font-size:11px;color:#A1BBA8}
+#ganj-profile-complete-review .p-wallet{display:flex;align-items:center;gap:11px;margin:12px 0 0;padding:14px 15px;border:1px solid #615B3B;border-radius:14px;background:linear-gradient(125deg,#353C25,#232E21);width:100%;text-align:right}
+#ganj-profile-complete-review .p-wallet-symbol{height:38px;width:38px;display:grid;place-items:center;background:#A98D3C16;border:1px solid #8E82423D;border-radius:11px;color:#E0C786}
+#ganj-profile-complete-review .p-wallet-symbol svg{height:20px;width:20px}
+#ganj-profile-complete-review .p-wallet-copy{flex:1;font-size:11px;color:#BDBE9F}
+#ganj-profile-complete-review .p-wallet-copy strong{display:block;color:#F1E4B5;font-size:17px;font-weight:500;margin-top:2px}
+#ganj-profile-complete-review .p-wallet-copy strong small{font-size:11px;font-weight:400}
+#ganj-profile-complete-review .p-wallet>svg{width:16px;height:16px;color:#C2B584}
+#ganj-profile-complete-review .p-group-label{font-size:11px;font-weight:500;color:#8EAC99;margin:22px 2px 9px}
+#ganj-profile-complete-review .p-group{border:1px solid #304638;border-radius:14px;background:#19251E;overflow:hidden}
+#ganj-profile-complete-review .p-menu{width:100%;border:0;background:transparent;display:flex;align-items:center;gap:11px;min-height:55px;padding:12px 14px;text-align:right}
+#ganj-profile-complete-review .p-menu+.p-menu{border-top:1px solid #2C3D30}
+#ganj-profile-complete-review .p-menu>svg:first-child{width:19px;height:19px;color:#8BBFA1;stroke-width:1.6;flex-shrink:0}
+#ganj-profile-complete-review .p-menu>span{flex:1;font-size:12px;color:#DBEBDD}
+#ganj-profile-complete-review .p-menu small{font-size:11px;color:#8FB29B}
+#ganj-profile-complete-review .p-menu>svg:last-child{width:14px;height:14px;color:#759780}
+#ganj-profile-complete-review .p-menu:active{background:#284735}
+#ganj-profile-complete-review .p-signout{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;color:#D9A199!important;border:0;background:transparent;min-height:46px;font-size:12px!important;margin-top:12px}
+#ganj-profile-complete-review .p-signout svg{width:16px;height:16px}
+#ganj-profile-complete-review .p-version{text-align:center;font:400 11px Arial,sans-serif;letter-spacing:1px;color:#75917D;margin:4px 0 0}
+#ganj-profile-complete-review .p-pane{animation:shop-enter 260ms ease-out}
+#ganj-profile-complete-review .p-box{padding:16px;border-radius:14px;border:1px solid #3F5540;background:#1C2B21;margin:12px 0}
+#ganj-profile-complete-review .p-box h3{font-size:15px;font-weight:500;margin:0 0 10px;color:#E1EFDB}
+#ganj-profile-complete-review .p-box p,#ganj-profile-complete-review .p-help{font-size:12px;line-height:1.95;color:#AFC5B1;margin:8px 0}
+#ganj-profile-complete-review .p-pair{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;font-size:12px;color:#A3BDA6;border-bottom:1px solid #304731}
+#ganj-profile-complete-review .p-pair:last-child{border:0}
+#ganj-profile-complete-review .p-pair strong{font-size:12px;font-weight:500;color:#E1EBDD}
+#ganj-profile-complete-review .p-secondary{display:flex;justify-content:center;align-items:center;gap:8px;width:100%;border:1px solid #557657;border-radius:10px;background:#283E2B;min-height:45px;padding:10px;color:#CFE6CD!important;font-size:12px!important}
+#ganj-profile-complete-review .p-secondary svg{width:17px;height:17px}
+#ganj-profile-complete-review .p-secondary:disabled{opacity:.6}
+#ganj-profile-complete-review .p-bigbalance{font-size:30px;color:#F0DBA3;font-weight:500;line-height:1.5;margin:12px 0}
+#ganj-profile-complete-review .p-bigbalance small{font-size:12px;color:#B9BB95}
+#ganj-profile-complete-review .p-tx{display:flex;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid #304232}
+#ganj-profile-complete-review .p-tx:last-child{border-bottom:0}
+#ganj-profile-complete-review .p-tx svg{width:18px;height:18px;color:#93B59B}
+#ganj-profile-complete-review .p-tx>span{flex:1;font-size:12px;color:#E0EBDD}
+#ganj-profile-complete-review .p-tx small{display:block;font-size:11px;color:#8FA893;margin-top:3px}
+#ganj-profile-complete-review .p-tx bdi{font-size:12px;color:#BFD7BC;font-variant-numeric:tabular-nums}
+#ganj-profile-complete-review .p-device{display:flex;gap:12px;align-items:center}
+#ganj-profile-complete-review .p-device>svg{height:26px;width:26px;color:#ADCFAF;flex-shrink:0}
+#ganj-profile-complete-review .p-device>div{flex:1}
+#ganj-profile-complete-review .p-device strong{font-size:13px;color:#E5EEE0;font-weight:500}
+#ganj-profile-complete-review .p-device small{display:block;font-size:11px;color:#99B49C;margin-top:4px}
+#ganj-profile-complete-review .p-danger{color:#F0B6AA!important;background:#492E2C;border:1px solid #8A5F52;border-radius:9px;min-height:42px;padding:8px 12px;font-size:12px!important}
+#ganj-profile-complete-review .p-confirm{padding-top:13px;margin-top:12px;border-top:1px solid #6E5145}
+#ganj-profile-complete-review .p-confirm p{color:#E5B9AA}
+#ganj-profile-complete-review .p-actions{display:flex;gap:9px;margin-top:12px}
+#ganj-profile-complete-review .p-actions>*{flex:1}
+#ganj-profile-complete-review .p-toggle{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid #304731}
+#ganj-profile-complete-review .p-toggle:last-child{border:0}
+#ganj-profile-complete-review .p-toggle>span{flex:1;font-size:12px;color:#DCEBD7}
+#ganj-profile-complete-review .p-toggle small{display:block;font-size:11px;color:#94AE96;margin-top:4px;line-height:1.7}
+#ganj-profile-complete-review .p-toggle input{appearance:none;width:40px;height:24px;border:1px solid #637B60;border-radius:13px;background:#34452F;flex-shrink:0;position:relative;transition:background 200ms}
+#ganj-profile-complete-review .p-toggle input:before{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#C1CBB2;top:3px;left:3px;transition:transform 220ms}
+#ganj-profile-complete-review .p-toggle input:checked{background:#209A60;border-color:#6DD196}
+#ganj-profile-complete-review .p-toggle input:checked:before{transform:translateX(16px);background:#EFFADE}
+#ganj-profile-complete-review .p-field{display:block;font-size:12px;color:#CCDEC4;margin:16px 0}
+#ganj-profile-complete-review .p-field textarea{display:block;width:100%;min-height:105px;margin-top:8px;padding:12px;border:1px solid #4C6848;border-radius:10px;background:#14251B;color:#EBF4E3;font:400 14px/1.9 Vazirmatn,Tahoma,sans-serif;resize:vertical}
+#ganj-profile-complete-review details{border-bottom:1px solid #334A34;padding:13px 0}
+#ganj-profile-complete-review details summary{color:#DFECD8;font-size:12px;min-height:28px}
+#ganj-profile-complete-review details p{padding-top:8px}
+#ganj-profile-complete-review .p-feedback{padding:11px 13px;border-radius:10px;background:#284E32;color:#D2ECC6;font-size:12px;line-height:1.9;margin:12px 0}
+#ganj-profile-complete-review .p-notification{border-right:2px solid #C6B66A;padding:0 12px;margin:16px 0}
+#ganj-profile-complete-review .p-notification strong{font-size:13px;font-weight:500;color:#E6EDDC}
+#ganj-profile-complete-review .p-notification small{font-size:11px;color:#97AD91}
+#ganj-profile-complete-review .p-login{text-align:center;padding:30px 15px}
+#ganj-profile-complete-review .p-login>svg{height:40px;width:40px;color:#83D7A7;margin-bottom:15px}
+#ganj-profile-complete-review .p-login h3{font-size:20px;margin:0 0 8px;color:#E6F4DF}
+#ganj-profile-complete-review .p-login p{font-size:12px;line-height:1.9;color:#A4B99E;margin-bottom:22px}
+#ganj-profile-complete-review[data-reduce-motion=true] *{animation:none!important;transition:none!important}
+#ganj-profile-complete-review[data-reduce-glass=true] .g-nav-glass{backdrop-filter:none;background:#155038}
+@media(max-width:360px){#ganj-profile-complete-review .p-page{padding-left:14px;padding-right:14px}#ganj-profile-complete-review .p-person{gap:9px}#ganj-profile-complete-review .p-tier{padding:3px 5px}}
+</style>
+<div class="shop-switch" aria-label="صفحات پیش‌نمایش"><button type="button" class="cursor-interaction" data-screen-target="connect" aria-pressed="false">اتصال</button><button type="button" class="cursor-interaction" data-screen-target="store" aria-pressed="false">فروشگاه</button><button type="button" class="cursor-interaction" data-screen-target="vip" aria-pressed="false">VIP</button><button type="button" class="cursor-interaction" data-screen-target="profile" aria-pressed="true">پروفایل</button></div>
+<div class="review-options" hidden aria-label="حالت‌های پیش‌نمایش">
+<button type="button" class="cursor-interaction" data-preview="disconnected" aria-pressed="true">خاموش</button>
+<button type="button" class="cursor-interaction" data-preview="connecting" aria-pressed="false">در حال اتصال</button>
+<button type="button" class="cursor-interaction" data-preview="connected" aria-pressed="false">متصل</button>
+<button type="button" class="cursor-interaction" data-preview="error" aria-pressed="false">خطا</button>
+</div>
+<section class="g-app" data-screen="profile" data-state="disconnected" aria-label="بازطراحی صفحه اتصال بر مبنای ساختار نسخه ۰.۳.۱۸">
+<div class="g-system"><span>9:41</span><div class="g-signal"><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i><i data-lucide="battery-full" aria-hidden="true"></i></div></div>
+<header class="g-header"><div class="g-logo"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzFEQTE1RCIgZD0iTTEyLDJMNC41LDUuMlYxMC40QzQuNSwxNS40IDcuNywyMC4xIDEyLDIxLjdDMTYuMywyMC4xIDE5LjUsMTUuNCAxOS41LDEwLjRWNS4yTDEyLDJaTTEyLDUuMUwxNi43LDcuMVYxMC40QzE2LjcsMTMuOCAxNC44LDE3LjEgMTIsMTguNUM5LjIsMTcuMSA3LjMsMTMuOCA3LjMsMTAuNFY3LjFMMTIsNS4xWk0xMSw4VjEySDguN0wxMiwxNS4zTDE1LjMsMTJIMTNWOEgxMVoiLz48L3N2Zz4=" alt="نشان گنج"></div><div class="g-brand"><div class="g-name">GANJ <small>VPN</small></div><div class="g-tagline">ارتباط امن، کنترل ساده</div></div><button type="button" class="g-upgrade cursor-interaction" aria-label="ارتقا به VIP"><i data-lucide="crown" aria-hidden="true"></i>ارتقا</button></header>
+<div class="g-hero">
+<div class="g-power-area"><div class="g-orbit" aria-hidden="true"></div><div class="g-arc" aria-hidden="true"></div><div class="g-arc g-arc-inner" aria-hidden="true"></div><div class="g-ripple" aria-hidden="true"></div><button type="button" class="g-power cursor-interaction" aria-label="اتصال VPN"><span class="g-power-symbol"><span class="g-normal-icon"><i data-lucide="power" aria-hidden="true"></i></span><span class="g-failure-icon"><i data-lucide="circle-x" aria-hidden="true"></i></span></span><span class="g-action-label" aria-live="polite">برای اتصال کلیک کنید</span><span class="g-power-detail"><span class="g-guidance">آماده اتصال</span><bdi class="g-timer" aria-label="مدت اتصال"></bdi></span></button></div>
+<div class="g-error" hidden role="alert">سرور پاسخ نداد. دوباره تلاش کنید یا سرور دیگری انتخاب کنید.</div>
+</div>
+<div class="g-body">
+<button type="button" class="g-smart cursor-interaction"><i data-lucide="zap" aria-hidden="true"></i><span class="g-smart-copy">اتصال هوشمند</span><small>انتخاب بهترین سرور</small><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+<div class="g-selection">
+<div class="g-subscription"><i data-lucide="layers" aria-hidden="true"></i><span class="g-subscription-label">اشتراک انتخاب‌شده</span><bdi>ganj_user</bdi><span class="g-change">تغییر</span></div>
+<div class="g-server"><img src="data:image/webp;base64,UklGRmgAAABXRUJQVlA4TFwAAAAvb4AQAF9gIG2bwExP3Z3cwhVciOJIMqBdRyDyr5IXLxGsmP+AguEQkrTl4F/XNCCKbRu/ggoqqKCCCiqooIIKKoh4lv4iov8Z6aWwYI9VNlj7tpN1dtlih+30Ag==" alt="آلمان" class="g-flag"><div class="g-server-copy"><strong>آلمان · فرانکفورت</strong><small>Germany 01 · VLESS</small></div><i data-lucide="chevron-left" aria-hidden="true"></i></div>
+<div class="g-ping"><div class="g-ping-value"><i data-lucide="activity" aria-hidden="true"></i><span>پینگ سرور</span><bdi>— ms</bdi></div><span class="g-ping-action">بررسی پینگ</span></div>
+</div>
+</div>
+<section class="s-page" data-view="store" aria-label="فروشگاه">
+<header class="s-header"><div><h2>فروشگاه</h2><p>اشتراک متناسب با نیاز شما</p></div><span class="s-header-mark">GANJ</span></header>
+<button type="button" class="s-banner cursor-interaction" data-open-vip><div class="s-banner-copy"><small>GANJ VIP</small><strong>انتخاب ویژه شما</strong><span>بررسی پلن‌های VIP و ارتقای اشتراک</span></div><i data-lucide="crown" aria-hidden="true"></i></button>
+<div class="s-section-label">مدت اشتراک<small>پرداخت برای کل دوره</small></div>
+<div class="s-periods" aria-label="مدت اشتراک"><button type="button" class="cursor-interaction" data-duration="0" aria-pressed="true">۱ ماهه</button><button type="button" class="cursor-interaction" data-duration="1" aria-pressed="false">۳ ماهه</button><button type="button" class="cursor-interaction" data-duration="2" aria-pressed="false">۶ ماهه</button></div>
+<div class="s-plans" aria-label="انتخاب پلن">
+<button type="button" class="s-plan cursor-interaction" data-plan="premium" aria-pressed="true"><span class="s-plan-top"><span class="s-radio" aria-hidden="true"></span><strong>گنج پریمیوم</strong><i data-lucide="shield-check" aria-hidden="true"></i></span><span class="s-price-row"><span class="s-price"><span data-price="premium">۲۴۰٬۰۰۰</span><small>تومان</small></span><small class="s-duration-label">۳۰ روز</small></span><span class="s-metadata"><span><i data-lucide="database" aria-hidden="true"></i><span data-traffic="premium">۶۰ گیگابایت</span></span><span><i data-lucide="smartphone" aria-hidden="true"></i>۱ دستگاه</span></span></button>
+<button type="button" class="s-plan cursor-interaction" data-plan="vip" aria-pressed="false"><span class="s-plan-top"><span class="s-radio" aria-hidden="true"></span><strong>گنج VIP</strong><i data-lucide="crown" aria-hidden="true"></i></span><span class="s-price-row"><span class="s-price"><span data-price="vip">۳۹۰٬۰۰۰</span><small>تومان</small></span><small class="s-duration-label">۳۰ روز</small></span><span class="s-metadata"><span><i data-lucide="database" aria-hidden="true"></i><span data-traffic="vip">۱۰۰ گیگابایت</span></span><span><i data-lucide="smartphone" aria-hidden="true"></i>۳ دستگاه</span></span></button>
+</div>
+<div class="s-order"><div class="s-total"><span class="s-selected-title">پریمیوم · ۱ ماهه</span><strong class="s-selected-price">۲۴۰٬۰۰۰ تومان</strong></div><button type="button" class="s-primary cursor-interaction" data-review-order="store">بررسی و ادامه خرید<i data-lucide="arrow-left" aria-hidden="true"></i></button><p class="s-footnote">جزئیات سفارش پیش از پرداخت نمایش داده می‌شود</p></div>
+</section>
+<section class="s-page" data-view="vip" hidden aria-label="ارتقا به VIP">
+<header class="s-header"><button type="button" class="s-back cursor-interaction" aria-label="بازگشت به فروشگاه" data-back-store><i data-lucide="arrow-right" aria-hidden="true"></i></button><div class="v-title"><h2>ارتقا به VIP</h2><p>اشتراک ویژه گنج</p></div></header>
+<div class="v-hero"><div class="v-emblem"><span>GANJ / VIP</span><i data-lucide="crown" aria-hidden="true"></i></div><h3>یک انتخاب ویژه</h3><p>مدت اشتراک را انتخاب کنید و جزئیات پلن VIP خود را ببینید.</p><div class="v-card-footer"><span>VIP MEMBERSHIP</span><span>GANJ VPN</span></div></div>
+<div class="v-facts"><div><strong class="v-traffic">۱۰۰</strong><small>گیگابایت کل دوره</small></div><div><strong>۳</strong><small>دستگاه</small></div><div><strong class="v-days">۳۰</strong><small>روز اعتبار</small></div></div>
+<div class="s-section-label">مدت اشتراک را انتخاب کنید</div>
+<div class="v-periods" aria-label="انتخاب دوره VIP">
+<button type="button" class="v-period cursor-interaction" data-vip-duration="0" aria-pressed="true"><span class="s-radio" aria-hidden="true"></span><span class="v-period-name">۱ ماهه<small>۱۰۰ گیگابایت · ۳۰ روز</small></span><span class="v-period-price">۳۹۰٬۰۰۰<small>تومان</small></span></button>
+<button type="button" class="v-period cursor-interaction" data-vip-duration="1" aria-pressed="false"><span class="s-radio" aria-hidden="true"></span><span class="v-period-name">۳ ماهه<small>۳۰۰ گیگابایت · ۹۰ روز</small></span><span class="v-period-price">۱٬۰۸۰٬۰۰۰<small>تومان</small></span></button>
+<button type="button" class="v-period cursor-interaction" data-vip-duration="2" aria-pressed="false"><span class="s-radio" aria-hidden="true"></span><span class="v-period-name">۶ ماهه<small>۶۰۰ گیگابایت · ۱۸۰ روز</small></span><span class="v-period-price">۱٬۹۸۰٬۰۰۰<small>تومان</small></span></button>
+</div>
+<div class="s-order"><div class="s-total"><span>مبلغ کل دوره</span><strong class="v-total">۳۹۰٬۰۰۰ تومان</strong></div><button type="button" class="s-primary v-purchase cursor-interaction" data-review-order="vip"><i data-lucide="crown" aria-hidden="true"></i>ادامه با VIP</button><p class="s-footnote">مشخصات و مبلغ نهایی در خلاصه سفارش</p></div>
+</section>
+<section class="p-page" data-view="profile" aria-label="پروفایل">
+<header class="p-head"><button type="button" class="p-iconbutton cursor-interaction" data-profile-back hidden aria-label="بازگشت به پروفایل"><i data-lucide="arrow-right" aria-hidden="true"></i></button><div class="p-head-copy"><h2 class="p-heading">پروفایل</h2><p class="p-subheading">حساب شما، همه‌چیز در یک نگاه</p></div><button type="button" class="p-iconbutton cursor-interaction" data-profile-open="notifications" aria-label="اعلان‌ها"><i data-lucide="bell" aria-hidden="true"></i><span class="p-unread" aria-hidden="true"></span></button></header>
+<div class="p-pane" data-profile-pane="hub">
+<div class="p-identity"><div class="p-person"><div class="p-avatar" aria-hidden="true">G</div><div class="p-name"><strong>کاربر گنج</strong><bdi>@ganj_user</bdi></div><span class="p-tier"><i data-lucide="shield-check" aria-hidden="true"></i>پریمیوم</span></div><div class="p-identity-foot"><span><i data-lucide="circle-check" aria-hidden="true"></i>تلگرام متصل است</span><button type="button" class="p-link cursor-interaction" data-profile-open="account">مدیریت حساب</button></div></div>
+<div class="p-summary"><div class="p-row"><span class="p-label">اشتراک انتخاب‌شده</span><span class="p-live">فعال</span></div><div class="p-row"><div class="p-usage">۲۴ <small>از ۶۰ گیگابایت مصرف شده</small></div><button type="button" class="p-link cursor-interaction" data-profile-open="subscription">جزئیات</button></div><div class="p-track" role="progressbar" aria-label="حجم مصرف‌شده" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40"><span></span></div><div class="p-row p-caption"><span>۳۶ گیگابایت باقی‌مانده</span><span>۱۸ روز اعتبار</span></div></div>
+<button type="button" class="p-wallet cursor-interaction" data-profile-open="wallet"><span class="p-wallet-symbol"><i data-lucide="wallet" aria-hidden="true"></i></span><span class="p-wallet-copy">موجودی کیف پول<strong>۳۵۰٬۰۰۰ <small>تومان</small></strong></span><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+<div class="p-group-label">حساب و سرویس‌ها</div><div class="p-group">
+<button type="button" class="p-menu cursor-interaction" data-profile-open="subscription"><i data-lucide="layers" aria-hidden="true"></i><span>اشتراک‌های من</span><small>۱ فعال</small><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+<button type="button" class="p-menu cursor-interaction" data-profile-open="devices"><i data-lucide="monitor-smartphone" aria-hidden="true"></i><span>دستگاه‌های من</span><small class="p-device-count">۲ دستگاه</small><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+<button type="button" class="p-menu cursor-interaction" data-profile-open="transactions"><i data-lucide="receipt-text" aria-hidden="true"></i><span>تراکنش‌ها</span><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+<button type="button" class="p-menu cursor-interaction" data-open-vip><i data-lucide="crown" aria-hidden="true"></i><span>ارتقا به VIP</span><small>مشاهده پلن‌ها</small><i data-lucide="chevron-left" aria-hidden="true"></i></button></div>
+<div class="p-group-label">تنظیمات و پشتیبانی</div><div class="p-group">
+<button type="button" class="p-menu cursor-interaction" data-profile-open="appearance"><i data-lucide="sliders-horizontal" aria-hidden="true"></i><span>ظاهر و دسترس‌پذیری</span><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+<button type="button" class="p-menu cursor-interaction" data-profile-open="privacy"><i data-lucide="shield" aria-hidden="true"></i><span>حریم خصوصی و امنیت</span><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+<button type="button" class="p-menu cursor-interaction" data-profile-open="support"><i data-lucide="headphones" aria-hidden="true"></i><span>پشتیبانی و گزارش مشکل</span><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+<button type="button" class="p-menu cursor-interaction" data-profile-open="diagnostics"><i data-lucide="activity" aria-hidden="true"></i><span>عیب‌یابی اتصال</span><i data-lucide="chevron-left" aria-hidden="true"></i></button></div>
+<button type="button" class="p-signout cursor-interaction" data-profile-open="logout"><i data-lucide="log-out" aria-hidden="true"></i>خروج از حساب</button><p class="p-version">GANJ VPN · 0.3.18</p>
+</div>
+<div class="p-pane" data-profile-pane="account" hidden><div class="p-box"><h3>حساب تلگرام</h3><div class="p-pair"><span>نام نمایشی</span><strong>کاربر گنج</strong></div><div class="p-pair"><span>نام کاربری</span><strong><bdi>@ganj_user</bdi></strong></div><div class="p-pair"><span>وضعیت حساب</span><strong>متصل</strong></div><p>اشتراک‌های خریداری‌شده با حساب تلگرام شما همگام می‌شوند.</p></div><button type="button" class="p-secondary cursor-interaction" data-sync-account><i data-lucide="refresh-cw" aria-hidden="true"></i><span>همگام‌سازی حساب</span></button><p class="p-feedback" data-sync-feedback hidden role="status"></p><button type="button" class="p-signout cursor-interaction" data-profile-open="logout">خروج از حساب تلگرام</button></div>
+<div class="p-pane" data-profile-pane="subscription" hidden><div class="p-summary"><div class="p-row"><h3 style="font-size:17px;margin:0;font-weight:500">گنج پریمیوم</h3><span class="p-live">فعال</span></div><p class="p-help"><bdi>ganj_user</bdi> · اشتراک انتخاب‌شده</p><div class="p-track" role="progressbar" aria-label="حجم مصرف‌شده" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40"><span></span></div><div class="p-pair"><span>حجم مصرف‌شده</span><strong>۲۴ از ۶۰ گیگابایت</strong></div><div class="p-pair"><span>حجم باقی‌مانده</span><strong>۳۶ گیگابایت</strong></div><div class="p-pair"><span>اعتبار باقی‌مانده</span><strong>۱۸ روز</strong></div><div class="p-pair"><span>دستگاه مجاز این سرویس</span><strong>۱ دستگاه</strong></div><div class="p-actions"><button type="button" class="p-secondary cursor-interaction" data-profile-connect>اتصال</button><button type="button" class="p-secondary cursor-interaction" data-profile-store>خرید اشتراک</button></div></div><p class="p-help">دستگاه‌های ثبت‌شده حساب با تعداد دستگاه مجاز هر اشتراک متفاوت‌اند.</p></div>
+<div class="p-pane" data-profile-pane="wallet" hidden><div class="p-box"><div class="p-row"><span class="p-label">موجودی قابل استفاده</span><i data-lucide="wallet" aria-hidden="true"></i></div><div class="p-bigbalance">۳۵۰٬۰۰۰ <small>تومان</small></div><button type="button" class="s-primary cursor-interaction" data-profile-open="topup">افزایش موجودی<i data-lucide="plus" aria-hidden="true"></i></button></div><div class="p-group"><button type="button" class="p-menu cursor-interaction" data-profile-open="transactions"><i data-lucide="receipt-text" aria-hidden="true"></i><span>تاریخچه تراکنش‌ها</span><i data-lucide="chevron-left" aria-hidden="true"></i></button></div><p class="p-help">موجودی و تراکنش‌های این طرح نمونه‌اند.</p></div>
+<div class="p-pane" data-profile-pane="topup" hidden><div class="p-box"><h3>مبلغ افزایش موجودی</h3><div class="s-periods"><button type="button" data-topup="100000" aria-pressed="false">۱۰۰ هزار</button><button type="button" data-topup="300000" aria-pressed="true">۳۰۰ هزار</button><button type="button" data-topup="500000" aria-pressed="false">۵۰۰ هزار</button></div><div class="p-pair"><span>مبلغ</span><strong class="p-topup-total">۳۰۰٬۰۰۰ تومان</strong></div><p>پیش‌نمایش افزایش موجودی؛ به درگاه پرداخت متصل نیست.</p><button type="button" class="s-primary cursor-interaction" data-topup-review>بررسی مبلغ</button><p class="p-feedback" data-topup-feedback hidden role="status"></p></div></div>
+<div class="p-pane" data-profile-pane="transactions" hidden><div class="s-periods" aria-label="فیلتر تراکنش‌ها"><button type="button" data-tx-filter="all" aria-pressed="true">همه</button><button type="button" data-tx-filter="credit" aria-pressed="false">واریز</button><button type="button" data-tx-filter="debit" aria-pressed="false">خرید</button></div><div class="p-box"><div class="p-tx" data-tx-kind="credit"><i data-lucide="arrow-down-left" aria-hidden="true"></i><span>افزایش موجودی<small>۱۴ مهر · تأییدشده</small></span><bdi>+۵۰۰٬۰۰۰</bdi></div><div class="p-tx" data-tx-kind="debit"><i data-lucide="shopping-bag" aria-hidden="true"></i><span>خرید اشتراک<small>۱۲ مهر · تکمیل‌شده</small></span><bdi>−۲۴۰٬۰۰۰</bdi></div><div class="p-tx" data-tx-kind="credit"><i data-lucide="arrow-down-left" aria-hidden="true"></i><span>افزایش موجودی<small>۱۰ مهر · تأییدشده</small></span><bdi>+۹۰٬۰۰۰</bdi></div></div><p class="p-help">مبالغ به تومان هستند · تراکنش‌های نمونه</p></div>
+<div class="p-pane" data-profile-pane="devices" hidden><div class="p-box"><div class="p-device"><i data-lucide="smartphone" aria-hidden="true"></i><div><strong>گوشی اندروید</strong><small>این دستگاه · فعال</small></div><span class="p-live">فعلی</span></div></div><div class="p-box" data-secondary-device><div class="p-device"><i data-lucide="tablet" aria-hidden="true"></i><div><strong>تبلت اندروید</strong><small>دستگاه ثبت‌شده حساب</small></div><button type="button" class="p-link cursor-interaction" data-device-confirm>حذف</button></div><div class="p-confirm" data-device-confirmation hidden><p>دسترسی این دستگاه لغو شود؟</p><div class="p-actions"><button type="button" class="p-danger cursor-interaction" data-device-remove>حذف دستگاه</button><button type="button" class="p-secondary cursor-interaction" data-device-cancel>انصراف</button></div></div></div><p class="p-feedback" data-device-feedback hidden role="status">دستگاه نمونه از فهرست پیش‌نمایش حذف شد.</p><button type="button" class="p-secondary cursor-interaction" data-device-restore hidden>بازگردانی دستگاه نمونه</button><p class="p-help">حذف دستگاه، اشتراک شما را حذف نمی‌کند. این تغییر فقط در پیش‌نمایش است.</p></div>
+<div class="p-pane" data-profile-pane="appearance" hidden><div class="p-box"><div class="p-pair"><span>تم این طرح</span><strong>تیره · زمردی و طلایی</strong></div><label class="p-toggle"><span>کاهش حرکت<small>انیمیشن‌ها و حرکت‌های تزئینی متوقف می‌شوند.</small></span><input type="checkbox" data-reduce-motion aria-label="کاهش حرکت"></label><label class="p-toggle"><span>کاهش شفافیت<small>نوار پایین با سطح یکدست نمایش داده می‌شود.</small></span><input type="checkbox" data-reduce-glass aria-label="کاهش شفافیت"></label></div><p class="p-help">این تنظیمات در تمام صفحات همین پیش‌نمایش اعمال می‌شوند.</p></div>
+<div class="p-pane" data-profile-pane="privacy" hidden><div class="p-box"><h3>کنترل داده‌های عیب‌یابی</h3><label class="p-toggle"><span>پیوست گزارش عیب‌یابی<small>انتخاب اختیاری هنگام بررسی گزارش مشکل</small></span><input type="checkbox" data-diagnostic-consent aria-label="رضایت به پیوست گزارش عیب‌یابی"></label><p>قبل از ارسال، اطلاعات گزارش را بررسی کنید. رمز، کد ورود یا لینک خصوصی اشتراک را در متن گزارش قرار ندهید.</p></div><div class="p-group"><button type="button" class="p-menu cursor-interaction" data-profile-open="devices"><i data-lucide="monitor-smartphone" aria-hidden="true"></i><span>مدیریت دستگاه‌های حساب</span><i data-lucide="chevron-left" aria-hidden="true"></i></button><button type="button" class="p-menu cursor-interaction" data-profile-open="account"><i data-lucide="user-round" aria-hidden="true"></i><span>حساب متصل</span><i data-lucide="chevron-left" aria-hidden="true"></i></button></div></div>
+<div class="p-pane" data-profile-pane="notifications" hidden><div class="p-box"><div class="p-notification"><strong>اشتراک فعال شد</strong><p>اشتراک پریمیوم در فهرست سرویس‌های شما در دسترس است.</p><small>اعلان نمونه · امروز</small></div><div class="p-notification"><strong>واریز تأیید شد</strong><p>جزئیات افزایش موجودی را در تراکنش‌ها ببینید.</p><small>اعلان نمونه · دیروز</small></div><button type="button" class="p-secondary cursor-interaction" data-read-notifications>علامت‌گذاری همه به‌عنوان خوانده‌شده</button></div><p class="p-feedback" data-notification-feedback hidden role="status">اعلان‌های نمونه خوانده‌شده علامت‌گذاری شدند.</p></div>
+<div class="p-pane" data-profile-pane="support" hidden><div class="p-box"><h3>پرسش‌های رایج</h3><details><summary>چرا اتصال برقرار نمی‌شود؟</summary><p>اشتراک فعال و سرور انتخاب‌شده را بررسی کنید. نتیجه پینگ و پیام خطا می‌توانند به تشخیص مشکل کمک کنند.</p></details><details><summary>اشتراک خریداری‌شده را نمی‌بینم</summary><p>مطمئن شوید با همان حساب تلگرام خریدار وارد شده‌اید و همگام‌سازی حساب را انجام دهید.</p></details><details><summary>از کجا حجم باقی‌مانده را ببینم؟</summary><p>در پروفایل، بخش اشتراک‌های من را باز کنید و جزئیات سرویس را ببینید.</p></details></div><label class="p-field">شرح مشکل<textarea maxlength="1500" placeholder="چه اتفاقی افتاد و چه پیام خطایی دیدید؟" data-support-text></textarea></label><button type="button" class="s-primary cursor-interaction" data-review-report>بررسی گزارش</button><p class="p-feedback" data-report-feedback hidden role="status"></p><button type="button" class="p-secondary cursor-interaction" style="margin-top:12px" data-profile-open="diagnostics">بررسی وضعیت اتصال</button></div>
+<div class="p-pane" data-profile-pane="diagnostics" hidden><div class="p-box"><h3>بررسی اتصال</h3><p>وضعیت اشتراک، سرور انتخاب‌شده و اتصال VPN در یک گزارش جمع می‌شوند.</p><button type="button" class="s-primary cursor-interaction" data-run-diagnostics>نمایش گزارش نمونه</button><div data-diagnostic-result hidden><div class="p-pair"><span>اشتراک</span><strong>فعال</strong></div><div class="p-pair"><span>سرور انتخاب‌شده</span><strong>آلمان · فرانکفورت</strong></div><div class="p-pair"><span>اتصال واقعی</span><strong>در پیش‌نمایش بررسی نمی‌شود</strong></div><p class="p-help">این گزارش نمونه است و داده‌ای ارسال نمی‌شود.</p></div></div></div>
+<div class="p-pane" data-profile-pane="logout" hidden><div class="p-box"><h3>از حساب خارج می‌شوید؟</h3><p>برای دسترسی دوباره به سرویس‌های خریداری‌شده، باید با حساب تلگرام خود وارد شوید.</p><div class="p-actions"><button type="button" class="p-danger cursor-interaction" data-confirm-logout>خروج از حساب</button><button type="button" class="p-secondary cursor-interaction" data-profile-open="hub">انصراف</button></div></div></div>
+<div class="p-pane" data-profile-pane="login" hidden><div class="p-login"><i data-lucide="user-round" aria-hidden="true"></i><h3>به حساب گنج وارد شوید</h3><p>برای مشاهده اشتراک‌ها و کیف پول، حساب تلگرام خود را متصل کنید.</p><button type="button" class="s-primary cursor-interaction" data-demo-login>ورود با تلگرام</button><p>ورود در این پیش‌نمایش شبیه‌سازی می‌شود.</p></div></div>
+</section>
+<div class="s-checkout" hidden><section class="s-sheet" role="dialog" aria-modal="true" aria-labelledby="ganj-order-title"><header class="s-sheet-head"><h3 id="ganj-order-title">بررسی سفارش</h3><button type="button" class="s-close cursor-interaction" aria-label="بستن خلاصه سفارش"><i data-lucide="x" aria-hidden="true"></i></button></header><div class="s-order-line"><span>اشتراک</span><strong class="order-tier"></strong></div><div class="s-order-line"><span>مدت اعتبار</span><strong class="order-duration"></strong></div><div class="s-order-line"><span>حجم کل دوره</span><strong class="order-traffic"></strong></div><div class="s-order-line"><span>تعداد دستگاه</span><strong class="order-devices"></strong></div><hr><div class="s-total"><span>مبلغ کل</span><strong class="order-price"></strong></div><p class="s-review-note">این سفارش نمونه طراحی است؛ پرداخت و خرید واقعی انجام نمی‌شود.</p><button type="button" class="s-primary cursor-interaction" data-close-order>بازگشت به انتخاب پلن</button></section></div>
+<div class="g-bottom-wrap">
+<nav class="g-nav" aria-label="پیش‌نمایش حرکت نوار پایین؛ صفحات دیگر در این طرح باز نمی‌شوند"><div class="g-nav-glass" aria-hidden="true"></div><canvas class="g-nav-curve" aria-hidden="true"></canvas><div class="g-nav-lens" aria-hidden="true"></div>
+<button type="button" class="cursor-interaction" data-tab="0" aria-pressed="false"><i data-lucide="house" aria-hidden="true"></i><span>خانه</span></button>
+<button type="button" class="cursor-interaction" data-tab="1" aria-pressed="false"><i data-lucide="layers" aria-hidden="true"></i><span>اشتراک‌ها</span></button>
+<button type="button" class="cursor-interaction" data-tab="2" aria-pressed="true"><span class="g-nav-center"><i data-lucide="power" aria-hidden="true"></i></span><span>اتصال</span></button>
+<button type="button" class="cursor-interaction" data-tab="3" aria-pressed="false"><i data-lucide="shopping-bag" aria-hidden="true"></i><span>فروشگاه</span></button>
+<button type="button" class="cursor-interaction" data-tab="4" aria-pressed="false"><i data-lucide="user-round" aria-hidden="true"></i><span>پروفایل</span></button>
+</nav><div class="g-home-indicator" aria-hidden="true"></div>
+</div>
+</section>
+<script>
+(()=>{
+const root=document.getElementById('ganj-profile-complete-review');
+const app=root.querySelector('.g-app'),power=root.querySelector('.g-power'),action=root.querySelector('.g-action-label'),hint=root.querySelector('.g-guidance'),timer=root.querySelector('.g-timer'),error=root.querySelector('.g-error'),lens=root.querySelector('.g-nav-lens');
+const choices=root.querySelectorAll('[data-preview]'),tabs=root.querySelectorAll('[data-tab]'),smart=root.querySelector('.g-smart');
+let state='disconnected',pending=[],clock=null,started=0;
+const copy={disconnected:['برای اتصال کلیک کنید','آماده اتصال','اتصال VPN'],connecting:['در حال اتصال','برای لغو کلیک کنید','لغو اتصال'],connected:['متصل هستید','','قطع اتصال VPN'],disconnecting:['در حال قطع اتصال','لطفاً کمی صبر کنید','در حال قطع اتصال'],error:['اتصال برقرار نشد','برای تلاش دوباره کلیک کنید','تلاش دوباره برای اتصال']};
+function clear(){pending.forEach(clearTimeout);pending=[];clearInterval(clock);clock=null}
+function tick(){const s=Math.floor((Date.now()-started)/1000);timer.textContent=[Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(n=>String(n).padStart(2,'0')).join(':')}
+function setState(next){clear();state=next;app.dataset.state=next;const c=copy[next];action.textContent=c[0];hint.textContent=c[1];power.setAttribute('aria-label',c[2]);power.disabled=next==='disconnecting';smart.disabled=next==='connecting'||next==='disconnecting';error.hidden=next!=='error';timer.textContent='';choices.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.preview===next)));if(next==='connected'){started=Date.now();tick();clock=setInterval(tick,1000)}}
+power.addEventListener('click',()=>{if(state==='disconnecting')return;if(state==='connecting'){setState('disconnected');return}if(state==='connected'){setState('disconnecting');pending.push(setTimeout(()=>setState('disconnected'),700));return}setState('connecting');pending.push(setTimeout(()=>setState('connected'),2800))});
+choices.forEach(b=>b.addEventListener('click',()=>setState(b.dataset.preview)));
+smart.addEventListener('click',()=>{if(smart.disabled)return;setState('connecting');hint.textContent='در حال انتخاب بهترین سرور';pending.push(setTimeout(()=>setState('connected'),2800))});
+let lensMotion=null;
+tabs.forEach(b=>b.addEventListener('click',()=>{const index=Number(b.dataset.tab),slot=4-index;lens.style.left=`calc(${slot*20}% + ${5-slot*2}px)`;lens.style.opacity=index===2?'0':'1';lens.style.transform=index===2?'scale(.85)':'scale(1)';if(lensMotion)lensMotion.cancel();if(index!==2&&root.dataset.reduceMotion!=='true'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&lens.animate){lensMotion=lens.animate([{scale:'1 1'},{scale:'1.13 .94',offset:.35},{scale:'1 1'}],{duration:480,easing:'cubic-bezier(.2,.8,.2,1)'})}tabs.forEach(t=>t.setAttribute('aria-pressed',String(t===b)))}));
+const canvas=root.querySelector('.g-nav-curve');
+function drawRim(){const w=canvas.getBoundingClientRect().width,h=80;if(!w)return;const dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(w*dpr);canvas.height=h*dpr;const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);const cx=w/2,r=39,cy=-3,a=Math.asin(4/r),dx=Math.sqrt(r*r-16);ctx.beginPath();ctx.moveTo(1,24);ctx.quadraticCurveTo(1,1,24,1);ctx.lineTo(cx-dx,1);ctx.arc(cx,cy,r,Math.PI-a,a,true);ctx.lineTo(w-24,1);ctx.quadraticCurveTo(w-1,1,w-1,24);const g=ctx.createLinearGradient(0,0,w,55);g.addColorStop(0,'#BCFFE276');g.addColorStop(.42,'#F1CD83BA');g.addColorStop(.6,'#CDFFDCA0');g.addColorStop(1,'#8EE2B755');ctx.strokeStyle=g;ctx.lineWidth=1;ctx.stroke()}
+drawRim();if(typeof ResizeObserver!=='undefined')new ResizeObserver(drawRim).observe(canvas);
+})();
+</script>
+<script>
+(()=>{
+const root=document.getElementById('ganj-profile-complete-review'),app=root.querySelector('.g-app');
+const data={premium:{name:'پریمیوم',prices:[240000,660000,1200000],traffic:[60,180,360],devices:1},vip:{name:'VIP',prices:[390000,1080000,1980000],traffic:[100,300,600],devices:3}};
+const days=[30,90,180],months=[1,3,6],fmt=n=>new Intl.NumberFormat('fa-IR').format(n);
+let duration=0,tier='premium',screen='store',returnFocus=null;
+const pages=root.querySelectorAll('[data-view]'),switches=root.querySelectorAll('[data-screen-target]'),plans=root.querySelectorAll('[data-plan]'),periods=root.querySelectorAll('[data-duration]'),vipPeriods=root.querySelectorAll('[data-vip-duration]');
+const modal=root.querySelector('.s-checkout'),close=root.querySelector('.s-close'),lens=root.querySelector('.g-nav-lens');
+function sync(){periods.forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.duration)===duration)));vipPeriods.forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.vipDuration)===duration)));plans.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.plan===tier)));root.querySelectorAll('[data-price]').forEach(e=>e.textContent=fmt(data[e.dataset.price].prices[duration]));root.querySelectorAll('[data-traffic]').forEach(e=>e.textContent=fmt(data[e.dataset.traffic].traffic[duration])+' گیگابایت');root.querySelectorAll('.s-duration-label').forEach(e=>e.textContent=fmt(days[duration])+' روز');root.querySelector('.s-selected-title').textContent=data[tier].name+' · '+fmt(months[duration])+' ماهه';root.querySelector('.s-selected-price').textContent=fmt(data[tier].prices[duration])+' تومان';root.querySelector('.v-traffic').textContent=fmt(data.vip.traffic[duration]);root.querySelector('.v-days').textContent=fmt(days[duration]);root.querySelector('.v-total').textContent=fmt(data.vip.prices[duration])+' تومان'}
+function show(next){screen=next;app.dataset.screen=next;pages.forEach(p=>p.hidden=p.dataset.view!==next);switches.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.screenTarget===next)));root.querySelector('.review-options').hidden=next!=='connect';const target=next==='connect'?2:next==='profile'?4:3;root.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.tab)===target)));const slot=4-target;lens.style.left=`calc(${slot*20}% + ${5-slot*2}px)`;lens.style.opacity=target===2?'0':'1';lens.style.transform=target===2?'scale(.85)':'scale(1)';sync()}
+switches.forEach(b=>b.addEventListener('click',()=>show(b.dataset.screenTarget)));
+root.querySelectorAll('[data-open-vip]').forEach(b=>b.addEventListener('click',()=>{tier='vip';show('vip')}));root.querySelector('.g-upgrade').addEventListener('click',()=>{tier='vip';show('vip')});
+root.querySelector('[data-back-store]').addEventListener('click',()=>show('store'));
+periods.forEach(b=>b.addEventListener('click',()=>{duration=Number(b.dataset.duration);sync()}));vipPeriods.forEach(b=>b.addEventListener('click',()=>{duration=Number(b.dataset.vipDuration);tier='vip';sync()}));plans.forEach(b=>b.addEventListener('click',()=>{tier=b.dataset.plan;sync()}));
+root.querySelector('[data-tab="3"]').addEventListener('click',()=>show('store'));root.querySelector('[data-tab="2"]').addEventListener('click',()=>show('connect'));
+function dismiss(){modal.hidden=true;Array.from(app.children).forEach(e=>{if(e!==modal)e.inert=false});if(returnFocus)returnFocus.focus()}
+root.querySelectorAll('[data-review-order]').forEach(b=>b.addEventListener('click',()=>{const selected=b.dataset.reviewOrder==='vip'?'vip':tier,p=data[selected];root.querySelector('.order-tier').textContent='گنج '+p.name;root.querySelector('.order-duration').textContent=fmt(days[duration])+' روز';root.querySelector('.order-traffic').textContent=fmt(p.traffic[duration])+' گیگابایت';root.querySelector('.order-devices').textContent=fmt(p.devices)+' دستگاه';root.querySelector('.order-price').textContent=fmt(p.prices[duration])+' تومان';returnFocus=b;modal.hidden=false;Array.from(app.children).forEach(e=>{if(e!==modal)e.inert=true});close.focus()}));
+close.addEventListener('click',dismiss);root.querySelector('[data-close-order]').addEventListener('click',dismiss);modal.addEventListener('click',e=>{if(e.target===modal)dismiss()});modal.addEventListener('keydown',e=>{if(e.key==='Escape')dismiss();if(e.key==='Tab'){const last=root.querySelector('[data-close-order]');if(e.shiftKey&&document.activeElement===close){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();close.focus()}}});
+root.querySelector('[data-tab="4"]').addEventListener('click',()=>show('profile'));
+show('profile');
+})();
+</script>
+<script>
+(()=>{
+const root=document.getElementById('ganj-profile-complete-review'),q=s=>root.querySelector(s),qa=s=>root.querySelectorAll(s);
+const titles={hub:['پروفایل','حساب شما، همه‌چیز در یک نگاه'],account:['مدیریت حساب','اتصال و همگام‌سازی تلگرام'],subscription:['اشتراک‌های من','حجم، اعتبار و وضعیت سرویس'],wallet:['کیف پول','موجودی و فعالیت مالی'],topup:['افزایش موجودی','انتخاب مبلغ'],transactions:['تراکنش‌ها','تاریخچه فعالیت مالی'],devices:['دستگاه‌های من','مدیریت دسترسی حساب'],appearance:['ظاهر و دسترس‌پذیری','تنظیم تجربه کاربری'],privacy:['حریم خصوصی','کنترل داده‌ها و دسترسی‌ها'],notifications:['اعلان‌ها','پیام‌های مربوط به حساب'],support:['مرکز پشتیبانی','راهنما و بررسی گزارش مشکل'],diagnostics:['عیب‌یابی اتصال','بررسی وضعیت سرویس'],logout:['خروج از حساب','تأیید خروج'],login:['حساب گنج','ورود و اتصال حساب']};
+let signedIn=true,pane='hub',topup=300000,syncTimer=null,diagnosticTimer=null;
+function open(next){pane=signedIn?next:'login';qa('[data-profile-pane]').forEach(e=>e.hidden=e.dataset.profilePane!==pane);q('.p-heading').textContent=titles[pane][0];q('.p-subheading').textContent=titles[pane][1];q('[data-profile-back]').hidden=pane==='hub'||pane==='login';}
+qa('[data-profile-open]').forEach(b=>b.addEventListener('click',()=>open(b.dataset.profileOpen)));q('[data-profile-back]').addEventListener('click',()=>open(pane==='topup'?'wallet':'hub'));
+q('[data-profile-connect]').addEventListener('click',()=>q('[data-screen-target="connect"]').click());q('[data-profile-store]').addEventListener('click',()=>q('[data-screen-target="store"]').click());
+q('[data-sync-account]').addEventListener('click',()=>{const b=q('[data-sync-account]');b.disabled=true;b.querySelector('span').textContent='در حال همگام‌سازی…';q('[data-sync-feedback]').hidden=true;clearTimeout(syncTimer);syncTimer=setTimeout(()=>{b.disabled=false;b.querySelector('span').textContent='همگام‌سازی حساب';q('[data-sync-feedback]').textContent='حالت موفق همگام‌سازی نمایش داده شد؛ حساب واقعی بررسی نشده است.';q('[data-sync-feedback]').hidden=false},900)});
+qa('[data-topup]').forEach(b=>b.addEventListener('click',()=>{topup=Number(b.dataset.topup);qa('[data-topup]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));q('.p-topup-total').textContent=new Intl.NumberFormat('fa-IR').format(topup)+' تومان';q('[data-topup-feedback]').hidden=true}));q('[data-topup-review]').addEventListener('click',()=>{q('[data-topup-feedback]').textContent='مبلغ انتخاب‌شده: '+new Intl.NumberFormat('fa-IR').format(topup)+' تومان. در این پیش‌نمایش پرداختی انجام نمی‌شود.';q('[data-topup-feedback]').hidden=false});
+qa('[data-tx-filter]').forEach(b=>b.addEventListener('click',()=>{qa('[data-tx-filter]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));qa('[data-tx-kind]').forEach(e=>e.hidden=b.dataset.txFilter!=='all'&&e.dataset.txKind!==b.dataset.txFilter)}));
+q('[data-device-confirm]').addEventListener('click',()=>{q('[data-device-confirmation]').hidden=false});q('[data-device-cancel]').addEventListener('click',()=>{q('[data-device-confirmation]').hidden=true});q('[data-device-remove]').addEventListener('click',()=>{q('[data-secondary-device]').hidden=true;q('[data-device-confirmation]').hidden=true;q('[data-device-feedback]').hidden=false;q('[data-device-restore]').hidden=false;q('.p-device-count').textContent='۱ دستگاه';q('[data-device-restore]').focus()});q('[data-device-restore]').addEventListener('click',()=>{q('[data-secondary-device]').hidden=false;q('[data-device-feedback]').hidden=true;q('[data-device-restore]').hidden=true;q('.p-device-count').textContent='۲ دستگاه';q('[data-device-confirm]').focus()});
+q('[data-reduce-motion]').addEventListener('change',e=>{root.dataset.reduceMotion=String(e.target.checked)});q('[data-reduce-glass]').addEventListener('change',e=>{root.dataset.reduceGlass=String(e.target.checked)});
+q('[data-read-notifications]').addEventListener('click',()=>{q('.p-unread').hidden=true;q('[data-notification-feedback]').hidden=false;q('[data-read-notifications]').disabled=true;q('[data-read-notifications]').textContent='همه اعلان‌ها خوانده شده‌اند'});
+q('[data-review-report]').addEventListener('click',()=>{const value=q('[data-support-text]').value.trim(),result=q('[data-report-feedback]');result.hidden=false;if(value.length<8){result.textContent='لطفاً مشکل را کمی دقیق‌تر توضیح دهید.';q('[data-support-text]').focus();return}result.textContent='پیش‌نمایش گزارش: '+value+(q('[data-diagnostic-consent]').checked?' · پیوست عیب‌یابی انتخاب شده است.':' · بدون پیوست عیب‌یابی.')+' این گزارش ارسال نشده است.'});
+q('[data-run-diagnostics]').addEventListener('click',()=>{const b=q('[data-run-diagnostics]');b.disabled=true;b.textContent='در حال آماده‌سازی گزارش نمونه…';clearTimeout(diagnosticTimer);diagnosticTimer=setTimeout(()=>{b.disabled=false;b.textContent='نمایش دوباره گزارش نمونه';q('[data-diagnostic-result]').hidden=false},700)});
+q('[data-confirm-logout]').addEventListener('click',()=>{signedIn=false;open('login')});q('[data-demo-login]').addEventListener('click',()=>{signedIn=true;open('hub')});
+open('hub');
+})();
+</script>
+</div>
