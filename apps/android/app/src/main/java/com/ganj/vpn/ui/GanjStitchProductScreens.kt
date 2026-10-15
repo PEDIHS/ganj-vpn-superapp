@@ -228,6 +228,7 @@ internal fun StitchHomeScreen(
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun StitchStoreScreen(
     state: GanjUiState,
