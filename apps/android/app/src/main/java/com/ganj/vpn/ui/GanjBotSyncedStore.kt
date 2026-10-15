@@ -157,7 +157,12 @@ internal object GanjBotCatalog {
 }
 
 @Composable
-internal fun StitchBotSyncedStoreScreen(modifier: Modifier = Modifier) {
+internal fun StitchBotSyncedStoreScreen(
+    onOpenProduct: (String) -> Unit,
+    onOpenWallet: () -> Unit,
+    onOpenTransactions: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val uriHandler = LocalUriHandler.current
     var retryKey by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(true) }
@@ -203,6 +208,24 @@ internal fun StitchBotSyncedStoreScreen(modifier: Modifier = Modifier) {
                 badge = "همگام با ربات",
                 goldBadge = false,
             )
+        }
+        item(key = "bot-financial-quick-actions") {
+            GanjGlassSurface(role = GanjGlassRole.Dense,
+                modifier = Modifier.fillMaxWidth().testTag("bot-store-finance-actions"),
+                shapeRadius = 20.dp,
+                padding = PaddingValues(12.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(onClick = onOpenWallet, modifier = Modifier.weight(1f)
+                        .heightIn(min = 48.dp).testTag("bot-store-wallet")) {
+                        Text("شارژ کیف پول")
+                    }
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onOpenTransactions,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                        Text("تراکنش‌ها")
+                    }
+                }
+            }
         }
         item(key = "bot-heading") {
             GanjGlassSurface(role = GanjGlassRole.Dense, shapeRadius = 22.dp,
@@ -366,7 +389,7 @@ internal fun StitchBotSyncedStoreScreen(modifier: Modifier = Modifier) {
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold)
                         }
-                        Button(onClick = { uriHandler.openUri(plan.purchaseUrl) },
+                        Button(onClick = { onOpenProduct(plan.purchaseUrl) },
                             modifier = Modifier.heightIn(min = 48.dp).testTag("bot-buy-" + plan.key)) {
                             Text("مشاهده و خرید")
                         }

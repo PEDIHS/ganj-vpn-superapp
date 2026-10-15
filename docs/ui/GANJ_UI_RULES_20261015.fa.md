@@ -65,3 +65,23 @@ This document extends the canonical brand and liquid-glass standards.
 - Next-phase: a server-mediated personalized catalog with linked-account role,
   first-purchase rules and verified checkout in Android; do not claim that the
   public catalog alone accomplishes that.
+
+## End-to-end bot finance (2026-10-15)
+- The native Store product button routes to the exact linked product inside the
+  embedded, trusted https://bot.pedramhs.ir/site/ origin.
+- The Profile wallet and transaction shortcuts open the canonical bot web
+  account, not a second financial ledger. No app-side payment approval.
+- Existing site routes manage product quote, wallet purchase, card invoice
+  creation, displayed recipient card, image/PDF receipt upload, Telegram admin
+  message, smart/manual verification, and transaction history.
+- The Android payment container enables a system file picker, keeps secure web
+  session cookies, opens external gateways/Telegram through Android intents,
+  denies cross-origin embedded navigation and WebView geolocation/permissions,
+  disallows cleartext/mixed content, and observes the authenticated
+  payment_status endpoint to display state changes in an in-app dialog.
+- Server handles real-time authority. In-app status checks are foreground
+  polling and do not constitute background push or Android OS notifications.
+- First-time WebView users may need the website's existing Telegram account
+  linking. Never export Android auth secrets to the WebView or fabricate SSO.
+- DO NOT publish until Android CI/emulator and payment receipt end-to-end
+  checks are verified with safe non-monetary test data.
