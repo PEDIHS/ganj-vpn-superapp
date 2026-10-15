@@ -42,7 +42,7 @@ class ConnectionLatencyProberTest {
     }
 
     @Test
-    fun \u0060batch only provisions unique authorized server profiles and wipes their credentials\u0060() = runBlocking {
+    fun `batch only provisions unique authorized server profiles and wipes their credentials`() = runBlocking {
         val fixture = Fixture()
         val results = fixture.prober.probeBatchDetailed(SERVICE, listOf(SERVER, SERVER))
         assertEquals(LatencyProbeResult.Measured(123L), results[SERVER])
