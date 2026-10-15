@@ -1439,8 +1439,8 @@ paths:
       parameters:
         - { name: serviceId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: Owner flag, service name, shared device limit, reserved slots, members and visible devices }
-        '404': { description: Service is not accessible to this Telegram account }
+        '200': { description: "Owner flag, service name, shared device limit, reserved slots, members and visible devices" }
+        '404': { description: "Service is not accessible to this Telegram account" }
   /services/{serviceId}/family/access:
     get:
       operationId: checkServiceDeviceAccess
@@ -1449,9 +1449,9 @@ paths:
       parameters:
         - { name: serviceId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: Active device access confirmed }
-        '403': { description: Inactive service or device access revoked }
-        '404': { description: Membership or service no longer accessible }
+        '200': { description: "Active device access confirmed" }
+        '403': { description: "Inactive service or device access revoked" }
+        '404': { description: "Membership or service no longer accessible" }
   /services/{serviceId}/family/invites:
     post:
       operationId: createServiceFamilyInvite
@@ -1470,8 +1470,8 @@ paths:
               properties:
                 device_proof: { type: string }
       responses:
-        '200': { description: Invitation ID, exact app HTTPS URL with fragment token and expiry }
-        '409': { description: Shared device capacity is full }
+        '200': { description: "Invitation ID, exact app HTTPS URL with fragment token and expiry" }
+        '409': { description: "Shared device capacity is full" }
   /services/{serviceId}/family/invites/{inviteId}:
     post:
       operationId: revokeServiceFamilyInvite
@@ -1481,7 +1481,7 @@ paths:
         - { name: serviceId, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: inviteId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: Revoked; signed device_proof body required }
+        '200': { description: "Revoked; signed device_proof body required" }
   /services/{serviceId}/family/members/{memberId}:
     post:
       operationId: removeServiceFamilyMember
@@ -1491,7 +1491,7 @@ paths:
         - { name: serviceId, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: memberId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: Membership, service-device bindings and unused grants removed; signed device_proof body required }
+        '200': { description: "Membership, service-device bindings and unused grants removed; signed device_proof body required" }
   /family/preview:
     post:
       operationId: previewServiceFamilyInvite
@@ -1503,8 +1503,8 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/FamilyInvitationProof' }
       responses:
-        '200': { description: Inviter display name, service name, expiry and shared device limit; no membership created }
-        '410': { description: Invitation expired or revoked }
+        '200': { description: "Inviter display name, service name, expiry and shared device limit; no membership created" }
+        '410': { description: "Invitation expired or revoked" }
   /family/accept:
     post:
       operationId: acceptServiceFamilyInvite
@@ -1516,15 +1516,15 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/FamilyInvitationProof' }
       responses:
-        '200': { description: Joined same service; existing active membership is idempotent }
-        '409': { description: Capacity full, invitation consumed, or owner trying to join themselves }
+        '200': { description: "Joined same service; existing active membership is idempotent" }
+        '409': { description: "Capacity full, invitation consumed, or owner trying to join themselves" }
   /me/devices/current:
     post:
       operationId: updateCurrentDeviceMetadata
       tags: [Account]
       summary: Store current signed-in device model and app/OS version with device proof
       responses:
-        '200': { description: Owner-scoped device name and version fields updated }
+        '200': { description: "Owner-scoped device name and version fields updated" }
 components:
   securitySchemes:
     bearerAuth:

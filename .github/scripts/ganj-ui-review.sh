@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 mkdir -p ui-review
 capture() {
-  for image in native-checkout-dark native-wallet-dark native-card-invoice-dark native-purchase-success-dark native-checkout-large-light reference-store-top-dark reference-vip-top-dark reference-store-dark reference-vip-dark reference-profile-dark reference-account-dark reference-connect-off-dark reference-connect-error-dark subscriptions-dark config-picker-dark connection-selected subscriptions-light-large subscriptions-unknown-large config-picker-light-large navigation-dark navigation-light-loading-large connection-off-light connection-busy-light connection-on-dark connection-on-light-large connection-smart-light-large connection-config-light-large connection-header-light-large connection-preparing-light connection-confirmed-light connection-recovering-light connection-disconnecting-light connection-failed-light settings-light-large settings-appearance-light-large; do
+  for image in family-invitation-dark native-checkout-dark native-wallet-dark native-card-invoice-dark native-purchase-success-dark native-checkout-large-light reference-store-top-dark reference-vip-top-dark reference-store-dark reference-vip-dark reference-profile-dark reference-account-dark reference-connect-off-dark reference-connect-error-dark subscriptions-dark config-picker-dark connection-selected subscriptions-light-large subscriptions-unknown-large config-picker-light-large navigation-dark navigation-light-loading-large connection-off-light connection-busy-light connection-on-dark connection-on-light-large connection-smart-light-large connection-config-light-large connection-header-light-large connection-preparing-light connection-confirmed-light connection-recovering-light connection-disconnecting-light connection-failed-light settings-light-large settings-appearance-light-large; do
     adb exec-out run-as com.ganj.vpn cat "cache/$image.png" > "ui-review/$image.png" 2>/dev/null || true
   done
   adb exec-out run-as com.ganj.vpn cat cache/motion-frame-metrics.json > ui-review/motion-frame-metrics.json 2>/dev/null || true
@@ -13,6 +13,6 @@ trap capture EXIT
 adb install -r apps/android/app/build/outputs/apk/debug/app-debug.apk
 adb install -r apps/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb logcat -c
-timeout 300 adb shell am instrument -w -r -e class com.ganj.vpn.ui.SubscriptionSelectionTest,com.ganj.vpn.ui.GanjNavigationTest,com.ganj.vpn.ui.GanjReferenceFidelityTest,com.ganj.vpn.ui.GanjNativeStoreTest,com.ganj.vpn.ui.ConnectionPresentationTest,com.ganj.vpn.ui.GanjMotionReviewTest,com.ganj.vpn.ui.GanjRuntimeMotionBenchmarkTest com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner | tee ui-review/instrumentation.txt
+timeout 300 adb shell am instrument -w -r -e class com.ganj.vpn.ui.GanjFamilyInteractionTest,com.ganj.vpn.ui.SubscriptionSelectionTest,com.ganj.vpn.ui.GanjNavigationTest,com.ganj.vpn.ui.GanjReferenceFidelityTest,com.ganj.vpn.ui.GanjNativeStoreTest,com.ganj.vpn.ui.ConnectionPresentationTest,com.ganj.vpn.ui.GanjMotionReviewTest,com.ganj.vpn.ui.GanjRuntimeMotionBenchmarkTest com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner | tee ui-review/instrumentation.txt
 grep -E '^OK \([1-9][0-9]* tests?\)' ui-review/instrumentation.txt
 ! grep -E 'FAILURES|INSTRUMENTATION_FAILED|Process crashed' ui-review/instrumentation.txt

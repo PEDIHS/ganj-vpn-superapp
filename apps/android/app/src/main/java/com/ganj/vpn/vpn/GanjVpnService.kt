@@ -130,7 +130,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 delay(30_000)
                 val id=engine.currentState().serviceId
                 if(!desiredConnection.get() || !engine.hasTunnel() || id==null) {checkedService=null;continue}
-                if(checkedService!=id) {checkedService=id;lease=ServiceAccessLease(SystemClock.elapsedRealtime())}
+                if(checkedService!=id) {checkedService=id;lease=ServiceAccessLease(SystemClock.elapsedRealtime()-30_000)}
                 val result=runCatching { com.ganj.vpn.composition.GanjAccountSessionProvider.family(application,
                     com.ganj.vpn.BuildConfig.CONTROL_API_BASE_URL).access(id) }.getOrNull()
                 if(engine.currentState().serviceId!=id || !desiredConnection.get())continue

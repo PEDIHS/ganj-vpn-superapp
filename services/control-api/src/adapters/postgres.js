@@ -215,8 +215,9 @@ export class PostgresRepository {
   }
 
   async listAccessibleServices(userId) {
-    return this.serviceQuery(`s.user_id=$1 OR EXISTS(SELECT 1 FROM control_service_members m
-      WHERE m.service_id=s.id AND m.user_id=$1 AND m.revoked_at IS NULL)`, [userId]);
+    return this.serviceQuery(`(s.user_id=$1 OR EXISTS(SELECT 1 FROM control_service_members m
+      WHERE m.service_id=s.id AND m.user_id=$1 AND m.revoked_at IS NULL))
+      AND EXISTS(SELECT 1 FROM control_users owner WHERE owner.id=s.user_id AND owner.status='active')`, [userId]);
   }
 
   async findAccessibleService(userId, id) {
@@ -225,7 +226,8 @@ export class PostgresRepository {
       if (!lock.rowCount) return null;
     }
     const rows = await this.serviceQuery(`s.id=$2 AND (s.user_id=$1 OR EXISTS(SELECT 1 FROM control_service_members m
-      WHERE m.service_id=s.id AND m.user_id=$1 AND m.revoked_at IS NULL))`, [userId,id]);
+      WHERE m.service_id=s.id AND m.user_id=$1 AND m.revoked_at IS NULL))
+      AND EXISTS(SELECT 1 FROM control_users owner WHERE owner.id=s.user_id AND owner.status='active')`, [userId,id]);
     return rows[0] ?? null;
   }
 
