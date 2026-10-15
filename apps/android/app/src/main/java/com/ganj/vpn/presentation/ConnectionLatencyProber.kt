@@ -116,8 +116,11 @@ class ConnectionLatencyProber(
             is ActiveTunnelProbe.Measured ->
                 return Prepared(result = active.latencyMillis?.let { LatencyProbeResult.Measured(it) }
                     ?: failed(active.failureCode ?: "probe.unavailable"))
-            // A separate, authorized, protected outbound may be tested beside the managed TUN.
-            ActiveTunnelProbe.OtherTunnelActive, ActiveTunnelProbe.NotActive -> Unit
+            // Pinned libXray shares process-wide dialer and DNS state. An independent
+            // temporary core must NOT be created beside the managed TUN.
+            ActiveTunnelProbe.OtherTunnelActive ->
+                return Prepared(result = failed("probe.active_tunnel_busy"))
+            ActiveTunnelProbe.NotActive -> Unit
         }
         val user = currentUser.currentUserId()?.takeIf(String::isNotBlank)
             ?: return Prepared(result = LatencyProbeResult.Failed(
