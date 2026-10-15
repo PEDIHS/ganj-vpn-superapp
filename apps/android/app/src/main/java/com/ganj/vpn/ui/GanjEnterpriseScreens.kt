@@ -423,23 +423,14 @@ private fun GanjEnterpriseTextField(
     singleLine: Boolean = false,
     minLines: Int = 1,
 ) {
-    OutlinedTextField(
+    GanjLiquidTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        label = { Text(label) },
+        label = label,
         singleLine = singleLine,
         minLines = minLines,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f),
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.48f),
-            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.28f),
-            focusedIndicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.56f),
-            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
-            disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.10f),
-        ),
     )
 }
 

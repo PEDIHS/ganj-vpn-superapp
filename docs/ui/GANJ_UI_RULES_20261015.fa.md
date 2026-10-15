@@ -98,3 +98,19 @@ This document extends the canonical brand and liquid-glass standards.
   pricing support. App logout also expires WebView site cookies.
 - CI tests exercise subject ownership and deny unlinked/invalid IDs. Production
   end-to-end positive test requires an authorized linked Telegram test account.
+
+## 2026-10-15 visual unification pass
+- Active product surfaces must use the shared GANJ controls for primary/secondary actions,
+  selection pills, text fields, compact loading, back actions and inline states. Avoid raw
+  Material buttons/chips/dialogs in active screens unless they are an implementation detail
+  behind a GANJ wrapper.
+- Store, bot-owned finance, wallet, devices, profile, subscription details, Telegram account,
+  support, notifications and settings must share the same 20–26dp surface radius family,
+  restrained emerald/gold accents, neutral canvas, press-scale feedback and status pills.
+- Motion is short and functional: roughly 120ms press feedback and 240–280ms state/page
+  transitions. Infinite motion is limited to bounded loading indicators and must stop when
+  reduced-motion or lifecycle policies require it.
+- Error/payment states use the same liquid message hierarchy and never render legacy Material
+  alert dialogs over otherwise custom GANJ surfaces.
+- Web checkout remains visually framed by native GANJ chrome, while the website body remains
+  canonical and unmodified; no CSS injection or app-side financial state is introduced.

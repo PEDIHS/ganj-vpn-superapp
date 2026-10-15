@@ -568,20 +568,14 @@ private fun SupportChoiceChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accent = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    val shape = RoundedCornerShape(999.dp)
-    Box(
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .clip(shape)
-            .background(accent.copy(alpha = if (selected) 0.16f else 0.05f))
-            .border(1.dp, accent.copy(alpha = if (selected) 0.52f else 0.20f), shape)
-            .clickable(enabled = enabled, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
-    }
+    GanjChoicePill(
+        text = text,
+        selected = selected,
+        enabled = enabled,
+        onClick = onClick,
+        modifier = modifier,
+        accent = MaterialTheme.colorScheme.primary,
+    )
 }
 
 @Composable
@@ -593,23 +587,14 @@ private fun SupportTextField(
     singleLine: Boolean = false,
     minLines: Int = 1,
 ) {
-    OutlinedTextField(
+    GanjLiquidTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        label = { Text(label) },
+        label = label,
         singleLine = singleLine,
         minLines = minLines,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f),
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.48f),
-            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.28f),
-            focusedIndicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.56f),
-            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
-            disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.10f),
-        ),
     )
 }
 

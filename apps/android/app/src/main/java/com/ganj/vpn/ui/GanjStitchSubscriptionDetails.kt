@@ -355,23 +355,13 @@ private fun SubscriptionSecondaryAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(999.dp)
-    Box(
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.64f))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.24f), shape)
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
+    GanjGlassButton(
+        text = text,
+        onClick = onClick,
+        modifier = modifier,
+        accent = MaterialTheme.colorScheme.outline,
+        filled = false,
+    )
 }
 
 @Composable

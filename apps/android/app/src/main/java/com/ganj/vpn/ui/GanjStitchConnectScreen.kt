@@ -254,9 +254,13 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit, onOpenN
     val largeText = LocalDensity.current.fontScale >= 1.3f
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         onOpenNotifications?.let { handler ->
-            TextButton(onClick = handler, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
-                Text(stringResource(R.string.connection_notifications))
-            }
+            GanjGlassButton(
+                text = stringResource(R.string.connection_notifications),
+                onClick = handler,
+                modifier = Modifier.align(Alignment.End),
+                accent = MaterialTheme.colorScheme.primary,
+                filled = false,
+            )
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -374,14 +378,14 @@ private fun StitchSmartConnectCard(activeSubscription: Boolean, busy: Boolean, o
                     )
                 }
             }
-            TextButton(onClick = onClick, enabled = !busy, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text(
-                    text = if (busy) "در حال بررسی…" else if (activeSubscription) "اتصال سریع" else "انتخاب اشتراک",
-                    color = StitchGoldBright,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            GanjGlassButton(
+                text = if (busy) "در حال بررسی…" else if (activeSubscription) "اتصال سریع" else "انتخاب اشتراک",
+                onClick = onClick,
+                enabled = !busy,
+                accent = StitchGold,
+                filled = false,
+                contentColor = StitchGoldBright,
+            )
         }
     }
 }

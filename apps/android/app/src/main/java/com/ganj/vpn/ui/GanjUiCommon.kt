@@ -164,27 +164,14 @@ internal fun QuickAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    GanjGlassSurface(
-        role = GanjGlassRole.Regular,
+    GanjQuickActionTile(
+        title = title,
+        subtitle = subtitle,
+        onClick = onClick,
+        modifier = modifier,
         accent = MaterialTheme.colorScheme.primary,
-        shapeRadius = 20.dp,
-        padding = PaddingValues(16.dp),
-        modifier = modifier.clickable(
-            role = Role.Button,
-            onClick = onClick,
-        ),
-    ) {
-        Text(
-            text = title,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = subtitle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
+        marker = "›",
+    )
 }
 
 @Composable

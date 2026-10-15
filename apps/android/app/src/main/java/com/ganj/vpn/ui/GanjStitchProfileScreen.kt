@@ -414,23 +414,14 @@ private fun ProfileSecondaryAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(999.dp)
-    Box(
-        modifier = modifier
-            .height(48.dp)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = if (enabled) 0.68f else 0.30f))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.22f), shape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
+    GanjGlassButton(
+        text = text,
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        accent = MaterialTheme.colorScheme.outline,
+        filled = false,
+    )
 }
 
 @Composable

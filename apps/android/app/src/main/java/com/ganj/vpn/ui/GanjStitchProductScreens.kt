@@ -348,27 +348,36 @@ internal fun StitchStoreScreen(
         }
     }
     if (vipSheetOpen && vipPlans.isNotEmpty()) {
-        ModalBottomSheet(onDismissRequest = { vipSheetOpen = false }) {
-            Column(Modifier.fillMaxWidth()
-                .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.80f).dp)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = responsiveHorizontalPadding(), vertical = 12.dp)
-                .testTag("vip-upgrade-sheet"),
-                verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("ارتقا به VIP", style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                Text("تمام مشخصات و قیمت‌ها از فهرست زنده فروشگاه دریافت می‌شوند.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+        GanjLiquidBottomSheet(
+            title = "ارتقا به VIP",
+            subtitle = "مشخصات، ظرفیت و قیمت‌ها مستقیماً از فهرست زنده فروشگاه دریافت می‌شوند.",
+            onDismiss = { vipSheetOpen = false },
+            skipPartiallyExpanded = true,
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.72f).dp)
+                    .verticalScroll(rememberScrollState())
+                    .testTag("vip-upgrade-sheet"),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                GanjStatusPill("پلن‌های ویژه گنج", GanjStatusTone.Premium)
                 vipPlans.forEach { plan ->
                     StitchPlanCard(
-                        plan = plan, selected = plan.id == state.selectedPlanId,
+                        plan = plan,
+                        selected = plan.id == state.selectedPlanId,
                         onSelect = { onSelect(plan.id) },
-                        onPurchase = { if (!purchaseBusy) { vipSheetOpen = false; onPurchase(plan) } },
+                        onPurchase = {
+                            if (!purchaseBusy) {
+                                vipSheetOpen = false
+                                onPurchase(plan)
+                            }
+                        },
                         purchaseEnabled = !purchaseBusy,
                     )
                 }
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(12.dp))
             }
         }
     }
@@ -571,25 +580,12 @@ private fun StitchFilterChip(
     gold: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val accent = if (gold) StitchProductGold else MaterialTheme.colorScheme.primary
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(if (selected) accent.copy(alpha = 0.24f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.52f))
-            .border(1.dp, accent.copy(alpha = if (selected) 0.52f else 0.16f), RoundedCornerShape(999.dp))
-            .clickable(role = Role.Button, onClick = onClick)
-            .heightIn(min = 48.dp)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-    ) {
-        Text(
-            text = text,
-            color = if (selected) {
-                if (gold) StitchProductGoldBright else StitchProductEmerald
-            } else MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-        )
-    }
+    GanjChoicePill(
+        text = text,
+        selected = selected,
+        onClick = onClick,
+        accent = if (gold) StitchProductGold else MaterialTheme.colorScheme.primary,
+    )
 }
 
 @Composable

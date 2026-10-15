@@ -345,27 +345,7 @@ internal fun StitchSettingsEntry(
 
 @Composable
 private fun SettingsBackButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(999.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.58f))
-            .border(
-                1.dp,
-                LocalGanjGlassPalette.current.borderSoft.copy(alpha = 0.62f),
-                RoundedCornerShape(999.dp),
-            )
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "بازگشت",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
+    GanjBackPill(onClick = onClick)
 }
 
 @Composable
@@ -375,24 +355,13 @@ private fun ThemeChoice(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accent = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    val shape = RoundedCornerShape(999.dp)
-    Box(
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .clip(shape)
-            .background(accent.copy(alpha = if (selected) 0.16f else 0.06f))
-            .border(1.dp, accent.copy(alpha = if (selected) 0.58f else 0.24f), shape)
-            .clickable(role = Role.RadioButton, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-        )
-    }
+    GanjChoicePill(
+        text = label,
+        selected = selected,
+        onClick = onClick,
+        modifier = modifier,
+        accent = MaterialTheme.colorScheme.primary,
+    )
 }
 
 @Composable

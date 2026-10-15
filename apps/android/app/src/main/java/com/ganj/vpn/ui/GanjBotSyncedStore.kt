@@ -1,5 +1,7 @@
 package com.ganj.vpn.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -180,7 +182,6 @@ internal fun StitchBotSyncedStoreScreen(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            // Never fall back to an unrelated price catalog on a network/API error.
             products = emptyList()
             error = true
         } finally {
@@ -195,213 +196,421 @@ internal fun StitchBotSyncedStoreScreen(
     val visible = remember(products, selectedPanel, selectedCategory, query) {
         botStoreFilter(products, selectedPanel, selectedCategory, query)
     }
+    val stackFinancialActions =
+        androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.35f ||
+            androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 360
 
     LazyColumn(
         modifier = modifier.fillMaxSize().testTag("bot-synced-store"),
-        contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(13.dp),
+        contentPadding = PaddingValues(
+            horizontal = responsiveHorizontalPadding(),
+            vertical = 18.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item(key = "bot-header") {
             StitchSimpleHeader(
                 title = "فروشگاه گنج",
-                subtitle = "محصولات و دسته‌بندی‌های واقعی ربات",
-                badge = "همگام با ربات",
-                goldBadge = false,
+                subtitle = "خرید مستقیم از فروشگاه رسمی و همگام با ربات",
+                badge = "فروشگاه رسمی",
+                goldBadge = true,
             )
         }
-        item(key = "bot-financial-quick-actions") {
-            GanjGlassSurface(role = GanjGlassRole.Dense,
-                modifier = Modifier.fillMaxWidth().testTag("bot-store-finance-actions"),
-                shapeRadius = 20.dp,
-                padding = PaddingValues(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = onOpenWallet, modifier = Modifier.weight(1f)
-                        .heightIn(min = 48.dp).testTag("bot-store-wallet")) {
-                        Text("شارژ کیف پول")
-                    }
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = onOpenTransactions,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        Text("تراکنش‌ها")
-                    }
-                }
-            }
-        }
+
         item(key = "bot-heading") {
-            GanjGlassSurface(role = GanjGlassRole.Dense, shapeRadius = 22.dp,
-                modifier = Modifier.fillMaxWidth(), padding = PaddingValues(18.dp),
-                accent = BotStoreGold) {
-                Text("اشتراک مناسب خودت را پیدا کن",
+            GanjGlassSurface(
+                role = GanjGlassRole.Prominent,
+                shapeRadius = 26.dp,
+                modifier = Modifier.fillMaxWidth().testTag("bot-store-hero"),
+                padding = PaddingValues(18.dp),
+                accent = BotStoreGold,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                GanjStatusPill(
+                    text = "کاتالوگ زنده گنج",
+                    tone = GanjStatusTone.Premium,
+                )
+                Text(
+                    "پلن مناسب خودت را پیدا کن",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Text("لوکیشن، دسته‌بندی و محصولات مستقیماً از فروشگاه گنج دریافت می‌شوند.",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    "لوکیشن، دسته‌بندی، قیمت پایه و مشخصات محصولات مستقیماً از فروشگاه گنج دریافت می‌شوند.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (!loading && !error) {
-                    Text(products.size.toPersianDigits() + " محصول قابل نمایش",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        GanjInfoChip(
+                            text = products.size.toPersianDigits() + " محصول",
+                            modifier = Modifier.weight(1f),
+                            accent = MaterialTheme.colorScheme.primary,
+                        )
+                        GanjInfoChip(
+                            text = panels.size.toPersianDigits() + " لوکیشن",
+                            modifier = Modifier.weight(1f),
+                            accent = BotStoreGold,
+                        )
+                    }
                 }
             }
         }
-        if (loading) {
-            item(key = "bot-loading") {
-                Row(Modifier.fillMaxWidth().height(120.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator()
+
+        item(key = "bot-financial-quick-actions") {
+            GanjGlassSurface(
+                role = GanjGlassRole.Dense,
+                modifier = Modifier.fillMaxWidth().testTag("bot-store-finance-actions"),
+                shapeRadius = 22.dp,
+                padding = PaddingValues(12.dp),
+                accent = MaterialTheme.colorScheme.outline,
+            ) {
+                GanjSectionHeader(
+                    title = "حساب و پرداخت",
+                    supporting = "موجودی و سوابق همان حساب ربات گنج",
+                )
+                if (stackFinancialActions) {
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        GanjQuickActionTile(
+                            title = "شارژ کیف پول",
+                            subtitle = "پرداخت، ارسال رسید و بررسی وضعیت",
+                            onClick = onOpenWallet,
+                            modifier = Modifier.fillMaxWidth().testTag("bot-store-wallet"),
+                            accent = MaterialTheme.colorScheme.primary,
+                            marker = "+",
+                        )
+                        GanjQuickActionTile(
+                            title = "تراکنش‌ها",
+                            subtitle = "مشاهده پرداخت‌ها و وضعیت بررسی",
+                            onClick = onOpenTransactions,
+                            modifier = Modifier.fillMaxWidth(),
+                            accent = BotStoreGold,
+                            marker = "↕",
+                        )
+                    }
+                } else {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        GanjQuickActionTile(
+                            title = "شارژ کیف پول",
+                            subtitle = "پرداخت و ارسال رسید",
+                            onClick = onOpenWallet,
+                            modifier = Modifier.weight(1f).testTag("bot-store-wallet"),
+                            accent = MaterialTheme.colorScheme.primary,
+                            marker = "+",
+                        )
+                        GanjQuickActionTile(
+                            title = "تراکنش‌ها",
+                            subtitle = "سوابق و وضعیت‌ها",
+                            onClick = onOpenTransactions,
+                            modifier = Modifier.weight(1f),
+                            accent = BotStoreGold,
+                            marker = "↕",
+                        )
+                    }
                 }
             }
-        } else if (error) {
-            item(key = "bot-error") {
-                GanjGlassSurface(role = GanjGlassRole.OpaqueFallback,
-                    modifier = Modifier.fillMaxWidth(), shapeRadius = 18.dp) {
-                    Text("دریافت محصولات ربات انجام نشد",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.titleMedium)
-                    Text("برای جلوگیری از نمایش قیمت اشتباه، محصولات قدیمی جایگزین نمی‌شوند.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = { retryKey++ },
-                        modifier = Modifier.fillMaxWidth().testTag("bot-store-retry")) {
-                        Text("تلاش دوباره")
-                    }
-                    TextButton(onClick = { uriHandler.openUri(BOT_STORE_HOME) },
-                        modifier = Modifier.fillMaxWidth()) {
-                        Text("ورود به فروشگاه گنج")
-                    }
-                }
+        }
+
+        when {
+            loading -> item(key = "bot-loading") {
+                GanjLoadingState("در حال همگام‌سازی فروشگاه گنج")
             }
-        } else if (products.isEmpty()) {
-            item(key = "bot-empty") {
-                EmptyCard("محصول فعالی در ربات نیست",
-                    "با افزودن محصولات در ربات، این فهرست خودکار به‌روزرسانی می‌شود.",
-                    onAction = { retryKey++ })
-            }
-        } else {
-            item(key = "bot-search") {
-                OutlinedTextField(
-                    value = query, onValueChange = { query = it.take(120) },
-                    modifier = Modifier.fillMaxWidth().testTag("bot-store-search"),
-                    label = { Text("جستجوی سرویس") },
-                    singleLine = true,
+
+            error -> item(key = "bot-error") {
+                GanjInlineStatusPanel(
+                    title = "دریافت فروشگاه ناموفق بود",
+                    body = "برای جلوگیری از نمایش قیمت یا پلن قدیمی، اطلاعات جایگزین نشان داده نمی‌شود.",
+                    accent = MaterialTheme.colorScheme.error,
+                    tone = GanjStatusTone.Danger,
+                    actionText = "تلاش دوباره",
+                    onAction = { retryKey++ },
+                    secondaryActionText = "باز کردن فروشگاه گنج",
+                    onSecondaryAction = { uriHandler.openUri(BOT_STORE_HOME) },
+                    modifier = Modifier.testTag("bot-store-retry"),
                 )
             }
-            item(key = "bot-panel-heading") {
-                Text("نوع اشتراک و لوکیشن", style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+
+            products.isEmpty() -> item(key = "bot-empty") {
+                EmptyCard(
+                    "محصول فعالی در ربات نیست",
+                    "با افزودن محصول در فروشگاه گنج، این صفحه خودکار به‌روز می‌شود.",
+                    onAction = { retryKey++ },
+                )
             }
-            item(key = "bot-panels") {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.testTag("bot-store-panels")) {
-                    item(key = "all-panels") {
-                        FilterChip(selected = selectedPanel == null,
-                            onClick = { panelId = null; category = null },
-                            label = { Text("همه") }, modifier = Modifier.heightIn(min = 48.dp))
-                    }
-                    items(panels, key = { it.first }) { panel ->
-                        FilterChip(selected = selectedPanel == panel.first,
-                            onClick = { panelId = panel.first; category = null },
-                            label = { Text(panel.second, maxLines = 1) },
-                            modifier = Modifier.heightIn(min = 48.dp))
-                    }
-                }
-            }
-            if (categories.isNotEmpty()) {
-                item(key = "bot-category-heading") {
-                    Text("دسته‌بندی محصولات", style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                }
-                item(key = "bot-categories") {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.testTag("bot-store-categories")) {
-                        item(key = "all-categories") {
-                            FilterChip(selected = selectedCategory == null,
-                                onClick = { category = null },
-                                label = { Text("همه محصولات") }, modifier = Modifier.heightIn(min = 48.dp))
+
+            else -> {
+                item(key = "bot-discovery") {
+                    GanjGlassSurface(
+                        role = GanjGlassRole.Dense,
+                        modifier = Modifier.fillMaxWidth(),
+                        shapeRadius = 24.dp,
+                        padding = PaddingValues(14.dp),
+                        accent = MaterialTheme.colorScheme.primary,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        GanjSectionHeader(
+                            title = "پیدا کردن سرویس",
+                            supporting = "ابتدا لوکیشن و سپس دسته محصول را محدود کنید.",
+                        )
+                        GanjLiquidTextField(
+                            value = query,
+                            onValueChange = { query = it.take(120) },
+                            label = "جستجوی نام سرویس",
+                            modifier = Modifier.fillMaxWidth().testTag("bot-store-search"),
+                        )
+
+                        Text(
+                            "لوکیشن",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.testTag("bot-store-panels"),
+                        ) {
+                            item(key = "all-panels") {
+                                GanjChoicePill(
+                                    text = "همه",
+                                    selected = selectedPanel == null,
+                                    onClick = { panelId = null; category = null },
+                                )
+                            }
+                            items(panels, key = { it.first }) { panel ->
+                                GanjChoicePill(
+                                    text = panel.second,
+                                    selected = selectedPanel == panel.first,
+                                    onClick = { panelId = panel.first; category = null },
+                                )
+                            }
                         }
-                        items(categories, key = { it }) { option ->
-                            FilterChip(selected = selectedCategory == option,
-                                onClick = { category = option },
-                                label = { Text(option, maxLines = 1) },
-                                modifier = Modifier.heightIn(min = 48.dp))
-                        }
-                    }
-                }
-            }
-            item(key = "bot-list-header") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Text("لیست محصولات", style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                    Text(visible.size.toPersianDigits() + " مورد",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium)
-                }
-            }
-            if (visible.isEmpty()) item(key = "bot-no-match") {
-                Text("محصولی با این فیلتر پیدا نشد.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            items(visible, key = { it.key }, contentType = { "bot-plan" }) { plan ->
-                GanjGlassSurface(
-                    role = GanjGlassRole.Dense, shapeRadius = 20.dp,
-                    modifier = Modifier.fillMaxWidth().testTag("bot-product-" + plan.key),
-                    padding = PaddingValues(16.dp),
-                    accent = if (plan.featured) BotStoreGold else MaterialTheme.colorScheme.outline) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(plan.name, style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            Text(plan.panel + " / " + plan.category,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        }
-                        if (plan.badge.isNotBlank()) {
-                            Text(plan.badge, modifier = Modifier.padding(start = 8.dp),
-                                color = BotStoreGold, style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("مدت: " + (if (plan.durationDays > 0) plan.durationDays.toPersianDigits() + " روز" else "طبق پلن"),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall)
-                        Text("حجم: " + (if (plan.volumeGb > 0) plan.volumeGb.toLong().toPersianDigits() + " گیگ" else "طبق پلن"),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                    if (plan.description.isNotBlank()) {
-                        Text(plan.description, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Column {
-                            Text("قیمت پایه ربات", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelSmall)
-                            Text(String.format(Locale.US, "%,d", plan.priceToman).toPersianDigits() + " تومان",
+
+                        if (categories.isNotEmpty()) {
+                            Text(
+                                "دسته‌بندی",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold)
-                        }
-                        Button(onClick = { onOpenProduct(plan.purchaseUrl) },
-                            modifier = Modifier.heightIn(min = 48.dp).testTag("bot-buy-" + plan.key)) {
-                            Text("مشاهده و خرید")
+                            )
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.testTag("bot-store-categories"),
+                            ) {
+                                item(key = "all-categories") {
+                                    GanjChoicePill(
+                                        text = "همه محصولات",
+                                        selected = selectedCategory == null,
+                                        onClick = { category = null },
+                                        accent = BotStoreGold,
+                                    )
+                                }
+                                items(categories, key = { it }) { option ->
+                                    GanjChoicePill(
+                                        text = option,
+                                        selected = selectedCategory == option,
+                                        onClick = { category = option },
+                                        accent = BotStoreGold,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
-            }
-            item(key = "bot-catalog-footnote") {
-                Text("قیمت نهایی، تخفیف حساب، موجودی و امکان خرید در صفحه رسمی گنج بررسی می‌شود.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(14.dp))
+
+                item(key = "bot-list-header") {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        GanjSectionHeader(
+                            title = "محصولات",
+                            supporting = "قیمت نهایی هنگام خرید با حساب شما بررسی می‌شود.",
+                            modifier = Modifier.weight(1f),
+                        )
+                        GanjStatusPill(
+                            visible.size.toPersianDigits() + " مورد",
+                            tone = GanjStatusTone.Neutral,
+                        )
+                    }
+                }
+
+                if (visible.isEmpty()) {
+                    item(key = "bot-no-match") {
+                        GanjInlineStatusPanel(
+                            title = "نتیجه‌ای پیدا نشد",
+                            body = "فیلتر یا عبارت جستجو را تغییر دهید.",
+                            accent = MaterialTheme.colorScheme.outline,
+                            tone = GanjStatusTone.Neutral,
+                            actionText = if (query.isNotBlank()) "پاک کردن جستجو" else null,
+                            onAction = if (query.isNotBlank()) ({ query = "" }) else null,
+                        )
+                    }
+                }
+
+                items(visible, key = { it.key }, contentType = { "bot-plan" }) { plan ->
+                    GanjBotProductCard(
+                        plan = plan,
+                        onOpenProduct = onOpenProduct,
+                    )
+                }
+
+                item(key = "bot-catalog-footnote") {
+                    GanjGlassSurface(
+                        role = GanjGlassRole.Clear,
+                        accent = BotStoreGold,
+                        modifier = Modifier.fillMaxWidth(),
+                        shapeRadius = 18.dp,
+                        padding = PaddingValues(14.dp),
+                    ) {
+                        Text(
+                            "قیمت نهایی، تخفیف حساب، موجودی، محدودیت خرید و فعال‌سازی در صفحه رسمی گنج بررسی می‌شود.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun GanjBotProductCard(
+    plan: GanjBotProduct,
+    onOpenProduct: (String) -> Unit,
+) {
+    val premium = plan.featured ||
+        plan.badge.contains("VIP", ignoreCase = true) ||
+        plan.badge.contains("پریمیوم", ignoreCase = true)
+    val accent = if (premium) BotStoreGold else MaterialTheme.colorScheme.primary
+    val tone = if (premium) GanjStatusTone.Premium else GanjStatusTone.Positive
+    val price = String.format(Locale.US, "%,d", plan.priceToman).toPersianDigits() + " تومان"
+
+    GanjGlassSurface(
+        role = if (plan.featured) GanjGlassRole.Prominent else GanjGlassRole.Dense,
+        shapeRadius = 24.dp,
+        modifier = Modifier.fillMaxWidth().testTag("bot-product-" + plan.key),
+        padding = PaddingValues(16.dp),
+        accent = accent,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    plan.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    listOf(plan.panel, plan.category).filter { it.isNotBlank() }.joinToString(" / "),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (plan.badge.isNotBlank()) {
+                GanjStatusPill(
+                    text = plan.badge,
+                    tone = tone,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            } else if (plan.featured) {
+                GanjStatusPill(
+                    text = "پیشنهادی",
+                    tone = GanjStatusTone.Premium,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        }
+
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            GanjInfoChip(
+                text = if (plan.durationDays > 0) plan.durationDays.toPersianDigits() + " روز" else "مدت طبق پلن",
+                modifier = Modifier.weight(1f),
+                accent = accent,
+            )
+            GanjInfoChip(
+                text = if (plan.volumeGb > 0) plan.volumeGb.toLong().toPersianDigits() + " گیگ" else "حجم طبق پلن",
+                modifier = Modifier.weight(1f),
+                accent = accent,
+            )
+        }
+
+        if (plan.description.isNotBlank()) {
+            Text(
+                plan.description,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        val priceShape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f), priceShape)
+                .border(1.dp, accent.copy(alpha = 0.16f), priceShape)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    "قیمت پایه ربات",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                Text(
+                    price,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            if (plan.oneBuy) {
+                GanjStatusPill(
+                    "خرید یک‌باره",
+                    tone = GanjStatusTone.Warning,
+                )
+            }
+        }
+
+        GanjGlassButton(
+            text = "مشاهده جزئیات و خرید",
+            onClick = { onOpenProduct(plan.purchaseUrl) },
+            modifier = Modifier.fillMaxWidth().testTag("bot-buy-" + plan.key),
+            accent = accent,
+            filled = true,
+            contentColor = if (premium) MaterialTheme.colorScheme.onSecondary
+            else MaterialTheme.colorScheme.onPrimary,
+        )
     }
 }
