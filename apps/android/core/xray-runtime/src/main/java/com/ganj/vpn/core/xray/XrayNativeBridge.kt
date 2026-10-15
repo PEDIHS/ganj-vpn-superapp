@@ -144,6 +144,7 @@ class ReflectiveLibXrayBridge(
         targetUrls: List<String> = ProxyProbeFallback.targets,
     ): List<NativeProbeResult> {
         if (configs.isEmpty()) return emptyList()
+        require(configs.size <= 5) { "Pinned libXray pingBatch accepts at most 5 configs" }
         val files = mutableListOf<File>()
         return try {
             configs.forEach { config ->
