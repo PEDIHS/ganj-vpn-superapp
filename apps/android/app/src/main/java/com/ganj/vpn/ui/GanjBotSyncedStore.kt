@@ -224,7 +224,7 @@ internal fun StitchBotSyncedStoreScreen(
                 .background(if(referenceDark())Brush.linearGradient(listOf(Color(0xFF33513A),Color(0xFF233D2D),Color(0xFF5A4C2D)))
                     else Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer,MaterialTheme.colorScheme.secondaryContainer)))
                 .border(1.dp,gold.copy(alpha=.6f),shape)
-                .clickable(role=Role.Button,onClick={vipOnly=true;selectedKey=null;duration=null;category=null})
+                .clickable(enabled=!vipOnly,role=Role.Button,onClick={vipOnly=true;selectedKey=null;duration=null;category=null})
                 .padding(20.dp).testTag("vip-upgrade-entry"),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                 Text("GANJ / VIP",style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.Medium,color=gold)
                 Text(if(vipOnly)"یک انتخاب ویژه" else "انتخاب ویژه شما",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold,color=ink)
@@ -259,9 +259,9 @@ internal fun StitchBotSyncedStoreScreen(
                 }
                 if(visible.isEmpty()) item{EmptyCard("نتیجه‌ای پیدا نشد","فیلتر یا عبارت جستجو را تغییر دهید.",{query="";duration=null;category=null})}
                 items(visible,key={it.key},contentType={"bot-plan"}){plan->
-                    GanjReferenceBotPlan(plan,plan.key==selectedKey,{selectedKey=plan.key})
-                }
-                if(chosen!=null) item(key="checkout-summary") {
+                    Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                        GanjReferenceBotPlan(plan,plan.key==selectedKey,{selectedKey=plan.key})
+                        if(chosen!=null && chosen.key==plan.key) {
                     Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
                             Text("مبلغ کل دوره",style=MaterialTheme.typography.bodySmall,color=muted)
@@ -271,6 +271,8 @@ internal fun StitchBotSyncedStoreScreen(
                             modifier=Modifier.fillMaxWidth().testTag("bot-buy-"+chosen.key),accent=if(vipOnly)GanjReference.Gold else MaterialTheme.colorScheme.primary,
                             contentColor=if(vipOnly)Color(0xFF292615) else MaterialTheme.colorScheme.onPrimary)
                         Text("مبلغ نهایی و روش پرداخت در فاکتور نمایش داده می‌شود.",style=MaterialTheme.typography.labelSmall,color=muted)
+                    }
+                        }
                     }
                 }
             }

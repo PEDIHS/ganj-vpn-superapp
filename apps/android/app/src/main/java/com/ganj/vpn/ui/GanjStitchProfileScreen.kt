@@ -137,7 +137,7 @@ internal fun StitchProfileScreen(
                                 Text(name,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold,color=ink)
                                 Text(username?.let(::isolateTechnicalLtr) ?: if(linked) "حساب تلگرام متصل" else "ورود با تلگرام",style=MaterialTheme.typography.labelSmall,color=muted)
                             }
-                            ProfileBadge(if(premium)"پریمیوم" else "رایگان",premium)
+                            ProfileBadge(if(premium)"پریمیوم" else if(state.services is ContentState.Ready)"استاندارد" else "حساب گنج",premium)
                         }
                         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
                             Text(if(linked) "تلگرام متصل است" else "حساب هنوز متصل نیست",style=MaterialTheme.typography.labelSmall,color=muted)
@@ -166,12 +166,12 @@ internal fun StitchProfileScreen(
                     }
                 }
                 if(linked && onOpenWallet!=null) item(key="wallet-summary") {
-                    GanjReferenceMenuRow("کیف پول","مشاهده موجودی و افزایش اعتبار",accent=LocalGanjContentPalette.current.premiumText,icon=GanjDestination.Store,onClick=onOpenWallet)
+                    GanjReferenceMenuRow("کیف پول","مشاهده موجودی و افزایش اعتبار",modifier=Modifier.testTag("profile-to-wallet"),accent=LocalGanjContentPalette.current.premiumText,icon=GanjDestination.Store,onClick=onOpenWallet)
                 }
                 item(key="account-services") {
                     Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
                         ProfileSectionTitle("حساب و سرویس‌ها")
-                        GanjReferenceMenuRow("اشتراک‌های من",activeServices.size.toPersianDigits()+" سرویس فعال",icon=GanjDestination.Servers,modifier=Modifier.testTag("profile-to-subscriptions"),onClick=onOpenSubscriptions)
+                        GanjReferenceMenuRow("اشتراک‌های من",if(state.services is ContentState.Ready) activeServices.size.toPersianDigits()+" سرویس فعال" else "بررسی و انتخاب اشتراک",icon=GanjDestination.Servers,modifier=Modifier.testTag("profile-to-subscriptions"),onClick=onOpenSubscriptions)
                         if(linked) {
                             onOpenDevices?.let { GanjReferenceMenuRow("دستگاه‌های من","مدیریت دسترسی دستگاه‌ها",onClick=it) }
                             onOpenTransactions?.let { GanjReferenceMenuRow("تراکنش‌ها","سوابق همان حساب گنج",icon=GanjDestination.Store,onClick=it) }

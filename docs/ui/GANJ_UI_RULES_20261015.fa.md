@@ -140,8 +140,7 @@ This document extends the canonical brand and liquid-glass standards.
 - Profile opens on real identity, selected-subscription usage, finance and grouped menu rows;
   full services, account management and diagnostic forms open as secondary content rather than
   occupying the whole overview. Bot financial pages keep their current trusted SSO/receipt route.
-- Default fresh-install appearance is Dark for this reference. Explicit saved Light/System
-  preferences remain supported and every secondary page inherits the same component geometry.
+- The 0.3.21 appearance refresh starts both new and upgraded installations in the approved Dark reference. Afterwards explicit Light/System choices remain supported; other saved account/accessibility/onboarding preferences are untouched. Every secondary page inherits the same component geometry.
 - Screenshots from the actual Android renderer (Connect/off/on/error, wave navigation, Store,
   VIP, Profile and large text) must be inspected before publication. A passing build alone is
   not evidence that the approved visual has been faithfully implemented.

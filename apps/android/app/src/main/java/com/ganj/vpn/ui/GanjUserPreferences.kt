@@ -26,15 +26,17 @@ internal class AndroidGanjUserPreferencesStore(context: Context) {
     )
 
     fun restore(): GanjUserPreferences = GanjUserPreferences(
-        theme = GanjThemePreference.entries.firstOrNull {
-            it.name == preferences.getString(KEY_THEME, GanjThemePreference.DARK.name)
-        } ?: GanjThemePreference.DARK,
+        theme = GanjUserPreferencesPolicy.restoreReferenceTheme(
+            preferences.getString(KEY_THEME, null),
+            preferences.getBoolean(KEY_REFERENCE_APPEARANCE, false),
+        ),
         reduceMotion = preferences.getBoolean(KEY_REDUCE_MOTION, false),
         reduceTransparency = preferences.getBoolean(KEY_REDUCE_TRANSPARENCY, false),
         onboardingCompleted = preferences.getBoolean(KEY_ONBOARDING_COMPLETED, false),
     )
 
     fun save(value: GanjUserPreferences): Boolean = preferences.edit()
+        .putBoolean(KEY_REFERENCE_APPEARANCE, true)
         .putString(KEY_THEME, value.theme.name)
         .putBoolean(KEY_REDUCE_MOTION, value.reduceMotion)
         .putBoolean(KEY_REDUCE_TRANSPARENCY, value.reduceTransparency)
@@ -44,6 +46,7 @@ internal class AndroidGanjUserPreferencesStore(context: Context) {
     private companion object {
         const val PREFS_NAME = "ganj_user_preferences_v1"
         const val KEY_THEME = "theme"
+        const val KEY_REFERENCE_APPEARANCE = "reference_appearance_0321"
         const val KEY_REDUCE_MOTION = "reduce_motion"
         const val KEY_REDUCE_TRANSPARENCY = "reduce_transparency"
         const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
@@ -51,6 +54,12 @@ internal class AndroidGanjUserPreferencesStore(context: Context) {
 }
 
 internal object GanjUserPreferencesPolicy {
+    // Product-directed appearance refresh. Existing installs enter the approved dark UI once;
+    // subsequent explicit Light/System choices remain supported. No other preference is reset.
+    fun restoreReferenceTheme(stored: String?, referenceApplied: Boolean): GanjThemePreference =
+        if (!referenceApplied) GanjThemePreference.DARK else
+            GanjThemePreference.entries.firstOrNull { it.name == stored } ?: GanjThemePreference.DARK
+
     fun resolveDarkTheme(
         preference: GanjThemePreference,
         systemDark: Boolean,

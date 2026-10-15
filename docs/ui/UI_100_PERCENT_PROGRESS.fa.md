@@ -1075,8 +1075,8 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
   overview; real account/service/diagnostic actions remain accessible on secondary content.
 - Live bot Store retains actual catalog eligibility/prices, adds selectable reference cards,
   real period filters and selected-order summary; VIP view exists only for actual VIP products.
-- Shared reference palette, compact radii, controls and Dark fresh-install default propagate
-  through settings, devices, account, sheets and payment chrome. Saved appearance is respected.
+- Shared reference palette, compact radii, controls and the Dark appearance refresh propagate
+  through settings, devices, account, sheets and payment chrome. Subsequent appearance choices are respected.
 - UI Ledger sections touched: 1, 2, 7, 10, 11, 12, 13, 14, 15, 20, 21, 23, 24, 25, 26.
 - Leaf items completed: none pending full Definition of Done and device evidence.
 - Remaining unchecked leaves unchanged; unit/lint/build/emulator screenshots and publication
@@ -1086,3 +1086,5 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Fidelity follow-up: subscription and selected server share the reference 14dp panel; real measured latency remains inside it. The brand header and status line match the compact reference hierarchy. API200% flag allocation remains 76×50dp; normal reference allocation is 52×35dp. Preview/review jobs now produce a fresh provenance-verified pinned runtime instead of requesting an expired artifact. Final execution evidence pending.
 
 - Final fidelity refinement: shared gold now uses the exact reference token; the foreground power control has the reference subtle idle/connected breath, with reduced-motion/lifecycle gates. Native review includes Store/VIP header captures as well as selected-order views. No checklist completion claim before execution.
+
+- First native review compiled and passed 12/14 fixtures; Store lazy-item lookup and Profile pointer-scrolling fixture failed. Store review now scrolls the owning lazy list before locating a plan; Profile review scrolls the owning list before pointer taps and identifies each real callback separately. No failing test is reported as passed. Selected checkout is adjacent to its plan even in large catalogs; unknown subscription counts/tier are not shown as confirmed zero/free. The requested appearance refresh applies Dark on upgrade once, preserving subsequent Light/System selections and all other preferences; regression coverage added. Final rerun pending.

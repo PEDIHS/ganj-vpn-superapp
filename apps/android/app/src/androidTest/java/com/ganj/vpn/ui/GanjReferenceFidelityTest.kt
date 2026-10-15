@@ -41,12 +41,14 @@ class GanjReferenceFidelityTest {
             }
         } }
         capture("reference-store-top-dark")
+        compose.onNodeWithTag("bot-synced-store").performScrollToNode(hasTestTag("bot-product-reference:reference-premium"))
         compose.onNodeWithTag("bot-product-reference:reference-premium").performScrollTo().performClick()
         compose.onNodeWithTag("bot-buy-reference:reference-premium").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(plans[0].purchaseUrl,opened) }
         capture("reference-store-dark")
         compose.onNodeWithTag("vip-upgrade-entry").performScrollTo().performClick()
         capture("reference-vip-top-dark")
+        compose.onNodeWithTag("bot-synced-store").performScrollToNode(hasTestTag("bot-product-reference:reference-vip"))
         compose.onNodeWithTag("bot-product-reference:reference-vip").performScrollTo().performClick()
         compose.onNodeWithTag("bot-buy-reference:reference-vip").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(plans[1].purchaseUrl,opened) }
@@ -67,11 +69,21 @@ class GanjReferenceFidelityTest {
             }
         } }
         capture("reference-profile-dark")
-        compose.onNodeWithText("کیف پول").performScrollTo().performClick()
-        compose.onNodeWithTag("profile-to-subscriptions").performScrollTo().performClick()
-        compose.onNodeWithTag("profile-to-settings").performScrollTo().performClick()
-        compose.runOnIdle { assertEquals(1,wallet);assertEquals(1,subscriptions);assertEquals(1,settings) }
-        compose.onNodeWithText("مدیریت حساب").performScrollTo().performClick()
+        compose.onNodeWithTag("reference-profile").performScrollToNode(hasTestTag("profile-to-wallet"))
+        compose.onNodeWithTag("profile-to-wallet").performScrollTo().assertIsDisplayed()
+            .performClick()
+        compose.runOnIdle { assertEquals("Wallet callback",1,wallet) }
+        compose.onNodeWithTag("reference-profile").performScrollToNode(hasTestTag("profile-to-subscriptions"))
+        compose.onNodeWithTag("profile-to-subscriptions").performScrollTo().assertIsDisplayed()
+            .performClick()
+        compose.runOnIdle { assertEquals("Subscriptions callback",1,subscriptions) }
+        compose.onNodeWithTag("reference-profile").performScrollToNode(hasTestTag("profile-to-settings"))
+        compose.onNodeWithTag("profile-to-settings").performScrollTo().assertIsDisplayed()
+            .performClick()
+        compose.runOnIdle { assertEquals("Settings callback",1,settings) }
+        compose.onNodeWithTag("reference-profile").performScrollToIndex(0)
+        compose.onNodeWithText("مدیریت حساب").performScrollTo()
+            .performClick()
         compose.onNodeWithText("حساب متصل").assertExists()
         capture("reference-account-dark")
     }

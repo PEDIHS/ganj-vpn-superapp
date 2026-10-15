@@ -12,6 +12,15 @@ class GanjUserPreferencesTest {
     }
 
     @Test
+    fun `appearance refresh applies dark to legacy installs but preserves later explicit choices`() {
+        assertEquals(GanjThemePreference.DARK, GanjUserPreferencesPolicy.restoreReferenceTheme("LIGHT", false))
+        assertEquals(GanjThemePreference.DARK, GanjUserPreferencesPolicy.restoreReferenceTheme("SYSTEM", false))
+        assertEquals(GanjThemePreference.LIGHT, GanjUserPreferencesPolicy.restoreReferenceTheme("LIGHT", true))
+        assertEquals(GanjThemePreference.SYSTEM, GanjUserPreferencesPolicy.restoreReferenceTheme("SYSTEM", true))
+        assertEquals(GanjThemePreference.DARK, GanjUserPreferencesPolicy.restoreReferenceTheme("unknown", true))
+    }
+
+    @Test
     fun `system theme follows system value`() {
         assertTrue(
             GanjUserPreferencesPolicy.resolveDarkTheme(
