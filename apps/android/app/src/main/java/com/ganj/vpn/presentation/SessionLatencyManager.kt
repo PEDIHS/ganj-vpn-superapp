@@ -61,7 +61,7 @@ class SessionLatencyManager(
             ids.forEach { serverId -> task(LatencyKey(serviceId, serverId)) }
         } else {
             // Show partial results as bounded groups finish; avoid an unbounded native batch.
-            ids.chunked(8).forEach { group ->
+            ids.chunked(5).forEach { group ->
                 if (group.size > 1) batchTask(serviceId, group)
                 else task(LatencyKey(serviceId, group.single()))
             }
