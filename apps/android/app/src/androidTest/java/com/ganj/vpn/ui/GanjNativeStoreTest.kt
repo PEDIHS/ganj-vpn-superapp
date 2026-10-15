@@ -50,10 +50,10 @@ class GanjNativeStoreTest {
         compose.onNodeWithTag("native-purchase-topup").performScrollTo().performClick()
         compose.waitUntil(10000) { compose.onAllNodesWithTag("native-wallet-method-card").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("native-wallet-amount").assertTextContains("140000", substring = true)
-        capture("native-wallet-dark")
         compose.waitUntil(10000) { compose.onAllNodes(hasTestTag("native-wallet-pay") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        capture("native-wallet-dark")
         scroll("native-store-wallet", "native-wallet-pay").performClick()
-        compose.waitUntil(10000) { api.calls.any { it.first == "payment_status" } }
+        compose.waitUntil(10000) { compose.onAllNodesWithText(botFinanceStatusText("unpaid")).fetchSemanticsNodes().isNotEmpty() }
         scroll("native-store-payment", "native-receipt-select")
         compose.onNodeWithTag("native-receipt-select").performScrollTo().assertIsEnabled()
         scroll("native-store-payment", "native-receipt-upload").assertIsNotEnabled()
