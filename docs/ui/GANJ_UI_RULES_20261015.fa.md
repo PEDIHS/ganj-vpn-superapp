@@ -48,3 +48,20 @@ This document extends the canonical brand and liquid-glass standards.
   selected subscription and support sections remain connected.
 - A screenshot or source commit is not proof of functional QA; retain all open
   UI ledger gates until emulator/physical-device tests support completion.
+
+## Bot-owned storefront (2026-10-15)
+- Main Store destination renders the real bot-backed web catalog at
+  https://bot.pedramhs.ir/site/api.php?action=products, not the empty
+  Control API /v1/store/plans list.
+- Select a location/panel first, then its real categories; product IDs, names,
+  price in Toman, period and volume must originate unchanged from the bot.
+- Catalog is a public retail view, so account-specific reseller rates and
+  discount eligibility are not implied by its displayed base price.
+- Product purchase opens the exact product and panel at the official
+  Ganj website; website authentication, final pricing, purchase, wallet,
+  activation and restrictions remain the bot's source of truth.
+- Do not inject bot credentials into the APK. Never silently display cached
+  or unrelated plans when the live catalog fails.
+- Next-phase: a server-mediated personalized catalog with linked-account role,
+  first-purchase rules and verified checkout in Android; do not claim that the
+  public catalog alone accomplishes that.

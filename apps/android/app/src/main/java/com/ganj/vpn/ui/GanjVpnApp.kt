@@ -640,14 +640,7 @@ fun GanjVpnApp(
                                 onRetry = ::refresh,
                             )
 
-                            GanjDestination.Store -> StitchStoreScreen(
-                                state = state,
-                                onSelect = {
-                                    commit(reducer.reduce(state, GanjUiEvent.SelectPlan(it)))
-                                },
-                                onPurchase = { plan -> purchaseConfirmationPlan = plan },
-                                onRetry = ::refresh,
-                            )
+                            GanjDestination.Store -> StitchBotSyncedStoreScreen()
 
                             GanjDestination.Settings -> StitchSettingsScreen(
                                 preferences = userPreferences,
