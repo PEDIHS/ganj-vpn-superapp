@@ -66,7 +66,7 @@
     <string name="failure_probe_refused">اتصال در تست پینگ رد شد. ممکن است پورت یا سرویس سرور در دسترس نباشد؛ سرور دیگری را امتحان کنید.</string>
     <string name="failure_probe_network">مسیر شبکه برای تست پینگ در دسترس نیست. اینترنت گوشی را بررسی کنید.</string>
     <string name="failure_probe_http">مقصد تست پینگ پاسخ قابل قبول نداد. این نتیجه به‌تنهایی قطع بودن VPN را ثابت نمی‌کند.</string>
-    <string name="failure_probe_active">اتصال VPN در حال تغییر یا بازیابی است. پس از پایان تلاش اتصال، پینگ را دوباره بگیرید.</string>
+    <string name="failure_probe_active">برای تست کانفیگ‌های دیگر، ابتدا اتصال VPN فعلی را قطع کنید. پینگ سرور متصل همچنان قابل اندازه‌گیری است.</string>
     <string name="failure_probe_context">تأیید سرور یا دستگاه برای تست پینگ انجام نشد. فهرست سرورها را تازه کنید و وضعیت ورود به حساب را بررسی کنید.</string>
     <string name="failure_probe_native">هستهٔ پروکسی نتوانست تست پینگ را اجرا کند. جزئیات خطا را بررسی کنید یا سرور دیگری را امتحان کنید.</string>
     <string name="failure_probe_unavailable">پینگ قابل اندازه‌گیری نبود. این نتیجه به‌تنهایی قطع بودن VPN را ثابت نمی‌کند؛ دوباره تست کنید.</string>
@@ -78,7 +78,7 @@
     <string name="ping_tls">خطای ارتباط امن</string>
     <string name="ping_refused">اتصال رد شد</string>
     <string name="ping_network">شبکه در دسترس نیست</string>
-    <string name="ping_active_only">اتصال در حال تغییر</string>
+    <string name="ping_active_only">برای پینگ این کانفیگ، اتصال فعلی را قطع کنید</string>
     <string name="ping_native">خطای هستهٔ پروکسی</string>
     <string name="ping_failed">تست ناموفق؛ سرور را انتخاب کنید</string>
     <string name="ping_selected">سنجش پینگ سرور انتخاب‌شده</string>
