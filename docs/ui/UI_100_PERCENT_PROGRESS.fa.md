@@ -1094,3 +1094,12 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Review rerun 38715516114 passed 13/14 tests, including all Profile pointer callbacks and exact selected-product checkout URL. Remaining failure was the fixture attempting to find the recycled VIP entry before scrolling back up; it now scrolls the owning lazy list. The original approved HTML reference is committed under design/references for future design fidelity checks. Full final rerun still required.
 
 - Native review 38716456616 passed all 14 tests. Screenshot inspection then found the Smart Connect trailing explanation squeezing its title into individual characters at 200% font. Large-font Smart Connect now stacks its explanation beneath a full-width title row, with a readable-line-count regression and dedicated capture. Unknown account badges are omitted until subscription data is known; names cap at two lines with full account details still accessible. Canonical JSON tokens are synchronized with the approved runtime palette/geometry. No Final Gate completion claim.
+
+### 2026-10-15 — 0.3.21-alpha publication evidence
+- Final application source `8af428ce0bceabb4554f0bc18480cc7e9bc02313`: Android CI 38717474007, native review 38717467806 (14/14), preview 38717467956, CodeQL 38717473856 and repository/docs/dependency checks passed. API24/35 native tunnel and selection, Debug/Release lint, unit tests, packaging and SBOM passed.
+- Actual Android screenshots were inspected. Large-font timer helper/Smart Connect wrapping and system-icon contrast were corrected before release. Emulator frame measurements and screenshots are retained; physical-device performance is unverified.
+- Signed 0.3.21-alpha / code24 published at 2026-10-15 10:22:57 UTC. External public HTTPS bytes and checksum independently matched signed SHA-256 `52e9d4a65c8c41beee26c8bf7dded36241b6bdc07f63b7c2fde0d3a9775e9ec1`. Existing certificate retained; signing changed no payload entries. Bot rolling APK/version updated, previous release backed up.
+- Evidence: `docs/releases/0.3.21-alpha-native-reference.md`. Backend and canonical finance handlers remain unchanged from the current server baseline. Physical-phone/TalkBack/authorized positive SSO and payment-receipt QA remain open.
+- UI Ledger sections touched: 1, 2, 7, 10, 11, 12, 13, 14, 15, 20, 21, 23, 24, 25, 26.
+- Leaf items completed: none; remaining unchecked leaves unchanged; no parent or Final Gate claim.
+- Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining.
