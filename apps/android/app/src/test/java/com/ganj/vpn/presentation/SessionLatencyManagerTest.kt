@@ -87,6 +87,28 @@ class SessionLatencyManagerTest {
         }
     }
 
+    @Test fun groupPingNeverExceedsPinnedNativeMaximumOfFive() = runBlocking {
+        val batches = java.util.concurrent.ConcurrentLinkedQueue<List<String>>()
+        var singles = 0
+        val manager = SessionLatencyManager(
+            { _, _ -> singles++; LatencyProbeResult.Measured(14) },
+            CoroutineScope(coroutineContext + SupervisorJob()),
+            batchProbe = { _, ids ->
+                batches.add(ids)
+                ids.associateWith { LatencyProbeResult.Measured(25) }
+            },
+        )
+        try {
+            manager.measure("service", (1..11).map { it.toString() })
+            withTimeout(2000) { manager.state.first { it.readings.size == 11 && it.measuring.isEmpty() } }
+            assertEquals(2, batches.size)
+            assertTrue(batches.all { it.size <= 5 })
+            assertEquals(1, singles)
+        } finally {
+            manager.close()
+        }
+    }
+
     @Test fun clearPreventsLateResultsFromThePreviousAccount() = runBlocking {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
