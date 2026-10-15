@@ -45,6 +45,8 @@ import com.ganj.vpn.composition.ConnectionServerCompositionRegistry
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.ConnectionServer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -222,7 +224,18 @@ internal fun StitchConnectionScreen(
                             return@launch
                         }
                         val servers = (response as ApiResult.Success).value
-                        val results = servers.map { server -> server.id to onProbe(selected.entitlementId, server.id) }
+                        val results = if (latency != null) {
+                            latency.measure(selected.entitlementId, servers.map { it.id })
+                            kotlinx.coroutines.coroutineScope {
+                                servers.map { server ->
+                                    kotlinx.coroutines.async {
+                                        server.id to latency.awaitCurrent(selected.entitlementId, server.id)
+                                    }
+                                }.awaitAll()
+                            }
+                        } else {
+                            servers.map { server -> server.id to onProbe(selected.entitlementId, server.id) }
+                        }
                         val best = results.mapNotNull { (id, result) -> result.latencyMillis?.let { id to it } }
                             .minByOrNull { it.second }
                         if (best == null) smartFailure = results.firstNotNullOfOrNull { (_, result) ->
