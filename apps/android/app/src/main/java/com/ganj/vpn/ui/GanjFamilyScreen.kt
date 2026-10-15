@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -20,6 +22,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+// Account/family tools use a restrained cool accent. VPN connection status keeps its own semantic colors.
+private val FamilyIndigo = Color(0xFF8B91EE)
+private val FamilyCyan = Color(0xFF62BFD7)
+private val FamilyMint = Color(0xFF6AC5B0)
 
 internal fun familyError(error: ApiError): String = when(error) {
     is ApiError.Network -> "ارتباط برقرار نشد؛ دوباره تلاش کنید."
@@ -55,7 +62,11 @@ internal fun GanjFamilyScreen(
             try { when(val result=withContext(Dispatchers.IO){active.summary(id)}) {
                 is ApiResult.Success -> reply=result.value
                 is ApiResult.Failure -> error=familyError(result.error)
-            }} finally { busy=false }
+            }} catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                error = "دریافت اطلاعات اشتراک ناموفق بود. دوباره تلاش کنید."
+            } finally { busy=false }
         }
     }
     fun mutate(action: (FamilyApi,String)->ApiResult<FamilyReply>) {
@@ -79,39 +90,141 @@ internal fun GanjFamilyScreen(
                     }
                     is ApiResult.Failure -> error=familyError(result.error)
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                error = "عملیات انجام نشد. اتصال را بررسی و دوباره تلاش کنید."
             } finally { busy=false }
         }
     }
     LaunchedEffect(serviceId) {reply=null;load()}
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=responsiveHorizontalPadding(),vertical=18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
         AccountBackAction(onBack)
-        Text("اعضا و دستگاه‌های اشتراک",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-        Text("هر عضو با حساب تلگرام خودش وارد می‌شود؛ حجم و ظرفیت دستگاه‌ها مشترک است.",color=MaterialTheme.colorScheme.onSurfaceVariant)
-        services.forEach { service -> GanjChoicePill(service.username ?: service.displayName,service.entitlementId==serviceId,{if(!busy)serviceId=service.entitlementId},Modifier.fillMaxWidth(),enabled=!busy) }
-        if(services.isEmpty())Text("ابتدا یک اشتراک خریداری یا دعوت دریافت کنید.")
-        if(busy)Text("در حال بررسی…")
-        error?.let {Text(it,color=MaterialTheme.colorScheme.error);GanjGlassButton("تلاش دوباره",::load,enabled=!busy)}
+        Text("مدیریت اشتراک مشترک", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(
+            "اعضای خانواده با تلگرام خودشان وارد می‌شوند. حساب، کیف پول و تراکنش هر نفر مستقل می‌ماند.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (services.isEmpty()) {
+            GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyIndigo, shapeRadius = 14.dp) {
+                Text("هنوز اشتراکی برای مدیریت وجود ندارد.", style = MaterialTheme.typography.titleMedium)
+                Text("بعد از فعال شدن اشتراک یا قبول دعوت، اعضا و دستگاه‌ها اینجا نمایش داده می‌شوند.")
+            }
+        } else {
+            GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyIndigo, shapeRadius = 14.dp) {
+                Text("انتخاب اشتراک", style = MaterialTheme.typography.titleMedium)
+                services.forEach { service ->
+                    GanjChoicePill(
+                        service.username ?: service.displayName,
+                        service.entitlementId == serviceId,
+                        { if (!busy) serviceId = service.entitlementId },
+                        Modifier.fillMaxWidth(),
+                        enabled = !busy,
+                    )
+                }
+            }
+        }
+        if (busy) Text("در حال همگام‌سازی با حساب گنج…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        error?.let {
+            GanjGlassSurface(GanjGlassRole.Regular, accent = MaterialTheme.colorScheme.error, shapeRadius = 14.dp) {
+                Text(it, color = MaterialTheme.colorScheme.error)
+                GanjGlassButton("تلاش دوباره", ::load, enabled = !busy, filled = false)
+            }
+        }
         reply?.let { data ->
-            Text(data.serviceName.orEmpty(),style=MaterialTheme.typography.titleLarge)
-            Text("ظرفیت اشتراک: ${data.deviceLimit.toPersianDigits()} دستگاه · ${data.slotsUsed.toPersianDigits()} جایگاه استفاده‌شده")
-            if(data.owner) {
-                GanjGlassButton("ساخت و ارسال لینک دعوت",{mutate{a,id->a.createInvite(id)}},Modifier.fillMaxWidth(),enabled=!busy&&data.slotsUsed<data.deviceLimit)
-                Text("لینک ۲۴ ساعت اعتبار دارد و برای یک عضو است.",style=MaterialTheme.typography.bodySmall)
+            val slotsAvailable = (data.deviceLimit - data.slotsUsed).coerceAtLeast(0)
+            val usage = if (data.deviceLimit > 0) {
+                (data.slotsUsed.toFloat() / data.deviceLimit).coerceIn(0f, 1f)
+            } else 0f
+            GanjGlassSurface(GanjGlassRole.Prominent, accent = FamilyIndigo, shapeRadius = 14.dp) {
+                Text("اشتراک فعال", style = MaterialTheme.typography.labelMedium, color = FamilyIndigo)
+                Text(data.serviceName.orEmpty(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    data.slotsUsed.toPersianDigits() + " از " + data.deviceLimit.toPersianDigits() + " جایگاه استفاده شده",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                LinearProgressIndicator(
+                    progress = { usage },
+                    modifier = Modifier.fillMaxWidth().height(5.dp),
+                    color = FamilyIndigo,
+                    trackColor = MaterialTheme.colorScheme.outlineVariant,
+                )
+                Text(
+                    slotsAvailable.toPersianDigits() + " جایگاه برای دستگاه جدید باقی مانده",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (data.owner) {
+                    GanjGlassButton(
+                        "ساخت و اشتراک‌گذاری لینک دعوت",
+                        { mutate { apiClient, id -> apiClient.createInvite(id) } },
+                        Modifier.fillMaxWidth(),
+                        enabled = !busy && slotsAvailable > 0,
+                        accent = FamilyIndigo,
+                        contentColor = Color(0xFF101427),
+                    )
+                    Text("لینک هر دعوت فقط یک بار قابل استفاده است و ۲۴ ساعت اعتبار دارد.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Text("اعضا",style=MaterialTheme.typography.titleMedium)
-            if(data.members.isEmpty())Text("هنوز عضوی اضافه نشده است.")
-            data.members.forEach { member ->
-                Text(member.name+(if(member.current)" · شما" else ""))
-                if(data.owner || member.current)GanjGlassButton(if(member.current)"خروج از اشتراک" else "حذف عضو",{confirmation=member.id to member.name},enabled=!busy,filled=false)
+            GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyMint, shapeRadius = 14.dp) {
+                Text("افراد دارای دسترسی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (data.members.isEmpty()) Text("هنوز عضو دیگری به اشتراک اضافه نشده است.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                data.members.forEach { member ->
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(member.name + if (member.current) " · شما" else "",
+                            style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(if (member.current) "حساب تلگرام فعلی" else "عضو اشتراک",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (data.owner || member.current) {
+                            GanjGlassButton(
+                                if (member.current) "خروج از این اشتراک" else "حذف دسترسی عضو",
+                                { confirmation = member.id to member.name },
+                                enabled = !busy, filled = false, accent = FamilyMint,
+                            )
+                        }
+                    }
+                }
             }
-            Text("دستگاه‌ها",style=MaterialTheme.typography.titleMedium)
-            data.devices.forEach { device ->
-                Text(device.name+(if(device.current)" · دستگاه فعلی" else ""))
-                if(device.own&&!device.current)GanjGlassButton("مدیریت و حذف دستگاه",{onRevokeDevice(device.id)},filled=false,enabled=!busy)
+            GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyCyan, shapeRadius = 14.dp) {
+                Text("دستگاه‌های متصل", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (data.devices.isEmpty()) Text("هیچ دستگاهی به این اشتراک اختصاص نیافته است.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                data.devices.forEach { device ->
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(device.name + if (device.current) " · همین دستگاه" else "",
+                            style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        if (device.own && !device.current) {
+                            GanjGlassButton(
+                                "لغو دسترسی دستگاه",
+                                { onRevokeDevice(device.id) },
+                                enabled = !busy, filled = false, accent = FamilyCyan,
+                            )
+                        }
+                    }
+                }
             }
-            if(data.devices.isEmpty())Text("دستگاهی هنوز به این اشتراک متصل نشده است.")
-            if(data.owner) data.invites.forEach { invite -> GanjGlassButton("لغو دعوت · ${invite.expiresAt.take(10)}",{mutate{a,id->a.revokeInvite(id,invite.id)}},filled=false,enabled=!busy) }
-            GanjGlassButton("به‌روزرسانی",::load,enabled=!busy,filled=false)
+            if (data.owner && data.invites.isNotEmpty()) {
+                GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyIndigo, shapeRadius = 14.dp) {
+                    Text("دعوت‌های استفاده‌نشده", style = MaterialTheme.typography.titleMedium)
+                    data.invites.forEach { invite ->
+                        GanjGlassButton(
+                            "لغو دعوت · " + invite.expiresAt.take(10),
+                            { mutate { apiClient, id -> apiClient.revokeInvite(id, invite.id) } },
+                            filled = false, enabled = !busy, accent = FamilyIndigo,
+                        )
+                    }
+                }
+            }
+            GanjGlassButton("به‌روزرسانی اطلاعات", ::load, enabled = !busy, filled = false)
         }
     }
     confirmation?.let { member -> GanjLiquidConfirmDialog("قطع دسترسی به اشتراک","دسترسی «${member.second}» به این اشتراک حذف می‌شود؛ حساب و کیف پول او باقی می‌ماند.","تأیید","انصراف",{confirmation=null;mutate{a,id->a.remove(id,member.first)}},{confirmation=null},destructive=true) }
@@ -149,8 +262,9 @@ internal fun GanjFamilyInvitation(
         }
     }
     Dialog(onDismissRequest={if(!busy)onDismiss()}) {
-        GanjGlassSurface(role=GanjGlassRole.Dense,accent=MaterialTheme.colorScheme.primary,modifier=Modifier.fillMaxWidth().heightIn(max=600.dp).verticalScroll(rememberScrollState()),shapeRadius=18.dp,padding=PaddingValues(20.dp)) {
-            Text("دعوت به اشتراک گنج",style=MaterialTheme.typography.titleLarge)
+        GanjGlassSurface(role=GanjGlassRole.Dense,accent=FamilyIndigo,modifier=Modifier.fillMaxWidth().heightIn(max=600.dp).verticalScroll(rememberScrollState()),shapeRadius=18.dp,padding=PaddingValues(20.dp)) {
+            Text("دعوت خصوصی به اشتراک",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+            Text("مالک اشتراک، دسترسی استفاده از سرویس را با شما به اشتراک می‌گذارد؛ مالک حساب و کیف پول شما نمی‌شود.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             if(!linked) {
                 Text("برای دیدن و پذیرش دعوت، با حساب تلگرام خود وارد شوید.")
                 GanjGlassButton("ورود با تلگرام",onLogin,Modifier.fillMaxWidth())
@@ -163,7 +277,7 @@ internal fun GanjFamilyInvitation(
                             is ApiResult.Success -> onJoined()
                             is ApiResult.Failure -> error=familyError(result.error)
                         }} finally {busy=false}}}
-                    },Modifier.fillMaxWidth(),enabled=!busy&&!invite.ownInvite)
+                    },Modifier.fillMaxWidth(),enabled=!busy&&!invite.ownInvite,accent=FamilyIndigo,contentColor=Color(0xFF101427))
                 }
                 if(busy)Text("در حال بررسی…")
                 error?.let {Text(it,color=MaterialTheme.colorScheme.error);GanjGlassButton("تلاش دوباره",{ previewRevision++ },enabled=!busy,filled=false)}
