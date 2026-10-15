@@ -160,6 +160,10 @@ internal fun StitchConnectionScreen(
                 }
             },
         )
+        if (visualState == GanjConnectionVisualState.Connected && state.runtimeConnection.connectedAtEpochMillis == null) {
+            Text(stringResource(R.string.connection_duration_unknown),modifier=Modifier.fillMaxWidth(),
+                style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,textAlign=TextAlign.Center)
+        }
         if (visualState == GanjConnectionVisualState.Failed) {
             GanjGlassSurface(
                 role = GanjGlassRole.Dense,

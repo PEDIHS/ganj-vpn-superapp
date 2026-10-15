@@ -110,7 +110,6 @@ internal fun GanjSessionDurationInline(runtime: ConnectionState, sessionTimer: C
             style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
             color = androidx.compose.ui.graphics.Color(0xFFD6F1DF), fontWeight = FontWeight.Medium,
             modifier = Modifier.testTag("connection-duration"))
-        if (elapsed == null) Text(stringResource(R.string.connection_duration_unknown),
-            style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFFC0E8D2))
+
     }
 }

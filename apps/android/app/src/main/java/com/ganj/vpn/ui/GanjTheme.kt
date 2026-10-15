@@ -4,6 +4,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import android.app.Activity
+import android.content.ContextWrapper
+import androidx.core.view.WindowCompat
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -254,6 +259,17 @@ internal fun GanjTheme(
     content: @Composable () -> Unit,
 ) {
     val effectiveVisualEffectsPolicy = visualEffectsPolicy ?: currentGanjVisualEffectsPolicy()
+    val view = LocalView.current
+    if (!view.isInEditMode) SideEffect {
+        var context = view.context
+        while (context is ContextWrapper && context !is Activity) context = context.baseContext
+        (context as? Activity)?.let { activity ->
+            WindowCompat.getInsetsController(activity.window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+    }
     CompositionLocalProvider(
         LocalGanjGlassPalette provides if (darkTheme) GanjDarkGlass else GanjLightGlass,
         LocalGanjContentPalette provides if (darkTheme) GanjDarkContent else GanjLightContent,
