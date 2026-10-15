@@ -20,9 +20,11 @@ class GanjConnectionPresentationTest {
         assertEquals(GanjConnectionVisualState.Unavailable, ganjConnectionVisualState(ConnectionPhase.DISCONNECTED, ConnectionUiState.Idle, false))
     }
     @Test fun `secondary destinations retain a path to their primary tab`() {
-        assertEquals(GanjDestination.Servers, GanjDestination.Store.primaryDestination())
-        assertEquals(GanjDestination.Settings, GanjDestination.Account.primaryDestination())
-        assertEquals(GanjDestination.Settings, GanjDestination.Home.primaryDestination())
-        assertEquals(listOf(GanjDestination.Connect, GanjDestination.Servers, GanjDestination.Settings), GanjPrimaryDestinations)
+        assertEquals(GanjDestination.Store, GanjDestination.Store.primaryDestination())
+        assertEquals(GanjDestination.Account, GanjDestination.Account.primaryDestination())
+        assertEquals(GanjDestination.Account, GanjDestination.Home.primaryDestination())
+        assertEquals(GanjDestination.Connect, GanjDestination.Servers.primaryDestination())
+        assertEquals(GanjDestination.Account, GanjDestination.Settings.primaryDestination())
+        assertEquals(listOf(GanjDestination.Store, GanjDestination.Connect, GanjDestination.Account), GanjPrimaryDestinations)
     }
 }

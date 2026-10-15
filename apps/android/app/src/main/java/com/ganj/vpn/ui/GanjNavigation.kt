@@ -52,16 +52,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
+private val GanjNavGold = Color(0xFFD5A63A)
+
 internal enum class GanjDestination(@StringRes val labelRes: Int) {
     Home(R.string.nav_home), Servers(R.string.nav_servers), Connect(R.string.nav_connect),
     Store(R.string.nav_store), Account(R.string.nav_account), Settings(R.string.nav_settings),
 }
 
-internal val GanjPrimaryDestinations = listOf(GanjDestination.Connect, GanjDestination.Servers, GanjDestination.Settings)
+// RTL: first item is on the right; Store / Connect / Profile are the only main tabs.
+internal val GanjPrimaryDestinations = listOf(GanjDestination.Store, GanjDestination.Connect, GanjDestination.Account)
 
 internal fun GanjDestination.primaryDestination(): GanjDestination = when (this) {
-    GanjDestination.Home, GanjDestination.Account -> GanjDestination.Settings
-    GanjDestination.Store -> GanjDestination.Servers
+    GanjDestination.Home, GanjDestination.Settings -> GanjDestination.Account
+    GanjDestination.Servers -> GanjDestination.Connect
     else -> this
 }
 
@@ -83,6 +86,7 @@ internal fun GanjLiquidBottomNavigation(
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val motion = GanjDestinationMotionPolicy.shouldAnimate(effects.tier, effects.reduceMotion)
     val selectedPrimary = selectedDestination.primaryDestination()
+    val lensAccent = if (selectedPrimary == GanjDestination.Connect) colors.primary else GanjNavGold
     val targetIndex = GanjPrimaryDestinations.indexOf(selectedPrimary).toFloat()
     val position = animateFloatAsState(targetIndex,
         if (motion) spring(dampingRatio = 0.88f, stiffness = 650f) else snap(), label = "navLensPosition")
@@ -112,7 +116,7 @@ internal fun GanjLiquidBottomNavigation(
             .border(0.75.dp, glass.borderSoft, shape)
             .padding(5.dp).testTag("liquid-bottom-navigation")) {
             if (largeText) {
-                Text(stringResource(selectedPrimary.labelRes), color = colors.primary,
+                Text(stringResource(selectedPrimary.labelRes), color = lensAccent,
                     style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 4.dp)
                         .clearAndSetSemantics {})
@@ -129,7 +133,7 @@ internal fun GanjLiquidBottomNavigation(
                     val origin = Offset((centerIndex + 0.5f) * slot - lensWidth / 2, 2.dp.toPx())
                     val lensSize = Size(lensWidth, lensHeight)
                     val radius = CornerRadius(23.dp.toPx())
-                    drawRoundRect(colors.primary.copy(alpha = if (effects.reduceTransparency) 0.17f else 0.12f),
+                    drawRoundRect(lensAccent.copy(alpha = if (effects.reduceTransparency) 0.17f else 0.12f),
                         origin, lensSize, radius)
                     if (!effects.reduceTransparency) {
                         drawRoundRect(Brush.verticalGradient(listOf(glass.highlight.copy(alpha = 0.19f),
@@ -137,7 +141,7 @@ internal fun GanjLiquidBottomNavigation(
                         drawRoundRect(glass.highlight.copy(alpha = 0.20f), origin, lensSize, radius,
                             style = Stroke(0.65.dp.toPx()))
                     }
-                    drawRoundRect(colors.primary.copy(alpha = 0.70f),
+                    drawRoundRect(lensAccent.copy(alpha = 0.70f),
                         Offset(origin.x + lensWidth * 0.32f, origin.y + lensHeight - 3.dp.toPx()),
                         Size(lensWidth * 0.36f, 1.5.dp.toPx()), CornerRadius(2.dp.toPx()))
                 }
@@ -145,7 +149,7 @@ internal fun GanjLiquidBottomNavigation(
                     GanjPrimaryDestinations.forEach { destination ->
                         GanjNavigationItem(destination, destination == selectedPrimary,
                             !largeText && (showAllLabels || destination == selectedPrimary), !largeText,
-                            if (destination == GanjDestination.Settings) unreadCount ?: 0 else 0,
+                            if (destination == GanjDestination.Account) unreadCount ?: 0 else 0,
                             onClick = { if (destination != selectedDestination) {
                                 if (!effects.reduceMotion) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onDestinationSelected(destination)
@@ -172,7 +176,11 @@ private fun GanjNavigationItem(
         if (animate) spring(0.9f, 850f) else snap(), label = "navPress")
     val lift = animateFloatAsState(if (animate && selected) -1.5f else 0f,
         if (animate) spring(0.9f, 650f) else snap(), label = "navIconLift")
-    val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val tint = when {
+        !selected -> MaterialTheme.colorScheme.onSurfaceVariant
+        destination == GanjDestination.Connect -> MaterialTheme.colorScheme.primary
+        else -> GanjNavGold
+    }
     val description = UiAccessibilityPolicy.destinationDescription(label, selected, stringResource(R.string.a11y_selected)) +
         if (unreadCount > 0) "، ${unreadCount.toPersianDigits()} اعلان خوانده‌نشده" else ""
     Column(modifier.heightIn(min = 66.dp).testTag("nav-${destination.name}")

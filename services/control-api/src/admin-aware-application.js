@@ -41,7 +41,7 @@ export function createAdminAwareApplication(runtime, { clock = () => new Date() 
   return async function handle(request) {
     const url = new URL(request.url);
     const botApprovalPath = url.pathname.startsWith('/v1/auth/telegram/bot/') || url.pathname === '/v1/internal/telegram/bot-approval';
-    const accountPath = url.pathname === '/v1/me';
+    const accountPath = url.pathname === '/v1/me' || url.pathname === '/v1/me/store-identity';
     const devicePath = url.pathname === '/v1/me/devices' || url.pathname.startsWith('/v1/me/devices/');
     const notificationPath = url.pathname === '/v1/notifications' || url.pathname.startsWith('/v1/notifications/');
     const supportThreadPath = /^\/v1\/support\/tickets\/[0-9a-f-]{36}(?:\/messages|\/reopen)?$/i.test(url.pathname);

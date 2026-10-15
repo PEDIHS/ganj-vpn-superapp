@@ -33,8 +33,8 @@ class GanjNavigationTest {
         show(dark = true, large = false, motion = true)
         compose.onNodeWithTag("edit-state").performClick()
         compose.mainClock.autoAdvance = false
-        listOf(GanjDestination.Servers, GanjDestination.Settings, GanjDestination.Servers,
-            GanjDestination.Settings, GanjDestination.Connect).forEach { destination ->
+        listOf(GanjDestination.Store, GanjDestination.Account, GanjDestination.Store,
+            GanjDestination.Account, GanjDestination.Connect).forEach { destination ->
             compose.onNodeWithTag("nav-${destination.name}").performClick()
             compose.mainClock.advanceTimeByFrame()
             compose.onNodeWithTag("screen-${destination.name}").assertExists()
@@ -42,16 +42,16 @@ class GanjNavigationTest {
         }
         compose.mainClock.autoAdvance = true
         compose.onNodeWithText("saved-1").assertExists()
-        compose.onNodeWithTag("nav-Servers").performClick()
+        compose.onNodeWithTag("nav-Store").performClick()
         compose.onNodeWithTag("loading-state").assertExists()
-        compose.onNodeWithTag("nav-Settings").performClick()
-        compose.onNodeWithTag("screen-Settings").assertExists()
+        compose.onNodeWithTag("nav-Account").performClick()
+        compose.onNodeWithTag("screen-Account").assertExists()
         capture("navigation-dark")
     }
 
     @Test fun largeTextRtlNavigationRemainsClickableWhileLoading() {
         show(dark = false, large = true, motion = false)
-        compose.onNodeWithTag("nav-Servers").performClick()
+        compose.onNodeWithTag("nav-Store").performClick()
         compose.onNodeWithTag("loading-state").assertExists()
         GanjPrimaryDestinations.forEach { destination ->
             val bounds = compose.onNodeWithTag("nav-${destination.name}").fetchSemanticsNode().boundsInRoot
@@ -86,7 +86,7 @@ class GanjNavigationTest {
                                     var saved by rememberSaveable { mutableIntStateOf(0) }
                                     Text("saved-$saved")
                                     Button(onClick = { saved++ }, Modifier.testTag("edit-state")) { Text("Edit") }
-                                    if (current == GanjDestination.Servers) LoadingCard("در حال دریافت پلن‌ها")
+                                    if (current == GanjDestination.Store) LoadingCard("در حال دریافت پلن‌ها")
                                 }
                             }
                         }

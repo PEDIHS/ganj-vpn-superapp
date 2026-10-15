@@ -27,6 +27,7 @@ import com.ganj.vpn.ui.GanjLiquidConfirmDialog
 import com.ganj.vpn.ui.GanjTheme
 import com.ganj.vpn.ui.GanjUserPreferences
 import com.ganj.vpn.ui.GanjVpnApp
+import com.ganj.vpn.ui.botStoreClearSession
 import com.ganj.vpn.ui.resolvedGanjDarkTheme
 import com.ganj.vpn.ui.resolvedGanjVisualEffectsPolicy
 import kotlinx.coroutines.CancellableContinuation
@@ -113,6 +114,9 @@ class MainActivity : ComponentActivity() {
                     telegramWaiting = telegramWaiting.value,
                     telegramErrorCode = telegramErrorCode.value,
                     currentAccount = currentAccount.value,
+                    onStoreBridgeAuthorization = {
+                        if (telegramLinked.value) owner.storeBridgeAuthorization() else null
+                    },
                     accountIdentityLoading = accountIdentityLoading.value,
                     accountIdentityErrorCode = accountIdentityErrorCode.value,
                     accountRefreshGeneration = accountRefreshGeneration.value,
@@ -379,6 +383,7 @@ class MainActivity : ComponentActivity() {
             telegramLinked.value = auth.isLinked()
             telegramWaiting.value = false
             if (result is TelegramAuthResult.LoggedOut) {
+                botStoreClearSession()
                 accountRefreshGeneration.value += 1
                 currentAccount.value = null
                 accountIdentityErrorCode.value = null

@@ -44,8 +44,26 @@ export function createAccountRouter({ auth, repository, authSession, clock = () 
   if (!auth || typeof auth.authenticate !== 'function') throw new Error('Authentication adapter is required.');
 
   return async function route({ request, url, requestId }) {
-    if (request.method !== 'GET' || url.pathname !== '/v1/me') return null;
+    if (request.method !== 'GET' || !['/v1/me', '/v1/me/store-identity'].includes(url.pathname)) return null;
     const principal = await auth.authenticate(request);
+    if (url.pathname === '/v1/me/store-identity') {
+      if (repository?.kind !== 'postgres-v1' || typeof repository.database !== 'function') {
+        throw new ApiError(503, 'store_identity_unavailable', 'Store identity cannot be verified.');
+      }
+      const identity = await repository.database().query(
+        'SELECT telegram_subject, status FROM control_users WHERE id = $1',
+        [principal.userId],
+      );
+      const person = identity.rows[0];
+      if (identity.rowCount !== 1 || person.status !== 'active') {
+        throw new ApiError(403, 'account_inactive', 'Account is not active.');
+      }
+      if (!/^[0-9]{4,24}$/.test(person.telegram_subject ?? '')) {
+        throw new ApiError(403, 'telegram_link_required', 'Link Telegram before accessing the bot store.');
+      }
+      // Identity is disclosed to the bearer owner only, never accepted from a client-supplied ID.
+      return { status: 200, body: success({ telegram_subject: person.telegram_subject }, requestId, clock) };
+    }
     const data = await currentUser({ repository, authSession, principal });
     return { status: 200, body: success(data, requestId, clock) };
   };

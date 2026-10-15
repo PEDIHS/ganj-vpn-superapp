@@ -147,6 +147,41 @@ internal fun StitchConnectionScreen(
                 }
             },
         )
+        if (visualState == GanjConnectionVisualState.Failed) {
+            GanjGlassSurface(
+                role = GanjGlassRole.Dense,
+                accent = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth(),
+                shapeRadius = 20.dp,
+                padding = PaddingValues(16.dp),
+            ) {
+                Text(
+                    text = "اتصال برقرار نشد",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = (connection as? ConnectionUiState.Failed)?.let { failureMessage(it.failure) }
+                        ?: "لایه VPN اتصال را برقرار نکرد. برای تلاش دوباره، وضعیت شبکه و سرور را بررسی کنید.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                (connection as? ConnectionUiState.Failed)?.let { ConnectionFailureDetails(it.failure) }
+                GanjLiquidAction(
+                    onClick = { service?.entitlementId?.let(onConnect) ?: onRetry() },
+                    accent = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = "تلاش دوباره",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.onError,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
         GanjConnectionTelemetry(state.runtimeConnection, sessionTimer, ping, pingBusy)
         reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -167,24 +202,13 @@ internal fun StitchConnectionScreen(
             Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall)
             ConnectionFailureDetails(failure)
         }
-        GanjGlassSurface(role = GanjGlassRole.OpaqueFallback, modifier = Modifier.fillMaxWidth().testTag("selected-subscription")
-            .clickable(role = Role.Button, onClick = onOpenSubscriptions).padding(2.dp), shapeRadius = 22.dp) {
-            Text(stringResource(R.string.subscription_selected_label), style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(service?.let { subscriptionUsername(it) } ?: stringResource(R.string.subscription_choose_first),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(stringResource(R.string.subscription_change), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary)
-        }
-        StitchSelectedServerCard(server = displayedServer, hasSubscription = service != null, onOpenServers = onOpenServers)
-        if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         StitchSmartConnectCard(
-            enabled = service?.isActive == true && !smartBusy && !connectionBusy,
+            activeSubscription = service?.isActive == true,
+            busy = smartBusy || connectionBusy,
             onClick = {
                 val selected = service?.takeIf { it.isActive }
-                if (selected == null) onOpenServers()
-                else if (!smartBusy) scope.launch {
+                if (selected == null) onOpenSubscriptions()
+                else if (!smartBusy && !connectionBusy) scope.launch {
                     smartBusy = true
                     smartFailure = null
                     try {
@@ -209,41 +233,18 @@ internal fun StitchConnectionScreen(
                 }
             },
         )
-
-        if (connection is ConnectionUiState.Failed) {
-            GanjGlassSurface(
-                role = GanjGlassRole.Dense,
-                accent = MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth(),
-                shapeRadius = 20.dp,
-                padding = PaddingValues(16.dp),
-            ) {
-                Text(
-                    text = "اتصال برقرار نشد",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = failureMessage(connection.failure),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                ConnectionFailureDetails(connection.failure)
-                GanjLiquidAction(
-                    onClick = { service?.entitlementId?.let(onConnect) ?: onRetry() },
-                    accent = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = "تلاش دوباره",
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.onError,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+        GanjGlassSurface(role = GanjGlassRole.OpaqueFallback, modifier = Modifier.fillMaxWidth().testTag("selected-subscription")
+            .clickable(role = Role.Button, onClick = onOpenSubscriptions).padding(2.dp), shapeRadius = 22.dp) {
+            Text(stringResource(R.string.subscription_selected_label), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(service?.let { subscriptionUsername(it) } ?: stringResource(R.string.subscription_choose_first),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.subscription_change), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary)
         }
+        StitchSelectedServerCard(server = displayedServer, hasSubscription = service != null, onOpenServers = onOpenServers)
+        if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
     }
 }
@@ -321,11 +322,16 @@ private fun StitchSelectedServerCard(server: ConnectionServer?, hasSubscription:
 }
 
 @Composable
-private fun StitchSmartConnectCard(enabled: Boolean, onClick: () -> Unit) {
+private fun StitchSmartConnectCard(activeSubscription: Boolean, busy: Boolean, onClick: () -> Unit) {
+    val emphasis by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (activeSubscription && !busy) 0.22f else 0.10f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 220),
+        label = "smartConnectGoldEmphasis",
+    )
     GanjGlassSurface(
         role = GanjGlassRole.Prominent,
-        accent = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth(),
+        accent = StitchGold,
+        modifier = Modifier.fillMaxWidth().testTag("smart-connect-card"),
         shapeRadius = 22.dp,
         padding = PaddingValues(16.dp),
     ) {
@@ -343,13 +349,13 @@ private fun StitchSmartConnectCard(enabled: Boolean, onClick: () -> Unit) {
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.20f))
-                        .border(1.dp, StitchEmeraldGlow.copy(alpha = 0.30f), RoundedCornerShape(14.dp)),
+                        .background(StitchGold.copy(alpha = emphasis))
+                        .border(1.dp, StitchGold.copy(alpha = 0.42f), RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     GanjNavigationIcon(
                         destination = GanjDestination.Connect,
-                        tint = StitchEmeraldGlow,
+                        tint = StitchGold,
                         modifier = Modifier.size(25.dp),
                     )
                 }
@@ -368,9 +374,9 @@ private fun StitchSmartConnectCard(enabled: Boolean, onClick: () -> Unit) {
                     )
                 }
             }
-            TextButton(onClick = onClick, modifier = Modifier.height(48.dp)) {
+            TextButton(onClick = onClick, enabled = !busy, modifier = Modifier.heightIn(min = 48.dp)) {
                 Text(
-                    text = if (enabled) "اتصال سریع" else "انتخاب سرور",
+                    text = if (busy) "در حال بررسی…" else if (activeSubscription) "اتصال سریع" else "انتخاب اشتراک",
                     color = StitchGoldBright,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,

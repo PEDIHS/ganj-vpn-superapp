@@ -18,7 +18,8 @@ For **any Android UI/UX work**, the following order is mandatory and supersedes 
 3. `docs/15-android-ui-ux-brand-system.fa.md`
 4. `docs/16-liquid-glass-first-design-standard.fa.md`
 5. `design/tokens.json`
-6. Current runtime routes/screens, related open PRs/issues, and tests.
+6. `docs/ui/GANJ_UI_RULES_20261015.fa.md` — 2026-10-15 product-directed shell and styling rules.
+7. Current runtime routes/screens, related open PRs/issues, and tests.
 
 ## Mandatory UI progress protocol
 

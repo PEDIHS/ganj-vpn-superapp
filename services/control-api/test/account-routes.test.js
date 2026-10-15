@@ -89,3 +89,26 @@ test('GET /v1/me fails closed when account row is missing', async () => {
     (error) => error?.status === 404 && error?.code === 'account_not_found',
   );
 });
+
+test('authenticated Android wallet bridge returns only its own linked numeric Telegram ID', async () => {
+  const route=routerForRow({
+    id: principal.userId, status: 'active', display_name: null, telegram_subject: '123456789',
+  });
+  const url=new URL('https://api.example.invalid/v1/me/store-identity');
+  const reply=await route({
+    request:new Request(url,{headers:{authorization:'Bearer opaque-test-token'}}),
+    url, requestId:'90000000-0000-4000-8000-000000000004',
+  });
+  assert.equal(reply.status, 200);
+  assert.deepEqual(reply.body.data,{telegram_subject:'123456789'});
+});
+
+test('Android wallet bridge denies guest, missing and non-numeric identities', async () => {
+  const url=new URL('https://api.example.invalid/v1/me/store-identity');
+  for(const subject of [null,'not-a-number','123']) {
+    const route=routerForRow({id:principal.userId,status:'active',telegram_subject:subject});
+    await assert.rejects(route({
+      request:new Request(url),url,requestId:'90000000-0000-4000-8000-000000000005',
+    }),err=>err.status===403&&err.code==='telegram_link_required');
+  }
+});

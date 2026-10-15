@@ -88,6 +88,7 @@ fun GanjVpnApp(
     telegramWaiting: Boolean,
     telegramErrorCode: String?,
     currentAccount: CurrentAccount?,
+    onStoreBridgeAuthorization: () -> String?,
     accountIdentityLoading: Boolean,
     accountIdentityErrorCode: String?,
     accountRefreshGeneration: Int,
@@ -122,6 +123,7 @@ fun GanjVpnApp(
     var accountSurface by rememberSaveable { mutableStateOf(GanjAccountSurface.PROFILE) }
     var openNotifications by remember { mutableStateOf(false) }
     var purchaseConfirmationPlan by remember { mutableStateOf<PlanUiModel?>(null) }
+    var storeCheckoutUrl by remember { mutableStateOf<String?>(null) }
     var accountSyncFeedback by remember { mutableStateOf<TelegramServiceSyncFeedback?>(null) }
     var walletState by remember(composition) {
         mutableStateOf<WalletUiState>(if (telegramLinked) WalletUiState.Loading else WalletUiState.AuthRequired)
@@ -640,14 +642,31 @@ fun GanjVpnApp(
                                 onRetry = ::refresh,
                             )
 
-                            GanjDestination.Store -> StitchStoreScreen(
-                                state = state,
-                                onSelect = {
-                                    commit(reducer.reduce(state, GanjUiEvent.SelectPlan(it)))
-                                },
-                                onPurchase = { plan -> purchaseConfirmationPlan = plan },
-                                onRetry = ::refresh,
-                            )
+                            GanjDestination.Store -> if (storeCheckoutUrl == null) {
+                                StitchBotSyncedStoreScreen(
+                                    onOpenProduct = { url -> storeCheckoutUrl = url },
+                                    onOpenWallet = {
+                                        accountSurface = GanjAccountSurface.WALLET
+                                        selectedDestination = GanjDestination.Account
+                                    },
+                                    onOpenTransactions = {
+                                        accountSurface = GanjAccountSurface.TRANSACTIONS
+                                        selectedDestination = GanjDestination.Account
+                                    },
+                                )
+                            } else {
+                                StitchBotFinanceScreen(
+                                    startUrl = storeCheckoutUrl!!,
+                                    onStoreBridgeAuthorization = onStoreBridgeAuthorization,
+                                    title = "فاکتور و خرید سرویس",
+                                    onClose = { storeCheckoutUrl = null },
+                                    onTransactions = {
+                                        accountSurface = GanjAccountSurface.TRANSACTIONS
+                                        selectedDestination = GanjDestination.Account
+                                        storeCheckoutUrl = null
+                                    },
+                                )
+                            }
 
                             GanjDestination.Settings -> StitchSettingsScreen(
                                 preferences = userPreferences,
@@ -673,24 +692,20 @@ fun GanjVpnApp(
                                     modifier = Modifier.fillMaxSize(),
                                 )
 
-                                GanjAccountSurface.WALLET -> StitchWalletScreen(
-                                    state = walletState,
-                                    onBack = { accountSurface = GanjAccountSurface.PROFILE },
-                                    onRefresh = ::refreshWallet,
-                                    onOpenTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
-                                    modifier = Modifier.fillMaxSize(),
+                                GanjAccountSurface.WALLET -> StitchBotFinanceScreen(
+                                    startUrl = GANJ_WEB_WALLET,
+                                    onStoreBridgeAuthorization = onStoreBridgeAuthorization,
+                                    title = "کیف پول گنج",
+                                    onClose = { accountSurface = GanjAccountSurface.PROFILE },
+                                    onTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
                                 )
 
-                                GanjAccountSurface.TRANSACTIONS -> StitchTransactionsScreen(
-                                    transactions = walletTransactions,
-                                    loading = walletState is WalletUiState.Loading,
-                                    loadingMore = walletLoadingMore,
-                                    errorMessage = walletTransactionError,
-                                    hasMore = walletHasMore,
-                                    onBack = { accountSurface = GanjAccountSurface.PROFILE },
-                                    onRefresh = ::refreshWallet,
-                                    onLoadMore = ::loadMoreTransactions,
-                                    modifier = Modifier.fillMaxSize(),
+                                GanjAccountSurface.TRANSACTIONS -> StitchBotFinanceScreen(
+                                    startUrl = GANJ_WEB_TRANSACTIONS,
+                                    onStoreBridgeAuthorization = onStoreBridgeAuthorization,
+                                    title = "تراکنش‌های گنج",
+                                    onClose = { accountSurface = GanjAccountSurface.PROFILE },
+                                    onTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
                                 )
 
                                 GanjAccountSurface.DEVICES -> StitchDevicesScreen(
@@ -732,6 +747,8 @@ fun GanjVpnApp(
                                         selectedDestination = GanjDestination.Connect
                                     },
                                     onBuy = { selectedDestination = GanjDestination.Store },
+                                    onOpenSettings = { accountSurface = GanjAccountSurface.SETTINGS },
+                                    onOpenSubscriptions = { selectedDestination = GanjDestination.Servers },
                                     onRetry = ::refresh,
                                     onEnterpriseRefresh = ::refreshEnterprise,
                                     onSubmitBug = ::submitBug,
@@ -779,7 +796,6 @@ fun GanjVpnApp(
                                                 StitchWalletEntry(
                                                     onClick = {
                                                         accountSurface = GanjAccountSurface.WALLET
-                                                        refreshWallet()
                                                     },
                                                     modifier = Modifier.padding(
                                                         horizontal = 0.dp,
@@ -789,7 +805,6 @@ fun GanjVpnApp(
                                                 StitchTransactionsEntry(
                                                     onClick = {
                                                         accountSurface = GanjAccountSurface.TRANSACTIONS
-                                                        if (walletTransactions.isEmpty()) refreshWallet()
                                                     },
                                                     modifier = Modifier.padding(
                                                         horizontal = 0.dp,
