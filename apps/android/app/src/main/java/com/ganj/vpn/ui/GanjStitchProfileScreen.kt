@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +52,8 @@ internal fun StitchProfileScreen(
     onSelectService: (String) -> Unit,
     onConnect: () -> Unit,
     onBuy: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
     onRetry: () -> Unit,
     onEnterpriseRefresh: () -> Unit,
     onSubmitBug: (BugReportInput) -> Unit,
@@ -69,7 +72,6 @@ internal fun StitchProfileScreen(
         contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item(key = "account-actions", contentType = "account") { headerContent() }
         item(key = "profile-header", contentType = "header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -84,7 +86,7 @@ internal fun StitchProfileScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                     )
                     Text(
-                        text = "اشتراک‌ها، دستگاه و پشتیبانی",
+                        text = "مدیریت حساب، اشتراک‌ها و تنظیمات",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -127,7 +129,7 @@ internal fun StitchProfileScreen(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "حساب گنج VPN",
+                            text = "وضعیت اشتراک‌ها",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -163,6 +165,27 @@ internal fun StitchProfileScreen(
             }
 
         }
+        item(key = "profile-shortcuts", contentType = "actions") {
+            GanjGlassSurface(
+                role = GanjGlassRole.Dense,
+                accent = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.fillMaxWidth().testTag("profile-shortcuts"),
+                shapeRadius = 20.dp,
+                padding = PaddingValues(14.dp),
+            ) {
+                Text("دسترسی سریع", style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ProfileSecondaryAction(
+                        text = "اشتراک‌ها", enabled = true, onClick = onOpenSubscriptions,
+                        modifier = Modifier.weight(1f).testTag("profile-to-subscriptions"))
+                    ProfileSecondaryAction(
+                        text = "تنظیمات", enabled = true, onClick = onOpenSettings,
+                        modifier = Modifier.weight(1f).testTag("profile-to-settings"))
+                }
+            }
+        }
+        item(key = "account-actions", contentType = "account") { headerContent() }
         item(key = "services-heading", contentType = "heading") { ProfileSectionTitle("سرویس‌های من") }
         when (val services = state.services) {
             ContentState.Loading -> item(key = "services-state") { LoadingCard("در حال دریافت سرویس‌ها") }
@@ -347,7 +370,7 @@ private fun ProfileStat(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = if (gold) ProfileGoldBright else ProfileEmerald,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
@@ -422,7 +445,7 @@ private fun ProfileBadge(text: String, gold: Boolean = false) {
     ) {
         Text(
             text = text,
-            color = if (gold) ProfileGoldBright else ProfileEmerald,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
         )

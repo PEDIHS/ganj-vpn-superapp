@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -41,11 +43,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,6 +73,14 @@ import kotlinx.coroutines.withContext
 private val StitchProductGold = Color(0xFFD5A63A)
 private val StitchProductGoldBright = Color(0xFFF0CD70)
 private val StitchProductEmerald = Color(0xFF72FCB6)
+
+internal enum class StoreTierFilter { ALL, PREMIUM, VIP }
+
+internal fun filterStorePlans(plans: List<PlanUiModel>, tier: StoreTierFilter): List<PlanUiModel> = when (tier) {
+    StoreTierFilter.ALL -> plans
+    StoreTierFilter.PREMIUM -> plans.filter { it.tier == UiTier.PREMIUM }
+    StoreTierFilter.VIP -> plans.filter { it.tier == UiTier.VIP }
+}
 
 private enum class StitchQuickIcon {
     SERVERS,
@@ -224,6 +237,11 @@ internal fun StitchStoreScreen(
     modifier: Modifier = Modifier,
 ) {
     val premiumActive = remember(state.services) { state.serviceItems.any { it.isActive && it.tier != UiTier.FREE } }
+    var tierFilter by rememberSaveable { mutableStateOf(StoreTierFilter.ALL) }
+    var vipSheetOpen by rememberSaveable { mutableStateOf(false) }
+    val livePlans = (state.catalog as? ContentState.Ready<PlanUiModel>)?.items.orEmpty()
+    val vipPlans = remember(livePlans) { livePlans.filter { it.tier == UiTier.VIP } }
+    val purchaseBusy = state.checkout is CheckoutUiState.Pending
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -248,16 +266,16 @@ internal fun StitchStoreScreen(
                 padding = PaddingValues(18.dp),
             ) {
                 Text(
-                    text = if (premiumActive) "اشتراک شما فعال است" else "سرورهای بیشتر، تجربه سریع‌تر",
+                    text = if (premiumActive) "مدیریت و ارتقای اشتراک" else "اشتراک مناسب خود را انتخاب کنید",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = StitchProductGoldBright,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = if (premiumActive) {
-                        "از همین بخش می‌توانید سرویس دیگری بخرید یا اشتراک خود را مدیریت کنید."
+                        "پلن‌های قابل خرید و ارتقا را با اطلاعات فعلی فروشگاه مقایسه کنید."
                     } else {
-                        "پلن مناسب خود را انتخاب کنید و دسترسی پریمیوم را فعال کنید."
+                        "قیمت، مدت، ترافیک و تعداد دستگاه را قبل از انتخاب بررسی کنید."
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -265,19 +283,58 @@ internal fun StitchStoreScreen(
             }
 
         }
+        if (vipPlans.isNotEmpty()) {
+            item(key = "vip-upgrade", contentType = "premium") {
+                GanjGlassSurface(role = GanjGlassRole.Dense, accent = StitchProductGold,
+                    modifier = Modifier.fillMaxWidth().testTag("vip-upgrade-entry"),
+                    shapeRadius = 22.dp, padding = PaddingValues(18.dp)) {
+                    Text("GANJ  /  VIP", color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("پلن‌های VIP موجود در فروشگاه را بررسی و مقایسه کنید.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall)
+                    StitchMiniAction("بررسی و ارتقا به VIP", StitchProductGold,
+                        onClick = { vipSheetOpen = true },
+                        modifier = Modifier.fillMaxWidth().testTag("vip-upgrade-open"))
+                }
+            }
+        }
         item(key = "store-section", contentType = "heading") { StitchSectionLabel("پلن‌های اشتراک") }
+        if (livePlans.isNotEmpty()) {
+            item(key = "store-filters", contentType = "filter") {
+                Row(Modifier.fillMaxWidth().testTag("store-tier-filters"),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StitchFilterChip("همه", tierFilter == StoreTierFilter.ALL,
+                        onClick = { tierFilter = StoreTierFilter.ALL })
+                    if (livePlans.any { it.tier == UiTier.PREMIUM }) {
+                        StitchFilterChip("پریمیوم", tierFilter == StoreTierFilter.PREMIUM,
+                            onClick = { tierFilter = StoreTierFilter.PREMIUM })
+                    }
+                    if (vipPlans.isNotEmpty()) {
+                        StitchFilterChip("VIP", tierFilter == StoreTierFilter.VIP, gold = true,
+                            onClick = { tierFilter = StoreTierFilter.VIP })
+                    }
+                }
+            }
+        }
         when (val catalog = state.catalog) {
             ContentState.Loading -> item(key = "catalog-state") { LoadingCard("در حال دریافت پلن‌ها") }
             ContentState.Empty -> item(key = "catalog-state") { EmptyCard("پلنی موجود نیست", "بعداً دوباره تلاش کنید.", onRetry) }
             ContentState.AuthRequired -> item(key = "catalog-state") { AuthCard(onRetry) }
             is ContentState.Error -> item(key = "catalog-state") { ErrorCard(catalog.failure, onRetry) }
-            is ContentState.Ready -> items(catalog.items, key = { "plan-${it.id}" }, contentType = { "plan" }) { plan ->
-                StitchPlanCard(
-                    plan = plan,
-                    selected = plan.id == state.selectedPlanId,
-                    onSelect = { onSelect(plan.id) },
-                    onPurchase = { onPurchase(plan) },
-                )
+            is ContentState.Ready -> {
+                val visible = filterStorePlans(catalog.items, tierFilter)
+                if (visible.isEmpty()) item(key = "filter-empty") {
+                    EmptyCard("در این دسته پلنی موجود نیست", "دسته دیگری را انتخاب کنید.", onRetry)
+                }
+                else items(visible, key = { "plan-" + it.id }, contentType = { "plan" }) { plan ->
+                    StitchPlanCard(
+                        plan = plan, selected = plan.id == state.selectedPlanId,
+                        onSelect = { onSelect(plan.id) },
+                        onPurchase = { if (!purchaseBusy) onPurchase(plan) },
+                        purchaseEnabled = !purchaseBusy,
+                    )
+                }
             }
         }
 
@@ -287,6 +344,31 @@ internal fun StitchStoreScreen(
                 checkout = state.checkout,
                 onRetry = { state.selectedPlan?.let(onPurchase) ?: onRetry() },
             ) }
+        }
+    }
+    if (vipSheetOpen && vipPlans.isNotEmpty()) {
+        ModalBottomSheet(onDismissRequest = { vipSheetOpen = false }) {
+            Column(Modifier.fillMaxWidth()
+                .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.80f).dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = responsiveHorizontalPadding(), vertical = 12.dp)
+                .testTag("vip-upgrade-sheet"),
+                verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("ارتقا به VIP", style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                Text("تمام مشخصات و قیمت‌ها از فهرست زنده فروشگاه دریافت می‌شوند.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                vipPlans.forEach { plan ->
+                    StitchPlanCard(
+                        plan = plan, selected = plan.id == state.selectedPlanId,
+                        onSelect = { onSelect(plan.id) },
+                        onPurchase = { if (!purchaseBusy) { vipSheetOpen = false; onPurchase(plan) } },
+                        purchaseEnabled = !purchaseBusy,
+                    )
+                }
+                Spacer(Modifier.height(20.dp))
+            }
         }
     }
 }
@@ -495,7 +577,8 @@ private fun StitchFilterChip(
             .background(if (selected) accent.copy(alpha = 0.24f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.52f))
             .border(1.dp, accent.copy(alpha = if (selected) 0.52f else 0.16f), RoundedCornerShape(999.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .heightIn(min = 48.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Text(
             text = text,
@@ -514,6 +597,7 @@ private fun StitchPlanCard(
     selected: Boolean,
     onSelect: () -> Unit,
     onPurchase: () -> Unit,
+    purchaseEnabled: Boolean = true,
 ) {
     val premium = plan.tier != UiTier.FREE
     GanjGlassSurface(
@@ -593,6 +677,7 @@ private fun StitchPlanCard(
             text = if (plan.amountMinor == 0L) "انتخاب پلن" else "خرید و فعال‌سازی",
             accent = if (premium) StitchProductGold else MaterialTheme.colorScheme.primary,
             onClick = onPurchase,
+            enabled = purchaseEnabled,
             modifier = Modifier.fillMaxWidth(),
         )
     }

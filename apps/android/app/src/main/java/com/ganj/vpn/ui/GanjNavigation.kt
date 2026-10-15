@@ -52,6 +52,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
+private val GanjNavGold = Color(0xFFD5A63A)
+
 internal enum class GanjDestination(@StringRes val labelRes: Int) {
     Home(R.string.nav_home), Servers(R.string.nav_servers), Connect(R.string.nav_connect),
     Store(R.string.nav_store), Account(R.string.nav_account), Settings(R.string.nav_settings),
@@ -84,7 +86,7 @@ internal fun GanjLiquidBottomNavigation(
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val motion = GanjDestinationMotionPolicy.shouldAnimate(effects.tier, effects.reduceMotion)
     val selectedPrimary = selectedDestination.primaryDestination()
-    val lensAccent = if (selectedPrimary == GanjDestination.Connect) colors.primary else StitchGold
+    val lensAccent = if (selectedPrimary == GanjDestination.Connect) colors.primary else GanjNavGold
     val targetIndex = GanjPrimaryDestinations.indexOf(selectedPrimary).toFloat()
     val position = animateFloatAsState(targetIndex,
         if (motion) spring(dampingRatio = 0.88f, stiffness = 650f) else snap(), label = "navLensPosition")
@@ -177,7 +179,7 @@ private fun GanjNavigationItem(
     val tint = when {
         !selected -> MaterialTheme.colorScheme.onSurfaceVariant
         destination == GanjDestination.Connect -> MaterialTheme.colorScheme.primary
-        else -> StitchGold
+        else -> GanjNavGold
     }
     val description = UiAccessibilityPolicy.destinationDescription(label, selected, stringResource(R.string.a11y_selected)) +
         if (unreadCount > 0) "، ${unreadCount.toPersianDigits()} اعلان خوانده‌نشده" else ""

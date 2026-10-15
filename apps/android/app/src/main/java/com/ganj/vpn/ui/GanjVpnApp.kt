@@ -732,6 +732,8 @@ fun GanjVpnApp(
                                         selectedDestination = GanjDestination.Connect
                                     },
                                     onBuy = { selectedDestination = GanjDestination.Store },
+                                    onOpenSettings = { accountSurface = GanjAccountSurface.SETTINGS },
+                                    onOpenSubscriptions = { selectedDestination = GanjDestination.Servers },
                                     onRetry = ::refresh,
                                     onEnterpriseRefresh = ::refreshEnterprise,
                                     onSubmitBug = ::submitBug,

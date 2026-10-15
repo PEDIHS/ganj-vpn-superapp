@@ -33,3 +33,18 @@ This document extends the canonical brand and liquid-glass standards.
   Preserve the deployed APK and rollback copy until those checks pass.
 - UI progress only via docs/ui/UI_100_PERCENT_PROGRESS.fa.md calculator;
   do not claim 100% or production QA on emulator evidence alone.
+
+
+## 2026-10-15 Store, VIP and Profile implementation
+- Store tier filters only reflect the live backend catalog; VIP spotlight is absent
+  when no VIP plan exists.
+- VIP upgrade opens a real-plan sheet with prices, traffic, devices and benefits
+  sourced from the current catalog and uses the same purchase confirmation path.
+  Do not introduce invented VIP benefits or client-granted entitlements.
+- Disable duplicate buy taps during Pending checkout and route back to the
+  existing checkout and backend verification flows.
+- Profile presents status/usage from real entitlements, followed by working
+  Subscriptions and Settings shortcuts; Telegram, wallet, transactions, devices,
+  selected subscription and support sections remain connected.
+- A screenshot or source commit is not proof of functional QA; retain all open
+  UI ledger gates until emulator/physical-device tests support completion.
