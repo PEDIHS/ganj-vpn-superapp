@@ -75,7 +75,7 @@
 
 # 2) Global Navigation / App Shell
 
-- [x] Bottom Navigation پنج‌تایی: خانه / سرورها / اتصال / فروشگاه / پروفایل.
+- [x] Bottom Navigation سه‌تایی: فروشگاه (راست) / اتصال (وسط) / پروفایل (چپ)؛ سایر صفحه‌ها از مسیرهای داخلی در دسترس‌اند.
 - [x] Connect destination مرکزی elevated و motion-aware.
 - [x] Responsive bottom navigation gutters.
 - [x] Destination transition پایه.

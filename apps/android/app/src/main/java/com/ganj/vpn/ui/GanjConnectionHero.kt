@@ -58,6 +58,19 @@ internal fun GanjConnectionHero(
     val recovering = state == GanjConnectionVisualState.Reconnecting
     val busy = selecting || preparing || disconnecting || recovering || state == GanjConnectionVisualState.Connecting
     val failed = state == GanjConnectionVisualState.Failed
+    // A single bounded failure response; never shake continuously or under reduced motion.
+    val failureShake = remember { Animatable(0f) }
+    LaunchedEffect(failed, motion) {
+        failureShake.snapTo(0f)
+        if (failed && motion) failureShake.animateTo(0f, keyframes {
+            durationMillis = 400
+            -8f at 65
+            6f at 145
+            -3f at 230
+            1.5f at 310
+            0f at 400
+        })
+    }
     val caption = when {
         selecting -> stringResource(R.string.connection_selecting_config)
         disconnecting -> stringResource(R.string.connection_disconnecting_label)
@@ -117,7 +130,9 @@ internal fun GanjConnectionHero(
                 fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f, fill = false).semantics { liveRegion = LiveRegionMode.Polite })
         }
-        Box(Modifier.size(244.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(244.dp).graphicsLayer {
+            translationX = failureShake.value.dp.toPx()
+        }, contentAlignment = Alignment.Center) {
             Canvas(Modifier.matchParentSize()) {
                 val c = accent.value
                 val active = activation.value
