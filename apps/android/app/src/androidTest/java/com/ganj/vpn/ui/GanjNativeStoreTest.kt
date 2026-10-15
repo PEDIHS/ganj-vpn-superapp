@@ -94,7 +94,13 @@ class GanjNativeStoreTest {
         val layout = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
         compose.onNodeWithText("تأیید خرید", useUnmergedTree = true)
             .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layout) }
-        assertFalse("The 200% purchase label must remain complete", layout.single().hasVisualOverflow)
+        capture("native-checkout-large-light")
+        val labelLayout = layout.single()
+        assertFalse("The 200% purchase label must remain complete: size=${labelLayout.size}, " +
+            "constraints=${labelLayout.layoutInput.constraints}, lines=${labelLayout.lineCount}, " +
+            "paragraphHeight=${labelLayout.multiParagraph.height}, widthOverflow=${labelLayout.didOverflowWidth}, " +
+            "heightOverflow=${labelLayout.didOverflowHeight}, intrinsicWidth=${labelLayout.multiParagraph.maxIntrinsicWidth}",
+            labelLayout.hasVisualOverflow)
         compose.runOnIdle { assertTrue(api.calls.none { it.first == "purchase" }); assertFalse(hasWebView(compose.activity.window.decorView)) }
         capture("native-checkout-large-light")
     }
