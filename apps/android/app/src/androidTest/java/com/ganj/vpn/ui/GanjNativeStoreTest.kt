@@ -51,10 +51,12 @@ class GanjNativeStoreTest {
         compose.waitUntil(10000) { compose.onAllNodesWithTag("native-wallet-method-card").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("native-wallet-amount").assertTextContains("140000", substring = true)
         capture("native-wallet-dark")
-        compose.onNodeWithTag("native-wallet-pay").performScrollTo().performClick()
-        compose.waitUntil(10000) { compose.onAllNodesWithTag("native-receipt-select").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10000) { compose.onAllNodes(hasTestTag("native-wallet-pay") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        scroll("native-store-wallet", "native-wallet-pay").performClick()
+        compose.waitUntil(10000) { api.calls.any { it.first == "payment_status" } }
+        scroll("native-store-payment", "native-receipt-select")
         compose.onNodeWithTag("native-receipt-select").performScrollTo().assertIsEnabled()
-        compose.onNodeWithTag("native-receipt-upload").performScrollTo().assertIsNotEnabled()
+        scroll("native-store-payment", "native-receipt-upload").assertIsNotEnabled()
         capture("native-card-invoice-dark")
         compose.runOnIdle {
             val quote = api.calls.first { it.first == "purchase_quote" }.second
@@ -69,11 +71,11 @@ class GanjNativeStoreTest {
         val api = FixtureApi(enough = true, firstPurchaseFails = true)
         render { StitchNativeBotCheckout(api, "native-product", "native-panel", {}, {}, {}, {}) }
         compose.waitUntil(10000) { compose.onAllNodesWithTag("native-purchase-quote").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithTag("native-purchase-confirm").performScrollTo().performClick()
+        scroll("native-store-checkout", "native-purchase-confirm").performClick()
         compose.waitUntil(10000) { compose.onAllNodesWithText("پیگیری همان خرید").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("native-purchase-services").assertDoesNotExist()
-        compose.onNodeWithTag("native-purchase-discount").performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithTag("native-purchase-confirm").performScrollTo().performClick()
+        scroll("native-store-checkout", "native-purchase-discount").assertIsNotEnabled()
+        scroll("native-store-checkout", "native-purchase-confirm").performClick()
         compose.waitUntil(10000) { compose.onAllNodesWithTag("native-purchase-services").fetchSemanticsNodes().isNotEmpty() }
         compose.runOnIdle {
             val requests = api.calls.filter { it.first == "purchase" }.map { it.second }
@@ -87,12 +89,16 @@ class GanjNativeStoreTest {
         val api = FixtureApi(enough = true)
         render(2f) { StitchNativeBotCheckout(api, "native-product", "native-panel", {}, {}, {}, {}) }
         compose.waitUntil(10000) { compose.onAllNodesWithTag("native-purchase-quote").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithTag("native-purchase-discount").performScrollTo().performTextInput("invalid")
-        compose.onNodeWithTag("native-purchase-confirm").performScrollTo().assertIsNotEnabled()
+        scroll("native-store-checkout", "native-purchase-discount").performTextInput("invalid")
+        scroll("native-store-checkout", "native-purchase-confirm").assertIsNotEnabled()
         compose.runOnIdle { assertTrue(api.calls.none { it.first == "purchase" }); assertFalse(hasWebView(compose.activity.window.decorView)) }
         capture("native-checkout-large-light")
     }
 
+    private fun scroll(list: String, tag: String): SemanticsNodeInteraction {
+        compose.onNodeWithTag(list).performScrollToNode(hasTestTag(tag))
+        return compose.onNodeWithTag(tag).performScrollTo()
+    }
     private fun render(fontScale: Float = 1f, content: @Composable () -> Unit) {
         compose.activityRule.scenario.onActivity { activity -> activity.setContent {
             val density = LocalDensity.current

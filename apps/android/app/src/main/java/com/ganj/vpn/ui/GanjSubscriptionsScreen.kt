@@ -411,10 +411,10 @@ internal fun StitchConfigSelectionSheet(
                 is ContentState.Ready -> {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            GanjGlassButton(stringResource(if (busy) R.string.ping_measuring else R.string.ping_all),
+                            GanjGlassButton(if (busy) "سنجش…" else "پینگ همه",
                                 { latency?.measure(service.entitlementId, servers.map { it.id }) },
                                 Modifier.weight(1f), enabled = !busy && latency != null, filled = false)
-                            GanjGlassButton(stringResource(if (sortByPing) R.string.config_sort_original else R.string.config_sort_ping),
+                            GanjGlassButton(if (sortByPing) "ترتیب اصلی" else "ترتیب پینگ",
                                 { sortByPing = !sortByPing }, Modifier.weight(1f), filled = false)
                         }
                         if (filteredServers.isEmpty()) Text(stringResource(R.string.config_no_match), style = MaterialTheme.typography.bodySmall)
