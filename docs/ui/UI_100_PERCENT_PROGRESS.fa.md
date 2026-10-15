@@ -1082,3 +1082,5 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Remaining unchecked leaves unchanged; unit/lint/build/emulator screenshots and publication
   evidence must be recorded after they run. Physical-phone/TalkBack/provider QA remain open.
 - Overall UI completion: 196/492 = 39.8% (calculator; no Final Gate claim).
+
+- Fidelity follow-up: subscription and selected server share the reference 14dp panel; real measured latency remains inside it. The brand header and status line match the compact reference hierarchy. API200% flag allocation remains 76×50dp; normal reference allocation is 52×35dp. Preview/review jobs now produce a fresh provenance-verified pinned runtime instead of requesting an expired artifact. Final execution evidence pending.

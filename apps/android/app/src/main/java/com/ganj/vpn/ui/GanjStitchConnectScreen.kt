@@ -131,6 +131,19 @@ internal fun StitchConnectionScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         StitchBrandHeader(premium = hasPremium, onOpenStore = onOpenStore, onOpenNotifications = onOpenNotifications)
+        val statusColor = when (visualState) {
+            GanjConnectionVisualState.Connected -> MaterialTheme.colorScheme.primary
+            GanjConnectionVisualState.Failed -> MaterialTheme.colorScheme.error
+            GanjConnectionVisualState.Connecting, GanjConnectionVisualState.Reconnecting -> StitchGoldBright
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
+        Row(Modifier.fillMaxWidth().padding(top=8.dp),horizontalArrangement=Arrangement.Center,
+            verticalAlignment=Alignment.CenterVertically) {
+            Box(Modifier.size(6.dp).background(statusColor,CircleShape))
+            Spacer(Modifier.width(7.dp))
+            Text(if(disconnecting) stringResource(R.string.connection_disconnecting_label) else connectionTitle(visualState),
+                style=MaterialTheme.typography.bodySmall,color=statusColor)
+        }
         GanjConnectionHero(
             state = visualState,
             action = if (switchingSelection) stringResource(R.string.connection_switch_selection) else connectionAction(visualState),
@@ -219,24 +232,13 @@ internal fun StitchConnectionScreen(
                 }
             },
         )
-        GanjReferenceMenuRow(
-            title = service?.let { subscriptionUsername(it) } ?: stringResource(R.string.subscription_choose_first),
-            subtitle = stringResource(R.string.subscription_selected_label),
-            modifier = Modifier.testTag("selected-subscription"),
-            icon = GanjDestination.Servers,
-            accent = LocalGanjContentPalette.current.premiumText,
-            onClick = onOpenSubscriptions,
+        StitchReferenceSelection(
+            service=service,server=displayedServer,ping=ping,pingBusy=pingBusy,
+            onOpenSubscriptions=onOpenSubscriptions,onOpenServers=onOpenServers,
+            onMeasure=if(pingKey!=null && latency!=null) ({latency.measure(pingKey.serviceId,listOf(pingKey.serverId))}) else null,
         )
-        StitchSelectedServerCard(server = displayedServer, hasSubscription = service != null, onOpenServers = onOpenServers)
-        reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.bodySmall,
+        reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (pingKey != null && latency != null) StitchMiniAction(
-            enabled = !pingBusy,
-            text = stringResource(if (pingBusy) R.string.ping_measuring else R.string.ping_selected),
-            accent = MaterialTheme.colorScheme.primary,
-            onClick = { if (!pingBusy) latency?.measure(pingKey.serviceId, listOf(pingKey.serverId)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
         pingFailure?.let { failure ->
             Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -263,7 +265,7 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit, onOpenN
                         modifier = Modifier.size(28.dp))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("گنج VPN", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                    Text("GANJ VPN", style = MaterialTheme.typography.titleLarge.copy(letterSpacing=2.sp), fontWeight = FontWeight.Bold,
                         color = StitchEmeraldGlow, modifier = Modifier.fillMaxWidth())
                     Text("ارتباط امن، کنترل ساده", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
@@ -286,29 +288,50 @@ private fun StitchHeaderUpgrade(premium: Boolean, onOpenStore: () -> Unit, modif
 }
 
 @Composable
-private fun StitchSelectedServerCard(server: ConnectionServer?, hasSubscription: Boolean, onOpenServers: () -> Unit) {
-    val identity = remember(server) { server?.let { ganjConfigIdentity(it.name, it.countryCode) } }
-    GanjGlassSurface(role = GanjGlassRole.Dense, accent = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth().testTag("selected-config")
-            .clickable(role = Role.Button, onClick = onOpenServers),
-        shapeRadius = 22.dp, padding = PaddingValues(16.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            GanjConfigFlagBadge(identity?.countryCode, server != null, Modifier.testTag("selected-config-flag"))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.connection_selected_config), style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(identity?.title ?: stringResource(if (hasSubscription) R.string.config_choose else R.string.subscription_choose_first),
-                    style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                server?.let {
-                    Text("${countryName(it.countryCode)} • ${it.protocols.joinToString(" / ") { protocol -> protocol.name }}",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+private fun StitchReferenceSelection(
+    service: ServiceUiModel?, server: ConnectionServer?, ping: Long?, pingBusy: Boolean,
+    onOpenSubscriptions: () -> Unit, onOpenServers: () -> Unit, onMeasure: (() -> Unit)?,
+) {
+    val identity=remember(server){server?.let{ganjConfigIdentity(it.name,it.countryCode)}}
+    val muted=MaterialTheme.colorScheme.onSurfaceVariant
+    val large=LocalDensity.current.fontScale>=1.5f
+    val shape=RoundedCornerShape(14.dp)
+    Column(Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface)
+        .border(1.dp,MaterialTheme.colorScheme.outlineVariant,shape)) {
+        Row(Modifier.fillMaxWidth().testTag("selected-subscription")
+            .clickable(role=Role.Button,onClick=onOpenSubscriptions).heightIn(min=48.dp).padding(horizontal=14.dp,vertical=10.dp),
+            horizontalArrangement=Arrangement.spacedBy(9.dp),verticalAlignment=Alignment.CenterVertically) {
+            GanjNavigationIcon(GanjDestination.Servers,StitchGoldBright,Modifier.size(17.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.subscription_selected_label),style=MaterialTheme.typography.labelSmall,color=muted)
+                Text(service?.let{subscriptionUsername(it)}?:stringResource(R.string.subscription_choose_first),
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurface)
+            }
+            Text("تغییر",style=MaterialTheme.typography.labelSmall,color=StitchGoldBright)
+        }
+        androidx.compose.material3.HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
+        Row(Modifier.fillMaxWidth().testTag("selected-config").clickable(role=Role.Button,onClick=onOpenServers)
+            .padding(horizontal=14.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            GanjConfigFlagBadge(identity?.countryCode,server!=null,
+                Modifier.size(if(large)76.dp else 52.dp,if(large)50.dp else 35.dp).testTag("selected-config-flag"))
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                Text(identity?.title?:stringResource(if(service!=null)R.string.config_choose else R.string.subscription_choose_first),
+                    style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurface)
+                server?.let { Text("${countryName(it.countryCode)} • ${it.protocols.joinToString(" / "){p->p.name}}",
+                    style=MaterialTheme.typography.labelSmall,color=muted) }
+            }
+            Text("‹",style=MaterialTheme.typography.titleLarge,color=muted)
+        }
+        if(onMeasure!=null) Row(Modifier.fillMaxWidth().padding(horizontal=14.dp),
+            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+            Text(persianTechnicalMetric(ping?.toString()?:"—","ms"),style=MaterialTheme.typography.labelSmall,color=muted)
+            Box(Modifier.heightIn(min=48.dp).clip(RoundedCornerShape(8.dp))
+                .clickable(enabled=!pingBusy,role=Role.Button,onClick=onMeasure).padding(8.dp),contentAlignment=Alignment.Center) {
+                Text(stringResource(if(pingBusy)R.string.ping_measuring else R.string.ping_selected),
+                    style=MaterialTheme.typography.labelSmall,color=StitchGoldBright)
             }
         }
-        Text(stringResource(R.string.connection_change_config), style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
     }
 }
 

@@ -106,7 +106,7 @@ class ConnectionPresentationTest {
             }
         } }
         capture("connection-header-light-large")
-        listOf("گنج VPN", "ارتباط امن، کنترل ساده").forEach { text ->
+        listOf("GANJ VPN", "ارتباط امن، کنترل ساده").forEach { text ->
             val layout = mutableListOf<TextLayoutResult>()
             compose.onNodeWithText(text).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layout) }
             val result = layout.single()
