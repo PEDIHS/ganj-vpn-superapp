@@ -40,8 +40,16 @@ class ConnectionLatencyProber(
 
     suspend fun probeDetailed(serviceId: String, serverId: String): LatencyProbeResult = permits.withPermit {
         withContext(Dispatchers.IO) {
-            val prepared = prepare(serviceId, serverId)
-            prepared.result ?: prepared.profile!!.use { tunnel.probeDetailed(it) }
+            try {
+                val prepared = prepare(serviceId, serverId)
+                prepared.result ?: prepared.profile!!.use { tunnel.probeDetailed(it) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: VpnRuntimeException) {
+                LatencyProbeResult.Failed(ConnectionFailures.runtime(error.code))
+            } catch (_: Exception) {
+                failed("probe.unavailable")
+            }
         }
     }
 
@@ -71,8 +79,16 @@ class ConnectionLatencyProber(
                 val available = prepared.mapIndexedNotNull { index, item ->
                     item.profile?.let { index to it }
                 }
-                val native = if (available.isEmpty()) emptyList() else
-                    tunnel.probeDetailedBatch(available.map { it.second })
+                val native = try {
+                    if (available.isEmpty()) emptyList() else
+                        tunnel.probeDetailedBatch(available.map { it.second })
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: VpnRuntimeException) {
+                    List(available.size) { LatencyProbeResult.Failed(ConnectionFailures.runtime(error.code)) }
+                } catch (_: Exception) {
+                    List(available.size) { failed("probe.unavailable") }
+                }
                 val resolved = mutableMapOf<Int, LatencyProbeResult>()
                 available.forEachIndexed { index, (originalIndex, _) ->
                     resolved[originalIndex] = native.getOrElse(index) { failed("probe.native_failed") }
