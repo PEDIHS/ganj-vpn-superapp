@@ -88,6 +88,7 @@ fun GanjVpnApp(
     telegramWaiting: Boolean,
     telegramErrorCode: String?,
     currentAccount: CurrentAccount?,
+    onStoreBridgeAuthorization: () -> String?,
     accountIdentityLoading: Boolean,
     accountIdentityErrorCode: String?,
     accountRefreshGeneration: Int,
@@ -656,6 +657,7 @@ fun GanjVpnApp(
                             } else {
                                 StitchBotFinanceScreen(
                                     startUrl = storeCheckoutUrl!!,
+                                    onStoreBridgeAuthorization = onStoreBridgeAuthorization,
                                     title = "فاکتور و خرید سرویس",
                                     onClose = { storeCheckoutUrl = null },
                                     onTransactions = {
@@ -692,6 +694,7 @@ fun GanjVpnApp(
 
                                 GanjAccountSurface.WALLET -> StitchBotFinanceScreen(
                                     startUrl = GANJ_WEB_WALLET,
+                                    onStoreBridgeAuthorization = onStoreBridgeAuthorization,
                                     title = "کیف پول گنج",
                                     onClose = { accountSurface = GanjAccountSurface.PROFILE },
                                     onTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
@@ -699,6 +702,7 @@ fun GanjVpnApp(
 
                                 GanjAccountSurface.TRANSACTIONS -> StitchBotFinanceScreen(
                                     startUrl = GANJ_WEB_TRANSACTIONS,
+                                    onStoreBridgeAuthorization = onStoreBridgeAuthorization,
                                     title = "تراکنش‌های گنج",
                                     onClose = { accountSurface = GanjAccountSurface.PROFILE },
                                     onTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },

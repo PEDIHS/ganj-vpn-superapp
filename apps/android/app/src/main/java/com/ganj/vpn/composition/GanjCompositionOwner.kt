@@ -32,6 +32,9 @@ class GanjCompositionOwner internal constructor(
     private val supportApi: SupportApi?,
 ) : ViewModel() {
     internal fun currentAccount(): ApiResult<CurrentAccount>? = accountSession?.currentAccount()
+    /** Short-lived control API bearer used only by native HTTPS bot store bridge. */
+    internal fun storeBridgeAuthorization(): String? =
+        accountSession?.currentAccessToken()?.trustedServerAuthorizationValue()
     internal fun wallet(): ApiResult<WalletSnapshot>? = walletApi?.wallet()
     internal fun walletTransactions(cursor: String? = null): ApiResult<WalletTransactionPage>? =
         walletApi?.transactions(cursor = cursor)

@@ -124,6 +124,7 @@ private suspend fun fetchBotPaymentStatus(orderId: String): String? = withContex
 @Composable
 internal fun StitchBotFinanceScreen(
     startUrl: String,
+    onStoreBridgeAuthorization: () -> String?,
     title: String,
     onClose: () -> Unit,
     onTransactions: () -> Unit,
@@ -137,6 +138,8 @@ internal fun StitchBotFinanceScreen(
     var order by remember(startUrl) { mutableStateOf<String?>(botFinanceOrder(startUrl)) }
     var invoiceStatus by remember(startUrl) { mutableStateOf<String?>(null) }
     var statusPopup by remember(startUrl) { mutableStateOf<String?>(null) }
+    var ssoError by remember(startUrl) { mutableStateOf<String?>(null) }
+    var signedIn by remember(startUrl) { mutableStateOf(false) }
     val openDocument = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { selected ->
         fileCallback?.onReceiveValue(selected?.let { arrayOf(it) })
         fileCallback = null
@@ -155,6 +158,33 @@ internal fun StitchBotFinanceScreen(
     BackHandler(enabled = true) {
         val view = web
         if (view != null && view.canGoBack()) view.goBack() else onClose()
+    }
+
+    LaunchedEffect(startUrl) {
+        val bearer = onStoreBridgeAuthorization()
+        if (bearer.isNullOrBlank()) {
+            ssoError = "ابتدا حساب تلگرام خود را در گنج متصل کنید."
+            return@LaunchedEffect
+        }
+        try {
+            val result = botStoreAndroidSso(bearer)
+            if (result) {
+                signedIn = true
+                ssoError = null
+            } else {
+                ssoError = "ورود یکپارچه به فروشگاه تأیید نشد. مجدداً وارد حساب گنج شوید."
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            ssoError = "اتصال امن حساب فروشگاه برقرار نشد. اینترنت را بررسی و دوباره تلاش کنید."
+        }
+    }
+
+    LaunchedEffect(signedIn) {
+        if (signedIn) {
+            web?.loadUrl(startUrl)
+        }
     }
 
     LaunchedEffect(order) {
@@ -214,10 +244,16 @@ internal fun StitchBotFinanceScreen(
         if (progress in 1..99) LinearProgressIndicator(
             progress = { progress / 100f }, modifier = Modifier.fillMaxWidth())
         Box(Modifier.weight(1f)) {
-            if (!botFinanceIsTrusted(startUrl)) {
+            if (ssoError != null) {
+                Column(Modifier.fillMaxWidth().padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(ssoError!!, color = MaterialTheme.colorScheme.error)
+                    Button(onClick = onClose) { Text("بازگشت") }
+                }
+            } else if (!botFinanceIsTrusted(startUrl)) {
                 Text("آدرس فروشگاه گنج معتبر نیست.", modifier = Modifier.padding(18.dp),
                     color = MaterialTheme.colorScheme.error)
-            } else {
+            } else if (signedIn) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize().testTag("bot-finance-webview"),
                     factory = { ctx ->

@@ -85,3 +85,16 @@ This document extends the canonical brand and liquid-glass standards.
   linking. Never export Android auth secrets to the WebView or fabricate SSO.
 - DO NOT publish until Android CI/emulator and payment receipt end-to-end
   checks are verified with safe non-monetary test data.
+
+## Verified app-to-bot single sign-on contract
+- The Android linked account bearer remains in native memory and travels over
+  HTTPS POST only to /site/api.php?action=android_sso with same-session CSRF.
+- PHP asks the local Control API to validate the short-lived, device-bound JWT,
+  reads ONLY the Telegram subject already associated with that server-side
+  authenticated account, checks an active retail user row, rotates the web
+  session, and returns new HttpOnly session cookies.
+- No client-provided username/Telegram ID, no secret in JavaScript or URL,
+  no app-issued admin permissions, no wallet mutations, and no representative
+  pricing support. App logout also expires WebView site cookies.
+- CI tests exercise subject ownership and deny unlinked/invalid IDs. Production
+  end-to-end positive test requires an authorized linked Telegram test account.
