@@ -42,6 +42,17 @@ class ConnectionLatencyProberTest {
     }
 
     @Test
+    fun \u0060batch only provisions unique authorized server profiles and wipes their credentials\u0060() = runBlocking {
+        val fixture = Fixture()
+        val results = fixture.prober.probeBatchDetailed(SERVICE, listOf(SERVER, SERVER))
+        assertEquals(LatencyProbeResult.Measured(123L), results[SERVER])
+        assertEquals(1, fixture.requests)
+        assertEquals(1, fixture.provisions)
+        assertEquals(1, fixture.probes)
+        assertTrue(runCatching { fixture.profile.useCredential { it } }.isFailure)
+    }
+
+    @Test
     fun `unauthorized server never requests a lease or probes`() = runBlocking {
         val fixture = Fixture(authorized = false)
         assertNull(fixture.prober.probe(SERVICE, SERVER))
