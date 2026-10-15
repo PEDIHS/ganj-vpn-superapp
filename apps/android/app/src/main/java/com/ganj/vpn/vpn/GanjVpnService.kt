@@ -123,6 +123,31 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 delay(250)
             }
         }
+        if (!com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) serviceScope.launch {
+            var checkedService: String? = null
+            var lease = ServiceAccessLease(SystemClock.elapsedRealtime())
+            while(isActive) {
+                delay(30_000)
+                val id=engine.currentState().serviceId
+                if(!desiredConnection.get() || !engine.hasTunnel() || id==null) {checkedService=null;continue}
+                if(checkedService!=id) {checkedService=id;lease=ServiceAccessLease(SystemClock.elapsedRealtime())}
+                val result=runCatching { com.ganj.vpn.composition.GanjAccountSessionProvider.family(application,
+                    com.ganj.vpn.BuildConfig.CONTROL_API_BASE_URL).access(id) }.getOrNull()
+                if(engine.currentState().serviceId!=id || !desiredConnection.get())continue
+                val denied=when(result) {
+                    is com.ganj.vpn.core.controlapi.ApiResult.Success -> {
+                        if(result.value.active)lease.verified(SystemClock.elapsedRealtime())
+                        !result.value.active
+                    }
+                    is com.ganj.vpn.core.controlapi.ApiResult.Failure -> result.error is com.ganj.vpn.core.controlapi.ApiError.Forbidden ||
+                        result.error is com.ganj.vpn.core.controlapi.ApiError.NotFound ||
+                        result.error is com.ganj.vpn.core.controlapi.ApiError.AuthenticationRequired ||
+                        result.error is com.ganj.vpn.core.controlapi.ApiError.AuthenticationExpired
+                    else -> false
+                }
+                if(denied || lease.expired(SystemClock.elapsedRealtime()))terminateDesiredConnection(clearRecovery=true)
+            }
+        }
         networkCallbackRegistered = runCatching {
             connectivityManager.registerNetworkCallback(
                 NetworkRequest.Builder()

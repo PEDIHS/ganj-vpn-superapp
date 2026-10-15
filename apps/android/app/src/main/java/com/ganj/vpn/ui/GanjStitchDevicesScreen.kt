@@ -261,6 +261,7 @@ private fun StitchDeviceDetailScreen(
                 DeviceDetailValue("وضعیت", deviceStatusLabel(device))
                 DeviceDetailValue("پلتفرم", device.platform)
                 device.appVersion?.let { DeviceDetailValue("نسخه برنامه", it) }
+                device.osVersion?.let { DeviceDetailValue("نسخه اندروید", it) }
                 DeviceDetailValue("شناسه دستگاه", isolateTechnicalLtr(device.id))
                 DeviceDetailValue(
                     "آخرین فعالیت",

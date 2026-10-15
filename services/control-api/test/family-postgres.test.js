@@ -60,12 +60,14 @@ test('family sharing enforces real PostgreSQL ownership, capacity, replay and de
       });
       const extra=randomUUID();await pool.query("INSERT INTO control_devices(id,user_id,status,signing_public_jwk,encryption_public_jwk,key_version) VALUES($1,$2,'active','{}','{}','v1')",[extra,f.owner.userId]);
       await assert.rejects(repo.transaction(async()=>repo.bindAccessibleDevice({...f.owner,deviceId:extra},await repo.findAccessibleService(f.owner.userId,f.id))),e=>e.code==='device_limit_reached');
+      assert.equal((await family.access(f.member,f.id)).active,true);
       assert.equal((await family.summary(f.owner,f.id)).devices.length,2);
       assert.equal((await family.summary(f.member,f.id)).devices.length,1);
       await assert.rejects(family.remove(f.member,f.id,f.owner.userId),e=>e.code==='owner_cannot_leave');
       await family.remove(f.member,f.id,f.member.userId);
       assert.equal((await pool.query('SELECT count(*) FROM control_service_devices WHERE service_id=$1',[f.id])).rows[0].count,'1');
       assert.equal(await repo.familySlots(f.id),1);
+      await assert.rejects(family.access(f.member,f.id),e=>e.code==='service_not_found');
     });
     await t.test('unrelated accounts and revoked/expired invitations fail closed',async()=>{
       const f=await fixture();const invite=await family.createInvite(f.owner,f.id),raw=token(invite);

@@ -70,7 +70,11 @@ internal fun GanjFamilyScreen(
                             if(url.matches(Regex("https://bot\\.pedramhs\\.ir/app/join#[A-Za-z0-9_-]{43}")))
                                 runCatching {context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {type="text/plain";putExtra(Intent.EXTRA_TEXT,"دعوت به اشتراک گنج\n$url")},"ارسال دعوت"))}
                         }
-                        onRefreshServices();load()
+                        onRefreshServices()
+                        when(val refreshed=withContext(Dispatchers.IO){active.summary(id)}) {
+                            is ApiResult.Success -> reply=refreshed.value
+                            is ApiResult.Failure -> {reply=null;onBack()}
+                        }
                     }
                     is ApiResult.Failure -> error=familyError(result.error)
                 }
@@ -130,7 +134,7 @@ internal fun GanjFamilyInvitation(
     }
     LaunchedEffect(token,linked) {if(linked)preview()}
     Dialog(onDismissRequest={if(!busy)onDismiss()}) {
-        GanjGlassSurface(role=GanjGlassRole.Dense,accent=MaterialTheme.colorScheme.primary,modifier=Modifier.fillMaxWidth(),shapeRadius=18.dp,padding=PaddingValues(20.dp)) {
+        GanjGlassSurface(role=GanjGlassRole.Dense,accent=MaterialTheme.colorScheme.primary,modifier=Modifier.fillMaxWidth().heightIn(max=600.dp).verticalScroll(rememberScrollState()),shapeRadius=18.dp,padding=PaddingValues(20.dp)) {
             Text("دعوت به اشتراک گنج",style=MaterialTheme.typography.titleLarge)
             if(!linked) {
                 Text("برای دیدن و پذیرش دعوت، با حساب تلگرام خود وارد شوید.")

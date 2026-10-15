@@ -36,6 +36,7 @@ export function createDeviceRouter({ auth, repository, clock = () => new Date() 
 
     if(request.method==='POST' && currentPath) {
       const body=await parseBody(request,4096);
+      if(!body||typeof body!=='object'||Array.isArray(body))throw new ApiError(400,'invalid_request','Expected an object.');
       const {device_proof:proof,...unsignedBody}=body;
       if(!await auth.verifyDeviceProof({principal,method:'POST',pathAndQuery:url.pathname,unsignedBody,proof}))throw new ApiError(403,'invalid_device_proof','Device proof is invalid.');
       for(const [key,value] of Object.entries(unsignedBody)) {

@@ -63,6 +63,7 @@ private enum class GanjAccountSurface {
     PAYMENT,
     DEVICES,
     FAMILY,
+    BOT_SUPPORT,
 }
 
 internal sealed interface TelegramServiceSyncFeedback {
@@ -729,6 +730,7 @@ fun GanjVpnApp(
                                     )
                                 }
 
+                                GanjAccountSurface.BOT_SUPPORT -> GanjBotSupportScreen(botStoreApi,{accountSurface=GanjAccountSurface.PROFILE})
                                 GanjAccountSurface.FAMILY -> GanjFamilyScreen(
                                     api=familyApi,services=(state.services as? ContentState.Ready)?.items.orEmpty(),
                                     selectedServiceId=state.selectedEntitlementId,onBack={accountSurface=GanjAccountSurface.PROFILE},
@@ -801,6 +803,7 @@ fun GanjVpnApp(
                                     onOpenWallet = { accountSurface = GanjAccountSurface.WALLET },
                                     onOpenTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
                                     botStoreApi = botStoreApi,
+                                    onOpenSupport = { accountSurface=GanjAccountSurface.BOT_SUPPORT },
                                     onOpenFamily = { accountSurface = GanjAccountSurface.FAMILY },
                                     onOpenDevices = { accountSurface = GanjAccountSurface.DEVICES; refreshDevices() },
                                     onOpenNotifications = { openNotifications = true; selectedDestination = GanjDestination.Settings },

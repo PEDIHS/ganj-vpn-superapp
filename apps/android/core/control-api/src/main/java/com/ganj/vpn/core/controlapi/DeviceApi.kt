@@ -15,6 +15,7 @@ data class TrustedDevice(
     val status: TrustedDeviceStatus,
     val current: Boolean,
     val lastSeenAt: String?,
+    val osVersion: String? = null,
 )
 
 interface DeviceApi {
@@ -144,6 +145,7 @@ internal class DefaultDeviceApi(
             platform = value.requiredString("platform").bounded("platform", 1, 32),
             name = value.optionalString("name")?.bounded("name", 1, 120),
             appVersion = value.optionalString("app_version")?.bounded("app_version", 1, 64),
+            osVersion = value.optionalString("os_version")?.bounded("os_version", 1, 64),
             status = when (value.requiredString("status")) {
                 "active" -> TrustedDeviceStatus.ACTIVE
                 "revoked" -> TrustedDeviceStatus.REVOKED

@@ -75,12 +75,7 @@ class GanjCompositionOwner internal constructor(
                 ) as T
             }
 
-            val sessionManager = AndroidAuthSessionManager(
-                api = AuthSessionApiFactory.create(endpoint),
-                vault = AndroidKeystoreSessionVault(application),
-                identity = deviceIdentity,
-                sessionRevocationSink = AndroidVpnSessionRevocationSink(application),
-            )
+            val sessionManager = GanjAccountSessionProvider.get(application,endpoint)
             val serverContext = LiveConnectionProfileContextProvider(
                 serverApi = ServerApiFactory.create(endpoint, sessionManager),
                 identity = deviceIdentity,

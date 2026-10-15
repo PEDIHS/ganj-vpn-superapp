@@ -8,13 +8,14 @@ import java.util.UUID
 class FamilyReply(
     val serviceId: String?, val serviceName: String?, val owner: Boolean, val ownInvite: Boolean,
     val deviceLimit: Int, val slotsUsed: Int, val inviterName: String?, val inviteUrl: String?,
-    val members: List<FamilyMember>, val devices: List<FamilyDevice>, val invites: List<FamilyInvite>,
+    val active: Boolean, val members: List<FamilyMember>, val devices: List<FamilyDevice>, val invites: List<FamilyInvite>,
 ) { override fun toString() = "FamilyReply([REDACTED])" }
 data class FamilyMember(val id: String, val name: String, val current: Boolean)
 data class FamilyDevice(val id: String, val name: String, val current: Boolean, val own: Boolean)
 data class FamilyInvite(val id: String, val expiresAt: String)
 
 interface FamilyApi {
+    fun access(serviceId: String): ApiResult<FamilyReply>
     fun summary(serviceId: String): ApiResult<FamilyReply>
     fun createInvite(serviceId: String): ApiResult<FamilyReply>
     fun preview(token: String): ApiResult<FamilyReply>
@@ -33,6 +34,7 @@ internal class DefaultFamilyApi(
     private val transport: HttpTransport, private val tokenProvider: AuthTokenProvider,
     private val authenticationEvents: AuthenticationEventSink, private val signer: (String,ByteArray)->String?,
 ): FamilyApi {
+    override fun access(serviceId: String) = executeJson(HttpMethod.GET,"/services/${UUID.fromString(serviceId)}/family/access",mapper=::mapReply)
     override fun summary(serviceId: String) = executeJson(HttpMethod.GET,"/services/${UUID.fromString(serviceId)}/family",mapper=::mapReply)
     override fun createInvite(serviceId: String) = executeJson(HttpMethod.POST,"/services/${UUID.fromString(serviceId)}/family/invites",mapper=::mapReply)
     override fun preview(token: String) = executeJson(HttpMethod.POST,"/family/preview",mapOf("token" to token),::mapReply)
@@ -48,6 +50,7 @@ internal class DefaultFamilyApi(
             (v.values["device_limit"] as? JsonValue.NumberValue)?.raw?.toIntOrNull() ?: 0,
             (v.values["slots_used"] as? JsonValue.NumberValue)?.raw?.toIntOrNull() ?: 0,
             v.optionalString("inviter_name"),v.optionalString("url"),
+            v.optionalBoolean("active",false),
             rows("members").map { it.asObject().let { x -> FamilyMember(x.requiredString("user_id"),x.requiredString("name"),x.optionalBoolean("current",false)) } },
             rows("devices").map { it.asObject().let { x -> FamilyDevice(x.requiredString("id"),x.requiredString("name"),x.optionalBoolean("current",false),x.optionalBoolean("own",false)) } },
             rows("invites").map { it.asObject().let { x -> FamilyInvite(x.requiredString("id"),x.requiredString("expires_at")) } },

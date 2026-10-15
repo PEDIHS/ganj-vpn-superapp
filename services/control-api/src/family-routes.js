@@ -29,6 +29,14 @@ export class FamilyService {
     if(ownerOnly&&service.userId!==principal.userId)throw new ApiError(403,'owner_required','Only the owner can do this.');
     return service;
   }
+  async access(principal,id) {
+    const service=await this.service(principal,id);
+    if(service.status!=='active'||service.expires_at&&Date.parse(service.expires_at)<=this.clock().getTime()||service.traffic_limit_bytes!==null&&service.traffic_used_bytes>=service.traffic_limit_bytes)throw new ApiError(403,'service_inactive','Service is unavailable.');
+    const device=await this.db().query(`SELECT d.id FROM control_service_devices sd JOIN control_devices d ON d.id=sd.device_id AND d.user_id=sd.user_id
+      JOIN control_users owner ON owner.id=$4 WHERE sd.service_id=$1 AND d.id=$2 AND d.user_id=$3 AND d.status='active' AND owner.status='active'`,[id,principal.deviceId,principal.userId,service.userId]);
+    if(!device.rowCount)throw new ApiError(403,'device_not_trusted','Device is unavailable.');
+    return {service_id:id,active:true};
+  }
   async summary(principal,id) {
     const service=await this.service(principal,id);
     const db=this.db();
@@ -121,7 +129,9 @@ export function createFamilyRouter({auth,repository,clock=()=>new Date()}) {
     const path=url.pathname;
     const service=path.match(/^\/v1\/services\/([0-9a-f-]{36})\/family(?:\/(invites|members)(?:\/([0-9a-f-]{36}))?)?$/i);
     let data;
-    if(request.method==='GET'&&service&&!service[2])data=await family.summary(principal,service[1]);
+    const access=path.match(/^\/v1\/services\/([0-9a-f-]{36})\/family\/access$/i);
+    if(request.method==='GET'&&access)data=await family.access(principal,access[1]);
+    else if(request.method==='GET'&&service&&!service[2])data=await family.summary(principal,service[1]);
     else {
       if(request.method!=='POST')throw new ApiError(404,'route_not_found','Route not found.');
       const body=await parseBody(request,8192);

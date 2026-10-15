@@ -73,6 +73,9 @@ internal data class GanjBotProduct(
     val badge: String,
     val featured: Boolean,
     val oneBuy: Boolean,
+    val deviceLimit: Int = 1,
+    val appTier: String? = null,
+    val appTierName: String? = null,
 ) {
     val key: String get() = panelId + ":" + code
     val purchaseUrl: String get() =
@@ -196,6 +199,10 @@ internal fun StitchBotSyncedStoreScreen(
         } catch(cancelled:CancellationException){throw cancelled}
         catch(_:Exception){error=true}
         finally {loading=false}
+    }
+    if(products.any {it.appTier!=null}) {
+        GanjTierCatalog(products,onOpenProduct,onOpenWallet,onOpenTransactions,loading,error,{retryKey++},modifier)
+        return
     }
     val panels=remember(products){botStorePanels(products)}
     val selectedPanel=panelId?.takeIf { key->panels.any {it.first==key} }
@@ -375,6 +382,9 @@ internal fun botStoreReadCatalog(envelope: JSONObject): List<GanjBotProduct> {
                 badge = product.optString("badge").trim().take(60),
                 featured = product.optBoolean("featured", false),
                 oneBuy = product.optBoolean("one_buy", false),
+                deviceLimit = product.optInt("device_limit",1).coerceIn(1,1000),
+                appTier = product.optString("app_tier").takeIf {it in setOf("economy","standard","professional","premium")},
+                appTierName = product.optString("app_tier_name").takeIf {it.isNotBlank()&&it!="null"}?.take(80),
             ))
         }
     }.distinctBy { it.key }
