@@ -52,6 +52,7 @@ internal fun StitchNativeBotStoreDestination(
     onOpenAccount: () -> Unit,
     modifier: Modifier = Modifier,
     suppliedApi: GanjBotStoreApi? = null,
+    allowGuestCatalogCache: Boolean = false,
 ) {
     val api = remember(suppliedApi, onStoreBridgeAuthorization) { suppliedApi ?: GanjBotNativeStoreApi(onStoreBridgeAuthorization) }
     var page by rememberSaveable { mutableStateOf("catalog") }
@@ -91,6 +92,7 @@ internal fun StitchNativeBotStoreDestination(
                 onOpenWallet = { shortfall = 0; walletReturn = "catalog"; page = "wallet" },
                 onOpenTransactions = { page = "transactions" },
                 loadCatalog = { botStoreReadCatalog(api.request("products")) },
+                enablePublicCache = allowGuestCatalogCache,
             )
         }
     }
@@ -277,18 +279,25 @@ internal fun StitchNativeBotWallet(
     var attemptFingerprint by rememberSaveable { mutableStateOf("") }
     BackHandler(busy) {}
     LaunchedEffect(retry) {
-        loading = true; error = null
+        loading = methods.isEmpty(); error = null
         try {
             val data = api.request("wallet_methods").getJSONObject("data")
-            balance = data.getDouble("balance").toLong()
+            balance = botReadVerifiedBalance(data)
             val list = data.getJSONArray("methods")
             methods = (0 until list.length()).map { list.getJSONObject(it) }
             if (selected.isBlank() || methods.none { it.optString("id") == selected }) selected = methods.firstOrNull()?.optString("id").orEmpty()
-            // Recover server-owned invoices without creating another charge.
+            // The primary wallet UI is usable without waiting for invoice recovery.
+            loading = false
+            // Each recovery read is optional, and must never mask valid wallet data.
             for (isCrypto in listOf(false, true)) {
-                val session = api.request(if (isCrypto) "wallet_crypto_session" else "wallet_card_session").getJSONObject("data")
-                if (session.optString("status") in setOf("unpaid", "waiting", "waiting_review", "manual_review", "processing_smart")) {
-                    if (isCrypto) openCrypto = session.optString("order_id") else openCard = session.optString("order_id")
+                val session = try {
+                    api.request(if (isCrypto) "wallet_crypto_session" else "wallet_card_session").getJSONObject("data")
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { continue }
+                val orderId = session.optString("order_id")
+                if (orderId.matches(Regex("[A-Za-z0-9_-]{6,64}")) &&
+                    session.optString("status") in setOf("unpaid", "waiting", "waiting_review", "manual_review", "processing_smart")) {
+                    if (isCrypto) openCrypto = orderId else openCard = orderId
                 }
             }
         } catch (cancelled: CancellationException) { throw cancelled }
@@ -483,7 +492,7 @@ internal fun StitchNativeBotPayment(
 }
 
 @Composable
-private fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Unit, onAccount: () -> Unit, onPayment: (String, Boolean) -> Unit) {
+internal fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Unit, onAccount: () -> Unit, onPayment: (String, Boolean) -> Unit) {
     var rows by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }

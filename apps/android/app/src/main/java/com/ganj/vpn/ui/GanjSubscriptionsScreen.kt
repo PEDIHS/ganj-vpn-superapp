@@ -130,6 +130,14 @@ internal fun StitchSubscriptionsScreen(
                 }
             }
         }
+        if (state.servicesStale) item(key = "services-stale") {
+            GanjInlineStatusPanel(
+                "اشتراک‌های ذخیره‌شده", "ارتباط با سرور موقتاً برقرار نشد. اطلاعات قبلی نمایش داده شده و وضعیت نهایی هنگام اتصال بررسی می‌شود.",
+                accent = MaterialTheme.colorScheme.onSurfaceVariant, tone = GanjStatusTone.Neutral,
+                actionText = "بررسی دوباره", onAction = onRetry,
+                modifier = Modifier.testTag("subscriptions-stale"),
+            )
+        }
         when (val content = state.services) {
             ContentState.Loading -> item { LoadingCard(stringResource(R.string.subscriptions_loading)) }
             ContentState.Empty -> item { EmptyCard(stringResource(R.string.subscriptions_empty), stringResource(R.string.subscriptions_empty_body), onRetry) }

@@ -73,6 +73,7 @@ internal fun StitchProfileScreen(
     linked: Boolean = false,
     onOpenWallet: (() -> Unit)? = null,
     onOpenTransactions: (() -> Unit)? = null,
+    botStoreApi: GanjBotStoreApi? = null,
     onOpenDevices: (() -> Unit)? = null,
     onOpenNotifications: (() -> Unit)? = null,
     onOpenPrivacy: (() -> Unit)? = null,
@@ -145,6 +146,14 @@ internal fun StitchProfileScreen(
                         }
                     }
                 }
+                if (state.servicesStale) item(key="profile-services-stale") {
+                    GanjInlineStatusPanel(
+                        "اطلاعات اشتراک‌ها نیاز به به‌روزرسانی دارد",
+                        "آخرین اطلاعات معتبر نمایش داده شده؛ وضعیت فعلی هنگام اتصال بررسی می‌شود.",
+                        accent=MaterialTheme.colorScheme.onSurfaceVariant, tone=GanjStatusTone.Neutral,
+                        actionText="تلاش دوباره", onAction=onRetry,
+                    )
+                }
                 item(key="profile-summary") {
                     GanjGlassSurface(GanjGlassRole.OpaqueFallback,modifier=Modifier.fillMaxWidth(),shapeRadius=14.dp,padding=PaddingValues(15.dp)) {
                         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
@@ -165,9 +174,10 @@ internal fun StitchProfileScreen(
                         GanjGlassButton(if(selected==null)"انتخاب اشتراک" else "جزئیات اشتراک",{if(selected==null)onOpenSubscriptions() else onOpenDetails?.invoke() ?: run{panel="services"}},filled=false,modifier=Modifier.fillMaxWidth())
                     }
                 }
-                if(linked && onOpenWallet!=null) item(key="wallet-summary") {
-                    GanjReferenceMenuRow("کیف پول","مشاهده موجودی و افزایش اعتبار",modifier=Modifier.testTag("profile-to-wallet"),accent=LocalGanjContentPalette.current.premiumText,icon=GanjDestination.Store,onClick=onOpenWallet)
-                }
+                if(linked && onOpenWallet!=null && onOpenTransactions!=null && botStoreApi!=null)
+                    item(key="wallet-summary") {
+                        GanjBotProfileWalletSummary(botStoreApi, onOpenWallet, onOpenTransactions)
+                    }
                 item(key="account-services") {
                     Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
                         ProfileSectionTitle("حساب و سرویس‌ها")

@@ -135,6 +135,22 @@ internal object GanjBotCatalog {
     }
 }
 
+// Only publicly available product data. Never store account or billing information.
+internal object GanjPublicCatalogMemory {
+    private var snapshot: List<GanjBotProduct> = emptyList()
+    private var lastSuccess: Long = 0L
+
+    @Synchronized fun get(): List<GanjBotProduct> = snapshot
+
+    @Synchronized fun fresh(now: Long = android.os.SystemClock.elapsedRealtime()): Boolean =
+        snapshot.isNotEmpty() && now >= lastSuccess && now - lastSuccess < 45_000L
+
+    @Synchronized fun update(rows: List<GanjBotProduct>, now: Long = android.os.SystemClock.elapsedRealtime()) {
+        snapshot = rows.toList()
+        lastSuccess = now
+    }
+}
+
 private fun GanjBotProduct.isVip(): Boolean = listOf(name,category,badge,panel).any {
     it.contains("VIP",ignoreCase=true)||it.contains("وی آی پی")||it.contains("وی‌آی‌پی")
 }
@@ -146,11 +162,13 @@ internal fun StitchBotSyncedStoreScreen(
     onOpenTransactions: () -> Unit,
     modifier: Modifier = Modifier,
     loadCatalog: suspend () -> List<GanjBotProduct> = { GanjBotCatalog.fetch() },
+    enablePublicCache: Boolean = false,
 ) {
     var retryKey by remember { mutableIntStateOf(0) }
-    var loading by remember { mutableStateOf(true) }
+    var rememberedGuestScope by remember { mutableStateOf(enablePublicCache) }
+    var products by remember { mutableStateOf(if (enablePublicCache) GanjPublicCatalogMemory.get() else emptyList()) }
+    var loading by remember { mutableStateOf(products.isEmpty()) }
     var error by remember { mutableStateOf(false) }
-    var products by remember { mutableStateOf(emptyList<GanjBotProduct>()) }
     var panelId by rememberSaveable { mutableStateOf<String?>(null) }
     var category by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -159,11 +177,24 @@ internal fun StitchBotSyncedStoreScreen(
     var sort by rememberSaveable { mutableIntStateOf(0) }
     var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     androidx.activity.compose.BackHandler(vipOnly) { vipOnly=false }
-    LaunchedEffect(retryKey) {
-        loading=true;error=false
-        try { products=loadCatalog() }
-        catch(cancelled:CancellationException){throw cancelled}
-        catch(_:Exception){products=emptyList();error=true}
+    LaunchedEffect(retryKey, enablePublicCache) {
+        if (rememberedGuestScope != enablePublicCache) {
+            // Login/logout changes account-specific prices; never reuse a prior scope.
+            products = if (enablePublicCache) GanjPublicCatalogMemory.get() else emptyList()
+            rememberedGuestScope = enablePublicCache
+        }
+        error = false
+        if (retryKey == 0 && enablePublicCache && GanjPublicCatalogMemory.fresh()) {
+            loading = false
+            return@LaunchedEffect
+        }
+        loading = products.isEmpty()
+        try {
+            val freshProducts = loadCatalog()
+            products = freshProducts
+            if (enablePublicCache) GanjPublicCatalogMemory.update(freshProducts)
+        } catch(cancelled:CancellationException){throw cancelled}
+        catch(_:Exception){error=true}
         finally {loading=false}
     }
     val panels=remember(products){botStorePanels(products)}
@@ -209,9 +240,15 @@ internal fun StitchBotSyncedStoreScreen(
                 Text(if(vipOnly)"مدت و مشخصات پلن VIP خود را بررسی کنید." else "مشاهده و بررسی پلن‌های VIP",style=MaterialTheme.typography.bodySmall,color=muted)
             }
         }
+        if (error && products.isNotEmpty()) item(key="stale-warning") {
+            GanjInlineStatusPanel("اطلاعات قبلی فروشگاه",
+                "به‌روزرسانی نشد؛ قیمت نهایی هنگام خرید دوباره از سرور بررسی می‌شود.",
+                accent=MaterialTheme.colorScheme.onSurfaceVariant, tone=GanjStatusTone.Neutral,
+                actionText="به‌روزرسانی",onAction={retryKey++},modifier=Modifier.testTag("bot-store-stale"))
+        }
         when {
             loading -> item(key="loading"){GanjLoadingState("در حال دریافت پلن‌ها")}
-            error -> item(key="error"){GanjInlineStatusPanel("دریافت فروشگاه ناموفق بود","ارتباط با فروشگاه را بررسی کنید و دوباره تلاش کنید.",accent=MaterialTheme.colorScheme.error,tone=GanjStatusTone.Danger,actionText="تلاش دوباره",onAction={retryKey++},modifier=Modifier.testTag("bot-store-retry"))}
+            error && products.isEmpty() -> item(key="error"){GanjInlineStatusPanel("دریافت فروشگاه ناموفق بود","ارتباط با فروشگاه را بررسی کنید و دوباره تلاش کنید.",accent=MaterialTheme.colorScheme.error,tone=GanjStatusTone.Danger,actionText="تلاش دوباره",onAction={retryKey++},modifier=Modifier.testTag("bot-store-retry"))}
             products.isEmpty() -> item(key="empty"){EmptyCard("پلنی موجود نیست","بعداً دوباره تلاش کنید.",{retryKey++})}
             else -> {
                 item(key="filters") {

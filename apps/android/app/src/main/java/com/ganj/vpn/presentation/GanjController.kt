@@ -17,6 +17,9 @@ import com.ganj.vpn.core.controlapi.ProfileProvisioningBinding
 import com.ganj.vpn.core.controlapi.PurchaseChannel
 import com.ganj.vpn.core.playbilling.PlayPurchaseEvent
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 fun interface StableIdGenerator {
     fun next(): String
@@ -116,6 +119,16 @@ class GanjController(
         var next = reducer.reduce(state, GanjUiEvent.CatalogResolved(mapper.catalog(repository.catalog(PurchaseChannel.PLAY))))
         next = reducer.reduce(next, GanjUiEvent.ServicesResolved(mapper.services(repository.myServices())))
         return next
+    }
+
+    // Parallel independent read requests; keep the original synchronous refresh
+    // for legacy callers and tests. Never parallelize checkout or provisioning.
+    suspend fun refreshFast(state: GanjUiState): GanjUiState = coroutineScope {
+        val catalog = async(Dispatchers.IO) { mapper.catalog(repository.catalog(PurchaseChannel.PLAY)) }
+        val subscriptions = async(Dispatchers.IO) { mapper.services(repository.myServices()) }
+        var next = reducer.reduce(state, GanjUiEvent.CatalogResolved(catalog.await()))
+        next = reducer.reduce(next, GanjUiEvent.ServicesResolved(subscriptions.await()))
+        next
     }
 
     suspend fun checkout(

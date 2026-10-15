@@ -9,16 +9,40 @@ class GanjUiReducerTest {
     private val reducer = GanjUiReducer()
 
     @Test
-    fun `refresh enters loading and resolved empty clears progress`() {
-        val refreshing = reducer.reduce(readyState(), GanjUiEvent.RefreshRequested)
+    fun `refresh keeps verified services visible and finishes after service response`() {
+        val existing = readyState()
+        val refreshing = reducer.reduce(existing, GanjUiEvent.RefreshRequested)
 
         assertEquals(ContentState.Loading, refreshing.catalog)
-        assertEquals(ContentState.Loading, refreshing.services)
+        assertEquals(existing.services, refreshing.services)
         assertTrue(refreshing.refreshInProgress)
 
-        val resolved = reducer.reduce(refreshing, GanjUiEvent.CatalogResolved(ContentState.Empty))
-        assertEquals(ContentState.Empty, resolved.catalog)
-        assertFalse(resolved.refreshInProgress)
+        val catalogDone = reducer.reduce(refreshing, GanjUiEvent.CatalogResolved(ContentState.Empty))
+        assertEquals(ContentState.Empty, catalogDone.catalog)
+        assertTrue(catalogDone.refreshInProgress)
+        val completed = reducer.reduce(catalogDone, GanjUiEvent.ServicesResolved(existing.services))
+        assertFalse(completed.refreshInProgress)
+        assertFalse(completed.servicesStale)
+    }
+
+    @Test
+    fun `temporary services error retains last verified list but flags staleness`() {
+        val existing = readyState()
+        val failure = UiFailure(UiFailureKind.NETWORK, "network.unavailable", true)
+        val pending = reducer.reduce(existing, GanjUiEvent.RefreshRequested)
+        val offline = reducer.reduce(pending, GanjUiEvent.ServicesResolved(ContentState.Error(failure)))
+        assertEquals(existing.services, offline.services)
+        assertEquals(existing.selectedEntitlementId, offline.selectedEntitlementId)
+        assertTrue(offline.servicesStale)
+
+        val unauthorized = reducer.reduce(offline, GanjUiEvent.ServicesResolved(ContentState.AuthRequired))
+        assertEquals(ContentState.AuthRequired, unauthorized.services)
+        assertEquals(null, unauthorized.selectedEntitlementId)
+        assertFalse(unauthorized.servicesStale)
+
+        val fresh = reducer.reduce(offline, GanjUiEvent.ServicesResolved(existing.services))
+        assertFalse(fresh.servicesStale)
+        assertEquals(existing.services, fresh.services)
     }
 
     @Test
