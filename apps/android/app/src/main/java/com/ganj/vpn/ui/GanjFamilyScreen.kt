@@ -17,6 +17,7 @@ import androidx.compose.ui.window.Dialog
 import com.ganj.vpn.core.controlapi.*
 import com.ganj.vpn.presentation.ServiceUiModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -124,15 +125,29 @@ internal fun GanjFamilyInvitation(
     var data by remember(token) {mutableStateOf<FamilyReply?>(null)}
     var busy by remember(token) {mutableStateOf(false)}
     var error by remember(token) {mutableStateOf<String?>(null)}
-    fun preview() {
-        val active=api ?: return
-        busy=true;error=null
-        scope.launch {try {when(val result=withContext(Dispatchers.IO){active.preview(token)}) {
-            is ApiResult.Success -> data=result.value
-            is ApiResult.Failure -> error=familyError(result.error)
-        }} finally {busy=false}}
+    var previewRevision by remember(token) { mutableIntStateOf(0) }
+    LaunchedEffect(token, linked, api, previewRevision) {
+        data = null
+        if (!linked) return@LaunchedEffect
+        val active = api ?: run {
+            error = "سرویس مدیریت دعوت در دسترس نیست."
+            return@LaunchedEffect
+        }
+        busy = true
+        error = null
+        try {
+            when (val result = withContext(Dispatchers.IO) { active.preview(token) }) {
+                is ApiResult.Success -> data = result.value
+                is ApiResult.Failure -> error = familyError(result.error)
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            error = "پیش‌نمایش دعوت بارگذاری نشد؛ دوباره تلاش کنید."
+        } finally {
+            busy = false
+        }
     }
-    LaunchedEffect(token,linked) {if(linked)preview()}
     Dialog(onDismissRequest={if(!busy)onDismiss()}) {
         GanjGlassSurface(role=GanjGlassRole.Dense,accent=MaterialTheme.colorScheme.primary,modifier=Modifier.fillMaxWidth().heightIn(max=600.dp).verticalScroll(rememberScrollState()),shapeRadius=18.dp,padding=PaddingValues(20.dp)) {
             Text("دعوت به اشتراک گنج",style=MaterialTheme.typography.titleLarge)
@@ -151,7 +166,7 @@ internal fun GanjFamilyInvitation(
                     },Modifier.fillMaxWidth(),enabled=!busy&&!invite.ownInvite)
                 }
                 if(busy)Text("در حال بررسی…")
-                error?.let {Text(it,color=MaterialTheme.colorScheme.error);GanjGlassButton("تلاش دوباره",::preview,enabled=!busy,filled=false)}
+                error?.let {Text(it,color=MaterialTheme.colorScheme.error);GanjGlassButton("تلاش دوباره",{ previewRevision++ },enabled=!busy,filled=false)}
             }
             GanjGlassButton("رد و بستن",onDismiss,Modifier.fillMaxWidth(),enabled=!busy,filled=false)
         }
