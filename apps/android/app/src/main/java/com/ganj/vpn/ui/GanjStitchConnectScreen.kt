@@ -183,20 +183,6 @@ internal fun StitchConnectionScreen(
             }
         }
 
-        reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (pingKey != null && latency != null) StitchMiniAction(
-            enabled = !pingBusy,
-            text = stringResource(if (pingBusy) R.string.ping_measuring else R.string.ping_selected),
-            accent = MaterialTheme.colorScheme.primary,
-            onClick = { if (!pingBusy) latency?.measure(pingKey.serviceId, listOf(pingKey.serverId)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        pingFailure?.let { failure ->
-            Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            ConnectionFailureDetails(failure)
-        }
         if (smartBusy) LoadingCard(stringResource(R.string.connection_selecting_config))
         smartFailure?.let { failure ->
             Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall)
@@ -242,6 +228,20 @@ internal fun StitchConnectionScreen(
             onClick = onOpenSubscriptions,
         )
         StitchSelectedServerCard(server = displayedServer, hasSubscription = service != null, onOpenServers = onOpenServers)
+        reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (pingKey != null && latency != null) StitchMiniAction(
+            enabled = !pingBusy,
+            text = stringResource(if (pingBusy) R.string.ping_measuring else R.string.ping_selected),
+            accent = MaterialTheme.colorScheme.primary,
+            onClick = { if (!pingBusy) latency?.measure(pingKey.serviceId, listOf(pingKey.serverId)) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        pingFailure?.let { failure ->
+            Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ConnectionFailureDetails(failure)
+        }
         if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
@@ -252,24 +252,15 @@ internal fun StitchConnectionScreen(
 private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit, onOpenNotifications: (() -> Unit)?) {
     val largeText = LocalDensity.current.fontScale >= 1.3f
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        onOpenNotifications?.let { handler ->
-            GanjGlassButton(
-                text = stringResource(R.string.connection_notifications),
-                onClick = handler,
-                modifier = Modifier.align(Alignment.End),
-                accent = MaterialTheme.colorScheme.primary,
-                filled = false,
-            )
-        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
+                Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
                     .border(1.dp, StitchGold.copy(alpha = 0.48f), RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center) {
                     Image(painterResource(R.drawable.ganj_logo_official), contentDescription = "نشان گنج VPN",
-                        modifier = Modifier.size(38.dp))
+                        modifier = Modifier.size(28.dp))
                 }
                 Column(Modifier.weight(1f)) {
                     Text("گنج VPN", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
@@ -278,8 +269,9 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit, onOpenN
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
                 }
             }
+            onOpenNotifications?.let { handler -> GanjReferenceNotificationButton(handler) }
             if (!largeText) {
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 StitchHeaderUpgrade(premium, onOpenStore)
             }
         }
@@ -289,12 +281,8 @@ private fun StitchBrandHeader(premium: Boolean, onOpenStore: () -> Unit, onOpenN
 
 @Composable
 private fun StitchHeaderUpgrade(premium: Boolean, onOpenStore: () -> Unit, modifier: Modifier = Modifier) {
-    GanjGlassSurface(role = GanjGlassRole.Clear, accent = StitchGold, shapeRadius = 999.dp,
-        padding = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
-        modifier = modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onOpenStore)) {
-        Text(if (premium) "پریمیوم" else "ارتقا", color = StitchGoldBright,
-            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-    }
+    GanjGlassButton(if(premium) "پریمیوم" else "ارتقا",onOpenStore,modifier=modifier,
+        filled=false,accent=StitchGold,contentColor=StitchGoldBright,shapeRadius=8.dp)
 }
 
 @Composable

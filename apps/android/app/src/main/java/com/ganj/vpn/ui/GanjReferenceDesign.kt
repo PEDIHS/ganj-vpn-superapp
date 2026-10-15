@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -72,6 +74,29 @@ internal fun GanjReferenceMenuRow(
             val p = Path().apply { moveTo(size.width * .6f, size.height * .2f)
                 lineTo(size.width * .3f, size.height * .5f); lineTo(size.width * .6f, size.height * .8f) }
             drawPath(p, accent, style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
+        }
+    }
+}
+
+
+@Composable
+internal fun GanjReferenceNotificationButton(onClick: () -> Unit) {
+    val ink=MaterialTheme.colorScheme.onSurfaceVariant
+    Box(Modifier.size(48.dp).clip(RoundedCornerShape(10.dp))
+        .clickable(role=Role.Button,onClick=onClick)
+        .semantics { contentDescription="اعلان‌ها" },contentAlignment=Alignment.Center) {
+        Canvas(Modifier.size(22.dp)) {
+            val p=Path().apply {
+                moveTo(size.width*.25f,size.height*.65f)
+                lineTo(size.width*.29f,size.height*.35f)
+                cubicTo(size.width*.30f,size.height*.09f,size.width*.70f,size.height*.09f,size.width*.71f,size.height*.35f)
+                lineTo(size.width*.75f,size.height*.65f)
+                lineTo(size.width*.83f,size.height*.76f)
+                lineTo(size.width*.17f,size.height*.76f)
+                close()
+            }
+            drawPath(p,ink,style=androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
+            drawArc(ink,0f,180f,false,androidx.compose.ui.geometry.Offset(size.width*.4f,size.height*.78f),androidx.compose.ui.geometry.Size(size.width*.2f,size.height*.14f),style=androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
         }
     }
 }

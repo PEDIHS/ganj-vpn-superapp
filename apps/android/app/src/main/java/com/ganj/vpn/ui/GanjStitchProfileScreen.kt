@@ -99,7 +99,7 @@ internal fun StitchProfileScreen(
                         style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold,color=ink)
                     Text("حساب شما، همه‌چیز در یک نگاه",style=MaterialTheme.typography.labelSmall,color=muted)
                 }
-                onOpenNotifications?.let { GanjGlassButton("اعلان‌ها",it,filled=false,shapeRadius=10.dp) }
+                onOpenNotifications?.let { GanjReferenceNotificationButton(it) }
             }
         }
         when(panel) {
