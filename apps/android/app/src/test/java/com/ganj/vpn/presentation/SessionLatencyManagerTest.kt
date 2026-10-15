@@ -50,6 +50,43 @@ class SessionLatencyManagerTest {
         } finally { manager.close() }
     }
 
+    @Test fun groupedManualPingSharesNativeBatchAndPreservesPerServerFailures() = runBlocking {
+        val entered = CompletableDeferred<List<String>>()
+        val release = CompletableDeferred<Unit>()
+        var singles = 0
+        var batches = 0
+        val manager = SessionLatencyManager(
+            { _, _ -> singles++; LatencyProbeResult.Measured(999) },
+            CoroutineScope(coroutineContext + SupervisorJob()),
+            batchProbe = { _, ids ->
+                batches++
+                entered.complete(ids)
+                release.await()
+                ids.associateWith { id ->
+                    if (id == "bad") LatencyProbeResult.Failed(ConnectionFailures.probe("probe.timeout"))
+                    else LatencyProbeResult.Measured(27)
+                }
+            },
+        )
+        try {
+            manager.measure("service", listOf("a", "bad", "b", "a"))
+            assertEquals(listOf("a", "bad", "b"), withTimeout(2000) { entered.await() })
+            val joined = async { manager.awaitCurrent("service", "b") }
+            manager.measure("service", listOf("a", "bad", "b"))
+            release.complete(Unit)
+            assertEquals(LatencyProbeResult.Measured(27), withTimeout(2000) { joined.await() })
+            withTimeout(2000) { manager.state.first { it.readings.size == 3 && it.measuring.isEmpty() } }
+            assertEquals(1, batches)
+            assertEquals(0, singles)
+            assertEquals(27L, manager.state.value.readings.getValue(LatencyKey("service", "a")).result.latencyMillis)
+            val failed = manager.state.value.readings.getValue(LatencyKey("service", "bad")).result
+                as LatencyProbeResult.Failed
+            assertEquals("probe.timeout", failed.failure.diagnosticCode)
+        } finally {
+            manager.close()
+        }
+    }
+
     @Test fun clearPreventsLateResultsFromThePreviousAccount() = runBlocking {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
