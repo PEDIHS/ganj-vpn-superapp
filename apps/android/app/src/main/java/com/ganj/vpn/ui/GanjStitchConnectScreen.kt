@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -299,6 +300,7 @@ private fun StitchReferenceSelection(
     val identity=remember(server){server?.let{ganjConfigIdentity(it.name,it.countryCode)}}
     val muted=MaterialTheme.colorScheme.onSurfaceVariant
     val large=LocalDensity.current.fontScale>=1.5f
+    val pingDescription=stringResource(if(pingBusy)R.string.ping_measuring else R.string.ping_selected)
     val shape=RoundedCornerShape(14.dp)
     Column(Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface)
         .border(1.dp,MaterialTheme.colorScheme.outlineVariant,shape)) {
@@ -325,7 +327,8 @@ private fun StitchReferenceSelection(
                 server?.let { Text("${countryName(it.countryCode)} • ${it.protocols.joinToString(" / "){p->p.name}}",
                     style=MaterialTheme.typography.labelSmall,color=muted) }
             }
-            if(onMeasure!=null) Box(Modifier.heightIn(min=48.dp).clip(RoundedCornerShape(8.dp))
+            if(onMeasure!=null) Box(Modifier.sizeIn(minWidth=48.dp,minHeight=48.dp)
+                .semantics { contentDescription = pingDescription }.clip(RoundedCornerShape(8.dp))
                 .clickable(enabled=!pingBusy,role=Role.Button,onClick=onMeasure).padding(6.dp),contentAlignment=Alignment.Center) {
                 Text(if(pingBusy) "…" else persianTechnicalMetric(ping?.toString()?:"—","ms"),
                     style=MaterialTheme.typography.labelSmall,color=StitchGoldBright)

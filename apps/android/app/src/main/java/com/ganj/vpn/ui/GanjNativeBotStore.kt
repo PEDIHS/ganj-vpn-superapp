@@ -61,6 +61,7 @@ internal fun StitchNativeBotStoreDestination(
     var walletReturn by rememberSaveable { mutableStateOf("catalog") }
     var order by rememberSaveable { mutableStateOf("") }
     var crypto by rememberSaveable { mutableStateOf(false) }
+    var paymentReturn by rememberSaveable { mutableStateOf("wallet") }
     fun back() { page = if (page == "payment") "wallet" else "catalog" }
     BackHandler(page != "catalog") { back() }
     val effects = LocalGanjVisualEffectsPolicy.current
@@ -75,10 +76,11 @@ internal fun StitchNativeBotStoreDestination(
                 onTopUp = { needed -> shortfall = needed; walletReturn = "product"; page = "wallet" },
                 onOpenSubscriptions = onOpenSubscriptions)
             "wallet" -> StitchNativeBotWallet(api, shortfall, onBack = { page = walletReturn },
-                onPayment = { id, isCrypto -> order = id; crypto = isCrypto; page = "payment" }, onAccount = onOpenAccount)
+                onPayment = { id, isCrypto -> order = id; crypto = isCrypto; paymentReturn = "wallet"; page = "payment" }, onAccount = onOpenAccount)
             "payment" -> StitchNativeBotPayment(api, order, crypto,
-                onBack = { page = "wallet" }, onContinue = { page = walletReturn })
-            "transactions" -> StitchNativeBotTransactions(api, onBack = { page = "catalog" }, onAccount = onOpenAccount)
+                onBack = { page = paymentReturn }, onContinue = { page = if (paymentReturn == "transactions") "transactions" else walletReturn })
+            "transactions" -> StitchNativeBotTransactions(api, onBack = { page = "catalog" }, onAccount = onOpenAccount,
+                onPayment = { id, isCrypto -> order = id; crypto = isCrypto; paymentReturn = "transactions"; page = "payment" })
             else -> StitchBotSyncedStoreScreen(
                 onOpenProduct = { url ->
                     val uri = Uri.parse(url)
@@ -166,7 +168,7 @@ internal fun StitchNativeBotCheckout(
         catch (e: Exception) { error = ganjBotStoreError(e) }
         finally { loading = false }
     }
-    LazyColumn(Modifier.fillMaxSize().testTag("native-store-checkout"),
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-checkout"),
         contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader(if (completedInvoice == null) "بررسی و تأیید خرید" else "خرید ثبت شد", onBack, busy) }
         if (loading) item { GanjLoadingState("در حال بررسی سرویس و موجودی") }
@@ -293,7 +295,7 @@ internal fun StitchNativeBotWallet(
         catch (e: Exception) { error = ganjBotStoreError(e) }
         finally { loading = false }
     }
-    LazyColumn(Modifier.fillMaxSize().testTag("native-store-wallet"), contentPadding = PaddingValues(16.dp),
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-wallet"), contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader("کیف پول و پرداخت", onBack, busy) }
         if (loading) item { GanjLoadingState("در حال دریافت روش‌های پرداخت") }
@@ -417,7 +419,7 @@ internal fun StitchNativeBotPayment(
     }
     fun copy(value: String) { (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
         .setPrimaryClip(ClipData.newPlainText("GANJ", value)) }
-    LazyColumn(Modifier.fillMaxSize().testTag("native-store-payment"), contentPadding = PaddingValues(16.dp),
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-payment"), contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader("پرداخت امن گنج", onBack, busy) }
         item { NativeStorePanel {
@@ -481,7 +483,7 @@ internal fun StitchNativeBotPayment(
 }
 
 @Composable
-private fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Unit, onAccount: () -> Unit) {
+private fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Unit, onAccount: () -> Unit, onPayment: (String, Boolean) -> Unit) {
     var rows by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -495,7 +497,7 @@ private fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Unit
         catch (e: Exception) { error = ganjBotStoreError(e) }
         finally { loading = false }
     }
-    LazyColumn(Modifier.fillMaxSize().testTag("native-store-transactions"), contentPadding = PaddingValues(16.dp),
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-transactions"), contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { NativeStoreHeader("تراکنش‌های گنج", onBack) }
         if (loading) item { GanjLoadingState("در حال دریافت سوابق") }
@@ -504,7 +506,16 @@ private fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Unit
             Text(data.optString("Payment_Method"), style = MaterialTheme.typography.titleSmall)
             NativePriceRow("مبلغ", botMoney(data.getDouble("price").toLong()))
             Text(if (data.optString("kind") == "wallet") "ثبت‌شده" else botFinanceStatusText(data.optString("payment_Status")), style = MaterialTheme.typography.labelSmall)
-            if (data.optString("time").isNotBlank()) Text(data.optString("time"), style = MaterialTheme.typography.labelSmall)
+            val timestamp = data.optLong("created_at")
+            if (timestamp > 0) Text(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM,
+                java.text.DateFormat.SHORT, Locale("fa")).format(java.util.Date(timestamp * 1000)).toPersianDigits(),
+                style = MaterialTheme.typography.labelSmall)
+            if (data.optString("description").isNotBlank()) Text(data.optString("description"), style = MaterialTheme.typography.bodySmall)
+            val id = data.optString("id_order")
+            if (data.optString("kind") == "payment" && id.matches(Regex("[A-Za-z0-9_-]{6,64}"))) {
+                GanjGlassButton("مشاهده وضعیت فاکتور", { onPayment(id, data.optString("Payment_Method") == "arze digital offline") },
+                    Modifier.fillMaxWidth(), filled = false)
+            }
         } }
         error?.let { message -> item { NativeStoreError(message, { retry++ }, onAccount) } }
     }

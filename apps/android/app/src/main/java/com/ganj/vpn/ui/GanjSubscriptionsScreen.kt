@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -83,7 +84,7 @@ internal fun StitchSubscriptionsScreen(
     }
     val activeCount = remember(state.services) { state.serviceItems.count { it.isActive } }
     LazyColumn(
-        modifier = modifier.fillMaxSize().testTag("subscriptions-screen")
+        modifier = modifier.fillMaxSize().imePadding().testTag("subscriptions-screen")
             .focusRequester(initialFocus).focusable().selectableGroup(),
         contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -448,6 +449,10 @@ private fun GanjConfigOption(
     val palette = LocalGanjContentPalette.current
     val effects = LocalGanjVisualEffectsPolicy.current
     val reduceMotion = effects.reduceMotion
+    val entry = remember(server.id) { androidx.compose.animation.core.Animatable(if (reduceMotion) 1f else 0f) }
+    LaunchedEffect(server.id, reduceMotion) {
+        if (reduceMotion) entry.snapTo(1f) else entry.animateTo(1f, tween(180))
+    }
     val identity = remember(server.name, server.countryCode) {
         ganjConfigIdentity(server.name, server.countryCode)
     }
@@ -462,6 +467,7 @@ private fun GanjConfigOption(
         if (reduceMotion) snap() else tween(185), label = "configSelectedRim",
     )
     val shape = remember { RoundedCornerShape(12.dp) }
+    val pingDescription = stringResource(if (measuring) R.string.ping_measuring else R.string.config_ping)
     val latencyMs = reading?.result?.latencyMillis
     val latencyColor = when {
         latencyMs == null -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -473,7 +479,7 @@ private fun GanjConfigOption(
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Box(
             modifier = Modifier.fillMaxWidth().testTag("config-option-" + server.id)
-                .graphicsLayer { scaleX = pressScale.value; scaleY = pressScale.value }
+                .graphicsLayer { scaleX = pressScale.value; scaleY = pressScale.value; alpha = entry.value; translationX = (1f-entry.value)*8.dp.toPx() }
                 .clip(shape)
                 .background(if (selected) palette.selectedSurface else MaterialTheme.colorScheme.surface)
                 .border(if (selected) 1.5.dp else 1.dp, rim, shape)
@@ -511,6 +517,7 @@ private fun GanjConfigOption(
                     verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Box(
                         modifier = Modifier.testTag("ping-" + server.id)
+                            .semantics { contentDescription = pingDescription }
                             .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                             .clip(RoundedCornerShape(14.dp))
                             .background(latencyColor.copy(alpha =

@@ -1129,3 +1129,5 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - UI Ledger sections touched: 5, 6, 11, 12, 13, 15, 21, 22, 23, 24, 25.
 - Leaf items completed: none; full DoD/device/provider QA not yet met. Remaining unchecked leaves unchanged: 5=19, 6=8, 11=12, 12=15, 13=16, 15=17, 21=12, 22=13, 23=9, 24=16, 25=17.
 - Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining. No Final Gate/physical-device/positive SSO or real financial QA claim.
+
+- Selection/commerce follow-up: config rows have a bounded 180ms entry reveal with explicit Reduce Motion fallback, ping controls expose semantic labels and 48dp targets, and native forms use IME insets. Transaction dates are formatted from server timestamps; owned payment entries reopen their native status view. Catalog HTTPS/schema was checked with the native User-Agent: 48 real products, required keys present. Final Android execution remains pending.
