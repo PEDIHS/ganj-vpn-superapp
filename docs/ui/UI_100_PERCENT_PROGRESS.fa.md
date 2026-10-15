@@ -1063,3 +1063,22 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - API35 execution follow-up: 9/10 UI tests passed and state screenshots were captured; the frame report was absent. The frame fixture double-removed its listener during cleanup; now detaches exactly once. Android lint requires `SdkSuppress` alone for test API gating, so the redundant `RequiresApi` annotation is removed. Rerun remained required before publication.
 - Frame-measurement correction: Compose UI tests own a synthetic animation clock, so sleeping cannot supply representative animation frames. State/semantics fixtures now advance their test clock explicitly; performance moves to a separate ActivityScenario + system Choreographer fixture with no Compose test-clock interception. Real Window timings, initial-draw exclusion, deadlines and callback-drop count are recorded there. The previous frame artifact was absent, so no frame-performance pass is claimed from that run.
 - API24 selection follow-up: the new search input could acquire initial window focus and open the IME, changing the list viewport. Subscription content and sheet content now request initial non-editing focus once on mount; explicit user focus remains available. Lazy-list tests scroll through the actual list to the second option rather than assuming it is already composed. API24 screenshots now include the large-font picker. Final rerun evidence stays in PR #65.
+
+### 2026-10-15 — Approved preview fidelity, alpha 0.3.21
+- Continue active PR #67 / `feat/ganj-ui-unify-20261015` from `3ac8111`, preserving the
+  customer bot finance/receipt/SSO integration and the functional 0.3.18 lineage.
+- Replace the rounded-square hero with the reference circular face, internal status and
+  independently ticking real session timer, finite red failure response and compact gold
+  Smart Connect. No synthetic runtime or financial state is introduced.
+- Three destinations keep real routes; wave geometry, raised center and interruptible
+  selection lens replace the flat navigation approximation. Profile is a grouped account
+  overview; real account/service/diagnostic actions remain accessible on secondary content.
+- Live bot Store retains actual catalog eligibility/prices, adds selectable reference cards,
+  real period filters and selected-order summary; VIP view exists only for actual VIP products.
+- Shared reference palette, compact radii, controls and Dark fresh-install default propagate
+  through settings, devices, account, sheets and payment chrome. Saved appearance is respected.
+- UI Ledger sections touched: 1, 2, 7, 10, 11, 12, 13, 14, 15, 20, 21, 23, 24, 25, 26.
+- Leaf items completed: none pending full Definition of Done and device evidence.
+- Remaining unchecked leaves unchanged; unit/lint/build/emulator screenshots and publication
+  evidence must be recorded after they run. Physical-phone/TalkBack/provider QA remain open.
+- Overall UI completion: 196/492 = 39.8% (calculator; no Final Gate claim).

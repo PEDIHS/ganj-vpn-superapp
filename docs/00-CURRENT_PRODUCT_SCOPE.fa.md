@@ -239,3 +239,12 @@ PRها بعداً با نام‌های Phase 6A / 6B / 6C و Phase 7 Trackها �
 ### تصمیم محصول ۲۰۲۶-۱۰-۰۴ — سه مقصد اصلی و طراحی روشن
 
 طبق درخواست مالک محصول، مقصدهای اصلی نوار پایین «اتصال / اشتراک‌ها / تنظیمات» هستند. حساب و دستگاه‌ها از تنظیمات، خانه از تنظیمات و خرید پلن از اشتراک‌ها و اتصال در دسترس می‌مانند؛ هیچ قابلیت حساب، خرید، اعلان یا پشتیبانی حذف نمی‌شود. پیش‌فرض نصب جدید Light است و انتخاب ذخیره‌شدهٔ کاربران قبلی حفظ می‌شود. مرجع رفتار اتصال وضعیت native است؛ انیمیشن هیچ‌گاه اتصال، موفقیت یا درصد پیشرفت را ایجاد نمی‌کند.
+
+### Product decision 2026-10-15 — visual reference fidelity
+The approved conversation preview is the visual target, not merely color inspiration.
+Implement a circular connection action with state/timer inside, raised wave navigation
+(Store right, Connect center, Profile left), compact gold Smart Connect above selection,
+and compact Store/VIP/Profile hierarchy. Preserve the current real bot catalog, checkout,
+receipt upload, SSO, subscription and native VPN contracts. Fresh installs default Dark;
+explicit saved appearance preferences remain respected. See the fidelity contract in
+`docs/ui/GANJ_UI_RULES_20261015.fa.md`.

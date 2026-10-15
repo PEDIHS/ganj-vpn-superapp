@@ -114,3 +114,34 @@ This document extends the canonical brand and liquid-glass standards.
   alert dialogs over otherwise custom GANJ surfaces.
 - Web checkout remains visually framed by native GANJ chrome, while the website body remains
   canonical and unmodified; no CSS injection or app-side financial state is introduced.
+
+## 2026-10-15 — Approved preview fidelity contract (supersedes cosmetic approximations)
+- Visual reference: `ganj-profile-complete-review.html` reviewed in the product conversation.
+  Reference data is NEVER production data; catalog, finance and account authority remain real.
+- Canvas `#111718`, content `#1A2324`, emerald accent `#39E5A8`, refined gold `#E0BE79`.
+- The primary connection face is a **circle**, 212dp within a 250dp orbital allocation at
+  standard text scale. At large fonts the circle grows within the actual available width.
+  A rounded square / tunnel-core replacement is prohibited without new product approval.
+- Power icon, state label and actual session duration live INSIDE the same circular hit area.
+  Disconnected: «برای اتصال کلیک کنید»; connected: «متصل هستید» + monotonic native timer;
+  unknown start time stays unavailable. No duplicate timer card beneath the control.
+- Failure is a red face with a finite 440ms shake and broken red orbital arcs. Native error
+  text sits immediately below it. Never generate fake success or allow duplicate busy taps.
+- Smart Connect is a compact 55dp-minimum gold ribbon above manual subscription/server
+  selection, with one bounded 1200ms sheen. Its existing real probe/selection handler remains.
+- Bottom navigation is physically Store/right, Connect/center, Profile/left in RTL. Draw a
+  concave continuous wave around a raised 62dp center lens; a flat capsule is not equivalent.
+  One interruptible spring lens travels between side tabs. Keep >=48dp semantic Tab hit areas.
+- Main content cards use 12–18dp radii, thin borders and 12–20dp padding. Do not substitute
+  oversized 24–28dp cards or pill-shaped actions throughout the app for the reference.
+- Store uses compact selectable product cards, actual available period/location filters,
+  one selected-order summary and one purchase CTA. VIP is a dedicated gold/emerald view
+  only when real catalog VIP products exist. Never invent devices/benefits/prices to match a mock.
+- Profile opens on real identity, selected-subscription usage, finance and grouped menu rows;
+  full services, account management and diagnostic forms open as secondary content rather than
+  occupying the whole overview. Bot financial pages keep their current trusted SSO/receipt route.
+- Default fresh-install appearance is Dark for this reference. Explicit saved Light/System
+  preferences remain supported and every secondary page inherits the same component geometry.
+- Screenshots from the actual Android renderer (Connect/off/on/error, wave navigation, Store,
+  VIP, Profile and large text) must be inspected before publication. A passing build alone is
+  not evidence that the approved visual has been faithfully implemented.

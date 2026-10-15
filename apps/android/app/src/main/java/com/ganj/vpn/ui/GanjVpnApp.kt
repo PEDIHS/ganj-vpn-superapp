@@ -770,6 +770,13 @@ fun GanjVpnApp(
                                         )
                                     },
                                     modifier = Modifier.fillMaxSize(),
+                                    currentAccount = currentAccount,
+                                    linked = telegramLinked,
+                                    onOpenWallet = { accountSurface = GanjAccountSurface.WALLET },
+                                    onOpenTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
+                                    onOpenDevices = { accountSurface = GanjAccountSurface.DEVICES; refreshDevices() },
+                                    onOpenNotifications = { openNotifications = true; selectedDestination = GanjDestination.Settings },
+                                    onOpenDetails = { accountSurface = GanjAccountSurface.SUBSCRIPTION_DETAILS },
                                     headerContent = {
                                         Column {
                                             StitchTelegramAccountCard(

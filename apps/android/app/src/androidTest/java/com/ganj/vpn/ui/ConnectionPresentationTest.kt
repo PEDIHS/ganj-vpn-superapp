@@ -58,7 +58,7 @@ class ConnectionPresentationTest {
             } }
         } }
         compose.onNodeWithTag("connect-action").performScrollTo().assertIsEnabled().assertHeightIsAtLeast(48.dp)
-        compose.onNodeWithTag("connection-duration").assertTextEquals("—")
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true).assertDoesNotExist()
         capture("connection-off-light")
         compose.onNodeWithTag("connect-action").performClick().assertIsNotEnabled()
         compose.onNodeWithTag("connect-action").performTouchInput { click() }
@@ -82,13 +82,15 @@ class ConnectionPresentationTest {
                 }
             } }
         } }
-        compose.onNodeWithTag("connection-duration").performScrollTo()
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true).performScrollTo()
             .assertTextEquals(isolateTechnicalLtr("۰۱:۰۲:۰۵"))
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true)
+            .assert(hasAnyAncestor(hasTestTag("connect-action")))
         capture("connection-on-dark")
         compose.onNodeWithTag("fixture-toggle").performClick()
         compose.runOnIdle { now += 5_000 }
         compose.onNodeWithTag("fixture-toggle").performClick()
-        compose.onNodeWithTag("connection-duration").performScrollTo()
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true).performScrollTo()
             .assertTextEquals(isolateTechnicalLtr("۰۱:۰۲:۱۰"))
         compose.onNodeWithTag("connect-action").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, disconnects) }
@@ -112,7 +114,7 @@ class ConnectionPresentationTest {
         }
         compose.onNodeWithTag("connect-action").performScrollTo().assertIsEnabled().assertHeightIsAtLeast(48.dp)
         capture("connection-on-light-large")
-        compose.onNodeWithTag("connection-duration").performScrollTo().assertTextEquals("—")
+        compose.onNodeWithTag("connection-duration", useUnmergedTree = true).performScrollTo().assertTextEquals("—")
         compose.onNodeWithText("زمان شروع در دسترس نیست").assertExists()
         compose.onNodeWithTag("selected-config").performScrollTo().assertTextContains("کانفیگ آلمان", substring = true)
         compose.onNodeWithTag("selected-config-flag", useUnmergedTree = true).assertWidthIsEqualTo(76.dp).assertHeightIsEqualTo(50.dp)

@@ -7,8 +7,8 @@ import org.junit.Test
 
 class GanjUserPreferencesTest {
     @Test
-    fun `new installs default to the light emerald theme`() {
-        assertEquals(GanjThemePreference.LIGHT, GanjUserPreferences().theme)
+    fun `new installs default to approved dark reference theme`() {
+        assertEquals(GanjThemePreference.DARK, GanjUserPreferences().theme)
     }
 
     @Test

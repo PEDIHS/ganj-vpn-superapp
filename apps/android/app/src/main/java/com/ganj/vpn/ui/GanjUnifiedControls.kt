@@ -68,7 +68,7 @@ internal fun GanjGlassButton(
     accent: Color = MaterialTheme.colorScheme.primary,
     filled: Boolean = true,
     contentColor: Color? = null,
-    shapeRadius: Dp = 999.dp,
+    shapeRadius: Dp = 11.dp,
 ) {
     if (filled) {
         GanjLiquidAction(
@@ -167,7 +167,7 @@ internal fun GanjChoicePill(
         if (animate) spring(dampingRatio = 0.88f, stiffness = 900f) else snap(),
         label = "ganjChoiceScale",
     )
-    val shape = remember { RoundedCornerShape(999.dp) }
+    val shape = remember { RoundedCornerShape(9.dp) }
     val activeAccent = if (enabled) accent else MaterialTheme.colorScheme.outline
 
     Row(
@@ -238,7 +238,7 @@ internal fun GanjLiquidTextField(
         singleLine = singleLine,
         minLines = minLines,
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
             unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.50f),
@@ -272,12 +272,12 @@ internal fun GanjQuickActionTile(
         if (animate) spring(dampingRatio = 0.9f, stiffness = 780f) else snap(),
         label = "ganjQuickActionScale",
     )
-    val shape = remember { RoundedCornerShape(20.dp) }
+    val shape = remember { RoundedCornerShape(12.dp) }
     val glass = LocalGanjGlassPalette.current
 
     Row(
         modifier = modifier
-            .heightIn(min = 76.dp)
+            .heightIn(min = 56.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface.copy(alpha = if (effects.reduceTransparency) 1f else 0.66f))
@@ -304,7 +304,7 @@ internal fun GanjQuickActionTile(
     ) {
         Box(
             Modifier
-                .size(38.dp)
+                .size(32.dp)
                 .background(accent.copy(alpha = if (enabled) 0.13f else 0.05f), CircleShape)
                 .border(1.dp, accent.copy(alpha = if (enabled) 0.28f else 0.12f), CircleShape),
             contentAlignment = Alignment.Center,
@@ -325,7 +325,7 @@ internal fun GanjQuickActionTile(
                 title,
                 color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -388,7 +388,7 @@ internal fun GanjSlimProgress(
         if (effects.reduceMotion) snap() else tween(GanjMotion.State),
         label = "ganjSlimProgress",
     )
-    val shape = remember { RoundedCornerShape(999.dp) }
+    val shape = remember { RoundedCornerShape(9.dp) }
     Box(
         modifier
             .fillMaxWidth()

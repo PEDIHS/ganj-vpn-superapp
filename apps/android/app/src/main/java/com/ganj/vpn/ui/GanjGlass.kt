@@ -59,8 +59,8 @@ internal fun ganjCanvasColors(
     tertiary: Color,
     ambientEffects: Boolean,
 ): List<Color> = listOf(
-    primary.copy(alpha = if (ambientEffects) 0.21f else 0.065f).compositeOver(background),
-    tertiary.copy(alpha = if (ambientEffects) 0.075f else 0.015f).compositeOver(background),
+    primary.copy(alpha = if (ambientEffects) 0.035f else 0.01f).compositeOver(background),
+    tertiary.copy(alpha = if (ambientEffects) 0.015f else 0.005f).compositeOver(background),
     background,
 )
 
@@ -106,7 +106,8 @@ internal fun GanjGlassSurface(
     } else {
         role
     }
-    val shape = remember(shapeRadius) { RoundedCornerShape(shapeRadius) }
+    val radius = if (shapeRadius.value >= 20f && shapeRadius.value < 999f) 14.dp else shapeRadius
+    val shape = remember(radius) { RoundedCornerShape(radius) }
     val base = when (effectiveRole) {
         GanjGlassRole.Clear -> MaterialTheme.colorScheme.surface.copy(alpha = 0.44f)
         GanjGlassRole.Regular -> MaterialTheme.colorScheme.surface.copy(alpha = 0.68f)
@@ -159,7 +160,7 @@ internal fun GanjLiquidAction(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     accent: Color = MaterialTheme.colorScheme.primary,
-    shapeRadius: Dp = 18.dp,
+    shapeRadius: Dp = 11.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }

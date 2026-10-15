@@ -154,4 +154,9 @@
     <string name="enterprise_failure_collection">تست‌های عیب‌یابی به‌صورت امن کامل نشدند.</string>
     <string name="enterprise_failure_invalid">نتیجه عیب‌یابی از اعتبارسنجی محلی عبور نکرد.</string>
     <string name="enterprise_failure_generic">این قابلیت سازمانی فعلاً در دسترس نیست.</string>
+    <string name="reference_tap_connect">برای اتصال کلیک کنید</string>
+    <string name="reference_connected">متصل هستید</string>
+    <string name="reference_failed">اتصال برقرار نشد</string>
+    <string name="reference_tap_retry">برای تلاش دوباره کلیک کنید</string>
+    <string name="reference_ready">آماده اتصال</string>
 </resources>

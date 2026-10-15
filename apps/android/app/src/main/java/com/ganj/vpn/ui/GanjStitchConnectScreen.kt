@@ -128,7 +128,7 @@ internal fun StitchConnectionScreen(
             .testTag("connection-screen")
             .verticalScroll(rememberScrollState())
             .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         StitchBrandHeader(premium = hasPremium, onOpenStore = onOpenStore, onOpenNotifications = onOpenNotifications)
         GanjConnectionHero(
@@ -138,6 +138,7 @@ internal fun StitchConnectionScreen(
             disconnecting = disconnecting,
             selecting = smartBusy,
             preparing = preparing,
+            duration = { GanjSessionDurationInline(state.runtimeConnection, sessionTimer) },
             onClick = {
                 when {
                     connection is ConnectionUiState.Connected && !switchingSelection -> onDisconnect()
@@ -181,7 +182,7 @@ internal fun StitchConnectionScreen(
                 }
             }
         }
-        GanjConnectionTelemetry(state.runtimeConnection, sessionTimer, ping, pingBusy)
+
         reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (pingKey != null && latency != null) StitchMiniAction(
@@ -232,15 +233,14 @@ internal fun StitchConnectionScreen(
                 }
             },
         )
-        GanjGlassSurface(role = GanjGlassRole.OpaqueFallback, modifier = Modifier.fillMaxWidth().testTag("selected-subscription")
-            .clickable(role = Role.Button, onClick = onOpenSubscriptions).padding(2.dp), shapeRadius = 22.dp) {
-            Text(stringResource(R.string.subscription_selected_label), style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(service?.let { subscriptionUsername(it) } ?: stringResource(R.string.subscription_choose_first),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(stringResource(R.string.subscription_change), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary)
-        }
+        GanjReferenceMenuRow(
+            title = service?.let { subscriptionUsername(it) } ?: stringResource(R.string.subscription_choose_first),
+            subtitle = stringResource(R.string.subscription_selected_label),
+            modifier = Modifier.testTag("selected-subscription"),
+            icon = GanjDestination.Servers,
+            accent = LocalGanjContentPalette.current.premiumText,
+            onClick = onOpenSubscriptions,
+        )
         StitchSelectedServerCard(server = displayedServer, hasSubscription = service != null, onOpenServers = onOpenServers)
         if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -326,65 +326,34 @@ private fun StitchSelectedServerCard(server: ConnectionServer?, hasSubscription:
 
 @Composable
 private fun StitchSmartConnectCard(activeSubscription: Boolean, busy: Boolean, onClick: () -> Unit) {
-    val emphasis by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (activeSubscription && !busy) 0.22f else 0.10f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 220),
-        label = "smartConnectGoldEmphasis",
-    )
-    GanjGlassSurface(
-        role = GanjGlassRole.Prominent,
-        accent = StitchGold,
-        modifier = Modifier.fillMaxWidth().testTag("smart-connect-card"),
-        shapeRadius = 22.dp,
-        padding = PaddingValues(16.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(StitchGold.copy(alpha = emphasis))
-                        .border(1.dp, StitchGold.copy(alpha = 0.42f), RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    GanjNavigationIcon(
-                        destination = GanjDestination.Connect,
-                        tint = StitchGold,
-                        modifier = Modifier.size(25.dp),
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "اتصال هوشمند",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = "انتخاب سریع‌ترین کانفیگ همین اشتراک",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                    )
-                }
-            }
-            GanjGlassButton(
-                text = if (busy) "در حال بررسی…" else if (activeSubscription) "اتصال سریع" else "انتخاب اشتراک",
-                onClick = onClick,
-                enabled = !busy,
-                accent = StitchGold,
-                filled = false,
-                contentColor = StitchGoldBright,
-            )
+    val effects = LocalGanjVisualEffectsPolicy.current
+    val dark = referenceDark()
+    val shape = RoundedCornerShape(12.dp)
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val sheen = remember { androidx.compose.animation.core.Animatable(-.4f) }
+    LaunchedEffect(activeSubscription, effects.reduceMotion) {
+        if (activeSubscription && !effects.reduceMotion) {
+            sheen.snapTo(-.4f)
+            sheen.animateTo(1.4f, androidx.compose.animation.core.tween(1200))
+        }
+    }
+    Box(Modifier.fillMaxWidth().testTag("smart-connect-card").clip(shape)
+        .background(Brush.linearGradient(if (dark) listOf(GanjReference.GoldTop, GanjReference.GoldBottom) else listOf(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.surface)))
+        .border(1.dp, LocalGanjContentPalette.current.premiumText.copy(alpha=.7f),shape)
+        .clickable(enabled=!busy, interactionSource=interaction, indication=null, role=Role.Button,onClick=onClick)) {
+        if(!effects.reduceTransparency) androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+            val x = size.width*sheen.value
+            drawRect(Brush.linearGradient(listOf(Color.Transparent,Color.White.copy(alpha=.14f),Color.Transparent),
+                start=androidx.compose.ui.geometry.Offset(x-size.width*.2f,0f),end=androidx.compose.ui.geometry.Offset(x+size.width*.2f,size.height)))
+        }
+        Row(Modifier.fillMaxWidth().heightIn(min=55.dp).padding(horizontal=14.dp,vertical=12.dp),
+            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            if(busy) GanjCompactSpinner(accent=StitchGoldBright,size=20.dp)
+            else GanjNavigationIcon(GanjDestination.Connect,StitchGoldBright,Modifier.size(20.dp))
+            Text(if(busy) "در حال بررسی…" else "اتصال هوشمند",Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,
+                fontWeight=FontWeight.SemiBold,color=if(dark)Color(0xFFFFF0C7) else MaterialTheme.colorScheme.onSurface)
+            Text(if(activeSubscription) "انتخاب بهترین سرور" else "انتخاب اشتراک",style=MaterialTheme.typography.labelSmall,
+                color=if(dark)Color(0xFFE4D0A3) else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
