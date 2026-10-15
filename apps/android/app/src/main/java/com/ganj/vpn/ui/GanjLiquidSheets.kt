@@ -78,32 +78,32 @@ internal fun GanjLiquidBottomSheet(
                 content()
             }
         } else {
-        GanjGlassSurface(
-            role = GanjGlassRole.Dense,
-            accent = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(initialFocus)
-                .focusable()
-                .padding(horizontal = responsiveHorizontalPadding(), vertical = 10.dp),
-            shapeRadius = 26.dp,
-            padding = PaddingValues(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            if (!subtitle.isNullOrBlank()) {
+            GanjGlassSurface(
+                role = GanjGlassRole.Dense,
+                accent = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(initialFocus)
+                    .focusable()
+                    .padding(horizontal = responsiveHorizontalPadding(), vertical = 10.dp),
+                shapeRadius = 26.dp,
+                padding = PaddingValues(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
                 )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                content()
             }
-            content()
-        }
         }
     }
 }

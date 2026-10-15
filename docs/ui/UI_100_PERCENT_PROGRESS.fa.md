@@ -1135,3 +1135,5 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - First native run 38735060037 compiled and passed 17/19 fixtures (including compact geometry, exact subscription/config selection and same-key uncertain-purchase retry). Two new commerce fixtures failed: clicking while wallet methods were still loading, and locating an uncomposed large-font lazy item. Fixtures now wait for the enabled real CTA and scroll the owning list; no failure is reported as passed. Config toolbar labels are shorter to avoid visible ellipses at 320dp. Full final rerun remains required.
 
 - Fixture synchronization also waits for the returned unpaid status (not merely the start of its asynchronous request), and captures the wallet only after its payment CTA is enabled. This avoids a timing-dependent false failure and misleading loading screenshot.
+
+- Preview run 38735059993 found one Android lint SuspiciousIndentation error in the extracted catalog parser; parser/sheet indentation is corrected without changing the API contract or behavior. Required debug/release lint and final native review must pass on the corrected source before signing/publication.

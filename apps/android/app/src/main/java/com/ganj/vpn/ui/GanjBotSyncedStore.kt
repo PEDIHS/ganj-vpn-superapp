@@ -315,31 +315,30 @@ private fun GanjReferenceBotPlan(plan:GanjBotProduct,selected:Boolean,onSelect:(
 
 internal fun botStoreReadCatalog(envelope: JSONObject): List<GanjBotProduct> {
     val list = envelope.optJSONArray("data") ?: error("bot-catalog-invalid")
-            check(list.length() <= 500) { "bot-catalog-too-many" }
+    check(list.length() <= 500) { "bot-catalog-too-many" }
     return buildList {
-                for (index in 0 until list.length()) {
-                    val product = list.optJSONObject(index) ?: continue
-                    val code = product.optString("id").trim()
-                    val panelId = product.optString("panel_id").trim()
-                    val name = product.optString("name").trim()
-                    val panel = product.optString("panel").trim()
-                    if (!code.matches(Regex("[a-zA-Z0-9_-]{1,64}")) ||
-                        !panelId.matches(Regex("[a-zA-Z0-9_-]{1,64}")) ||
-                        name.isBlank() || panel.isBlank()) continue
-                    val price = product.optDouble("price", Double.NaN)
-                    if (!price.isFinite() || price < 0 || price > 1_000_000_000_000) continue
-                    add(GanjBotProduct(
-                        code = code, panelId = panelId, panel = panel.take(120),
-                        category = product.optString("category").trim().take(140),
-                        name = name.take(180),
-                        description = product.optString("description").trim().take(400),
-                        priceToman = price.toLong(),
-                        volumeGb = product.optDouble("volume", 0.0).takeIf { it.isFinite() && it >= 0 } ?: 0.0,
-                        durationDays = product.optInt("days").coerceAtLeast(0),
-                        badge = product.optString("badge").trim().take(60),
-                        featured = product.optBoolean("featured", false),
-                        oneBuy = product.optBoolean("one_buy", false),
-                    ))
-                }
-            }.distinctBy { it.key }
+        for (index in 0 until list.length()) {
+            val product = list.optJSONObject(index) ?: continue
+            val code = product.optString("id").trim()
+            val panelId = product.optString("panel_id").trim()
+            val name = product.optString("name").trim()
+            val panel = product.optString("panel").trim()
+            if (!code.matches(Regex("[a-zA-Z0-9_-]{1,64}")) ||
+                !panelId.matches(Regex("[a-zA-Z0-9_-]{1,64}")) ||
+                name.isBlank() || panel.isBlank()) continue
+            val price = product.optDouble("price", Double.NaN)
+            if (!price.isFinite() || price < 0 || price > 1_000_000_000_000) continue
+            add(GanjBotProduct(
+                code = code, panelId = panelId, panel = panel.take(120),
+                category = product.optString("category").trim().take(140),
+                name = name.take(180), description = product.optString("description").trim().take(400),
+                priceToman = price.toLong(),
+                volumeGb = product.optDouble("volume", 0.0).takeIf { it.isFinite() && it >= 0 } ?: 0.0,
+                durationDays = product.optInt("days").coerceAtLeast(0),
+                badge = product.optString("badge").trim().take(60),
+                featured = product.optBoolean("featured", false),
+                oneBuy = product.optBoolean("one_buy", false),
+            ))
+        }
+    }.distinctBy { it.key }
 }
