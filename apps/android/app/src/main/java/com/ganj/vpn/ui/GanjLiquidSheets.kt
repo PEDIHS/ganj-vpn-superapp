@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +50,7 @@ internal fun GanjLiquidBottomSheet(
     subtitle: String? = null,
     onDismiss: () -> Unit,
     skipPartiallyExpanded: Boolean = false,
+    compact: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ModalBottomSheet(
@@ -63,6 +66,18 @@ internal fun GanjLiquidBottomSheet(
         val initialFocus = remember { FocusRequester() }
         // Keep opening a selection sheet from automatically focusing its search input on API 24.
         LaunchedEffect(Unit) { initialFocus.requestFocus() }
+        if (compact) {
+            Column(Modifier.fillMaxWidth().focusRequester(initialFocus).focusable()
+                .padding(horizontal = 16.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    TextButton(onClick = onDismiss) { Text("بستن", style = MaterialTheme.typography.labelSmall) }
+                }
+                if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                content()
+            }
+        } else {
         GanjGlassSurface(
             role = GanjGlassRole.Dense,
             accent = MaterialTheme.colorScheme.primary,
@@ -88,6 +103,7 @@ internal fun GanjLiquidBottomSheet(
                 )
             }
             content()
+        }
         }
     }
 }

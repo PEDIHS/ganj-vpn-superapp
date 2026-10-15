@@ -1120,3 +1120,12 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - User device/settings were not provided, so the exact cause on that device is unverified. Explicit app/system animation reduction remains respected. Physical-device/TalkBack/authorized positive SSO and payment-receipt QA remain open.
 - UI Ledger sections touched: 7, 12, 21, 22, 23, 24, 25. Leaf items completed: none; remaining unchecked leaves unchanged.
 - Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining; no Final Gate claim.
+
+### 2026-10-15 — 0.3.23 compact selection and native storefront batch
+- User requests denser subscription/config selection and the GANJ web storefront's product hierarchy implemented natively, without opening the web app.
+- Replace oversized subscription rings/overview with compact username/status/quota/usage rows. Config rows, sheet padding, search/ping/sort toolbar and Connect's manual selection panel are compact; system font scale and >=48dp action targets remain respected. Essential press/selection motion remains active in low-memory mode when allowed.
+- Store catalog keeps real product/location/category/period data and adds canonical storefront sorting and volume artwork. Product detail, server quote/discount, wallet purchase, top-up methods, card/TRX invoice/receipt and transactions use native Compose and the existing bot API/SSO/CSRF/session. Only an actual external gateway/Telegram payment opens an Android intent. No backend financial rules or account authority changed.
+- Regression fixtures cover exact product/panel purchase routing without a WebView, insufficient balance to native invoice, uncertain-purchase retry with the same idempotency key, invalidation of quote on discount edits, compact row geometry and large text. Fixture data is isolated from real accounts/providers. Build/emulator/visual validation and publication pending.
+- UI Ledger sections touched: 5, 6, 11, 12, 13, 15, 21, 22, 23, 24, 25.
+- Leaf items completed: none; full DoD/device/provider QA not yet met. Remaining unchecked leaves unchanged: 5=19, 6=8, 11=12, 12=15, 13=16, 15=17, 21=12, 22=13, 23=9, 24=16, 25=17.
+- Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining. No Final Gate/physical-device/positive SSO or real financial QA claim.

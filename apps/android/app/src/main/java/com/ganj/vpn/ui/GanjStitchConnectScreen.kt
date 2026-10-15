@@ -303,7 +303,7 @@ private fun StitchReferenceSelection(
     Column(Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface)
         .border(1.dp,MaterialTheme.colorScheme.outlineVariant,shape)) {
         Row(Modifier.fillMaxWidth().testTag("selected-subscription")
-            .clickable(role=Role.Button,onClick=onOpenSubscriptions).heightIn(min=48.dp).padding(horizontal=14.dp,vertical=10.dp),
+            .clickable(role=Role.Button,onClick=onOpenSubscriptions).heightIn(min=52.dp).padding(horizontal=12.dp,vertical=6.dp),
             horizontalArrangement=Arrangement.spacedBy(9.dp),verticalAlignment=Alignment.CenterVertically) {
             GanjNavigationIcon(GanjDestination.Servers,StitchGoldBright,Modifier.size(17.dp))
             Column(Modifier.weight(1f)) {
@@ -315,26 +315,21 @@ private fun StitchReferenceSelection(
         }
         androidx.compose.material3.HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
         Row(Modifier.fillMaxWidth().testTag("selected-config").clickable(role=Role.Button,onClick=onOpenServers)
-            .padding(horizontal=14.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically,
+            .heightIn(min=64.dp).padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,
             horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             GanjConfigFlagBadge(identity?.countryCode,server!=null,
-                Modifier.size(if(large)76.dp else 52.dp,if(large)50.dp else 35.dp).testTag("selected-config-flag"))
+                Modifier.size(if(large)76.dp else 44.dp,if(large)50.dp else 30.dp).testTag("selected-config-flag"))
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                 Text(identity?.title?:stringResource(if(service!=null)R.string.config_choose else R.string.subscription_choose_first),
-                    style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurface)
+                    style=MaterialTheme.typography.bodySmall,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurface,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 server?.let { Text("${countryName(it.countryCode)} • ${it.protocols.joinToString(" / "){p->p.name}}",
                     style=MaterialTheme.typography.labelSmall,color=muted) }
             }
-            Text("‹",style=MaterialTheme.typography.titleLarge,color=muted)
-        }
-        if(onMeasure!=null) Row(Modifier.fillMaxWidth().padding(horizontal=14.dp),
-            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-            Text(persianTechnicalMetric(ping?.toString()?:"—","ms"),style=MaterialTheme.typography.labelSmall,color=muted)
-            Box(Modifier.heightIn(min=48.dp).clip(RoundedCornerShape(8.dp))
-                .clickable(enabled=!pingBusy,role=Role.Button,onClick=onMeasure).padding(8.dp),contentAlignment=Alignment.Center) {
-                Text(stringResource(if(pingBusy)R.string.ping_measuring else R.string.ping_selected),
+            if(onMeasure!=null) Box(Modifier.heightIn(min=48.dp).clip(RoundedCornerShape(8.dp))
+                .clickable(enabled=!pingBusy,role=Role.Button,onClick=onMeasure).padding(6.dp),contentAlignment=Alignment.Center) {
+                Text(if(pingBusy) "…" else persianTechnicalMetric(ping?.toString()?:"—","ms"),
                     style=MaterialTheme.typography.labelSmall,color=StitchGoldBright)
-            }
+            } else Text("‹",style=MaterialTheme.typography.titleMedium,color=muted)
         }
     }
 }

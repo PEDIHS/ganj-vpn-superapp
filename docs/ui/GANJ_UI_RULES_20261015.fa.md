@@ -152,3 +152,14 @@ This document extends the canonical brand and liquid-glass standards.
 - Only explicit app Reduce Motion or disabled Android animator scale suppresses those animations. Observe system changes and resume events so the displayed reason and custom animation policy stay current.
 - Settings must report whether motion is active, lightweight, user-disabled or Android-disabled. Do not claim a specific user's device caused a report without device evidence.
 - Motion validation must compare rendered frames in Reduced tier and verify a true static control under explicit Reduce Motion; state-label screenshots alone do not prove animation.
+
+## 0.3.23 compact selection and native bot commerce (product-directed override)
+- Subscription selection is a compact username/status/quota row with a thin usage bar; do not restore the oversized 102dp quota ring or duplicate overview cards in this selector.
+- Normal config rows target 72dp, 48×32dp full-aspect flags, 12dp corners and compact metadata. Preserve 48dp ping targets; expand naturally with system font size. Do not reduce Android fontScale to simulate density.
+- Config sheets use one compact padded surface, not nested inset glass cards. Preserve scoped identities, search, explicit ping and selected-server callbacks. Low-RAM material fallbacks must retain essential motion when allowed.
+- The Store destination, product detail, quote, discount, wallet top-up, invoice, receipt selection/upload and transaction list render with native Compose. Do not open the storefront/product/payment web app in a WebView or inject CSS.
+- Existing bot HTTPS API, HttpOnly session cookies, native bearer-to-bot SSO and CSRF checks remain authoritative. No credentials in URLs/JS, no client entitlement grant, no duplicated wallet database or app-side receipt approval.
+- External bank/gateway or server-configured Telegram payment handoff uses Android intents after explicit user action. Its returned financial result is only accepted via the authenticated bot payment_status endpoint; no fake success.
+- Reuse the same purchase idempotency key and frozen payload after an uncertain response; disable duplicate submissions. Editing a discount invalidates the displayed quote until the server recomputes it.
+- Receipt types/8MiB limit match the canonical site; native file picker requires no broad storage permission. Poll payment status only while the page is foreground/resumed and preserve server-owned pending invoices.
+- These rules supersede the earlier WebView requirement for Store-owned commerce. Existing Profile finance entry points remain operational; no server business logic is replaced by client code.

@@ -128,34 +128,7 @@ internal object GanjBotCatalog {
             }
             val envelope = JSONObject(raw.toString())
             check(envelope.optBoolean("status", false)) { "bot-catalog-unavailable" }
-            val list = envelope.optJSONArray("data") ?: error("bot-catalog-invalid")
-            check(list.length() <= 500) { "bot-catalog-too-many" }
-            buildList {
-                for (index in 0 until list.length()) {
-                    val product = list.optJSONObject(index) ?: continue
-                    val code = product.optString("id").trim()
-                    val panelId = product.optString("panel_id").trim()
-                    val name = product.optString("name").trim()
-                    val panel = product.optString("panel").trim()
-                    if (!code.matches(Regex("[a-zA-Z0-9_-]{1,64}")) ||
-                        !panelId.matches(Regex("[a-zA-Z0-9_-]{1,64}")) ||
-                        name.isBlank() || panel.isBlank()) continue
-                    val price = product.optDouble("price", Double.NaN)
-                    if (!price.isFinite() || price < 0 || price > 1_000_000_000_000) continue
-                    add(GanjBotProduct(
-                        code = code, panelId = panelId, panel = panel.take(120),
-                        category = product.optString("category").trim().take(140),
-                        name = name.take(180),
-                        description = product.optString("description").trim().take(400),
-                        priceToman = price.toLong(),
-                        volumeGb = product.optDouble("volume", 0.0).takeIf { it.isFinite() && it >= 0 } ?: 0.0,
-                        durationDays = product.optInt("days").coerceAtLeast(0),
-                        badge = product.optString("badge").trim().take(60),
-                        featured = product.optBoolean("featured", false),
-                        oneBuy = product.optBoolean("one_buy", false),
-                    ))
-                }
-            }.distinctBy { it.key }
+            botStoreReadCatalog(envelope)
         } finally {
             conn.disconnect()
         }
@@ -183,6 +156,7 @@ internal fun StitchBotSyncedStoreScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var duration by rememberSaveable { mutableStateOf<Int?>(null) }
     var vipOnly by rememberSaveable { mutableStateOf(false) }
+    var sort by rememberSaveable { mutableIntStateOf(0) }
     var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     androidx.activity.compose.BackHandler(vipOnly) { vipOnly=false }
     LaunchedEffect(retryKey) {
@@ -200,7 +174,11 @@ internal fun StitchBotSyncedStoreScreen(
         botStoreFilter(products,selectedPanel,selectedCategory,query).filter{!vipOnly||it.isVip()}
     }
     val durations=remember(candidates){candidates.map{it.durationDays}.filter{it>0}.distinct().sorted()}
-    val visible=remember(candidates,duration){candidates.filter{duration==null||duration==it.durationDays}}
+    val visible=remember(candidates,duration,sort){
+        val rows=candidates.filter{duration==null||duration==it.durationDays}
+        when(sort){1->rows.sortedBy{it.priceToman};2->rows.sortedByDescending{it.volumeGb};3->rows.sortedByDescending{it.durationDays}
+            else->rows.sortedWith(compareByDescending<GanjBotProduct>{it.featured}.thenBy{it.priceToman})}
+    }
     val chosen=visible.firstOrNull{it.key==selectedKey}
     val ink=MaterialTheme.colorScheme.onSurface
     val muted=MaterialTheme.colorScheme.onSurfaceVariant
@@ -257,6 +235,15 @@ internal fun StitchBotSyncedStoreScreen(
                         }
                     }
                 }
+                item(key="catalog-sort") {
+                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                        Text("${visible.size.toPersianDigits()} گزینه آماده انتخاب",Modifier.weight(1f),
+                            style=MaterialTheme.typography.labelSmall,color=muted)
+                        androidx.compose.material3.TextButton(onClick={sort=(sort+1)%4;selectedKey=null},modifier=Modifier.testTag("bot-store-sort")) {
+                            Text(listOf("پیشنهادی","کمترین قیمت","بیشترین حجم","بیشترین مدت")[sort],style=MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
                 if(visible.isEmpty()) item{EmptyCard("نتیجه‌ای پیدا نشد","فیلتر یا عبارت جستجو را تغییر دهید.",{query="";duration=null;category=null})}
                 items(visible,key={it.key},contentType={"bot-plan"}){plan->
                     Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -270,7 +257,7 @@ internal fun StitchBotSyncedStoreScreen(
                         GanjGlassButton(if(vipOnly)"ادامه با VIP" else "بررسی و ادامه خرید",{onOpenProduct(chosen.purchaseUrl)},
                             modifier=Modifier.fillMaxWidth().testTag("bot-buy-"+chosen.key),accent=if(vipOnly)GanjReference.Gold else MaterialTheme.colorScheme.primary,
                             contentColor=if(vipOnly)Color(0xFF292615) else MaterialTheme.colorScheme.onPrimary)
-                        Text("مبلغ نهایی و روش پرداخت در فاکتور نمایش داده می‌شود.",style=MaterialTheme.typography.labelSmall,color=muted)
+                        Text("بررسی مشخصات و تأیید خرید در همین برنامه",style=MaterialTheme.typography.labelSmall,color=muted)
                     }
                         }
                     }
@@ -287,7 +274,7 @@ internal fun StitchBotSyncedStoreScreen(
     }
 }
 
-private fun botPrice(plan:GanjBotProduct):String = String.format(Locale.US,"%,d",plan.priceToman).toPersianDigits()+" تومان"
+internal fun botPrice(plan:GanjBotProduct):String = String.format(Locale.US,"%,d",plan.priceToman).toPersianDigits()+" تومان"
 
 @Composable
 private fun GanjReferenceBotPlan(plan:GanjBotProduct,selected:Boolean,onSelect:()->Unit) {
@@ -295,8 +282,11 @@ private fun GanjReferenceBotPlan(plan:GanjBotProduct,selected:Boolean,onSelect:(
     val premium=plan.isVip()||plan.featured
     val accent=if(premium)gold else MaterialTheme.colorScheme.primary
     val shape=RoundedCornerShape(13.dp)
+    val effects=LocalGanjVisualEffectsPolicy.current
+    val rim by androidx.compose.animation.animateColorAsState(if(selected)accent else MaterialTheme.colorScheme.outlineVariant,
+        if(effects.reduceMotion)androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(180),label="storePlanSelection")
     Column(Modifier.fillMaxWidth().clip(shape).background(if(selected)LocalGanjContentPalette.current.selectedSurface else MaterialTheme.colorScheme.surface)
-        .border(1.dp,if(selected)accent else MaterialTheme.colorScheme.outlineVariant,shape)
+        .border(1.dp,rim,shape)
         .clickable(role=Role.RadioButton,onClick=onSelect)
         .semantics{this.selected=selected}
         .padding(15.dp).testTag("bot-product-"+plan.key),verticalArrangement=Arrangement.spacedBy(10.dp)) {
@@ -307,7 +297,13 @@ private fun GanjReferenceBotPlan(plan:GanjBotProduct,selected:Boolean,onSelect:(
             Text(plan.name,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurface)
             if(plan.badge.isNotBlank()) Text(plan.badge,style=MaterialTheme.typography.labelSmall,color=gold)
         }
-        Text(botPrice(plan),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurface)
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            GanjNativePlanArt(plan,Modifier.size(58.dp))
+            Column(Modifier.weight(1f)) {
+                Text("قیمت سرویس",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(botPrice(plan),style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurface)
+            }
+        }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(16.dp)) {
             Text(if(plan.durationDays>0)plan.durationDays.toPersianDigits()+" روز" else "مدت طبق پلن",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Text(if(plan.volumeGb>0)plan.volumeGb.toLong().toPersianDigits()+" گیگابایت" else "حجم طبق پلن",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -315,4 +311,35 @@ private fun GanjReferenceBotPlan(plan:GanjBotProduct,selected:Boolean,onSelect:(
         if(plan.description.isNotBlank()) Text(plan.description,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=3,overflow=TextOverflow.Ellipsis)
         if(selected) Text("انتخاب‌شده",style=MaterialTheme.typography.labelSmall,color=accent)
     }
+}
+
+internal fun botStoreReadCatalog(envelope: JSONObject): List<GanjBotProduct> {
+    val list = envelope.optJSONArray("data") ?: error("bot-catalog-invalid")
+            check(list.length() <= 500) { "bot-catalog-too-many" }
+    return buildList {
+                for (index in 0 until list.length()) {
+                    val product = list.optJSONObject(index) ?: continue
+                    val code = product.optString("id").trim()
+                    val panelId = product.optString("panel_id").trim()
+                    val name = product.optString("name").trim()
+                    val panel = product.optString("panel").trim()
+                    if (!code.matches(Regex("[a-zA-Z0-9_-]{1,64}")) ||
+                        !panelId.matches(Regex("[a-zA-Z0-9_-]{1,64}")) ||
+                        name.isBlank() || panel.isBlank()) continue
+                    val price = product.optDouble("price", Double.NaN)
+                    if (!price.isFinite() || price < 0 || price > 1_000_000_000_000) continue
+                    add(GanjBotProduct(
+                        code = code, panelId = panelId, panel = panel.take(120),
+                        category = product.optString("category").trim().take(140),
+                        name = name.take(180),
+                        description = product.optString("description").trim().take(400),
+                        priceToman = price.toLong(),
+                        volumeGb = product.optDouble("volume", 0.0).takeIf { it.isFinite() && it >= 0 } ?: 0.0,
+                        durationDays = product.optInt("days").coerceAtLeast(0),
+                        badge = product.optString("badge").trim().take(60),
+                        featured = product.optBoolean("featured", false),
+                        oneBuy = product.optBoolean("one_buy", false),
+                    ))
+                }
+            }.distinctBy { it.key }
 }
