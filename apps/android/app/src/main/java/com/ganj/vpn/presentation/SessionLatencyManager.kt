@@ -131,8 +131,9 @@ class SessionLatencyManager(
                     }
                 }
             } finally {
+                val finished = currentCoroutineContext().job
                 synchronized(lock) {
-                    batchJobs.remove(currentCoroutineContext().job)
+                    batchJobs.remove(finished)
                     if (expected == generation) {
                         fresh.forEach { (key, deferred) ->
                             if (pending[key] === deferred) pending.remove(key)
