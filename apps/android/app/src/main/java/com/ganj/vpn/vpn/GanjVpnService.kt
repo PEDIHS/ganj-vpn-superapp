@@ -301,13 +301,15 @@ class GanjVpnService : VpnService(), TunnelPlatform {
 
     private fun probeProfile(profile: ProvisionedProfile): NativeProbeResult {
         return try {
-            if (engine.hasTunnel() && engine.currentState().phase != ConnectionPhase.CONNECTED) {
+            // v26.7.28 temporary native cores can overwrite process-wide Xray
+            // dialer/DNS while the managed VPN is running. Never overlap them.
+            if (engine.hasTunnel()) {
                 return NativeProbeResult.Failed("probe.active_tunnel_busy")
             }
             if (profile.isExpired(System.currentTimeMillis())) return NativeProbeResult.Failed("vpn.profile_expired")
             val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
-            // Keep the active core's global DNS/protector intact. pingBatch uses a local
-            // core instance and inherits the already installed, protected socket dialer.
+            // Do not create a native test core while the managed VPN is active.
+            // The native lifecycle lock and the explicit guard above protect Go globals.
             val installed = if (engine.hasTunnel()) com.ganj.vpn.core.xray.NativeCallResult(true)
             else native.installSocketProtector(SocketProtector { fd -> fd >= 0 && (!engine.hasTunnel() || protect(fd)) })
             if (!installed.success) NativeProbeResult.Failed(installed.errorCode ?: "xray.socket_protection_unavailable")
@@ -317,6 +319,51 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 } else native.probeDetailed(config, noBackupFilesDir)
             }
         } finally { profile.close() }
+    }
+
+    /**
+     * This is intentionally called under nativeLifecycleLock: the live TUN must
+     * never be stopped or reconfigured while the local native batch is running.
+     */
+    private fun probeProfiles(profiles: List<ProvisionedProfile>): List<NativeProbeResult> {
+        val failures = MutableList<NativeProbeResult>(profiles.size) {
+            NativeProbeResult.Failed("probe.unavailable")
+        }
+        try {
+            if (engine.hasTunnel()) {
+                return failures.map { NativeProbeResult.Failed("probe.active_tunnel_busy") }
+            }
+            val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
+            val installed = if (engine.hasTunnel()) com.ganj.vpn.core.xray.NativeCallResult(true)
+                else native.installSocketProtector(SocketProtector { fd -> fd >= 0 && (!engine.hasTunnel() || protect(fd)) })
+            if (!installed.success) {
+                return failures.map { NativeProbeResult.Failed(installed.errorCode ?: "xray.socket_protection_unavailable") }
+            }
+            val compiled = mutableListOf<Pair<Int, com.ganj.vpn.core.xray.SensitiveXrayConfig>>()
+            profiles.forEachIndexed { index, profile ->
+                if (profile.isExpired(System.currentTimeMillis())) {
+                    failures[index] = NativeProbeResult.Failed("vpn.profile_expired")
+                } else {
+                    try {
+                        compiled += index to XrayConfigCompiler().compileProbe(profile)
+                    } catch (error: Exception) {
+                        failures[index] = NativeProbeResult.Failed(NativeFailureClassifier.probe(error))
+                    }
+                }
+            }
+            if (compiled.isEmpty()) return failures
+            val measured = native.probeBatchDetailed(
+                compiled.map { it.second }, noBackupFilesDir,
+                if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) listOf(NATIVE_FIXTURE_PROBE_URL)
+                else ProxyProbeFallback.targets,
+            )
+            compiled.forEachIndexed { position, (index, _) ->
+                failures[index] = measured.getOrElse(position) { NativeProbeResult.Failed("probe.native_failed") }
+            }
+            return failures
+        } finally {
+            profiles.forEach { it.close() }
+        }
     }
 
     private fun NativeProbeResult.asLatencyResult(): LatencyProbeResult = when (this) {
@@ -384,6 +431,11 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 } else probeProfile(profile).asLatencyResult()
             }
         }
+
+        suspend fun probeDetailedBatch(profiles: List<ProvisionedProfile>): List<LatencyProbeResult> =
+            withContext(Dispatchers.IO) {
+                synchronized(nativeLifecycleLock) { probeProfiles(profiles).map { it.asLatencyResult() } }
+            }
 
         suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
             withContext(Dispatchers.IO) {

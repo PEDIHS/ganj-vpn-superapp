@@ -32,13 +32,29 @@ class ConnectionLatencyProberTest {
     }
 
     @Test
-    fun `different active tunnel permits an authorized independent outbound probe`() = runBlocking {
+    fun `other active tunnel rejects temporary core before acquiring any lease`() = runBlocking {
         val fixture = Fixture(activeProbe = ActiveTunnelProbe.OtherTunnelActive)
-        assertEquals(123L, fixture.prober.probe(SERVICE, SERVER))
+        val result = fixture.prober.probeDetailed(SERVICE, SERVER) as LatencyProbeResult.Failed
+        assertEquals("probe.active_tunnel_busy", result.failure.diagnosticCode)
         assertEquals(1, fixture.activeProbes)
+        assertEquals(0, fixture.requests)
+        assertEquals(0, fixture.provisions)
+        assertEquals(0, fixture.probes)
+        val batch = fixture.prober.probeBatchDetailed(SERVICE, listOf(SERVER))
+        assertEquals("probe.active_tunnel_busy",
+            (batch.getValue(SERVER) as LatencyProbeResult.Failed).failure.diagnosticCode)
+        assertEquals(0, fixture.requests)
+    }
+
+    @Test
+    fun `batch only provisions unique authorized server profiles and wipes their credentials`() = runBlocking {
+        val fixture = Fixture()
+        val results = fixture.prober.probeBatchDetailed(SERVICE, listOf(SERVER, SERVER))
+        assertEquals(LatencyProbeResult.Measured(123L), results[SERVER])
         assertEquals(1, fixture.requests)
         assertEquals(1, fixture.provisions)
         assertEquals(1, fixture.probes)
+        assertTrue(runCatching { fixture.profile.useCredential { it } }.isFailure)
     }
 
     @Test

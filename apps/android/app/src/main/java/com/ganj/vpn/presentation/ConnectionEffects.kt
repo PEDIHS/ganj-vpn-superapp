@@ -86,6 +86,10 @@ interface TunnelConnector {
     suspend fun probeDetailed(profile: com.ganj.vpn.core.vpn.ProvisionedProfile): LatencyProbeResult =
         probe(profile)?.let { LatencyProbeResult.Measured(it) }
             ?: LatencyProbeResult.Failed(ConnectionFailures.probe("probe.unavailable"))
+    /** The production connector executes these in one native pingBatch call. */
+    suspend fun probeDetailedBatch(
+        profiles: List<com.ganj.vpn.core.vpn.ProvisionedProfile>,
+    ): List<LatencyProbeResult> = profiles.map { probeDetailed(it) }
     suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
         ActiveTunnelProbe.NotActive
 }

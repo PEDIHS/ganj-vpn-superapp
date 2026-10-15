@@ -133,6 +133,79 @@ class ReflectiveLibXrayBridge(
         }
     }
 
+    /**
+     * Use a single native pingBatch operation for several verified outbound profiles.
+     * No direct TCP approximation: each result is an HTTPS request through its own
+     * leased proxy. Never persist configs beyond this call.
+     */
+    fun probeBatchDetailed(
+        configs: List<SensitiveXrayConfig>,
+        privateDirectory: File,
+        targetUrls: List<String> = ProxyProbeFallback.targets,
+    ): List<NativeProbeResult> {
+        if (configs.isEmpty()) return emptyList()
+        require(configs.size <= 5) { "Pinned libXray pingBatch accepts at most 5 configs" }
+        val files = mutableListOf<File>()
+        return try {
+            configs.forEach { config ->
+                val file = File.createTempFile("probe-", ".json", privateDirectory)
+                files += file
+                check(file.setReadable(false, false) && file.setWritable(false, false))
+                check(file.setReadable(true, true) && file.setWritable(true, true))
+                file.writeText(config.consume())
+            }
+            val results = MutableList<NativeProbeResult>(files.size) {
+                NativeProbeResult.Failed("probe.unavailable")
+            }
+            var remaining = files.indices.toList()
+            for (target in targetUrls.take(2)) {
+                if (remaining.isEmpty()) break
+                val entries = JSONArray()
+                remaining.forEach { index ->
+                    entries.put(JSONObject().put("configPath", files[index].absolutePath).put("outboundTag", "proxy"))
+                }
+                val payload = JSONObject().put("configs", entries).put("timeout", 4).put("url", target)
+                val request = JSONObject().put("apiVersion", 1).put("method", "pingBatch").put("payload", payload)
+                val response = JSONObject(invokeMethod().invoke(null, request.toString()) as String)
+                if (!response.optBoolean("success")) {
+                    val raw = response.optString("error")
+                    val startup = NativeFailureClassifier.startup(raw)
+                    val code = if (startup == "xray.config_invalid") startup else NativeFailureClassifier.probe(raw)
+                    remaining.forEach { results[it] = NativeProbeResult.Failed(code) }
+                    if (!code.startsWith("probe.")) break
+                    continue
+                }
+                val nativeResults = response.optJSONObject("data")?.optJSONArray("results")
+                val retry = mutableListOf<Int>()
+                remaining.forEachIndexed { offset, index ->
+                    val item = nativeResults?.optJSONObject(offset)
+                    val delay = if (item != null && !item.has("delay")) 0L
+                        else (item?.opt("delay") as? Number)?.toLong()
+                    val measured = item?.optBoolean("success") == true && delay != null && delay >= 0L
+                    val outcome = if (measured) NativeProbeResult.Measured(delay!!)
+                        else {
+                            val raw = item?.optString("error").orEmpty()
+                            val startup = NativeFailureClassifier.startup(raw)
+                            NativeProbeResult.Failed(
+                                if (startup == "xray.config_invalid") startup
+                                else if (raw.isBlank()) "probe.native_failed"
+                                else NativeFailureClassifier.probe(raw),
+                            )
+                        }
+                    results[index] = outcome
+                    if (outcome is NativeProbeResult.Failed && outcome.code.startsWith("probe.")) retry += index
+                }
+                remaining = retry
+            }
+            results
+        } catch (error: Exception) {
+            List(configs.size) { NativeProbeResult.Failed(NativeFailureClassifier.probe(error)) }
+        } finally {
+            files.forEach { runCatching { it.delete() } }
+            configs.forEach { it.close() }
+        }
+    }
+
     private fun invoke(
         method: String,
         payloadName: String? = null,
