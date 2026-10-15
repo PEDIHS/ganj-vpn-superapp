@@ -94,7 +94,8 @@ class ConnectionLatencyProber(
         serviceId: String,
         serverId: String,
         takeOwnership: (ProvisionedProfile) -> Unit = {},
-    ): Prepared = try {
+    ): Prepared {
+        return try {
         when (val active = tunnel.probeActive(serviceId, serverId)) {
             is ActiveTunnelProbe.Measured ->
                 return Prepared(result = active.latencyMillis?.let { LatencyProbeResult.Measured(it) }
@@ -138,8 +139,9 @@ class ConnectionLatencyProber(
         throw cancelled
     } catch (error: VpnRuntimeException) {
         Prepared(result = LatencyProbeResult.Failed(ConnectionFailures.runtime(error.code)))
-    } catch (_: Exception) {
-        Prepared(result = failed("probe.unavailable"))
+        } catch (_: Exception) {
+            Prepared(result = failed("probe.unavailable"))
+        }
     }
 
     private fun failed(code: String) = LatencyProbeResult.Failed(ConnectionFailures.probe(code))
