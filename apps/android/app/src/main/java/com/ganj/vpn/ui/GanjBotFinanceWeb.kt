@@ -161,7 +161,7 @@ internal fun StitchBotFinanceScreen(
     }
 
     LaunchedEffect(startUrl) {
-        val bearer = onStoreBridgeAuthorization()
+        val bearer = withContext(Dispatchers.IO) { onStoreBridgeAuthorization() }
         if (bearer.isNullOrBlank()) {
             ssoError = "ابتدا حساب تلگرام خود را در گنج متصل کنید."
             return@LaunchedEffect
