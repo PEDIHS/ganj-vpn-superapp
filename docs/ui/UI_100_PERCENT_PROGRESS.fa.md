@@ -1111,3 +1111,12 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 - Regression coverage: real rendered pixel differences for low-memory power arcs and tab lens; unchanged pixels for explicit motion reduction; a live Android animator-scale observer test restores the emulator setting afterwards. Version 0.3.22-alpha / code25 prepared; CI/publication pending.
 - UI Ledger sections touched: 7, 12, 21, 22, 23, 24, 25. Leaf items completed: none. Remaining unchecked leaves unchanged; physical-device/TalkBack/positive account payment QA remain open.
 - Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining; no Final Gate claim.
+
+### 2026-10-15 — 0.3.22-alpha motion publication evidence
+- Application source `8bcd3aebbf774f9ed517e20d1690391d21379d69`; Android CI 38721730337, native review 38721723716 (16/16), preview 38721723788, CodeQL 38721730162 and repository/docs/dependency checks passed.
+- Actual rendered-pixel assertions passed for low-memory power motion and navigation lens motion. Explicit Reduce Motion produces unchanged pixels after settling. Live Android animator-scale changes were observed without restarting the Activity. API24/API35 startup, unit tests, Debug/Release lint, packaging and SBOM checks passed.
+- Signed 0.3.22-alpha / code25 published at 2026-10-15 11:44:51 UTC. Public HTTPS APK was independently downloaded in full: 42,176,102 bytes and SHA-256 `d98788fdf9d61d7a8826e3989f752f55037163108fd773f840d7f2f45e455372`, matching the signed server file and public checksum. Existing signing certificate retained; all non-META-INF payload entries match the CI APK.
+- Bot rolling APK/version now points to 0.3.22-alpha; previous release backed up. No Telegram message was sent. Audit: `docs/releases/0.3.22-alpha-motion.md`.
+- User device/settings were not provided, so the exact cause on that device is unverified. Explicit app/system animation reduction remains respected. Physical-device/TalkBack/authorized positive SSO and payment-receipt QA remain open.
+- UI Ledger sections touched: 7, 12, 21, 22, 23, 24, 25. Leaf items completed: none; remaining unchecked leaves unchanged.
+- Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining; no Final Gate claim.
