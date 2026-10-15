@@ -20,3 +20,15 @@ Backend deployment: copy current release to an isolated directory, overlay only 
 APK publication remains gated on current source CI, native/emulator/UI checks, same certificate, checksum and in-place update. Physical-phone/family multi-account UX and real payment/support reply evidence must be reported honestly.
 
 Verified production bot overlay: native catalog HTTP 200, 18 app variants; ordinary web catalog still 48 original entries. Six bot-picker states and exact 243,000 Toman / two-device handoff tested with Telegram send functions replaced by local capture (zero messages sent). An ephemeral 1 MiB/5-minute panel service was created through `ManagePanel::createUser(app_origin=true)`; raw authenticated panel API confirmed admin `ganj_app`, and deletion returned HTTP 204. The token-selection conditional must be inside `adduser`, not an earlier unrelated `token_panel` call. No customer invoice or wallet was modified by that provisioning test.
+
+## Verified backend activation — 2026-10-16
+
+- Family control-api staged separately at `/opt/ganj-vpn/releases/family-sharing-candidate-20261016/services/control-api`. Earlier release was not edited in place.
+- Existing production migration checksums matched the branch; only `023_service_family.sql` was newly added.
+- PostgreSQL backup saved as `/opt/ganj-vpn/backups/family-pre-023-20261016.dump` (823059 bytes, mode 0600), verified with `pg_restore --list`; the private archive remains on the server.
+- Production migration 023 applied and recorded. `control_service_members` and `control_service_invites` confirmed.
+- Staging tests: 172 passed, 0 failed, 2 skipped. Fixed production test-seed prohibition before opening any connection, and included OpenAPI fixture in staging.
+- Real production adapters booted on isolated loopback port 18082: protected routes returned unauthenticated HTTP 401.
+- Atomically switched `/opt/ganj-vpn/current` to candidate and restarted only `ganj-control-api`. Service active; `/v1/me` HTTP 401, bot website HTTP 200.
+- Previous release preserved at `/opt/ganj-vpn/releases/reality-stable-selection-20261003T0228/services/control-api` for immediate process rollback. Schema migration remains installed if the symlink is rolled back.
+- **Pending evidence:** two-user live Telegram invitation/approval, capacity and removal, real VPN traffic after join/revoke, signed in-place Android upgrade, and real payment/receipt tests. No APK publication or physical-device QA was claimed.
