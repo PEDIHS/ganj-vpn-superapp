@@ -65,6 +65,22 @@ class AndroidVpnTunnelClient(context: Context) : TunnelConnector {
         LatencyProbeResult.Failed(ConnectionFailures.runtime((error as? VpnRuntimeException)?.code ?: "vpn.service_start_failed"))
     } finally { profile.close() }
 
+    override suspend fun probeDetailedBatch(
+        profiles: List<com.ganj.vpn.core.vpn.ProvisionedProfile>,
+    ): List<LatencyProbeResult> = try {
+        withBoundService { it.probeDetailedBatch(profiles) }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        List(profiles.size) {
+            LatencyProbeResult.Failed(
+                ConnectionFailures.runtime((error as? VpnRuntimeException)?.code ?: "vpn.service_start_failed"),
+            )
+        }
+    } finally {
+        profiles.forEach { it.close() }
+    }
+
     override suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
         withBoundService { it.probeActive(serviceId, serverId) }
 
