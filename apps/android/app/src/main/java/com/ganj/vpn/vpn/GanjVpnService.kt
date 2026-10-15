@@ -308,8 +308,8 @@ class GanjVpnService : VpnService(), TunnelPlatform {
             }
             if (profile.isExpired(System.currentTimeMillis())) return NativeProbeResult.Failed("vpn.profile_expired")
             val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
-            // Keep the active core's global DNS/protector intact. pingBatch uses a local
-            // core instance and inherits the already installed, protected socket dialer.
+            // Do not create a native test core while the managed VPN is active.
+            // The native lifecycle lock and the explicit guard above protect Go globals.
             val installed = if (engine.hasTunnel()) com.ganj.vpn.core.xray.NativeCallResult(true)
             else native.installSocketProtector(SocketProtector { fd -> fd >= 0 && (!engine.hasTunnel() || protect(fd)) })
             if (!installed.success) NativeProbeResult.Failed(installed.errorCode ?: "xray.socket_protection_unavailable")
@@ -330,7 +330,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
             NativeProbeResult.Failed("probe.unavailable")
         }
         try {
-            if (engine.hasTunnel() && engine.currentState().phase != ConnectionPhase.CONNECTED) {
+            if (engine.hasTunnel()) {
                 return failures.map { NativeProbeResult.Failed("probe.active_tunnel_busy") }
             }
             val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
