@@ -538,7 +538,7 @@ internal fun GanjConfigOption(
             ) {
                 GanjConfigFlagBadge(identity.countryCode, selected, Modifier.size(
                     if (LocalDensity.current.fontScale >= 1.5f) 76.dp else 48.dp,
-                    if (LocalDensity.current.fontScale >= 1.5f) 50.dp else 32.dp))
+                    if (LocalDensity.current.fontScale >= 1.5f) 50.dp else 32.dp).testTag("config-option-flag-" + server.id))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(identity.title, style = MaterialTheme.typography.titleSmall,
                         color = if (selected) palette.onSelected else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold,
