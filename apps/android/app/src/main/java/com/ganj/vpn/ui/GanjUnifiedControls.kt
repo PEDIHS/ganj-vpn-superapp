@@ -85,7 +85,7 @@ internal fun GanjGlassButton(
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = if (!enabled) MaterialTheme.colorScheme.onSurfaceVariant
-                    else contentColor ?: MaterialTheme.colorScheme.onPrimary,
+                    else contentColor ?: ganjActionForeground(accent),
                 textAlign = TextAlign.Center,
             )
         }

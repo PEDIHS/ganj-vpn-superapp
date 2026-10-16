@@ -67,9 +67,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val StitchProductGold = Color(0xFFD5A63A)
-private val StitchProductGoldBright = Color(0xFFF0CD70)
-private val StitchProductEmerald = Color(0xFF72FCB6)
 
 internal enum class StoreTierFilter { ALL, PREMIUM, VIP }
 
@@ -187,7 +184,7 @@ internal fun StitchHomeScreen(
         StitchSectionLabel("وضعیت سرویس")
         GanjGlassSurface(
             role = GanjGlassRole.Dense,
-            accent = if (premium) StitchProductGold else MaterialTheme.colorScheme.primary,
+            accent = if (premium) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth(),
             shapeRadius = 22.dp,
             padding = PaddingValues(16.dp),
@@ -201,7 +198,7 @@ internal fun StitchHomeScreen(
                     Text(
                         text = if (premium) "اشتراک پریمیوم فعال" else "حساب رایگان",
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (premium) StitchProductGoldBright else StitchProductEmerald,
+                        color = if (premium) LocalGanjContentPalette.current.premiumText else MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
@@ -258,7 +255,7 @@ internal fun StitchStoreScreen(
         item(key = "store-summary", contentType = "summary") {
             GanjGlassSurface(
                 role = GanjGlassRole.Prominent,
-                accent = StitchProductGold,
+                accent = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.fillMaxWidth(),
                 shapeRadius = 24.dp,
                 padding = PaddingValues(18.dp),
@@ -283,7 +280,7 @@ internal fun StitchStoreScreen(
         }
         if (vipPlans.isNotEmpty()) {
             item(key = "vip-upgrade", contentType = "premium") {
-                GanjGlassSurface(role = GanjGlassRole.Dense, accent = StitchProductGold,
+                GanjGlassSurface(role = GanjGlassRole.Dense, accent = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.fillMaxWidth().testTag("vip-upgrade-entry"),
                     shapeRadius = 22.dp, padding = PaddingValues(18.dp)) {
                     Text("GANJ  /  VIP", color = MaterialTheme.colorScheme.onSurface,
@@ -291,7 +288,7 @@ internal fun StitchStoreScreen(
                     Text("پلن‌های VIP موجود در فروشگاه را بررسی و مقایسه کنید.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall)
-                    StitchMiniAction("بررسی و ارتقا به VIP", StitchProductGold,
+                    StitchMiniAction("بررسی و ارتقا به VIP", MaterialTheme.colorScheme.secondary,
                         onClick = { vipSheetOpen = true },
                         modifier = Modifier.fillMaxWidth().testTag("vip-upgrade-open"))
                 }
@@ -454,21 +451,21 @@ private fun StitchQuickCard(
             when (icon) {
                 StitchQuickIcon.SERVERS -> GanjNavigationIcon(
                     destination = GanjDestination.Servers,
-                    tint = StitchProductEmerald,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp),
                 )
                 StitchQuickIcon.STORE -> GanjNavigationIcon(
                     destination = GanjDestination.Store,
-                    tint = StitchProductEmerald,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp),
                 )
                 StitchQuickIcon.PROFILE -> GanjNavigationIcon(
                     destination = GanjDestination.Account,
-                    tint = StitchProductEmerald,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp),
                 )
                 StitchQuickIcon.SECURITY -> GanjSecurityIcon(
-                    tint = StitchProductEmerald,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(23.dp),
                 )
             }
@@ -495,7 +492,7 @@ internal fun StitchMiniAction(
             text = text,
             modifier = Modifier.align(Alignment.Center),
             color = if (!enabled) MaterialTheme.colorScheme.onSurfaceVariant
-                else if (accent == StitchProductGold) Color(0xFF211600) else MaterialTheme.colorScheme.onPrimary,
+                else ganjActionForeground(accent),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
         )
@@ -507,9 +504,9 @@ private fun StitchPill(text: String, gold: Boolean = false, onClick: () -> Unit)
     GanjGlassButton(
         text = text,
         onClick = onClick,
-        accent = if (gold) StitchProductGold else MaterialTheme.colorScheme.primary,
+        accent = if (gold) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
         filled = false,
-        contentColor = if (gold) StitchProductGoldBright else StitchProductEmerald,
+        contentColor = if (gold) LocalGanjContentPalette.current.premiumText else MaterialTheme.colorScheme.primary,
     )
 }
 
@@ -519,12 +516,12 @@ private fun StitchStaticPill(text: String, gold: Boolean = false) {
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
             .background(
-                if (gold) StitchProductGold.copy(alpha = 0.14f)
+                if (gold) MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f)
                 else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
             )
             .border(
                 1.dp,
-                if (gold) StitchProductGold.copy(alpha = 0.38f)
+                if (gold) MaterialTheme.colorScheme.secondary.copy(alpha = 0.38f)
                 else MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
                 RoundedCornerShape(999.dp),
             )
@@ -532,7 +529,7 @@ private fun StitchStaticPill(text: String, gold: Boolean = false) {
     ) {
         Text(
             text = text,
-            color = if (gold) StitchProductGoldBright else StitchProductEmerald,
+            color = if (gold) LocalGanjContentPalette.current.premiumText else MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
         )
@@ -550,7 +547,7 @@ private fun StitchFilterChip(
         text = text,
         selected = selected,
         onClick = onClick,
-        accent = if (gold) StitchProductGold else MaterialTheme.colorScheme.primary,
+        accent = if (gold) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
     )
 }
 
@@ -565,7 +562,7 @@ private fun StitchPlanCard(
     val premium = plan.tier != UiTier.FREE
     GanjGlassSurface(
         role = if (selected) GanjGlassRole.Prominent else GanjGlassRole.Dense,
-        accent = if (premium) StitchProductGold else MaterialTheme.colorScheme.primary,
+        accent = if (premium) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
         modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onSelect),
         shapeRadius = 22.dp,
         padding = PaddingValues(16.dp),
@@ -579,7 +576,7 @@ private fun StitchPlanCard(
                 Text(
                     text = plan.title,
                     style = MaterialTheme.typography.titleLarge,
-                    color = if (premium) StitchProductGoldBright else MaterialTheme.colorScheme.onSurface,
+                    color = if (premium) LocalGanjContentPalette.current.premiumText else MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -638,7 +635,7 @@ private fun StitchPlanCard(
         }
         StitchMiniAction(
             text = if (plan.amountMinor == 0L) "انتخاب پلن" else "خرید و فعال‌سازی",
-            accent = if (premium) StitchProductGold else MaterialTheme.colorScheme.primary,
+            accent = if (premium) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
             onClick = onPurchase,
             enabled = purchaseEnabled,
             modifier = Modifier.fillMaxWidth(),
@@ -653,7 +650,7 @@ private fun StitchPlanMeta(
     modifier: Modifier = Modifier,
     gold: Boolean,
 ) {
-    val accent = if (gold) StitchProductGold else MaterialTheme.colorScheme.primary
+    val accent = if (gold) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
@@ -671,7 +668,7 @@ private fun StitchPlanMeta(
                 text = value,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = if (gold) StitchProductGoldBright else MaterialTheme.colorScheme.onSurface,
+                color = if (gold) LocalGanjContentPalette.current.premiumText else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -719,7 +716,7 @@ private fun StitchCheckoutStatus(
                 text = "در حال فعال‌سازی سرویس",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = StitchProductEmerald,
+                color = MaterialTheme.colorScheme.primary,
             )
             Text(
                 text = "پرداخت تأیید شده و سرویس شما در حال همگام‌سازی با حساب است.",
@@ -729,7 +726,7 @@ private fun StitchCheckoutStatus(
         }
         is CheckoutUiState.Active -> GanjGlassSurface(
             role = GanjGlassRole.Prominent,
-            accent = StitchProductGold,
+            accent = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.fillMaxWidth(),
             shapeRadius = 22.dp,
             padding = PaddingValues(16.dp),
@@ -739,7 +736,7 @@ private fun StitchCheckoutStatus(
                 text = "سرویس شما آماده استفاده است",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = StitchProductGoldBright,
+                color = LocalGanjContentPalette.current.premiumText,
             )
             Text(
                 text = "سرویس فعال‌شده در پروفایل و فهرست سرورها در دسترس است.",

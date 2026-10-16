@@ -55,8 +55,9 @@ internal fun Page(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = horizontalPadding, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(start = horizontalPadding, end = horizontalPadding,
+                    top = 18.dp, bottom = GanjFloatingNavContentClearance),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
         )
     }
@@ -108,8 +109,8 @@ private fun HeaderCopy(title: String, subtitle: String) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
@@ -148,11 +149,11 @@ internal fun ContentCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     GanjGlassSurface(
-        role = GanjGlassRole.OpaqueFallback,
+        role = GanjGlassRole.Dense,
         accent = accent,
         modifier = modifier.fillMaxWidth(),
-        shapeRadius = 24.dp,
-        padding = PaddingValues(18.dp),
+        shapeRadius = 14.dp,
+        padding = PaddingValues(16.dp),
         content = content,
     )
 }

@@ -106,7 +106,7 @@ internal fun StitchNativeBotStoreDestination(
 @Composable
 internal fun GanjNativePlanArt(plan: GanjBotProduct, modifier: Modifier = Modifier) {
     val accent = LocalGanjContentPalette.current.premiumText
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(14.dp)
     Box(modifier.clip(shape).background(Brush.linearGradient(listOf(
         MaterialTheme.colorScheme.primary.copy(alpha = .17f), accent.copy(alpha = .10f))))
         .border(1.dp, accent.copy(alpha = .26f), shape), contentAlignment = Alignment.Center) {
@@ -131,10 +131,15 @@ private fun NativeStoreHeader(title: String, onBack: () -> Unit, busy: Boolean =
 
 @Composable
 private fun NativeStorePanel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    val shape = RoundedCornerShape(14.dp)
-    Column(modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface)
-        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+    GanjGlassSurface(
+        role = GanjGlassRole.Dense,
+        accent = MaterialTheme.colorScheme.primary,
+        modifier = modifier.fillMaxWidth(),
+        shapeRadius = 14.dp,
+        padding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        content = content,
+    )
 }
 
 @Composable
@@ -176,7 +181,7 @@ internal fun StitchNativeBotCheckout(
         finally { loading = false }
     }
     LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-checkout"),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp,
+        contentPadding = PaddingValues(start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(), top = 18.dp,
         bottom = GanjFloatingNavContentClearance), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader(if (completedInvoice == null) "بررسی و تأیید خرید" else "خرید ثبت شد", onBack, busy) }
         if (loading) item { GanjLoadingState("در حال بررسی سرویس و موجودی") }
@@ -310,7 +315,7 @@ internal fun StitchNativeBotWallet(
         catch (e: Exception) { error = ganjBotStoreError(e) }
         finally { loading = false }
     }
-    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-wallet"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp,
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-wallet"), contentPadding = PaddingValues(start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(), top = 18.dp,
         bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader("کیف پول و پرداخت", onBack, busy) }
@@ -435,7 +440,7 @@ internal fun StitchNativeBotPayment(
     }
     fun copy(value: String) { (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
         .setPrimaryClip(ClipData.newPlainText("GANJ", value)) }
-    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-payment"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp,
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-payment"), contentPadding = PaddingValues(start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(), top = 18.dp,
         bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader("پرداخت امن گنج", onBack, busy) }
@@ -514,7 +519,7 @@ internal fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Uni
         catch (e: Exception) { error = ganjBotStoreError(e) }
         finally { loading = false }
     }
-    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-transactions"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp,
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-transactions"), contentPadding = PaddingValues(start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(), top = 18.dp,
         bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { NativeStoreHeader("تراکنش‌های گنج", onBack) }
