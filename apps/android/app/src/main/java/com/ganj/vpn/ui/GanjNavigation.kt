@@ -142,7 +142,15 @@ internal fun GanjLiquidBottomNavigation(
                         if (animate) spring(.88f,700f) else snap(), label = "waveTabPress")
                     val label = stringResource(destination.labelRes)
                     val tint = if (active) (if (dark) Color(0xFFE1FFEC) else colors.primary) else (if(dark) Color(0xFFB2E4D0) else colors.onSurfaceVariant)
-                    Column(Modifier.weight(1f).fillMaxHeight().testTag("nav-"+destination.name)
+                    // Limit touch bounds to the visible wave/buttons. Transparent upper
+                    // corners must pass drag gestures through to the scroller below.
+                    Column(Modifier.weight(1f)
+                        .height(if (destination == GanjDestination.Connect) {
+                            if (largeFont) 128.dp else 108.dp
+                        } else {
+                            if (largeFont) 92.dp else 82.dp
+                        })
+                        .testTag("nav-"+destination.name)
                         .semantics { contentDescription = UiAccessibilityPolicy.destinationDescription(label,active,"انتخاب‌شده") }
                         .selectable(active,interactionSource=interaction,indication=null,role=Role.Tab,onClick={
                             if (destination != selectedDestination) {
