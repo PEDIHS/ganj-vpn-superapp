@@ -4,7 +4,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 
 /** Lightweight detents only on actual list-row crossings, never per scroll pixel. */
 internal object GanjScrollHapticPolicy {
-    private const val MIN_TICK_INTERVAL_MS = 65L
+    private const val MIN_TICK_INTERVAL_MS = 105L
 
     fun feedbackForSdk(sdk: Int): HapticFeedbackType =
         when {
