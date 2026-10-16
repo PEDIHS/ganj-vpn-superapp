@@ -94,6 +94,7 @@ internal fun StitchProfileScreen(
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val name = telegramIdentityDisplayName(currentAccount) ?: if(linked) "حساب گنج" else "به گنج خوش آمدید"
     val username = telegramIdentityUsername(currentAccount)
+    val telegramAvatar = rememberGanjTelegramAvatar(currentAccount?.takeIf { linked }, botStoreApi)
     val wallet = if (linked && botStoreApi != null) rememberGanjProfileWallet(botStoreApi, currentAccount?.id) else null
     LazyColumn(modifier.fillMaxSize().then(profileRevealModifier(panel)).testTag("reference-profile"),
         contentPadding = PaddingValues(horizontal=responsiveHorizontalPadding(),vertical=20.dp),
@@ -131,7 +132,8 @@ internal fun StitchProfileScreen(
                 item(key="profile-identity") {
                     GanjProfileIdentity(name, username, linked,
                         if (state.services is ContentState.Ready) premium else null,
-                        onManage = { panel = "account" }, onOpenVip = onOpenVip ?: onBuy)
+                        onManage = { panel = "account" }, onOpenVip = onOpenVip ?: onBuy,
+                        avatar = telegramAvatar)
                 }
                 if (linked && onOpenWallet != null) item(key="wallet-summary") {
                     GanjProfileWalletCard(wallet?.balance, wallet?.busy ?: false, wallet?.message,
