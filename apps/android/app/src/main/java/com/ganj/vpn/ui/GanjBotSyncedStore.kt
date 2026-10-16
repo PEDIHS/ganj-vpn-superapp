@@ -200,6 +200,8 @@ internal fun StitchBotSyncedStoreScreen(
     enablePublicCache: Boolean = false,
     vipEntryRequested: Boolean = false,
     onVipEntryHandled: () -> Unit = {},
+    activeVip: Boolean = false,
+    onOpenSubscription: () -> Unit = {},
 ) {
     var retryKey by remember { mutableIntStateOf(0) }
     var rememberedGuestScope by remember { mutableStateOf(enablePublicCache) }
@@ -241,7 +243,8 @@ internal fun StitchBotSyncedStoreScreen(
         finally {loading=false}
     }
     if(products.any {it.appTier!=null}) {
-        GanjTierCatalog(products,onOpenProduct,onOpenWallet,onOpenTransactions,loading,error,{retryKey++},modifier, vipOnly, { vipOnly = it })
+        GanjTierCatalog(products,onOpenProduct,onOpenWallet,onOpenTransactions,loading,error,
+            {retryKey++}, modifier, vipOnly, { vipOnly = it }, activeVip, onOpenSubscription)
         return
     }
     val panels=remember(products){botStorePanels(products)}
@@ -280,7 +283,11 @@ internal fun StitchBotSyncedStoreScreen(
         }
         if (vipOnly) item(key="bot-vip-hero") {
             GanjSignatureVipHero(Modifier.testTag("store-vip-hero"))
-        } else if (products.any { it.isVip() }) item(key="bot-vip-hero") {
+        }
+        if (vipOnly && activeVip) item(key="active-vip-status") {
+            GanjSignatureVipMembership(onOpenSubscription)
+        }
+        if (!vipOnly && products.any { it.isVip() }) item(key="bot-vip-hero") {
             GanjSignatureBanner("دنیای گنج VIP", "مشاهده و بررسی پلن‌های موجود", {
                 vipOnly = true; selectedKey = null; duration = null; category = null; panelId = null
             }, Modifier.testTag("vip-upgrade-entry"))
@@ -368,7 +375,7 @@ internal fun botPlanDeviceCount(plan: GanjBotProduct): Int =
 @Composable
 internal fun GanjReferenceBotPlan(plan: GanjBotProduct, selected: Boolean, onSelect: () -> Unit, startingPrice: Boolean = false) {
     val tone = when {
-        plan.isVip() -> GanjSignatureTone.Iris
+        plan.isVip() || plan.appTier == "premium" -> GanjSignatureTone.Iris
         plan.featured -> GanjSignatureTone.Coral
         else -> GanjSignatureTone.Azure
     }

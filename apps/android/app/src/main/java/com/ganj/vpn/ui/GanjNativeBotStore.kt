@@ -55,6 +55,7 @@ internal fun StitchNativeBotStoreDestination(
     allowGuestCatalogCache: Boolean = false,
     vipEntryRequested: Boolean = false,
     onVipEntryHandled: () -> Unit = {},
+    activeVip: Boolean = false,
 ) {
     val api = remember(suppliedApi, onStoreBridgeAuthorization) { suppliedApi ?: GanjBotNativeStoreApi(onStoreBridgeAuthorization) }
     var page by rememberSaveable { mutableStateOf("catalog") }
@@ -98,6 +99,8 @@ internal fun StitchNativeBotStoreDestination(
                 enablePublicCache = allowGuestCatalogCache,
                 vipEntryRequested = vipEntryRequested,
                 onVipEntryHandled = onVipEntryHandled,
+                activeVip = activeVip,
+                onOpenSubscription = onOpenSubscriptions,
             )
         }
     }
@@ -105,11 +108,16 @@ internal fun StitchNativeBotStoreDestination(
 
 @Composable
 internal fun GanjNativePlanArt(plan: GanjBotProduct, modifier: Modifier = Modifier) {
-    val accent = LocalGanjContentPalette.current.premiumText
+    val tone = when {
+        plan.isVip() -> GanjSignatureTone.Iris
+        plan.featured -> GanjSignatureTone.Coral
+        else -> GanjSignatureTone.Azure
+    }
+    val accent = ganjSignatureTone(tone)
     val shape = RoundedCornerShape(14.dp)
     Box(modifier.clip(shape).background(Brush.linearGradient(listOf(
-        MaterialTheme.colorScheme.primary.copy(alpha = .17f), accent.copy(alpha = .10f))))
-        .border(1.dp, accent.copy(alpha = .26f), shape), contentAlignment = Alignment.Center) {
+        accent.copy(alpha = .30f), accent.copy(alpha = .12f))))
+        .border(1.dp, accent.copy(alpha = .55f), shape), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(if (plan.volumeGb > 0) String.format(Locale.US, "%.1f", plan.volumeGb).removeSuffix(".0").toPersianDigits() else "∞",
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,

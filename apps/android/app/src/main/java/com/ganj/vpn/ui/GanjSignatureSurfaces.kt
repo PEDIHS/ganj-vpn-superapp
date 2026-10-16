@@ -113,15 +113,20 @@ internal fun GanjSignatureGem(modifier: Modifier = Modifier) {
 
 @Composable
 internal fun GanjSignatureBanner(title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val gold = signatureGold()
-    val shape = RoundedCornerShape(16.dp)
+    val gold = ganjSignatureTone(GanjSignatureTone.Gold)
+    val iris = ganjSignatureTone(GanjSignatureTone.Iris)
+    val aqua = ganjSignatureTone(GanjSignatureTone.Aqua)
+    val shape = RoundedCornerShape(17.dp)
     Row(modifier.fillMaxWidth().clip(shape)
-        .background(gold.copy(alpha = .07f).compositeOver(MaterialTheme.colorScheme.surface))
-        .border(1.dp, gold.copy(alpha = .5f), shape).clickable(role = Role.Button, onClick = onClick)
+        .background(Brush.linearGradient(listOf(
+            iris.copy(alpha = .23f).compositeOver(MaterialTheme.colorScheme.surface),
+            aqua.copy(alpha = .12f).compositeOver(MaterialTheme.colorScheme.surface),
+            gold.copy(alpha = .10f).compositeOver(MaterialTheme.colorScheme.surface))))
+        .border(1.dp, iris.copy(alpha = .63f), shape).clickable(role = Role.Button, onClick = onClick)
         .padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         GanjSignatureGem(Modifier.size(48.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = gold)
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text("‹", style = MaterialTheme.ty@Composable
@@ -189,5 +194,32 @@ internal fun GanjSignatureVipHero(modifier: Modifier = Modifier) {
             Spacer(Modifier.height(10.dp))
             GanjSignatureMiniPill("GANJ · PRIVATE ACCESS", GanjSignatureTone.Gold)
         }
+    }
+}
+
+
+/** Live VIP membership marker sourced only from an active VIP entitlement. */
+@Composable
+internal fun GanjSignatureVipMembership(onOpenSubscription: () -> Unit) {
+    val aqua = ganjSignatureTone(GanjSignatureTone.Aqua)
+    val iris = ganjSignatureTone(GanjSignatureTone.Iris)
+    val shape = RoundedCornerShape(17.dp)
+    Row(Modifier.fillMaxWidth().clip(shape)
+        .background(Brush.linearGradient(listOf(
+            aqua.copy(alpha = .18f).compositeOver(MaterialTheme.colorScheme.surface),
+            iris.copy(alpha = .14f).compositeOver(MaterialTheme.colorScheme.surface))))
+        .border(1.dp, aqua.copy(alpha = .62f), shape)
+        .padding(15.dp).testTag("vip-active-membership"),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        GanjSignatureGem(Modifier.size(42.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("عضویت VIP فعال", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text("اطلاعات مدت، حجم و دستگاه‌ها در اشتراک‌های شماست",
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        GanjGlassButton("جزئیات", onOpenSubscription, accent = aqua, filled = false,
+            shapeRadius = 12.dp)
     }
 }

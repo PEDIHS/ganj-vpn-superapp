@@ -213,7 +213,7 @@ internal fun GanjProfileIdentity(
             Spacer(Modifier.height(7.dp))
             if (linked) {
                 if (premium == true) {
-                    GanjSignatureMiniPill("GANJ VIP  ·  عضویت ویژه", GanjSignatureTone.Gold)
+                    GanjSignatureMiniPill("عضویت فعال گنج", GanjSignatureTone.Gold)
                 } else {
                     GanjSignatureMiniPill("حساب متصل", GanjSignatureTone.Aqua)
                 }

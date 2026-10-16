@@ -772,6 +772,9 @@ fun GanjVpnApp(
                             GanjDestination.Store -> StitchNativeBotStoreDestination(
                                 vipEntryRequested = storeVipRequested,
                                 onVipEntryHandled = { storeVipRequested = false },
+                                activeVip = telegramLinked && state.serviceItems.any {
+                                    it.isActive && it.tier == com.ganj.vpn.presentation.UiTier.VIP
+                                },
                                 onStoreBridgeAuthorization = onStoreBridgeAuthorization,
                                 suppliedApi = botStoreApi,
                                 allowGuestCatalogCache = !telegramLinked,
