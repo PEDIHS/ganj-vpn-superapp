@@ -262,7 +262,7 @@ internal fun StitchBotSyncedStoreScreen(
     val muted=MaterialTheme.colorScheme.onSurfaceVariant
     val gold=signatureGold()
     LazyColumn(modifier.fillMaxSize().then(profileRevealModifier(if (vipOnly) "vip" else "store")).testTag("bot-synced-store"),
-        contentPadding=PaddingValues(horizontal=responsiveHorizontalPadding(), top=20.dp,
+        contentPadding=PaddingValues(start=responsiveHorizontalPadding(), end=responsiveHorizontalPadding(), top=20.dp,
             bottom=GanjFloatingNavContentClearance),
         verticalArrangement=Arrangement.spacedBy(12.dp)) {
         item(key="bot-header") {
