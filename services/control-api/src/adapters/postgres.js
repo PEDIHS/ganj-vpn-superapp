@@ -243,13 +243,32 @@ export class PostgresRepository {
 
   async bindAccessibleDevice(principal, service) {
     const db=this.database();
+    // The service row serializes device handovers with family operations and profile creation.
+    await db.query("SELECT id FROM control_services WHERE id=$1 FOR UPDATE", [service.id]);
     const device=await db.query("SELECT id FROM control_devices WHERE id=$1 AND user_id=$2 AND status='active' FOR SHARE",[principal.deviceId,principal.userId]);
     if (!device.rowCount) throw new ApiError(403,'device_not_trusted','Device is unavailable.');
-    if(service.deviceIds.includes(principal.deviceId)) return;
-    // An unbound owner/member already reserves one slot; additional devices consume another.
-    const existing=await db.query('SELECT 1 FROM control_service_devices WHERE service_id=$1 AND user_id=$2',[service.id,principal.userId]);
-    if(existing.rowCount && await this.familySlots(service.id)>=service.device_limit) throw new ApiError(403,'device_limit_reached','Service device limit has been reached.');
-    if(await this.familySlots(service.id)>service.device_limit) throw new ApiError(403,'device_limit_reached','Service device limit has been reached.');
+    const bound=await db.query("SELECT 1 FROM control_service_devices WHERE service_id=$1 AND device_id=$2 AND user_id=$3", [service.id,principal.deviceId,principal.userId]);
+    if (bound.rowCount) return;
+    // Legacy purchases belong to the Telegram account, not a permanently pinned installation.
+    // For a single-slot legacy owner with no shared members, safely hand over the owner's
+    // existing app slot instead of treating a reinstall or replacement phone as a full plan.
+    const existing=await db.query("SELECT 1 FROM control_service_devices WHERE service_id=$1 AND user_id=$2", [service.id,principal.userId]);
+    if (existing.rowCount && await this.familySlots(service.id)>=service.device_limit) {
+      const replaceable=await db.query(`SELECT 1 FROM control_services s
+        JOIN control_legacy_service_projections lp ON lp.control_service_id=s.id
+        JOIN control_users u ON u.id=s.user_id AND u.status='active' AND u.telegram_subject IS NOT NULL
+        WHERE s.id=$1 AND s.user_id=$2 AND s.device_limit=1
+          AND NOT EXISTS (SELECT 1 FROM control_service_members m WHERE m.service_id=s.id AND m.revoked_at IS NULL)
+          AND NOT EXISTS (SELECT 1 FROM control_service_devices sd WHERE sd.service_id=s.id AND sd.user_id<>$2)
+        LIMIT 1`, [service.id,principal.userId]);
+      if (!replaceable.rowCount) throw new ApiError(403,'device_limit_reached','Service device limit has been reached.');
+      // Remove old short-lived profile grants as well as the old app binding.
+      await db.query("DELETE FROM control_connection_profile_grants WHERE service_id=$1 AND user_id=$2 AND device_id<>$3",
+        [service.id,principal.userId,principal.deviceId]);
+      await db.query("DELETE FROM control_service_devices WHERE service_id=$1 AND user_id=$2 AND device_id<>$3",
+        [service.id,principal.userId,principal.deviceId]);
+    }
+    if (await this.familySlots(service.id)>service.device_limit) throw new ApiError(403,'device_limit_reached','Service device limit has been reached.');
     await db.query(`INSERT INTO control_service_devices(service_id,device_id,user_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[service.id,principal.deviceId,principal.userId]);
   }
 

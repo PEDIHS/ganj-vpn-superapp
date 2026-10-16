@@ -196,7 +196,10 @@ export function createLiveConnectionRouter({ auth, repository, connectionSource,
       const currentServer = await connectionSource.resolveServer({ principal, service: current, serverId });
       if (!currentServer || !entitled(currentServer, current)) throw new ApiError(403, 'entitlement_changed', 'Service entitlement changed during profile issuance.');
       const alreadyBound = current.deviceIds.includes(deviceId);
-      if (!alreadyBound && current.deviceIds.length >= current.device_limit) throw new ApiError(403, 'device_limit_reached', 'Service device limit has been reached.');
+      // PostgreSQL owns slot accounting (including safe legacy-owner device replacement).
+      // Keep the explicit limit check for adapters without device binding support.
+      if (!repository.bindAccessibleDevice && !alreadyBound && current.deviceIds.length >= current.device_limit)
+        throw new ApiError(403, 'device_limit_reached', 'Service device limit has been reached.');
       if (repository.bindAccessibleDevice) await repository.bindAccessibleDevice(principal,current);
       else if (!alreadyBound) await repository.saveService({ ...current, deviceIds: [...current.deviceIds, deviceId] });
       const reserved = await repository.reserveConnectionProfile({

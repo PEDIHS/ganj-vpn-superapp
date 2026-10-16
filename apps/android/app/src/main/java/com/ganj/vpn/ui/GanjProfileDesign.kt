@@ -180,6 +180,7 @@ internal fun GanjProfileIdentity(
     name: String, username: String?, linked: Boolean, premium: Boolean?, onManage: () -> Unit,
     onOpenVip: (() -> Unit)? = null,
     avatar: ImageBitmap? = null,
+    onConnectTelegram: () -> Unit = onManage,
 ) {
     val colors = MaterialTheme.colorScheme
     val gold = signatureGold()
@@ -217,11 +218,28 @@ internal fun GanjProfileIdentity(
                     GanjStatusPill("استاندارد", GanjStatusTone.Neutral)
                     Spacer(Modifier.height(10.dp))
                 } else Spacer(Modifier.height(8.dp))
-                FlowRow(Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = 15.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(4.dp),
-                    itemVerticalAlignment = Alignment.CenterVertically) {
-                    Text(if (linked) "تلگرام متصل" else "حساب مهمان", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
-                    GanjGlassButton("مدیریت حساب", onManage, filled = false, shapeRadius = 10.dp)
+                if (linked) {
+                    FlowRow(Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = 15.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(4.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically) {
+                        Text("تلگرام متصل", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                        GanjGlassButton("مدیریت حساب", onManage, filled = false, shapeRadius = 10.dp)
+                    }
+                } else {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        GanjLiquidAction(onClick = onConnectTelegram, accent = Color(0xFF229ED9),
+                            shapeRadius = 999.dp,
+                            modifier = Modifier.fillMaxWidth().testTag("profile-connect-telegram")) {
+                            Text("اتصال حساب به تلگرام", modifier = Modifier.align(Alignment.Center),
+                                color = Color.White, style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold)
+                        }
+                        Text("برای نمایش اشتراک‌های خریداری‌شده، حساب تلگرام خود را متصل کنید.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
+                    }
                 }
             }
         }

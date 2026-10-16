@@ -84,6 +84,7 @@ internal fun StitchProfileScreen(
     onOpenSupport: (() -> Unit)? = null,
     onOpenDetails: (() -> Unit)? = null,
     onOpenVip: (() -> Unit)? = null,
+    onTelegramConnect: (() -> Unit)? = null,
 ) {
     val activeServices = remember(state.services) { state.serviceItems.filter { it.isActive } }
     val premium = activeServices.any { it.tier != UiTier.FREE }
@@ -134,7 +135,7 @@ internal fun StitchProfileScreen(
                     GanjProfileIdentity(name, username, linked,
                         if (state.services is ContentState.Ready) premium else null,
                         onManage = { panel = "account" }, onOpenVip = onOpenVip ?: onBuy,
-                        avatar = telegramAvatar)
+                        avatar = telegramAvatar, onConnectTelegram = onTelegramConnect ?: { panel = "account" })
                 }
                 if (linked && onOpenWallet != null) item(key="wallet-summary") {
                     GanjProfileWalletCard(wallet?.balance, wallet?.busy ?: false, wallet?.message,
@@ -215,7 +216,7 @@ internal fun StitchProfileScreen(
                     }
                 }
                 item(key="account-session") {
-                    GanjGlassButton(if(linked) "مدیریت نشست و خروج از حساب" else "ورود با تلگرام",{panel="account"},filled=false,modifier=Modifier.fillMaxWidth())
+                    if (linked) GanjGlassButton("مدیریت نشست و خروج از حساب",{panel="account"},filled=false,modifier=Modifier.fillMaxWidth())
                     Text("GANJ VPN · "+com.ganj.vpn.BuildConfig.VERSION_NAME,style=MaterialTheme.typography.labelSmall,color=muted,modifier=Modifier.fillMaxWidth(),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }
