@@ -176,7 +176,8 @@ internal fun StitchNativeBotCheckout(
         finally { loading = false }
     }
     LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-checkout"),
-        contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp,
+        bottom = GanjFloatingNavContentClearance), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader(if (completedInvoice == null) "بررسی و تأیید خرید" else "خرید ثبت شد", onBack, busy) }
         if (loading) item { GanjLoadingState("در حال بررسی سرویس و موجودی") }
         product?.let { plan -> item {
@@ -309,7 +310,8 @@ internal fun StitchNativeBotWallet(
         catch (e: Exception) { error = ganjBotStoreError(e) }
         finally { loading = false }
     }
-    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-wallet"), contentPadding = PaddingValues(16.dp),
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-wallet"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp,
+        bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader("کیف پول و پرداخت", onBack, busy) }
         if (loading) item { GanjLoadingState("در حال دریافت روش‌های پرداخت") }
@@ -433,7 +435,8 @@ internal fun StitchNativeBotPayment(
     }
     fun copy(value: String) { (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
         .setPrimaryClip(ClipData.newPlainText("GANJ", value)) }
-    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-payment"), contentPadding = PaddingValues(16.dp),
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-payment"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp,
+        bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader("پرداخت امن گنج", onBack, busy) }
         item { NativeStorePanel {
@@ -511,7 +514,8 @@ internal fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Uni
         catch (e: Exception) { error = ganjBotStoreError(e) }
         finally { loading = false }
     }
-    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-transactions"), contentPadding = PaddingValues(16.dp),
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-transactions"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp,
+        bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { NativeStoreHeader("تراکنش‌های گنج", onBack) }
         if (loading) item { GanjLoadingState("در حال دریافت سوابق") }
