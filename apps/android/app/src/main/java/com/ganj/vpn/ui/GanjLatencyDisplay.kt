@@ -32,7 +32,7 @@ internal fun rememberGanjProbeVisual(
     val updates = remember(latency, key) {
         latency.state.map { it.probeVisual(key) }.distinctUntilChanged()
     }
-    val status by updates.collectAsState(initial = latency.state.value.probeVisual(key))
+    val status by updates.collectAsState(initial = GanjProbeVisual())
     return status
 }
 
@@ -45,6 +45,6 @@ internal fun rememberGanjServiceProbing(
     val updates = remember(latency, serviceId) {
         latency.state.map { it.serviceProbing(serviceId) }.distinctUntilChanged()
     }
-    val busy by updates.collectAsState(initial = latency.state.value.serviceProbing(serviceId))
+    val busy by updates.collectAsState(initial = false)
     return busy
 }
