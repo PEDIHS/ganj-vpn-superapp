@@ -476,7 +476,8 @@ fun GanjVpnApp(
     fun requestProfile(entitlementId: String) {
         if (disconnectRequested || connectionJob?.isActive == true) return
         val choice = state.selectedConnectionServer?.takeIf { it.entitlementId == entitlementId }
-        if (choice == null) { openConfigs(); return }
+        // No popup picker: the inline list asks the user to choose a config first.
+        if (choice == null) return
         connectionJob?.cancel()
         commit(reducer.reduce(state, GanjUiEvent.ConnectionRequested(entitlementId)))
         val pendingState = state
@@ -703,7 +704,9 @@ fun GanjVpnApp(
                                     connectionJob?.cancel()
                                     commit(reducer.reduce(state, GanjUiEvent.SelectService(entitlementId)))
                                     accountId?.let { selectionStore.rememberService(it, entitlementId) }
-                                    openConfigs()
+                                    // The selected subscription's configs now stay inline on Connect.
+                                    configPickerServiceId = null
+                                    selectedDestination = GanjDestination.Connect
                                 },
                                 onRetry = ::refresh,
                                 onOpenStore = { selectedDestination = GanjDestination.Store },
@@ -722,6 +725,18 @@ fun GanjVpnApp(
                                 onOpenServers = ::openConfigs,
                                 onOpenSubscriptions = { selectedDestination = GanjDestination.Servers },
                                 loadServers = ::loadServiceServers,
+                                onSelectServer = { entitlementId, server ->
+                                    if (state.selectedEntitlementId == entitlementId) {
+                                        connectionJob?.cancel()
+                                        commit(reducer.reduce(state, GanjUiEvent.SelectServer(entitlementId, server)))
+                                        accountId?.let { selectionStore.rememberServer(it, entitlementId, server.id) }
+                                        // Keep the entire server list visible. No auto-connection or navigation.
+                                    }
+                                },
+                                accountCacheKey = accountId,
+                                cachedServers = accountId?.let { id ->
+                                    state.selectedService?.let { selectionStore.cachedCatalog(id, it.entitlementId) }
+                                }.orEmpty(),
                                 onSelectAndConnect = { entitlementId, server ->
                                     if (state.selectedEntitlementId == entitlementId) {
                                         commit(reducer.reduce(state, GanjUiEvent.SelectServer(entitlementId, server)))
