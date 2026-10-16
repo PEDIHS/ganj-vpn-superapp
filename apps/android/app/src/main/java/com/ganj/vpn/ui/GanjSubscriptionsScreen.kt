@@ -87,7 +87,8 @@ internal fun StitchSubscriptionsScreen(
     LazyColumn(
         modifier = modifier.fillMaxSize().imePadding().testTag("subscriptions-screen")
             .focusRequester(initialFocus).focusable().selectableGroup(),
-        contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = responsiveHorizontalPadding(), top = 12.dp,
+            bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
