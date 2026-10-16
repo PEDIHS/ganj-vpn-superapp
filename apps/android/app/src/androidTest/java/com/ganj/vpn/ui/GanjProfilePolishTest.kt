@@ -179,6 +179,7 @@ class GanjProfilePolishTest {
         var fail = false
         var gate: CompletableDeferred<Unit>? = null
         override suspend fun request(action: String, parameters: Map<String, String>): JSONObject {
+            if (action == "profile_avatar") return JSONObject().put("data", JSONObject().put("image_base64", JSONObject.NULL))
             check(action == "wallet_methods"); calls++
             gate?.await()
             if (fail) throw java.io.IOException("fixture offline")
