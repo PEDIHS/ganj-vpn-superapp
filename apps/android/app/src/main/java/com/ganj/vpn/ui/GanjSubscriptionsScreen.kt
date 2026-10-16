@@ -361,21 +361,38 @@ internal fun StitchConfigSelectionSheet(
     latency: SessionLatencyManager?,
     onSelect: (ConnectionServer) -> Unit,
     onDismiss: () -> Unit,
+    cachedServers: List<ConnectionServer> = emptyList(),
 ) {
     val haptic = LocalHapticFeedback.current
     val effects = LocalGanjVisualEffectsPolicy.current
     var query by rememberSaveable(service.entitlementId) { mutableStateOf("") }
     var sortByPing by rememberSaveable(service.entitlementId) { mutableStateOf(false) }
-    var catalog by remember(service.entitlementId) { mutableStateOf<ContentState<ConnectionServer>>(ContentState.Loading) }
+    // Display safe account-scoped metadata immediately; refresh never blanks existing rows.
+    var catalog by remember(service.entitlementId) {
+        mutableStateOf<ContentState<ConnectionServer>>(
+            if (cachedServers.isEmpty()) ContentState.Loading else ContentState.Ready(cachedServers)
+        )
+    }
     var refresh by remember(service.entitlementId) { mutableIntStateOf(0) }
+    var refreshing by remember(service.entitlementId) { mutableStateOf(false) }
+    var refreshFailure by remember(service.entitlementId) { mutableStateOf<String?>(null) }
     LaunchedEffect(service.entitlementId, refresh) {
-        catalog = ContentState.Loading
-        val result = loadServers(service.entitlementId)
-        if (!isActive) return@LaunchedEffect
-        catalog = when (result) {
-            is ApiResult.Success -> if (result.value.isEmpty()) ContentState.Empty else ContentState.Ready(result.value)
-            is ApiResult.Failure -> ContentState.Error(ConnectionFailures.api(result.error))
-        }
+        if (catalog !is ContentState.Ready) catalog = ContentState.Loading
+        refreshing = true
+        refreshFailure = null
+        try {
+            val result = loadServers(service.entitlementId)
+            if (!isActive) return@LaunchedEffect
+            when (result) {
+                is ApiResult.Success -> catalog = if (result.value.isEmpty()) ContentState.Empty else ContentState.Ready(result.value)
+                is ApiResult.Failure -> {
+                    if (catalog is ContentState.Ready && result.error !is com.ganj.vpn.core.controlapi.ApiError.AuthenticationRequired &&
+                        result.error !is com.ganj.vpn.core.controlapi.ApiError.AuthenticationExpired) {
+                        refreshFailure = "سرورها از آخرین دریافت نمایش داده شده‌اند؛ برای اتصال باید دوباره تأیید شوند."
+                    } else catalog = ContentState.Error(ConnectionFailures.api(result.error))
+                }
+            }
+        } finally { refreshing = false }
     }
     val readings = latency?.state?.collectAsState()?.value ?: LatencySnapshot()
     val servers = (catalog as? ContentState.Ready)?.items.orEmpty()
@@ -408,8 +425,15 @@ internal fun StitchConfigSelectionSheet(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("${filteredServers.size.toPersianDigits()} کانفیگ", Modifier.weight(1f),
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = { refresh++ }) { Text(stringResource(R.string.common_refresh), style = MaterialTheme.typography.labelSmall) }
+                    TextButton(onClick = { if (!refreshing) refresh++ }, enabled = !refreshing) {
+                        Text(if (refreshing) "در حال به‌روزرسانی" else stringResource(R.string.common_refresh),
+                            style = MaterialTheme.typography.labelSmall)
+                    }
                 }
+            }
+            refreshFailure?.let { message ->
+                item { Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall) }
             }
             when (val content = catalog) {
                 ContentState.Loading -> item { LoadingCard(stringResource(R.string.config_picker_loading)) }
@@ -420,7 +444,7 @@ internal fun StitchConfigSelectionSheet(
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             GanjGlassButton(if (busy) "سنجش…" else "پینگ همه",
-                                { latency?.measure(service.entitlementId, servers.map { it.id }) },
+                                { latency?.measure(service.entitlementId, servers.map { it.id }, force = true) },
                                 Modifier.weight(1f), enabled = !busy && latency != null, filled = false)
                             GanjGlassButton(if (sortByPing) "ترتیب اصلی" else "ترتیب پینگ",
                                 { sortByPing = !sortByPing }, Modifier.weight(1f), filled = false)
@@ -435,7 +459,7 @@ internal fun StitchConfigSelectionSheet(
                             onSelect = {
                                 if (!effects.reduceMotion) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onSelect(server)
-                            }, onPing = { latency?.measure(service.entitlementId, listOf(server.id)) },
+                            }, onPing = { latency?.measure(service.entitlementId, listOf(server.id), force = true) },
                             canPing = latency != null)
                     }
                 }
