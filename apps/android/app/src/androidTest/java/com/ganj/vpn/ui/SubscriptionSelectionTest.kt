@@ -108,8 +108,10 @@ class SubscriptionSelectionTest {
         } }
         compose.onNodeWithTag("inline-config-list").assertExists()
         compose.onNodeWithTag("config-scroll-indicator").assertExists()
+        compose.onNodeWithTag("config-bottom-fade").assertExists()
         compose.onNodeWithTag("inline-config-list")
             .performScrollToNode(hasTestTag("config-option-many-28"))
+        compose.onNodeWithTag("config-top-fade").assertExists()
         compose.onNodeWithTag("config-option-many-28").performClick().assertIsSelected()
         compose.runOnIdle { assertEquals(manyConfigs.last(), chosen) }
         capture("config-inline-long-dark")
