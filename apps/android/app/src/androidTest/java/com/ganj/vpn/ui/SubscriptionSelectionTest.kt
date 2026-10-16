@@ -55,12 +55,6 @@ class SubscriptionSelectionTest {
                             onSelectAndConnect = { _, _ -> },
                             onSelectServer = { serviceId, server ->
                                 state = reducer.reduce(state, GanjUiEvent.SelectServer(serviceId, server))
-                                state = state.copy(
-                                    connection = ConnectionUiState.Connected(first.entitlementId, "fixture-profile", configs[0].id),
-                                    runtimeConnection = com.ganj.vpn.core.vpn.ConnectionState(
-                                        com.ganj.vpn.core.vpn.ConnectionPhase.CONNECTED,
-                                        serverId = configs[0].id, serviceId = first.entitlementId)
-                                )
                             },
                             onOpenStore = {}, onRetry = {})
                     }
