@@ -105,7 +105,9 @@ function trustedConnection(server, service) {
     protocol: value.protocol,
     credential: value.credential,
     transport,
-    security: { ...security, ...(security.allow_insecure === undefined ? {} : { allow_insecure: false }) },
+    // The Android GVP1 v1 strict parser requires an explicit false on both TLS
+    // and REALITY. The source is untrusted so never forward true or weaken TLS.
+    security: security.type === 'none' ? { type: 'none' } : { ...security, allow_insecure: false },
     flow: value.flow ?? null,
     shadowsocks_method: value.shadowsocks_method ?? null,
   };
