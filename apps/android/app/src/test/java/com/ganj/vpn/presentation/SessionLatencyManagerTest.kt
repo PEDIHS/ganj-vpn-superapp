@@ -145,4 +145,38 @@ class SessionLatencyManagerTest {
             assertEquals("probe.timeout", failure.failure.diagnosticCode)
         } finally { manager.close() }
     }
+    @Test fun automaticPingRunsOnceForEachSelectedSubscription() = runBlocking {
+        val requests = mutableListOf<String>()
+        val manager = SessionLatencyManager(
+            { service, _ -> synchronized(requests) { requests.add(service) }; LatencyProbeResult.Measured(34) },
+            CoroutineScope(coroutineContext + SupervisorJob()),
+        )
+        try {
+            manager.startAutomatic("service-one") { listOf("server") }
+            withTimeout(2000) { manager.state.first { it.readings.keys.any { key -> key.serviceId == "service-one" } } }
+            manager.startAutomatic("service-two") { listOf("server") }
+            manager.startAutomatic("service-two") { error("Duplicate automatic catalog request") }
+            withTimeout(2000) { manager.state.first { it.readings.keys.any { key -> key.serviceId == "service-two" } } }
+            assertEquals(listOf("service-one", "service-two"), synchronized(requests) { requests.toList() })
+        } finally { manager.close() }
+    }
+
+    @Test fun freshPingsAreReusedUnlessUserExplicitlyRefreshes() = runBlocking {
+        var probes = 0
+        val manager = SessionLatencyManager(
+            { _, _ -> probes++; LatencyProbeResult.Measured(53) },
+            CoroutineScope(coroutineContext + SupervisorJob()),
+            { 10_000L },
+        )
+        try {
+            manager.measure("one", listOf("a"))
+            withTimeout(2000) { manager.state.first { it.readings.size == 1 && it.measuring.isEmpty() } }
+            manager.measure("one", listOf("a"))
+            assertEquals(1, probes)
+            manager.measure("one", listOf("a"), force = true)
+            withTimeout(2000) { manager.state.first { it.readings.size == 1 && it.measuring.isEmpty() } }
+            assertEquals(2, probes)
+        } finally { manager.close() }
+    }
+
 }
