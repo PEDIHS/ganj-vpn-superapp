@@ -1,7 +1,7 @@
 name: GANJ native UI visual review
 on:
   push:
-    branches: [fix/ganj-0334-motion-haptics-20261016, feat/profile-polish-20261016, feat/service-family-sharing, feat/ganj-flagglass-config-20261003, feat/ganj-fluid-navigation-0.3.17, feat/ganj-ui-unify-20261015]
+    branches: [perf/ganj-0335-fluid-server-scroll-20261016, fix/ganj-0334-motion-haptics-20261016, feat/profile-polish-20261016, feat/service-family-sharing, feat/ganj-flagglass-config-20261003, feat/ganj-fluid-navigation-0.3.17, feat/ganj-ui-unify-20261015]
 permissions:
   contents: read
   actions: read

@@ -499,9 +499,12 @@ internal fun GanjConfigOption(
     val entry = remember(server.id, animateEntrance) {
         androidx.compose.animation.core.Animatable(if (reduceMotion || !animateEntrance) 1f else 0f)
     }
-    LaunchedEffect(server.id, reduceMotion, animateEntrance) {
-        if (reduceMotion || !animateEntrance) entry.snapTo(1f)
-        else entry.animateTo(1f, tween(180))
+    // Recycled inline rows have alpha=1 already; avoid a coroutine per row on fling.
+    if (animateEntrance) {
+        LaunchedEffect(server.id, reduceMotion) {
+            if (reduceMotion) entry.snapTo(1f)
+            else entry.animateTo(1f, tween(180))
+        }
     }
     val identity = remember(server.name, server.countryCode) {
         ganjConfigIdentity(server.name, server.countryCode)
@@ -564,7 +567,8 @@ internal fun GanjConfigOption(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 GanjConfigFlagBadge(identity.countryCode, selected,
-                    Modifier.size(flagWidth, flagHeight).testTag("config-option-flag-" + server.id))
+                    Modifier.size(flagWidth, flagHeight).testTag("config-option-flag-" + server.id),
+                    flatScrollRow = compact)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 5.dp)) {
                     Text(identity.title, style = MaterialTheme.typography.titleSmall,
                         color = if (selected) palette.onSelected else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold,
@@ -623,6 +627,7 @@ internal fun GanjConfigFlagBadge(
     countryCode: String?,
     selected: Boolean,
     modifier: Modifier = Modifier,
+    flatScrollRow: Boolean = false,
 ) {
     val normalized = remember(countryCode) { ganjNormalizedCountry(countryCode) }
     val imageRes = remember(normalized) { ganjFlagDrawable(normalized) }
@@ -635,7 +640,7 @@ internal fun GanjConfigFlagBadge(
     }
     val flagHeight = minOf(50f, 76f / ratio)
     val flagWidth = flagHeight * ratio
-    val elevation = if (effects.tier == GanjEffectsTier.Reduced) 0.dp else if (selected) 5.dp else 3.dp
+    val elevation = if (flatScrollRow || effects.tier == GanjEffectsTier.Reduced) 0.dp else if (selected) 5.dp else 3.dp
     Box(modifier.size(76.dp, 50.dp), contentAlignment = Alignment.Center) {
         if (isGlobal) {
             Box(Modifier.fillMaxSize().shadow(elevation, badgeShape, clip = false).clip(badgeShape)

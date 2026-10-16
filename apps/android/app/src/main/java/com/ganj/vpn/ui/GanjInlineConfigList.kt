@@ -47,7 +47,6 @@ import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.ConnectionServer
 import com.ganj.vpn.presentation.ConnectionFailures
 import com.ganj.vpn.presentation.LatencyKey
-import com.ganj.vpn.presentation.LatencySnapshot
 import com.ganj.vpn.presentation.ServiceUiModel
 import com.ganj.vpn.presentation.SessionLatencyManager
 import com.ganj.vpn.presentation.ContentState
@@ -112,9 +111,9 @@ internal fun StitchInlineConfigList(
             refreshing = false
         }
     }
-    val readings = latency?.state?.collectAsState()?.value ?: LatencySnapshot()
     val servers = (catalog as? ContentState.Ready)?.items.orEmpty()
-    val probing = readings.measuring.any { it.serviceId == serviceId }
+    // Ignore ping emissions unrelated to the button state while flinging.
+    val probing = rememberGanjServiceProbing(latency, serviceId)
     Column(Modifier.fillMaxWidth().testTag("inline-config-section"),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -196,17 +195,12 @@ internal fun StitchInlineConfigList(
                         verticalArrangement = Arrangement.spacedBy(7.dp)
                     ) {
                         items(servers, key = { it.id }, contentType = { "config" }) { server ->
-                            val key = LatencyKey(serviceId, server.id)
-                            GanjConfigOption(
+                            GanjInlineConfigOptionRow(
+                                serviceId = serviceId,
                                 server = server,
                                 selected = server.id == selectedServer?.id,
-                                reading = readings.readings[key],
-                                measuring = key in readings.measuring,
+                                latency = latency,
                                 onSelect = { onSelect(serviceId, server) },
-                                onPing = { latency?.measure(serviceId, listOf(server.id), force = true) },
-                                canPing = latency != null,
-                                animateEntrance = false,
-                                compact = true,
                             )
                         }
                     }
@@ -231,4 +225,27 @@ internal fun StitchInlineConfigList(
             }
         }
     }
+}
+
+/** Each visible row observes only its own ping, never the full sweep. */
+@Composable
+private fun GanjInlineConfigOptionRow(
+    serviceId: String,
+    server: ConnectionServer,
+    selected: Boolean,
+    latency: SessionLatencyManager?,
+    onSelect: () -> Unit,
+) {
+    val probe = rememberGanjProbeVisual(latency, LatencyKey(serviceId, server.id))
+    GanjConfigOption(
+        server = server,
+        selected = selected,
+        reading = probe.reading,
+        measuring = probe.measuring,
+        onSelect = onSelect,
+        onPing = { latency?.measure(serviceId, listOf(server.id), force = true) },
+        canPing = latency != null,
+        animateEntrance = false,
+        compact = true,
+    )
 }
