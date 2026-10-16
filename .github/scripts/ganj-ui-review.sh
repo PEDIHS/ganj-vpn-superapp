@@ -13,6 +13,6 @@ trap capture EXIT
 adb install -r apps/android/app/build/outputs/apk/debug/app-debug.apk
 adb install -r apps/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb logcat -c
-timeout 300 adb shell am instrument -w -r -e class com.ganj.vpn.ui.GanjFamilyInteractionTest,com.ganj.vpn.ui.SubscriptionSelectionTest,com.ganj.vpn.ui.GanjNavigationTest,com.ganj.vpn.ui.GanjReferenceFidelityTest,com.ganj.vpn.ui.GanjNativeStoreTest,com.ganj.vpn.ui.ConnectionPresentationTest,com.ganj.vpn.ui.GanjMotionReviewTest,com.ganj.vpn.ui.GanjRuntimeMotionBenchmarkTest com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner | tee ui-review/instrumentation.txt
+timeout 300 adb shell am instrument -w -r -e class com.ganj.vpn.ui.GanjFamilyInteractionTest,com.ganj.vpn.ui.GanjConnectionSelectionStoreTest,com.ganj.vpn.ui.SubscriptionSelectionTest,com.ganj.vpn.ui.GanjNavigationTest,com.ganj.vpn.ui.GanjReferenceFidelityTest,com.ganj.vpn.ui.GanjNativeStoreTest,com.ganj.vpn.ui.ConnectionPresentationTest,com.ganj.vpn.ui.GanjMotionReviewTest,com.ganj.vpn.ui.GanjRuntimeMotionBenchmarkTest com.ganj.vpn.test/androidx.test.runner.AndroidJUnitRunner | tee ui-review/instrumentation.txt
 grep -E '^OK \([1-9][0-9]* tests?\)' ui-review/instrumentation.txt
 ! grep -E 'FAILURES|INSTRUMENTATION_FAILED|Process crashed' ui-review/instrumentation.txt
