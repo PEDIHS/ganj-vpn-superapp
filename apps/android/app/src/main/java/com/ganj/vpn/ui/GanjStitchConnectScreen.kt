@@ -284,7 +284,8 @@ internal fun StitchConnectionScreen(
         )
         if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(7.dp))
+        // Allow the final server row to scroll completely above the floating wave.
+        Spacer(Modifier.height(GanjFloatingNavContentClearance))
     }
 }
 
