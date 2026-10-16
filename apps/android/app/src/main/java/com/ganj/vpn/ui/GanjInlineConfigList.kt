@@ -165,7 +165,9 @@ internal fun StitchInlineConfigList(
                     if (listState.canScrollForward) 1f else 0f,
                     if (effects.reduceMotion) snap() else tween(180), label = "configBottomFade")
                 val haptic = LocalHapticFeedback.current
-                // Android 7-13 need a compatible tactile detent. No per-pixel haptics.
+                // Hardware support for SEGMENT_FREQUENT_TICK starts at Android 14.
+                // Use a compatible detent on older supported phones (minSdk=24).
+                // Throttle fast flings, and ignore idle/restore emissions.
                 val tickType = remember { GanjScrollHapticPolicy.feedbackForSdk(Build.VERSION.SDK_INT) }
                 LaunchedEffect(serviceId, accountCacheKey, listState, effects.reduceMotion) {
                     var previousIndex = listState.firstVisibleItemIndex

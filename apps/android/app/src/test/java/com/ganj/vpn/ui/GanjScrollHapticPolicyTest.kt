@@ -8,11 +8,12 @@ import org.junit.Test
 
 class GanjScrollHapticPolicyTest {
     @Test fun compatiblePlatformHaptics() {
-        assertEquals(HapticFeedbackType.LongPress, GanjScrollHapticPolicy.feedbackForSdk(24))
+        assertEquals(HapticFeedbackType.TextHandleMove, GanjScrollHapticPolicy.feedbackForSdk(24))
         assertEquals(HapticFeedbackType.TextHandleMove, GanjScrollHapticPolicy.feedbackForSdk(33))
         assertEquals(HapticFeedbackType.SegmentFrequentTick, GanjScrollHapticPolicy.feedbackForSdk(34))
         assertEquals(HapticFeedbackType.SegmentFrequentTick, GanjScrollHapticPolicy.feedbackForSdk(36))
     }
+
     @Test fun boundedRowDetents() {
         val p = GanjScrollHapticPolicy
         assertFalse(p.shouldTick(false, true, false, 100, -1))

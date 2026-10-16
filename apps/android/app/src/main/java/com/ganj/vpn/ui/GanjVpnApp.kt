@@ -890,6 +890,7 @@ fun GanjVpnApp(
                                     },
                                     onBuy = { selectedDestination = GanjDestination.Store },
                                     onOpenVip = { storeVipRequested = true; selectedDestination = GanjDestination.Store },
+                                    onTelegramConnect = onTelegramLogin,
                                     onOpenSettings = { accountSurface = GanjAccountSurface.SETTINGS },
                                     onOpenSubscriptions = { selectedDestination = GanjDestination.Servers },
                                     onRetry = ::refresh,

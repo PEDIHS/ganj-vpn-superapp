@@ -281,8 +281,8 @@ export class PostgresTelegramBotApprovalStore {
            telegram_username = $4,
            telegram_display_name = $5,
            approval_event_id = $6,
-           approved_at = CASE WHEN $2 = 'approved' THEN $7 ELSE NULL END,
-           denied_at = CASE WHEN $2 = 'denied' THEN $7 ELSE NULL END,
+           approved_at = CASE WHEN $2 = 'approved' THEN $7::timestamptz ELSE NULL END,
+           denied_at = CASE WHEN $2 = 'denied' THEN $7::timestamptz ELSE NULL END,
            updated_at = $7
          WHERE request_id = $1`,
         [row.request_id, status, value.telegramSubject, value.username, value.displayName, value.eventId, value.now],
