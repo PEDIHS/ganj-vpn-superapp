@@ -512,8 +512,9 @@ internal fun GanjConfigOption(
     // Fixed columns on every config row, including long names, timeouts and large text.
     val largeText = LocalDensity.current.fontScale >= 1.5f
     val narrowScreen = LocalConfiguration.current.screenWidthDp < 380
-    val flagWidth = if (largeText && !narrowScreen) 70.dp else if (narrowScreen) 44.dp else 52.dp
-    val flagHeight = if (largeText && !narrowScreen) 48.dp else if (narrowScreen) 30.dp else 35.dp
+    // Keep the previously approved larger flag at accessibility font sizes.
+    val flagWidth = if (largeText) 76.dp else if (narrowScreen) 44.dp else 52.dp
+    val flagHeight = if (largeText) 50.dp else if (narrowScreen) 30.dp else 35.dp
     val pingWidth = if (largeText && !narrowScreen) 106.dp else if (narrowScreen) 90.dp else 98.dp
     val pingDescription = stringResource(if (measuring) R.string.ping_measuring else R.string.config_ping)
     val latencyMs = reading?.result?.latencyMillis
