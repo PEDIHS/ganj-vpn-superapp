@@ -97,7 +97,7 @@ internal fun StitchProfileScreen(
     val telegramAvatar = rememberGanjTelegramAvatar(currentAccount?.takeIf { linked }, botStoreApi)
     val wallet = if (linked && botStoreApi != null) rememberGanjProfileWallet(botStoreApi, currentAccount?.id) else null
     LazyColumn(modifier.fillMaxSize().then(profileRevealModifier(panel)).testTag("reference-profile"),
-        contentPadding = PaddingValues(horizontal=responsiveHorizontalPadding(), top=20.dp,
+        contentPadding = PaddingValues(start=responsiveHorizontalPadding(), end=responsiveHorizontalPadding(), top=20.dp,
             bottom=GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item(key="profile-header") {
