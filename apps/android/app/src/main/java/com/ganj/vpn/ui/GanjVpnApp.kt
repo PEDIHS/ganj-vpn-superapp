@@ -86,6 +86,21 @@ internal fun telegramServiceSyncFeedback(
     is ContentState.Error -> TelegramServiceSyncFeedback.Failed(services.failure.retryable)
 }
 
+/**
+ * Recover only an active subscription. The account-scoped persisted user choice
+ * wins over a transient default from an early, unauthenticated refresh.
+ */
+internal fun ganjRecoveredServiceId(
+    services: List<ServiceUiModel>,
+    persistedId: String?,
+    transientId: String?,
+): String? {
+    val active = services.filter { it.isActive }.map { it.entitlementId }.toSet()
+    return persistedId?.takeIf(active::contains)
+        ?: transientId?.takeIf(active::contains)
+        ?: services.firstOrNull { it.isActive }?.entitlementId
+}
+
 @Composable
 fun GanjVpnApp(
     composition: GanjComposition,
@@ -208,10 +223,11 @@ fun GanjVpnApp(
         // On a cold launch the catalogue may arrive before /me resolves. Keep the
         // first active service visible, then prefer the account-scoped saved choice
         // as soon as that verified identity is known. Never restore an inactive plan.
-        val activeIds = services.items.filter { it.isActive }.map { it.entitlementId }.toSet()
-        val desired = account?.let(selectionStore::preferredService)?.takeIf(activeIds::contains)
-            ?: candidate.selectedEntitlementId?.takeIf(activeIds::contains)
-            ?: services.items.firstOrNull { it.isActive }?.entitlementId
+        val desired = ganjRecoveredServiceId(
+            services.items,
+            account?.let(selectionStore::preferredService),
+            candidate.selectedEntitlementId,
+        )
         if (desired == null) return candidate.copy(selectedEntitlementId = null, selectedConnectionServer = null)
         val existing = candidate.selectedConnectionServer?.takeIf { it.entitlementId == desired }
         val remembered = if (existing == null && account != null) {
