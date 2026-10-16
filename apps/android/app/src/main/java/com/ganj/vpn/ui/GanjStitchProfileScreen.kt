@@ -343,7 +343,8 @@ private fun ProfileServiceCard(
                 Text(
                     text = "اتصال",
                     modifier = Modifier.align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = if (service.isActive && selected) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
                 )
             }
