@@ -25,10 +25,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -111,15 +113,20 @@ internal fun GanjSignatureGem(modifier: Modifier = Modifier) {
 
 @Composable
 internal fun GanjSignatureBanner(title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val gold = signatureGold()
-    val shape = RoundedCornerShape(16.dp)
+    val gold = ganjSignatureTone(GanjSignatureTone.Gold)
+    val iris = ganjSignatureTone(GanjSignatureTone.Iris)
+    val aqua = ganjSignatureTone(GanjSignatureTone.Aqua)
+    val shape = RoundedCornerShape(17.dp)
     Row(modifier.fillMaxWidth().clip(shape)
-        .background(gold.copy(alpha = .07f).compositeOver(MaterialTheme.colorScheme.surface))
-        .border(1.dp, gold.copy(alpha = .5f), shape).clickable(role = Role.Button, onClick = onClick)
+        .background(Brush.linearGradient(listOf(
+            iris.copy(alpha = .23f).compositeOver(MaterialTheme.colorScheme.surface),
+            aqua.copy(alpha = .12f).compositeOver(MaterialTheme.colorScheme.surface),
+            gold.copy(alpha = .10f).compositeOver(MaterialTheme.colorScheme.surface))))
+        .border(1.dp, iris.copy(alpha = .63f), shape).clickable(role = Role.Button, onClick = onClick)
         .padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         GanjSignatureGem(Modifier.size(48.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = gold)
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text("‹", style = MaterialTheme.typography.titleLarge, color = gold)
@@ -128,26 +135,95 @@ internal fun GanjSignatureBanner(title: String, subtitle: String, onClick: () ->
 
 @Composable
 internal fun GanjSignatureVipHero(modifier: Modifier = Modifier) {
-    val gold = signatureGold()
+    val dark = referenceDark()
+    val gold = ganjSignatureTone(GanjSignatureTone.Gold)
+    val aqua = ganjSignatureTone(GanjSignatureTone.Aqua)
+    val iris = ganjSignatureTone(GanjSignatureTone.Iris)
     val phase = rememberSignaturePhase()
-    GanjGlassSurface(GanjGlassRole.Dense, modifier = modifier.fillMaxWidth(), accent = gold,
-        shapeRadius = 18.dp, padding = PaddingValues(18.dp)) {
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(142.dp), contentAlignment = Alignment.Center) {
-                Canvas(Modifier.matchParentSize()) {
-                    drawCircle(gold.copy(alpha = .25f), size.minDimension / 2f - 6.dp.toPx(), style = Stroke(1.dp.toPx()))
-                    drawArc(gold, -45f + sin(phase.value * 6.283f) * 20f, 76f, false,
-                        Offset(6.dp.toPx(), 6.dp.toPx()), Size(size.width - 12.dp.toPx(), size.height - 12.dp.toPx()),
-                        style = Stroke(1.5.dp.toPx(), cap = StrokeCap.Round))
-                }
-                GanjSignatureGem(Modifier.size(92.dp).graphicsLayer { rotationZ = -8f })
+    val rim = RoundedCornerShape(22.dp)
+    val background = if (dark)
+        listOf(Color(0xFF28203B), Color(0xFF173B3D), Color(0xFF121E2C))
+        else listOf(Color(0xFFE8DFFF), Color(0xFFD8F4EE), Color(0xFFE5F0FF))
+
+    Box(modifier.fillMaxWidth().heightIn(min = 244.dp).clip(rim)
+        .background(Brush.linearGradient(background))
+        .border(1.dp, gold.copy(alpha = .65f), rim)
+        .testTag("signature-vip-sculpted-hero")) {
+        Canvas(Modifier.matchParentSize()) {
+            val orbital = size.width * .28f
+            drawCircle(Brush.radialGradient(listOf(iris.copy(alpha = .32f), Color.Transparent)),
+                radius = orbital * 2.25f, center = Offset(size.width * .86f, size.height * .24f))
+            drawCircle(gold.copy(alpha = .24f), radius = orbital,
+                center = Offset(size.width * .80f, size.height * .27f),
+                style = Stroke(1.dp.toPx()))
+            drawArc(gold.copy(alpha = .94f),
+                -65f + sin(phase.value * 6.283f) * 11f, 96f, false,
+                Offset(size.width * .8f - orbital, size.height * .27f - orbital),
+                Size(orbital * 2, orbital * 2),
+                style = Stroke(1.7.dp.toPx(), cap = StrokeCap.Round))
+            val wave = Path().apply {
+                moveTo(-8f, size.height * .83f)
+                cubicTo(size.width * .27f, size.height * .65f,
+                    size.width * .61f, size.height * .99f,
+                    size.width + 8f, size.height * .77f)
             }
+            drawPath(wave, Brush.linearGradient(listOf(aqua, gold, iris)),
+                style = Stroke(1.65.dp.toPx(), cap = StrokeCap.Round))
         }
-        Text("GANJ VIP", Modifier.fillMaxWidth(), style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold, color = gold, textAlign = TextAlign.Center)
-        Text("گنج، یک سطح بالاتر", Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
-        Text("مشخصات و قیمت پلن‌های موجود را بررسی کنید.", Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            GanjSignatureEyebrow("GANJ / SIGNATURE COLLECTION", GanjSignatureTone.Gold)
+            Spacer(Modifier.height(9.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("VIP", color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+                    Text("تجربه‌ای متفاوت", color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("اشتراک‌های ویژه گنج، با جزئیات و قیمت شفاف",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                Box(Modifier.size(104.dp), contentAlignment = Alignment.Center) {
+                    Canvas(Modifier.matchParentSize()) {
+                        drawCircle(gold.copy(alpha = .22f), style = Stroke(1.dp.toPx()))
+                        drawCircle(aqua.copy(alpha = .50f), size.minDimension * .39f,
+                            style = Stroke(1.dp.toPx()))
+                    }
+                    GanjSignatureGem(Modifier.size(56.dp).graphicsLayer { rotationZ = -8f })
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            GanjSignatureMiniPill("GANJ · PRIVATE ACCESS", GanjSignatureTone.Gold)
+        }
+    }
+}
+
+
+/** Live VIP membership marker sourced only from an active VIP entitlement. */
+@Composable
+internal fun GanjSignatureVipMembership(onOpenSubscription: () -> Unit) {
+    val aqua = ganjSignatureTone(GanjSignatureTone.Aqua)
+    val iris = ganjSignatureTone(GanjSignatureTone.Iris)
+    val shape = RoundedCornerShape(17.dp)
+    Row(Modifier.fillMaxWidth().clip(shape)
+        .background(Brush.linearGradient(listOf(
+            aqua.copy(alpha = .18f).compositeOver(MaterialTheme.colorScheme.surface),
+            iris.copy(alpha = .14f).compositeOver(MaterialTheme.colorScheme.surface))))
+        .border(1.dp, aqua.copy(alpha = .62f), shape)
+        .padding(15.dp).testTag("vip-active-membership"),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        GanjSignatureGem(Modifier.size(42.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("عضویت VIP فعال", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text("اطلاعات مدت، حجم و دستگاه‌ها در اشتراک‌های شماست",
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        GanjGlassButton("جزئیات", onOpenSubscription, accent = aqua, filled = false,
+            shapeRadius = 12.dp)
     }
 }

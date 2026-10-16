@@ -22,6 +22,7 @@ internal fun GanjTierCatalog(
     products: List<GanjBotProduct>, onOpenProduct: (String) -> Unit, onOpenWallet: () -> Unit,
     onOpenTransactions: () -> Unit, loading: Boolean, error: Boolean, onRefresh: () -> Unit,
     modifier: Modifier = Modifier, vipOnly: Boolean = false, onVipChanged: (Boolean) -> Unit = {},
+    activeVip: Boolean = false, onOpenSubscription: () -> Unit = {},
 ) {
     var tier by rememberSaveable { mutableStateOf<String?>(null) }
     var days by rememberSaveable { mutableStateOf(30) }
@@ -38,21 +39,27 @@ internal fun GanjTierCatalog(
         devices = rows.filter { it.durationDays == days }.minOf { it.deviceLimit }
     }
     LazyColumn(modifier.fillMaxSize().then(profileRevealModifier(if (vipOnly) "tier-vip" else "tier-store"))
-        .testTag("bot-synced-store"), contentPadding=PaddingValues(horizontal=responsiveHorizontalPadding(), vertical=20.dp),
+        .testTag("bot-synced-store"), contentPadding=PaddingValues(start=responsiveHorizontalPadding(),
+            end=responsiveHorizontalPadding(), top=20.dp, bottom=GanjFloatingNavContentClearance),
         verticalArrangement=Arrangement.spacedBy(12.dp)) {
         item(key = "header") {
             Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 if (vipOnly) AccountBackAction({ onVipChanged(false) })
                 Column(Modifier.weight(1f)) {
                     Text(if (vipOnly) "GANJ · SIGNATURE COLLECTION" else "GANJ · FIND YOUR PLAN",
-                        style=MaterialTheme.typography.labelSmall, color=signatureGold())
+                        style=MaterialTheme.typography.labelSmall, color=if(vipOnly)signatureGold() else ganjSignatureTone(GanjSignatureTone.Azure))
                     Text(if (vipOnly) "گنج VIP" else "فروشگاه", style=MaterialTheme.typography.headlineSmall, fontWeight=FontWeight.SemiBold)
                     Text("پلن، مدت و تعداد دستگاه را انتخاب کنید.", style=MaterialTheme.typography.bodySmall,
                         color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
-        if (vipOnly) item(key = "vip-hero") { GanjSignatureVipHero(Modifier.testTag("store-vip-hero")) }
+        if (vipOnly) item(key = "vip-hero") {
+            GanjSignatureVipHero(Modifier.testTag("store-vip-hero"))
+        }
+        if (vipOnly && activeVip) item(key = "active-vip-status") {
+            GanjSignatureVipMembership(onOpenSubscription)
+        }
         else if (products.any { it.isVip() || it.appTier == "premium" }) item(key = "vip-banner") {
             GanjSignatureBanner("دنیای گنج VIP", "مشاهده و بررسی پلن‌های موجود", { onVipChanged(true) }, Modifier.testTag("vip-upgrade-entry"))
         }
@@ -80,14 +87,14 @@ internal fun GanjTierCatalog(
                                     days = period
                                     val limits = rows.filter { it.durationDays == period }.map { it.deviceLimit }
                                     if (devices !in limits) devices = limits.min()
-                                }, Modifier.testTag("tier-period-$period"), accent=signatureGold())
+                                }, Modifier.testTag("tier-period-$period"), accent=ganjSignatureTone(GanjSignatureTone.Azure))
                             }
                         }
                         Text("تعداد دستگاه", style=MaterialTheme.typography.titleSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
                         FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp), verticalArrangement=Arrangement.spacedBy(6.dp)) {
                             rows.filter { it.durationDays == days }.map { it.deviceLimit }.distinct().sorted().forEach { count ->
                                 GanjChoicePill("${count.toPersianDigits()} دستگاه", devices == count, { devices = count },
-                                    Modifier.testTag("tier-devices-$count"), accent=signatureGold())
+                                    Modifier.testTag("tier-devices-$count"), accent=ganjSignatureTone(GanjSignatureTone.Iris))
                             }
                         }
                         val product = selected?.takeIf { it.appTier == key }
@@ -110,9 +117,9 @@ internal fun GanjTierCatalog(
             }
         }
         item(key = "finance") {
-            GanjReferenceMenuRow("کیف پول", "موجودی، شارژ و ارسال رسید", icon=GanjDestination.Store, accent=signatureGold(), onClick=onOpenWallet)
+            GanjReferenceMenuRow("کیف پول", "موجودی، شارژ و ارسال رسید", icon=GanjDestination.Store, accent=ganjSignatureTone(GanjSignatureTone.Azure), onClick=onOpenWallet)
             Spacer(Modifier.height(8.dp))
-            GanjReferenceMenuRow("تراکنش‌ها", "سوابق پرداخت و وضعیت بررسی", icon=GanjDestination.Store, accent=signatureGold(), onClick=onOpenTransactions)
+            GanjReferenceMenuRow("تراکنش‌ها", "سوابق پرداخت و وضعیت بررسی", icon=GanjDestination.Store, accent=ganjSignatureTone(GanjSignatureTone.Coral), onClick=onOpenTransactions)
         }
     }
 }

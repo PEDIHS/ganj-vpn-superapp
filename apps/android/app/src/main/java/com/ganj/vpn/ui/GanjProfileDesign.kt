@@ -54,10 +54,10 @@ internal enum class GanjProfileAccent { Emerald, Gold, Iris, Sky }
 
 @Composable
 internal fun profileAccent(tone: GanjProfileAccent): Color = when (tone) {
-    GanjProfileAccent.Emerald -> MaterialTheme.colorScheme.primary
-    GanjProfileAccent.Gold -> signatureGold()
-    GanjProfileAccent.Iris -> if (referenceDark()) Color(0xFFB6B2F4) else Color(0xFF6155A3)
-    GanjProfileAccent.Sky -> if (referenceDark()) Color(0xFF8FCDE1) else Color(0xFF256980)
+    GanjProfileAccent.Emerald -> ganjSignatureTone(GanjSignatureTone.Aqua)
+    GanjProfileAccent.Gold -> ganjSignatureTone(GanjSignatureTone.Gold)
+    GanjProfileAccent.Iris -> ganjSignatureTone(GanjSignatureTone.Iris)
+    GanjProfileAccent.Sky -> ganjSignatureTone(GanjSignatureTone.Azure)
 }
 
 internal enum class GanjProfileSymbol {
@@ -142,8 +142,8 @@ internal fun GanjProfileIcon(symbol: GanjProfileSymbol, color: Color, modifier: 
 internal fun GanjProfileIconTile(symbol: GanjProfileSymbol, tone: GanjProfileAccent) {
     val accent = profileAccent(tone)
     Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp))
-        .background(accent.copy(alpha = .12f))
-        .border(1.dp, accent.copy(alpha = .16f), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
+        .background(accent.copy(alpha = .20f))
+        .border(1.dp, accent.copy(alpha = .53f), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
         GanjProfileIcon(symbol, accent)
     }
 }
@@ -183,93 +183,110 @@ internal fun GanjProfileIdentity(
     onConnectTelegram: () -> Unit = onManage,
 ) {
     val colors = MaterialTheme.colorScheme
-    val gold = signatureGold()
+    val dark = referenceDark()
+    val aqua = ganjSignatureTone(GanjSignatureTone.Aqua)
+    val iris = ganjSignatureTone(GanjSignatureTone.Iris)
+    val azure = ganjSignatureTone(GanjSignatureTone.Azure)
+    val coral = ganjSignatureTone(GanjSignatureTone.Coral)
+    val gold = ganjSignatureTone(GanjSignatureTone.Gold)
     val phase = rememberSignaturePhase()
+    val shape = RoundedCornerShape(22.dp)
+
     Box(Modifier.fillMaxWidth().testTag("profile-identity")) {
-        // The card starts under the avatar; a true concave notch keeps the reference wave geometry.
-        Box(Modifier.fillMaxWidth().padding(top = 77.dp).clip(ProfileWaterShape)
-            .background(colors.surface).border(1.dp, gold.copy(alpha = .35f), ProfileWaterShape)) {
-            Canvas(Modifier.matchParentSize().testTag("profile-water")) {
-                val offset = sin(phase.value * 6.283f)
-                fun wave(y: Float, bend: Float, color: Color) {
-                    val p = Path().apply {
-                        moveTo(-20.dp.toPx(), y)
-                        cubicTo(size.width * .27f, y + bend, size.width * .67f, y - bend, size.width + 20.dp.toPx(), y)
-                        lineTo(size.width + 20.dp.toPx(), y + 100.dp.toPx()); lineTo(-20.dp.toPx(), y + 100.dp.toPx()); close()
-                    }
-                    drawPath(p, Brush.verticalGradient(listOf(color.copy(alpha = .16f), Color.Transparent), y, y + 100.dp.toPx()))
-                    val edge = Path().apply { moveTo(-20.dp.toPx(), y)
-                        cubicTo(size.width * .27f, y + bend, size.width * .67f, y - bend, size.width + 20.dp.toPx(), y) }
-                    drawPath(edge, color.copy(alpha = .48f), style = Stroke(1.dp.toPx()))
-                }
-                wave(35.dp.toPx(), (14f + offset * 13f).dp.toPx(), colors.primary)
-                wave(48.dp.toPx(), (-14f - offset * 10f).dp.toPx(), gold)
-            }
-            Column(Modifier.fillMaxWidth().padding(top = 84.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(name, Modifier.fillMaxWidth().padding(horizontal = 16.dp), style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold, color = colors.onSurface, textAlign = TextAlign.Center)
-                Text(username?.let(::isolateTechnicalLtr) ?: if (linked) "حساب تلگرام متصل" else "ورود با حساب تلگرام",
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp),
-                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
+        Column(Modifier.fillMaxWidth().padding(top = 53.dp)
+            .clip(shape)
+            .background(Brush.linearGradient(
+                if (dark) listOf(Color(0xFF172E38), Color(0xFF261F3B), Color(0xFF17232A))
+                else listOf(Color(0xFFE3F4FF), Color(0xFFF0E8FF), Color(0xFFE5F8F4))))
+            .border(1.dp, iris.copy(alpha = .46f), shape),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            // Reserve physical space for the real Telegram avatar overlapping this surface.
+            Spacer(Modifier.height(102.dp))
+            Text(name, Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+                color = colors.onSurface, textAlign = TextAlign.Center)
+            Text(username?.let(::isolateTechnicalLtr)
+                    ?: if (linked) "حساب تلگرام متصل" else "برای ورود و مشاهده سرویس‌ها، تلگرام را متصل کنید",
+                Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 5.dp),
+                style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+                textAlign = TextAlign.Center)
+            Spacer(Modifier.height(7.dp))
+            if (linked) {
                 if (premium == true) {
-                    GanjSignatureButton("عضو پریمیوم", onOpenVip ?: onManage,
-                        Modifier.widthIn(max = 210.dp).padding(vertical = 8.dp).testTag("profile-premium"))
-                } else if (premium == false) {
-                    GanjStatusPill("استاندارد", GanjStatusTone.Neutral)
-                    Spacer(Modifier.height(10.dp))
-                } else Spacer(Modifier.height(8.dp))
-                if (linked) {
-                    FlowRow(Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = 15.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(4.dp),
-                        itemVerticalAlignment = Alignment.CenterVertically) {
-                        Text("تلگرام متصل", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
-                        GanjGlassButton("مدیریت حساب", onManage, filled = false, shapeRadius = 10.dp)
-                    }
+                    GanjSignatureMiniPill("عضویت فعال گنج", GanjSignatureTone.Gold)
                 } else {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        GanjLiquidAction(onClick = onConnectTelegram, accent = Color(0xFF229ED9),
-                            shapeRadius = 999.dp,
-                            modifier = Modifier.fillMaxWidth().testTag("profile-connect-telegram")) {
-                            Text("اتصال حساب به تلگرام", modifier = Modifier.align(Alignment.Center),
-                                color = Color.White, style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold)
-                        }
-                        Text("برای نمایش اشتراک‌های خریداری‌شده، حساب تلگرام خود را متصل کنید.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
-                    }
+                    GanjSignatureMiniPill("حساب متصل", GanjSignatureTone.Aqua)
                 }
             }
-        }
-        Box(Modifier.size(146.dp).align(Alignment.TopCenter).testTag("profile-identity-orbit"), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.matchParentSize()) {
-                val r = size.minDimension / 2f - 2.dp.toPx()
-                drawCircle(gold.copy(alpha = .40f), r, style = Stroke(1.dp.toPx()))
-                drawCircle(colors.primary.copy(alpha = .20f), r - 6.dp.toPx(), style = Stroke(1.dp.toPx()))
-                drawArc(gold, -35f + sin(phase.value * 6.283f) * 23f, 80f, false,
-                    Offset(2.dp.toPx(), 2.dp.toPx()), Size(size.width - 4.dp.toPx(), size.height - 4.dp.toPx()),
-                    style = Stroke(1.5.dp.toPx(), cap = StrokeCap.Round))
-                val sparkle = (sin(phase.value * 6.283f) * .25f + .65f)
-                val x = size.width * .16f; val y = size.height * .16f; val d = 5.dp.toPx()
-                drawLine(gold.copy(alpha = sparkle), Offset(x-d, y), Offset(x+d, y), 1.dp.toPx(), StrokeCap.Round)
-                drawLine(gold.copy(alpha = sparkle), Offset(x, y-d), Offset(x, y+d), 1.dp.toPx(), StrokeCap.Round)
+            Canvas(Modifier.fillMaxWidth().height(38.dp).testTag("profile-water")) {
+                val ripple = sin(phase.value * 6.283f) * size.height * .11f
+                val curve = Path().apply {
+                    moveTo(-5f, size.height * .55f)
+                    cubicTo(size.width * .28f, size.height * .10f + ripple,
+                        size.width * .72f, size.height * .95f - ripple,
+                        size.width + 5f, size.height * .49f)
+                }
+                drawPath(curve, Brush.linearGradient(listOf(azure, iris, coral)),
+                    style = Stroke(1.3.dp.toPx(), cap = StrokeCap.Round))
             }
-            val shape = CircleShape
+            if (linked) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 3.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    GanjSignatureMiniPill("تلگرام متصل", GanjSignatureTone.Aqua)
+                    GanjGlassButton("مدیریت حساب", onManage, filled = false,
+                        accent = azure, shapeRadius = 12.dp)
+                }
+            } else {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    GanjLiquidAction(onClick = onConnectTelegram, accent = Color(0xFF0B6DAF),
+                        shapeRadius = 14.dp,
+                        modifier = Modifier.fillMaxWidth().testTag("profile-connect-telegram")) {
+                        Text("اتصال حساب به تلگرام", Modifier.align(Alignment.Center),
+                            color = Color.White, style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold)
+                    }
+                    Text("اشتراک‌ها، کیف پول و دستگاه‌ها بعد از ورود همگام می‌شوند.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        Box(Modifier.size(146.dp).align(Alignment.TopCenter)
+            .testTag("profile-identity-orbit"), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.matchParentSize()) {
+                val radius = size.minDimension / 2f - 2.dp.toPx()
+                drawCircle(Brush.sweepGradient(listOf(aqua, iris, coral, aqua)),
+                    radius = radius, style = Stroke(1.6.dp.toPx()))
+                drawCircle(iris.copy(alpha = .45f), radius = radius - 7.dp.toPx(),
+                    style = Stroke(1.dp.toPx()))
+                drawArc(coral, -50f + sin(phase.value * 6.283f) * 18f, 64f, false,
+                    Offset(2.dp.toPx(), 2.dp.toPx()),
+                    Size(size.width - 4.dp.toPx(), size.height - 4.dp.toPx()),
+                    style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+                drawCircle(Brush.radialGradient(listOf(azure.copy(alpha = .16f), Color.Transparent)),
+                    radius = radius)
+            }
             if (linked && avatar != null) {
                 Image(bitmap = avatar, contentDescription = "عکس پروفایل تلگرام",
-                    modifier = Modifier.size(116.dp).clip(shape)
-                        .border(1.dp, gold.copy(alpha = .80f), shape)
+                    modifier = Modifier.size(114.dp).clip(CircleShape)
+                        .border(2.dp, aqua, CircleShape)
                         .clickable(role = Role.Button, onClick = onManage)
                         .testTag("profile-telegram-avatar"))
-            } else Column(Modifier.size(116.dp).clip(shape)
-                .background(Brush.linearGradient(listOf(Color(0xFF17845D), Color(0xFF07503A))))
-                .background(Brush.radialGradient(listOf(Color(0xFFADFFE0).copy(alpha = .22f), Color.Transparent), radius = 150f))
-                .border(1.dp, Color(0xFFB6D79A), shape).clickable(role = Role.Button, onClick = onManage)
-                .semantics { contentDescription = "مدیریت حساب" },
-                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                GanjProfileIcon(GanjProfileSymbol.Account, Color(0xFFEAFDD5), Modifier.size(35.dp))
+            } else {
+                Box(Modifier.size(114.dp).clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(Color(0xFF2369B0), Color(0xFF693F9D))))
+                    .border(2.dp, aqua.copy(alpha = .8f), CircleShape)
+                    .clickable(role = Role.Button,
+                        onClick = if (linked) onManage else onConnectTelegram)
+                    .semantics { contentDescription = if (linked) "مدیریت حساب" else "اتصال حساب به تلگرام" },
+                    contentAlignment = Alignment.Center) {
+                    GanjProfileIcon(GanjProfileSymbol.Account, Color.White, Modifier.size(48.dp))
+                }
             }
         }
     }
@@ -282,41 +299,70 @@ internal fun GanjProfileWalletCard(
     onOpenTransactions: () -> Unit, onRefresh: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    val gold = profileAccent(GanjProfileAccent.Gold)
-    // Preserve the entire server-owned balance at 2x accessibility font scale.
-    val walletTextScaleIsLarge = LocalDensity.current.fontScale >= 1.3f
-    val shape = RoundedCornerShape(18.dp)
-    Column(Modifier.fillMaxWidth().testTag("profile-wallet-live").clip(shape)
-        .background(gold.copy(alpha = if (referenceDark()) .09f else .07f).compositeOver(colors.surface))
-        .border(1.dp, gold.copy(alpha = .35f), shape).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val dark = referenceDark()
+    val sky = ganjSignatureTone(GanjSignatureTone.Azure)
+    val aqua = ganjSignatureTone(GanjSignatureTone.Aqua)
+    val iris = ganjSignatureTone(GanjSignatureTone.Iris)
+    val largeText = LocalDensity.current.fontScale >= 1.3f
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        Modifier.fillMaxWidth().testTag("profile-wallet-live").clip(shape)
+            .background(Brush.linearGradient(
+                if (dark) listOf(Color(0xFF163955), Color(0xFF222647), Color(0xFF153A3A))
+                else listOf(Color(0xFFD8F0FF), Color(0xFFE9E2FF), Color(0xFFD9F8EE)),
+            ))
+            .border(1.dp, sky.copy(alpha = .68f), shape).padding(17.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GanjProfileIconTile(GanjProfileSymbol.Wallet, GanjProfileAccent.Gold)
-            Column(Modifier.weight(1f)) {
-                Text("کیف پول گنج", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
-                Text(when { message != null && balance != null -> "آخرین موجودی دریافت‌شده"
-                    busy -> "در حال به‌روزرسانی"; else -> "اعتبار حساب شما" },
-                    style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+            horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+            Box(Modifier.size(46.dp).clip(RoundedCornerShape(14.dp))
+                .background(sky.copy(alpha = .16f))
+                .border(1.dp, sky.copy(alpha = .46f), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center) {
+                GanjProfileIcon(GanjProfileSymbol.Wallet, sky, Modifier.size(27.dp))
             }
-            Box(Modifier.size(48.dp).clip(CircleShape).clickable(enabled = !busy, role = Role.Button, onClick = onRefresh)
-                .semantics { contentDescription = "به‌روزرسانی موجودی" }.testTag("profile-wallet-refresh"), contentAlignment = Alignment.Center) {
-                GanjProfileIcon(GanjProfileSymbol.Refresh, if (busy) colors.onSurfaceVariant else gold, Modifier.size(20.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("کیف پول گنج", style = MaterialTheme.typography.titleMedium,
+                    color = colors.onSurface, fontWeight = FontWeight.Bold)
+                Text(when {
+                    message != null && balance != null -> "آخرین موجودی دریافت‌شده"
+                    busy -> "در حال دریافت موجودی"
+                    else -> "اعتبار حساب"
+                }, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+            }
+            Box(Modifier.size(48.dp).clip(CircleShape)
+                .background(iris.copy(alpha = .12f))
+                .clickable(enabled = !busy, role = Role.Button, onClick = onRefresh)
+                .semantics { contentDescription = "به‌روزرسانی موجودی" }
+                .testTag("profile-wallet-refresh"), contentAlignment = Alignment.Center) {
+                GanjProfileIcon(GanjProfileSymbol.Refresh,
+                    if (busy) colors.onSurfaceVariant else iris, Modifier.size(21.dp))
             }
         }
-        Column(Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(8.dp))
-            .clickable(role = Role.Button, onClick = onOpenWallet).testTag("profile-to-wallet")
-            .padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .clickable(role = Role.Button, onClick = onOpenWallet)
+            .testTag("profile-to-wallet"), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(balance?.let(::botMoney) ?: if (busy) "در حال دریافت موجودی…" else "موجودی در دسترس نیست",
-                style = if (balance != null && !walletTextScaleIsLarge) MaterialTheme.typography.headlineMedium
+                modifier = Modifier.fillMaxWidth().testTag("profile-wallet-balance"),
+                style = if (balance != null && !largeText) MaterialTheme.typography.headlineLarge
                     else MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold, color = gold, maxLines = 2, softWrap = true,
-                modifier = Modifier.fillMaxWidth().testTag("profile-wallet-balance"))
-            if (message != null) Text(message, style = MaterialTheme.typography.bodySmall, color = colors.error)
+                fontWeight = FontWeight.Bold, color = colors.onSurface,
+                maxLines = 2, softWrap = true)
+            if (message != null) Text(message, style = MaterialTheme.typography.bodySmall,
+                color = colors.error)
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GanjSignatureButton("افزایش موجودی", onOpenWallet,
-                modifier = Modifier.weight(1f).testTag("profile-wallet-topup"))
-            GanjGlassButton("تراکنش‌ها", onOpenTransactions, filled = false, accent = gold, shapeRadius = 10.dp,
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            GanjLiquidAction(onClick = onOpenWallet, accent = Color(0xFF0B69AA),
+                shapeRadius = 12.dp,
+                modifier = Modifier.weight(1f).testTag("profile-wallet-topup")) {
+                Text("افزایش موجودی", Modifier.align(Alignment.Center),
+                    color = Color.White, style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            }
+            GanjGlassButton("تراکنش‌ها", onOpenTransactions, filled = false,
+                accent = aqua, shapeRadius = 12.dp,
                 modifier = Modifier.weight(1f).testTag("profile-wallet-transactions"))
         }
     }

@@ -151,27 +151,13 @@ internal fun StitchProfileScreen(
                     )
                 }
                 item(key="profile-summary") {
-                    GanjGlassSurface(GanjGlassRole.OpaqueFallback,modifier=Modifier.fillMaxWidth(),shapeRadius=14.dp,padding=PaddingValues(15.dp)) {
-                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                            Row(Modifier.weight(1f), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                                GanjProfileIcon(GanjProfileSymbol.Subscription, MaterialTheme.colorScheme.primary, Modifier.size(18.dp))
-                                Text("اشتراک انتخاب‌شده",style=MaterialTheme.typography.labelMedium,color=muted)
-                            }
-                            if(selected!=null) GanjStatusPill(profileServiceStatus(selected),if(selected.isActive)GanjStatusTone.Positive else GanjStatusTone.Neutral)
-                        }
-                        Text(selected?.let { subscriptionUsername(it) } ?: "اشتراکی انتخاب نشده است",style=MaterialTheme.typography.titleMedium,color=ink,fontWeight=FontWeight.Medium)
-                        selected?.let { service ->
-                            if(service.trafficUsageAvailable && service.usageFraction != null) {
-                                Text(profileTraffic(service.trafficUsedBytes)+" از "+profileTraffic(service.trafficLimitBytes)+" مصرف شده",style=MaterialTheme.typography.bodyMedium,color=ink)
-                                GanjSlimProgress(service.usageFraction!!)
-                            }
-                            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(12.dp), verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                                Text(if(service.trafficUsageAvailable) profileTraffic(service.remainingBytes)+" باقی‌مانده" else "اطلاعات مصرف در دسترس نیست",style=MaterialTheme.typography.labelSmall,color=muted)
-                                Text(profileExpiry(service.expiresAt),style=MaterialTheme.typography.labelSmall,color=muted)
-                            }
-                        }
-                        GanjGlassButton(if(selected==null)"انتخاب اشتراک" else "جزئیات اشتراک",{if(selected==null)onOpenSubscriptions() else onOpenDetails?.invoke() ?: run{panel="services"}},filled=false,modifier=Modifier.fillMaxWidth())
-                    }
+                    GanjSignatureSubscriptionCard(
+                        service = selected,
+                        onOpen = {
+                            if (selected == null) onOpenSubscriptions()
+                            else onOpenDetails?.invoke() ?: run { panel = "services" }
+                        },
+                    )
                 }
                 item(key="account-services") {
                     ProfileSectionTitle("حساب و سرویس‌ها")
@@ -500,7 +486,7 @@ private fun profileTier(tier: UiTier): String = when (tier) {
     UiTier.VIP -> "وی‌آی‌پی"
 }
 
-private fun profileServiceStatus(service: ServiceUiModel): String = when {
+internal fun profileServiceStatus(service: ServiceUiModel): String = when {
     service.isActive -> "فعال"
     else -> when (service.status.name) {
         "PENDING" -> "در انتظار"
@@ -511,13 +497,13 @@ private fun profileServiceStatus(service: ServiceUiModel): String = when {
     }
 }
 
-private fun profileTraffic(bytes: Long?): String = when {
+internal fun profileTraffic(bytes: Long?): String = when {
     bytes == null -> "نامحدود"
     bytes >= 1_000_000_000L -> "${(bytes / 1_000_000_000L).toPersianDigits()} گیگابایت"
     else -> "${(bytes / 1_000_000L).toPersianDigits()} مگابایت"
 }
 
-private fun profileExpiry(expiresAt: String?): String = when {
+internal fun profileExpiry(expiresAt: String?): String = when {
     expiresAt.isNullOrBlank() -> "بدون تاریخ مشخص"
     else -> isolateTechnicalLtr(expiresAt.take(10).toPersianDigits())
 }
