@@ -1,4 +1,6 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
+
+> 0.3.35 (2026-10-16): Smooth server-list scroll: per-visible-row ping subscriptions, prevent whole-list recompositions from unrelated ping updates, remove redundant row-entry coroutine launches and reduce flag-shadow overdraw. Haptic ticks capped for frame stability. Native handset frame timeline and multi-screen gesture QA remain pending; no leaf marked completed.
 > 0.3.34 (2026-10-16): Add SDK-compatible row-detent haptics on config scrolling and throttle ticks; host unit tests added. Physical handset haptic/performance QA is pending; no new leaf marked done.
 
 
