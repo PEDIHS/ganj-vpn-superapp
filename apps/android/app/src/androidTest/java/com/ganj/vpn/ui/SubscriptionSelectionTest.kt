@@ -37,6 +37,8 @@ class SubscriptionSelectionTest {
     @Test fun subscriptionListsEveryConfigInlineWithoutPickerAndSelectsSecond() {
         val requested = mutableListOf<String>()
         var connectedChoice: SelectedConnectionServer? = null
+        var configTap: Pair<String, String>? = null
+        var acceptedChoice: SelectedConnectionServer? = null
         compose.activityRule.scenario.onActivity { activity ->
             activity.setContent {
                 var state by remember { mutableStateOf(GanjUiState(services = ContentState.Ready(listOf(first, second)))) }
@@ -56,7 +58,9 @@ class SubscriptionSelectionTest {
                             loadServers = { requested += it; ApiResult.Success(configs, ResponseMetadata("ui-fixture", null)) },
                             onSelectAndConnect = { _, _ -> },
                             onSelectServer = { serviceId, server ->
+                                configTap = serviceId to server.id
                                 state = reducer.reduce(state, GanjUiEvent.SelectServer(serviceId, server))
+                                acceptedChoice = state.selectedConnectionServer
                             },
                             onOpenStore = {}, onRetry = {})
                     }
@@ -75,6 +79,12 @@ class SubscriptionSelectionTest {
         compose.onNodeWithTag("config-option-config-two").assertExists()
         capture("config-inline-dark")
         compose.onNodeWithTag("config-option-config-two").performClick()
+        compose.runOnIdle {
+            assertEquals("Inline row must invoke the exact scoped server callback",
+                second.entitlementId to configs[1].id, configTap)
+            assertEquals("Reducer must accept the tapped server",
+                SelectedConnectionServer(second.entitlementId, configs[1]), acceptedChoice)
+        }
         compose.onNodeWithTag("config-option-config-two").assertIsSelected()
         compose.onNodeWithTag("connection-screen").assertExists()
         compose.onNodeWithTag("config-picker").assertDoesNotExist()
