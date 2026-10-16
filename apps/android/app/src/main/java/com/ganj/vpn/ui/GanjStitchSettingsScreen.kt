@@ -108,7 +108,7 @@ internal fun StitchSettingsScreen(
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = responsiveHorizontalPadding(), top = 18.dp,
+            .padding(start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(), top = 18.dp,
                 bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
