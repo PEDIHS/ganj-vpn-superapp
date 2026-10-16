@@ -35,10 +35,10 @@ internal class GanjConnectionSelectionStore(context: Context) {
     }
 
     fun preferredService(accountId: String): String? =
-        serviceKey(accountId)?.let(preferences::getStringSafe)?.takeIf(::isUuid)
+        serviceKey(accountId)?.let { preferences.getStringSafe(it) }?.takeIf(::isUuid)
 
     fun preferredServer(accountId: String, serviceId: String): String? =
-        serverKey(accountId, serviceId)?.let(preferences::getStringSafe)?.takeIf(::isUuid)
+        serverKey(accountId, serviceId)?.let { preferences.getStringSafe(it) }?.takeIf(::isUuid)
 
     fun rememberService(accountId: String, serviceId: String) {
         if (isUuid(serviceId)) serviceKey(accountId)?.let { preferences.edit().putString(it, serviceId).apply() }
@@ -72,7 +72,7 @@ internal class GanjConnectionSelectionStore(context: Context) {
     }
 
     fun cachedCatalog(accountId: String, serviceId: String): List<ConnectionServer> {
-        val raw = catalogKey(accountId, serviceId)?.let(preferences::getStringSafe) ?: return emptyList()
+        val raw = catalogKey(accountId, serviceId)?.let { preferences.getStringSafe(it) } ?: return emptyList()
         if (raw.length > 80_000) return emptyList()
         return runCatching {
             val list = JSONArray(raw)
