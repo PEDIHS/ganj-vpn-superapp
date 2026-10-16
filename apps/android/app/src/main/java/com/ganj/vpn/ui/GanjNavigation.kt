@@ -52,6 +52,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
+// Space added at the end of scrollable destinations, not behind the floating bar.
+internal val GanjFloatingNavContentClearance = 132.dp
+
 private val GanjNavGold = Color(0xFFD5A63A)
 
 internal enum class GanjDestination(@StringRes val labelRes: Int) {
