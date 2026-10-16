@@ -2,6 +2,7 @@ package com.ganj.vpn.ui
 
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
@@ -17,6 +18,7 @@ import com.ganj.vpn.MainActivity
 import com.ganj.vpn.core.controlapi.*
 import com.ganj.vpn.presentation.*
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -82,6 +84,63 @@ class SubscriptionSelectionTest {
             assertEquals(SelectedConnectionServer(second.entitlementId, configs[1]), connectedChoice)
         }
         capture("connection-selected")
+    }
+
+    @Test fun manyConfigsRemainInAContainedScrollerAndLastItemCanBeSelected() {
+        val manyConfigs = (1..28).map { index ->
+            server("many-$index", "کانفیگ طولانی شماره $index")
+        }
+        var chosen by mutableStateOf<ConnectionServer?>(null)
+        compose.activityRule.scenario.onActivity { activity -> activity.setContent {
+            GanjTheme(darkTheme = true, visualEffectsPolicy = reduced) {
+                Surface(Modifier.fillMaxSize()) {
+                    StitchInlineConfigList(
+                        service = second,
+                        selectedServer = chosen,
+                        accountCacheKey = "fixture-owner",
+                        cachedServers = manyConfigs,
+                        loadServers = { ApiResult.Success(manyConfigs, ResponseMetadata("ui-fixture", null)) },
+                        latency = null,
+                        onSelect = { _, server -> chosen = server }
+                    )
+                }
+            }
+        } }
+        compose.onNodeWithTag("inline-config-list").assertExists()
+        compose.onNodeWithTag("config-scroll-indicator").assertExists()
+        compose.onNodeWithTag("inline-config-list")
+            .performScrollToNode(hasTestTag("config-option-many-28"))
+        compose.onNodeWithTag("config-option-many-28").performClick().assertIsSelected()
+        compose.runOnIdle { assertEquals(manyConfigs.last(), chosen) }
+        capture("config-inline-long-dark")
+    }
+
+    @Test fun flagsAndPingBoxesKeepOneColumnEvenWithLongTitlesAndTimeouts() {
+        val timedOut = LatencyReading(
+            LatencyProbeResult.Failed(ConnectionFailures.probe("probe.timeout")), 100L)
+        val slow = LatencyReading(LatencyProbeResult.Measured(2500L), 100L)
+        compose.activityRule.scenario.onActivity { activity -> activity.setContent {
+            GanjTheme(darkTheme = true, visualEffectsPolicy = reduced) {
+                Surface(Modifier.fillMaxSize()) {
+                    Column {
+                        GanjConfigOption(configs[0], true, slow, false, {}, {}, false)
+                        GanjConfigOption(configs[1].copy(name = "این یک کانفیگ با اسم بسیار بسیار طولانی است"),
+                            false, timedOut, false, {}, {}, false)
+                    }
+                }
+            }
+        } }
+        fun bounds(tag: String) = compose.onNodeWithTag(tag, useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        val firstFlag = bounds("config-option-flag-config-one")
+        val lastFlag = bounds("config-option-flag-config-two")
+        val firstPing = bounds("ping-config-one")
+        val lastPing = bounds("ping-config-two")
+        assertTrue("Flags must start at identical X", kotlin.math.abs(firstFlag.left - lastFlag.left) < 1f)
+        assertTrue("Pings must start at identical X", kotlin.math.abs(firstPing.left - lastPing.left) < 1f)
+        assertTrue("Ping boxes must have equal widths", kotlin.math.abs(firstPing.width - lastPing.width) < 1f)
+        compose.onNodeWithText("تایم‌اوت", useUnmergedTree = true).assertExists()
+        capture("config-aligned-dark")
     }
 
     @Test fun lightLargeTextShowsRealQuotaAndUnknownUsageWithoutFabricatedPercent() {
