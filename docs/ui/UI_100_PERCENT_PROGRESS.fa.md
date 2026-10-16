@@ -1173,3 +1173,8 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 > Leaf items completed: none; full DoD including physical-device QA remains open.
 > Remaining unchecked leaves in touched sections: 1=9, 5=19, 6=8, 10=5, 15=17, 21=12,
 > 23=9, 24=16, 25=17. Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining.
+
+### 2026-10-16 — Profile image and dark-mode accessibility follow-up
+- 0.3.30 candidate: owner's Telegram photo comes from an authenticated bot API read backed by the existing resized-avatar cache; photo is cleared on account change and uses the GANJ icon when absent.
+- Explicit onSurface/onSurfaceVariant foregrounds were added for shared text inputs and disabled controls. Automated Compose coverage is required before signoff.
+- Remaining: live linked-account photo with an actual Telegram user, theme-wide device inspection and contrast measurements, physical-device in-place upgrade, and real payment/VPN tests. **No final gate is closed by source-only changes.**
