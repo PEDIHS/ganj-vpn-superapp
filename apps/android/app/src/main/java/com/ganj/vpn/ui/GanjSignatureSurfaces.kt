@@ -129,7 +129,11 @@ internal fun GanjSignatureBanner(title: String, subtitle: String, onClick: () ->
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text("‹", style = MaterialTheme.ty@Composable
+        Text("‹", style = MaterialTheme.typography.titleLarge, color = gold)
+    }
+}
+
+@Composable
 internal fun GanjSignatureVipHero(modifier: Modifier = Modifier) {
     val dark = referenceDark()
     val gold = ganjSignatureTone(GanjSignatureTone.Gold)
