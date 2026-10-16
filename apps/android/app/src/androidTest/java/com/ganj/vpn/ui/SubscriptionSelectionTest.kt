@@ -120,7 +120,7 @@ class SubscriptionSelectionTest {
             }
         } }
         compose.onNodeWithTag("inline-config-list").assertExists()
-        compose.onNodeWithTag("config-scroll-indicator").assertExists()
+        compose.onNodeWithTag("config-scroll-indicator").assertDoesNotExist()
         compose.onNodeWithTag("config-bottom-fade").assertExists()
         compose.onNodeWithTag("inline-config-list")
             .performScrollToNode(hasTestTag("config-option-many-28"))
