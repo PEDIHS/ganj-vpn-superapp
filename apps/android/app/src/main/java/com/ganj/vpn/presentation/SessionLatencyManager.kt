@@ -1,7 +1,6 @@
 package com.ganj.vpn.presentation
 
 import java.io.Closeable
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -33,7 +32,8 @@ class SessionLatencyManager(
     private val probeBatch: (suspend (String, List<String>) -> Map<String, LatencyProbeResult>)? = null,
 ) : Closeable {
     private val lock = Any()
-    private val automaticStarted = AtomicBoolean(false)
+    private val automaticServices = mutableSetOf<String>()
+    private val readingTtlMillis = 120_000L
     private val pending = mutableMapOf<LatencyKey, Deferred<LatencyProbeResult>>()
     private val batchJobs = mutableSetOf<Job>()
     private val mutableState = MutableStateFlow(LatencySnapshot())
@@ -42,7 +42,8 @@ class SessionLatencyManager(
 
     fun startAutomatic(serviceId: String, servers: suspend () -> List<String>) {
         val expected = synchronized(lock) {
-            if (!automaticStarted.compareAndSet(false, true)) return
+            // A different selected subscription must get its own initial ping sweep.
+            if (!automaticServices.add(serviceId)) return
             generation
         }
         scope.launch {
@@ -55,8 +56,12 @@ class SessionLatencyManager(
         }
     }
 
-    fun measure(serviceId: String, serverIds: List<String>) {
-        val ids = serverIds.distinct()
+    fun measure(serviceId: String, serverIds: List<String>, force: Boolean = false) {
+        val ids = serverIds.distinct().filter { id ->
+            force || state.value.readings[LatencyKey(serviceId, id)]?.let {
+                clock() - it.measuredAtMillis !in 0..readingTtlMillis
+            } != false
+        }
         if (probeBatch == null || ids.size <= 1) {
             ids.forEach { serverId -> task(LatencyKey(serviceId, serverId)) }
         } else {
@@ -75,11 +80,14 @@ class SessionLatencyManager(
     suspend fun awaitCurrent(serviceId: String, serverId: String): LatencyProbeResult {
         val key = LatencyKey(serviceId, serverId)
         val running = synchronized(lock) { pending[key] }
-        return running?.await() ?: state.value.readings[key]?.result ?: task(key).await()
+        val fresh = state.value.readings[key]?.takeIf {
+            clock() - it.measuredAtMillis in 0..readingTtlMillis
+        }
+        return running?.await() ?: fresh?.result ?: task(key).await()
     }
 
     suspend fun cachedOrProbe(serviceId: String, serverId: String): LatencyProbeResult =
-        state.value.readings[LatencyKey(serviceId, serverId)]?.result ?: awaitCurrent(serviceId, serverId)
+        awaitCurrent(serviceId, serverId)
 
     private fun batchTask(serviceId: String, serverIds: List<String>) {
         val (expected, fresh) = synchronized(lock) {
@@ -182,7 +190,7 @@ class SessionLatencyManager(
         pending.values.forEach { it.cancel() }
         pending.clear()
         mutableState.value = LatencySnapshot()
-        automaticStarted.set(false)
+        automaticServices.clear()
     }
 
     override fun close() { clear(); scope.cancel() }
