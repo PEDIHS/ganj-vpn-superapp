@@ -136,8 +136,8 @@ internal fun StitchConnectionScreen(
         modifier = modifier
             .testTag("connection-screen")
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = responsiveHorizontalPadding(), vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         StitchBrandHeader(premium = hasPremium, onOpenStore = onOpenStore, onOpenNotifications = onOpenNotifications)
         val statusColor = when (visualState) {
@@ -146,7 +146,7 @@ internal fun StitchConnectionScreen(
             GanjConnectionVisualState.Connecting, GanjConnectionVisualState.Reconnecting -> StitchGoldBright
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
-        Row(Modifier.fillMaxWidth().padding(top=8.dp),horizontalArrangement=Arrangement.Center,
+        Row(Modifier.fillMaxWidth().padding(top=4.dp),horizontalArrangement=Arrangement.Center,
             verticalAlignment=Alignment.CenterVertically) {
             Box(Modifier.size(6.dp).background(statusColor,CircleShape))
             Spacer(Modifier.width(7.dp))
@@ -284,7 +284,7 @@ internal fun StitchConnectionScreen(
         )
         if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(7.dp))
     }
 }
 
