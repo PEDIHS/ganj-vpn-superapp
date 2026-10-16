@@ -39,7 +39,7 @@ internal class GanjBotNativeStoreApi(
     }
 
     private val base = "https://bot.pedramhs.ir/site/api.php"
-    private val reads = setOf("products", "product", "transactions", "wallet_methods", "payment_status", "wallet_card_session", "wallet_crypto_session", "support", "support_departments", "support_tickets")
+    private val reads = setOf("profile_avatar", "products", "product", "transactions", "wallet_methods", "payment_status", "wallet_card_session", "wallet_crypto_session", "support", "support_departments", "support_tickets")
     private val writes = setOf("purchase_quote", "purchase", "wallet_card", "wallet_crypto", "wallet_gateway", "support_ticket_create", "support_ticket_reply")
 
     private suspend fun session(required: Boolean) = sessionLock.withLock {
