@@ -101,6 +101,7 @@ internal fun GanjBotProduct.appDisplayName(): String {
         when (volumeGb) {
             30.0 -> "اکونومی"
             50.0 -> "استاندارد"
+            80.0 -> "پلاس"
             100.0 -> "حرفه‌ای"
             else -> null
         }
@@ -414,7 +415,7 @@ internal fun botStoreReadCatalog(envelope: JSONObject): List<GanjBotProduct> {
                 featured = product.optBoolean("featured", false),
                 oneBuy = product.optBoolean("one_buy", false),
                 deviceLimit = product.optInt("device_limit",1).coerceIn(1,1000),
-                appTier = product.optString("app_tier").takeIf {it in setOf("economy","standard","professional","premium")},
+                appTier = product.optString("app_tier").takeIf {it in setOf("economy","standard","plus","professional","premium")},
                 appTierName = product.optString("app_tier_name").takeIf {it.isNotBlank()&&it!="null"}?.take(80),
             ))
         }
