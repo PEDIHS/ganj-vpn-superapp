@@ -270,7 +270,8 @@ internal fun StitchBotSyncedStoreScreen(
                 if(vipOnly) AccountBackAction({vipOnly=false})
                 Column(Modifier.weight(1f)) {
                     Text(if(vipOnly) "GANJ · SIGNATURE COLLECTION" else "GANJ · FIND YOUR PLAN",
-                        style = MaterialTheme.typography.labelSmall, color = gold)
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if(vipOnly) gold else ganjSignatureTone(GanjSignatureTone.Azure))
                     Text(if(vipOnly)"گنج VIP" else "فروشگاه",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold,color=ink)
                     Text(if(vipOnly)"اشتراک ویژه گنج" else "اشتراک متناسب با نیاز شما",style=MaterialTheme.typography.labelSmall,color=muted)
                 }
@@ -336,7 +337,9 @@ internal fun StitchBotSyncedStoreScreen(
                     Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
                             Text("مبلغ کل دوره",style=MaterialTheme.typography.bodySmall,color=muted)
-                            Text(botPrice(chosen),style=MaterialTheme.typography.titleMedium,color=ink,fontWeight=FontWeight.SemiBold)
+                            Text(botPrice(chosen),style=MaterialTheme.typography.titleMedium,
+                                color=if(vipOnly)gold else ganjSignatureTone(GanjSignatureTone.Azure),
+                                fontWeight=FontWeight.Bold)
                         }
                         GanjSignatureButton(if(vipOnly) "ادامه با VIP" else "بررسی و ادامه خرید", { onOpenProduct(chosen.purchaseUrl) },
                             modifier = Modifier.fillMaxWidth().testTag("bot-buy-" + chosen.key))
@@ -364,13 +367,21 @@ internal fun botPlanDeviceCount(plan: GanjBotProduct): Int =
 
 @Composable
 internal fun GanjReferenceBotPlan(plan: GanjBotProduct, selected: Boolean, onSelect: () -> Unit, startingPrice: Boolean = false) {
-    val gold = signatureGold()
-    val shape = RoundedCornerShape(16.dp)
+    val tone = when {
+        plan.isVip() -> GanjSignatureTone.Iris
+        plan.featured -> GanjSignatureTone.Coral
+        else -> GanjSignatureTone.Azure
+    }
+    val accent = ganjSignatureTone(tone)
+    val gold = ganjSignatureTone(GanjSignatureTone.Gold)
+    val shape = RoundedCornerShape(17.dp)
+    val selectedBrush = if (selected) ganjSignatureSurface(tone)
+        else Brush.linearGradient(listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surface))
     val effects = LocalGanjVisualEffectsPolicy.current
-    val rim by androidx.compose.animation.animateColorAsState(if (selected) gold else MaterialTheme.colorScheme.outlineVariant,
+    val rim by androidx.compose.animation.animateColorAsState(if (selected) accent else MaterialTheme.colorScheme.outlineVariant,
         if (effects.reduceMotion) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(180), label="storePlanSelection")
     Column(Modifier.fillMaxWidth().clip(shape)
-        .background(if (selected) LocalGanjContentPalette.current.selectedSurface else MaterialTheme.colorScheme.surface)
+        .background(selectedBrush)
         .border(1.dp, rim, shape).clickable(role = Role.RadioButton, onClick = onSelect)
         .semantics { this.selected = selected }.padding(15.dp).testTag("bot-product-" + plan.key),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -381,9 +392,9 @@ internal fun GanjReferenceBotPlan(plan: GanjBotProduct, selected: Boolean, onSel
                     color = MaterialTheme.colorScheme.onSurface)
                 Text(plan.panel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Box(Modifier.size(22.dp).border(1.dp, if (selected) gold else MaterialTheme.colorScheme.onSurfaceVariant,
+            Box(Modifier.size(22.dp).border(1.dp, if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant,
                 androidx.compose.foundation.shape.CircleShape), contentAlignment=Alignment.Center) {
-                if(selected) Box(Modifier.size(10.dp).background(gold, androidx.compose.foundation.shape.CircleShape))
+                if(selected) Box(Modifier.size(10.dp).background(accent, androidx.compose.foundation.shape.CircleShape))
             }
         }
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(14.dp),
@@ -396,11 +407,11 @@ internal fun GanjReferenceBotPlan(plan: GanjBotProduct, selected: Boolean, onSel
         androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (plan.badge.isNotBlank()) Text(plan.badge, style=MaterialTheme.typography.labelSmall, color=gold)
+            if (plan.badge.isNotBlank()) Text(plan.badge, style=MaterialTheme.typography.labelSmall, color=accent)
             Text((if(startingPrice) "از " else "") + botPrice(plan), style=MaterialTheme.typography.titleMedium,
                 fontWeight=FontWeight.SemiBold, color=MaterialTheme.colorScheme.onSurface)
         }
-        if (selected) Text("انتخاب‌شده", style=MaterialTheme.typography.labelSmall, color=gold)
+        if (selected) GanjSignatureMiniPill("انتخاب‌شده", tone)
     }
 }
 
