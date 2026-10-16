@@ -76,6 +76,17 @@ class SessionLatencyManager(
     suspend fun probeNow(serviceId: String, serverId: String): LatencyProbeResult =
         task(LatencyKey(serviceId, serverId)).await()
 
+    /** Smart connect can use already measured, fresh server quality without blocking on an all-server sweep. */
+    fun bestRecentServer(serviceId: String, serverIds: List<String>): String? {
+        val now = clock()
+        val readings = state.value.readings
+        return serverIds.distinct().mapNotNull { serverId ->
+            val reading = readings[LatencyKey(serviceId, serverId)] ?: return@mapNotNull null
+            if (now - reading.measuredAtMillis !in 0..readingTtlMillis) return@mapNotNull null
+            reading.result.latencyMillis?.let { serverId to it }
+        }.minByOrNull { it.second }?.first
+    }
+
     /** Used by smart connect after scheduling the batch; never creates a duplicate probe. */
     suspend fun awaitCurrent(serviceId: String, serverId: String): LatencyProbeResult {
         val key = LatencyKey(serviceId, serverId)
