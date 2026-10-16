@@ -75,6 +75,7 @@ internal fun StitchProfileScreen(
     onOpenTransactions: (() -> Unit)? = null,
     botStoreApi: GanjBotStoreApi? = null,
     onOpenDevices: (() -> Unit)? = null,
+    onOpenFamily: (() -> Unit)? = null,
     onOpenNotifications: (() -> Unit)? = null,
     onOpenPrivacy: (() -> Unit)? = null,
     onOpenSupport: (() -> Unit)? = null,
@@ -174,15 +175,26 @@ internal fun StitchProfileScreen(
                         GanjGlassButton(if(selected==null)"انتخاب اشتراک" else "جزئیات اشتراک",{if(selected==null)onOpenSubscriptions() else onOpenDetails?.invoke() ?: run{panel="services"}},filled=false,modifier=Modifier.fillMaxWidth())
                     }
                 }
-                if(linked && onOpenWallet!=null && onOpenTransactions!=null && botStoreApi!=null)
-                    item(key="wallet-summary") {
+                if (linked && onOpenWallet != null) item(key="wallet-summary") {
+                    if (botStoreApi != null && onOpenTransactions != null) {
                         GanjBotProfileWalletSummary(botStoreApi, onOpenWallet, onOpenTransactions)
+                    } else {
+                        // Keep wallet navigation available even if the live finance adapter
+                        // is temporarily absent. Never show an invented local balance.
+                        GanjReferenceMenuRow(
+                            "کیف پول گنج", "مشاهده موجودی و افزایش اعتبار",
+                            icon = GanjDestination.Store,
+                            modifier = Modifier.testTag("profile-to-wallet"),
+                            onClick = onOpenWallet,
+                        )
                     }
+                }
                 item(key="account-services") {
                     Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
                         ProfileSectionTitle("حساب و سرویس‌ها")
                         GanjReferenceMenuRow("اشتراک‌های من",if(state.services is ContentState.Ready) activeServices.size.toPersianDigits()+" سرویس فعال" else "بررسی و انتخاب اشتراک",icon=GanjDestination.Servers,modifier=Modifier.testTag("profile-to-subscriptions"),onClick=onOpenSubscriptions)
                         if(linked) {
+                            onOpenFamily?.let { GanjReferenceMenuRow("اعضا و ظرفیت اشتراک","دعوت، خروج و مدیریت اعضا",onClick=it) }
                             onOpenDevices?.let { GanjReferenceMenuRow("دستگاه‌های من","مدیریت دسترسی دستگاه‌ها",onClick=it) }
                             onOpenTransactions?.let { GanjReferenceMenuRow("تراکنش‌ها","سوابق همان حساب گنج",icon=GanjDestination.Store,onClick=it) }
                         }

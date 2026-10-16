@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var owner: GanjCompositionOwner
     private lateinit var userPreferencesStore: AndroidGanjUserPreferencesStore
 
+    private val familyInviteToken = mutableStateOf<String?>(null)
     private val telegramLinked = mutableStateOf(false)
     private val telegramBusy = mutableStateOf(false)
     private val telegramWaiting = mutableStateOf(false)
@@ -109,6 +110,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 GanjVpnApp(
                     composition = composition,
+                    familyApi = owner.familyApi,
                     telegramLinked = telegramLinked.value,
                     telegramBusy = telegramBusy.value,
                     telegramWaiting = telegramWaiting.value,
@@ -160,6 +162,10 @@ class MainActivity : ComponentActivity() {
                     onPrepareVpnPermission = { ensureVpnPermission() },
                 )
 
+                familyInviteToken.value?.let { token ->
+                    com.ganj.vpn.ui.GanjFamilyInvitation(owner.familyApi,token,telegramLinked.value,::beginTelegramLogin,
+                        onDismiss={familyInviteToken.value=null},onJoined={familyInviteToken.value=null;accountRefreshGeneration.value+=1;refreshCurrentAccount()})
+                }
                 if (vpnPermissionExplanationVisible.value) {
                     GanjLiquidConfirmDialog(
                         title = "اجازه اتصال VPN",
@@ -219,6 +225,9 @@ class MainActivity : ComponentActivity() {
                 null -> accountIdentityErrorCode.value = "account.unavailable"
                 is ApiResult.Success -> {
                     currentAccount.value = result.value
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        owner.familyApi?.updateDevice((android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL).take(120),BuildConfig.VERSION_NAME,android.os.Build.VERSION.RELEASE.take(64))
+                    }
                     telegramLinked.value = result.value.telegramLinked
                     owner.telegramAuth?.reconcileLinkedState(result.value.telegramLinked)
                     accountIdentityErrorCode.value = null
@@ -318,6 +327,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleTelegramIntent(intent: Intent?) {
+        val invite=intent?.data
+        if(intent?.action==Intent.ACTION_VIEW && invite?.scheme=="https" && invite.host=="bot.pedramhs.ir" && invite.port==-1 && invite.path=="/app/join" && invite.query==null) {
+            invite.fragment?.takeIf {it.matches(Regex("[A-Za-z0-9_-]{43}"))}?.let {familyInviteToken.value=it}
+            return
+        }
         val callback = intent
             ?.takeIf { it.action == Intent.ACTION_VIEW }
             ?.dataString

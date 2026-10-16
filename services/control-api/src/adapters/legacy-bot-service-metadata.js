@@ -52,7 +52,7 @@ export function createLegacyBotServiceMetadataSource({ environment, repository, 
       const result = await repository.database().query(
         `SELECT control_service_id, external_service_id, external_customer_id
            FROM control_legacy_service_projections
-          WHERE user_id = $1 AND control_service_id = ANY($2::uuid[]) AND source_key = $3`,
+          WHERE (user_id = $1 OR EXISTS(SELECT 1 FROM control_service_members m WHERE m.service_id=control_service_id AND m.user_id=$1 AND m.revoked_at IS NULL)) AND control_service_id = ANY($2::uuid[]) AND source_key = $3`,
         [principal.userId, services.map((s) => s.id), sourceKey],
       );
       const owned = new Set(services.map((s) => s.id));

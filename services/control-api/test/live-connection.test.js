@@ -154,6 +154,7 @@ test('live router lists entitlement-filtered servers and issues a sealed device-
       assert.equal(plaintext.protocol, 'vless');
       assert.deepEqual(plaintext.transport, { type: 'xhttp', path: '/', mode: 'auto' });
       assert.equal(plaintext.security.type, 'reality');
+      assert.equal(plaintext.security.allow_insecure, false, 'GVP1 strict Android parser requires explicit false');
       return { algorithm: 'X25519+HKDF-SHA256+AES-256-GCM/GVP1', keyVersion: 'v1', nonce: 'bm9uY2U=', ciphertext: 'Y2lwaGVy' };
     },
   };

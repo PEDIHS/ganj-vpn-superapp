@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import com.ganj.vpn.presentation.GanjUiEvent
 import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.PlanUiModel
 import com.ganj.vpn.presentation.ServiceUiModel
+import com.ganj.vpn.presentation.SelectedConnectionServer
 import com.ganj.vpn.presentation.UiFailure
 import com.ganj.vpn.presentation.UiFailureKind
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +64,8 @@ private enum class GanjAccountSurface {
     TRANSACTIONS,
     PAYMENT,
     DEVICES,
+    FAMILY,
+    BOT_SUPPORT,
 }
 
 internal sealed interface TelegramServiceSyncFeedback {
@@ -108,6 +112,7 @@ fun GanjVpnApp(
     onLaunchGooglePlay: suspend (CheckoutActionHandle) -> CheckoutEffectResult,
     onLaunchVpn: suspend (ConnectionActionHandle) -> ConnectionEffectResult,
     onPrepareVpnPermission: suspend () -> Boolean = { true },
+    familyApi: com.ganj.vpn.core.controlapi.FamilyApi? = null,
 ) {
     val connectionSessionTimer = remember(composition) { ConnectionSessionTimer(
         wallClock = System::currentTimeMillis, monotonicClock = SystemClock::elapsedRealtime) }
@@ -128,6 +133,10 @@ fun GanjVpnApp(
     val serverController = remember(composition) { com.ganj.vpn.composition.ConnectionServerCompositionRegistry.controller(composition) }
     val deviceApi = remember(composition) { DeviceCompositionRegistry.api(composition) }
     val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current.applicationContext
+    val selectionStore = remember(appContext) { GanjConnectionSelectionStore(appContext) }
+    // Selection and display metadata belong to the verified Telegram account, never to a shared device-wide profile.
+    val accountId = currentAccount?.id?.takeIf { telegramLinked }
 
     var selectedDestination by rememberSaveable { mutableStateOf(GanjDestination.Connect) }
     var configPickerServiceId by remember(composition) { mutableStateOf<String?>(null) }
@@ -152,6 +161,7 @@ fun GanjVpnApp(
     var revokingDeviceId by remember(composition) { mutableStateOf<String?>(null) }
     var deviceRevokeError by remember(composition) { mutableStateOf<String?>(null) }
     var state by remember(composition) { mutableStateOf(composition.restoreUiState()) }
+    var previousAccountId by remember(composition) { mutableStateOf<String?>(null) }
     var enterpriseState by remember(composition) {
         mutableStateOf(composition.restoreEnterpriseState())
     }
@@ -181,6 +191,29 @@ fun GanjVpnApp(
         composition.retainUiState(next)
         state = next
     }
+
+    fun withRememberedSelection(candidate: GanjUiState): GanjUiState {
+        val account = accountId ?: return candidate
+        val services = candidate.services as? ContentState.Ready<ServiceUiModel> ?: return candidate
+        val desired = candidate.selectedEntitlementId?.takeIf { id ->
+            services.items.any { it.entitlementId == id && it.isActive }
+        } ?: selectionStore.preferredService(account)?.takeIf { id ->
+            services.items.any { it.entitlementId == id && it.isActive }
+        } ?: services.items.firstOrNull { it.isActive }?.entitlementId
+        if (desired == null) return candidate.copy(selectedEntitlementId = null, selectedConnectionServer = null)
+        val existing = candidate.selectedConnectionServer?.takeIf { it.entitlementId == desired }
+        val remembered = if (existing == null) {
+            val serverId = selectionStore.preferredServer(account, desired)
+            selectionStore.cachedCatalog(account, desired).firstOrNull { it.id == serverId }?.let {
+                SelectedConnectionServer(desired, it)
+            }
+        } else null
+        return candidate.copy(
+            selectedEntitlementId = desired,
+            selectedConnectionServer = existing ?: remembered,
+        )
+    }
+
 
     fun commitEnterprise(next: EnterpriseUiState) {
         composition.retainEnterpriseState(next)
@@ -276,8 +309,8 @@ fun GanjVpnApp(
         val loadingState = state
         refreshJob = scope.launch {
             val refreshed = controller.refreshFast(loadingState)
-            commit(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
-                GanjUiEvent.ServicesResolved(refreshed.services)))
+            commit(withRememberedSelection(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
+                GanjUiEvent.ServicesResolved(refreshed.services))))
         }
     }
 
@@ -397,8 +430,8 @@ fun GanjVpnApp(
         accountSyncFeedback = if (telegramLinked) TelegramServiceSyncFeedback.Syncing else null
         refreshJob = scope.launch {
             val refreshed = controller.refreshFast(loadingState)
-            commit(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
-                GanjUiEvent.ServicesResolved(refreshed.services)))
+            commit(withRememberedSelection(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
+                GanjUiEvent.ServicesResolved(refreshed.services))))
             accountSyncFeedback = if (telegramLinked) {
                 telegramServiceSyncFeedback(refreshed.services)
             } else {
@@ -427,9 +460,17 @@ fun GanjVpnApp(
         else selectedDestination = GanjDestination.Servers
     }
 
-    suspend fun loadServiceServers(entitlementId: String): ApiResult<List<com.ganj.vpn.core.controlapi.ConnectionServer>> =
-        withContext(Dispatchers.IO) { serverController?.servers(entitlementId)
-            ?: ApiResult.Failure(ApiError.Server(null, 503, "server_catalog_unavailable", true)) }
+    suspend fun loadServiceServers(entitlementId: String): ApiResult<List<com.ganj.vpn.core.controlapi.ConnectionServer>> {
+        val result = withContext(Dispatchers.IO) {
+            serverController?.servers(entitlementId)
+                ?: ApiResult.Failure(ApiError.Server(null, 503, "server_catalog_unavailable", true))
+        }
+        // Only a successful authoritative server response updates the local display snapshot.
+        if (result is ApiResult.Success && accountId != null) {
+            selectionStore.rememberCatalog(accountId, entitlementId, result.value)
+        }
+        return result
+    }
 
     fun requestProfile(entitlementId: String) {
         if (disconnectRequested || connectionJob?.isActive == true) return
@@ -469,6 +510,38 @@ fun GanjVpnApp(
     LaunchedEffect(composition) {
         refresh()
         refreshEnterprise()
+    }
+
+    LaunchedEffect(composition, accountId) {
+        // Switching Telegram identities must not show or reuse another user's cached selection.
+        if (previousAccountId != accountId) {
+            previousAccountId = accountId
+            commit(state.copy(
+                services = ContentState.Loading,
+                selectedEntitlementId = null,
+                selectedConnectionServer = null,
+            ))
+            if (accountId != null) refresh()
+        }
+    }
+
+    LaunchedEffect(composition, accountId, state.selectedEntitlementId) {
+        val account = accountId ?: return@LaunchedEffect
+        val serviceId = state.selectedService?.takeIf { it.isActive }?.entitlementId
+            ?: return@LaunchedEffect
+        val rememberedId = selectionStore.preferredServer(account, serviceId)
+            ?: return@LaunchedEffect
+        // Refresh the server identity from the authenticated API before using a restored choice.
+        val result = loadServiceServers(serviceId)
+        val confirmed = (result as? ApiResult.Success)?.value?.firstOrNull { it.id == rememberedId }
+        if (state.selectedEntitlementId != serviceId) return@LaunchedEffect
+        if (confirmed == null && result is ApiResult.Success &&
+            state.selectedServer?.id == rememberedId) {
+            // Authoritative catalog no longer includes this config: remove the stale choice.
+            commit(state.copy(selectedConnectionServer = null))
+        } else if (confirmed != null && state.selectedServer != confirmed) {
+            commit(reducer.reduce(state, GanjUiEvent.SelectServer(serviceId, confirmed)))
+        }
     }
 
     val entryService = state.selectedService?.takeIf { it.isActive } ?: state.serviceItems.firstOrNull { it.isActive }
@@ -552,10 +625,12 @@ fun GanjVpnApp(
             selectedServer = state.selectedServer,
             loadServers = ::loadServiceServers,
             latency = composition.latency,
+            cachedServers = accountId?.let { selectionStore.cachedCatalog(it, pickerService.entitlementId) }.orEmpty(),
             onSelect = { server ->
                 if (state.selectedEntitlementId == pickerService.entitlementId) {
                     connectionJob?.cancel()
                     commit(reducer.reduce(state, GanjUiEvent.SelectServer(pickerService.entitlementId, server)))
+                    accountId?.let { selectionStore.rememberServer(it, pickerService.entitlementId, server.id) }
                     configPickerServiceId = null
                     selectedDestination = GanjDestination.Connect
                 }
@@ -626,6 +701,7 @@ fun GanjVpnApp(
                                 onSelectService = { entitlementId ->
                                     connectionJob?.cancel()
                                     commit(reducer.reduce(state, GanjUiEvent.SelectService(entitlementId)))
+                                    accountId?.let { selectionStore.rememberService(it, entitlementId) }
                                     openConfigs()
                                 },
                                 onRetry = ::refresh,
@@ -648,6 +724,7 @@ fun GanjVpnApp(
                                 onSelectAndConnect = { entitlementId, server ->
                                     if (state.selectedEntitlementId == entitlementId) {
                                         commit(reducer.reduce(state, GanjUiEvent.SelectServer(entitlementId, server)))
+                                        accountId?.let { selectionStore.rememberServer(it, entitlementId, server.id) }
                                         requestProfile(entitlementId)
                                     }
                                 },
@@ -727,6 +804,12 @@ fun GanjVpnApp(
                                     )
                                 }
 
+                                GanjAccountSurface.BOT_SUPPORT -> GanjBotSupportScreen(botStoreApi,{accountSurface=GanjAccountSurface.PROFILE})
+                                GanjAccountSurface.FAMILY -> GanjFamilyScreen(
+                                    api=familyApi,services=(state.services as? ContentState.Ready)?.items.orEmpty(),
+                                    selectedServiceId=state.selectedEntitlementId,onBack={accountSurface=GanjAccountSurface.PROFILE},
+                                    onRefreshServices=::refreshLinkedAccount,onRevokeDevice={accountSurface=GanjAccountSurface.DEVICES;refreshDevices()},
+                                )
                                 GanjAccountSurface.DEVICES -> StitchDevicesScreen(
                                     state = devicesState,
                                     revokingDeviceId = revokingDeviceId,
@@ -760,6 +843,7 @@ fun GanjVpnApp(
                                     enterpriseState = enterpriseState,
                                     onSelectService = {
                                         commit(reducer.reduce(state, GanjUiEvent.SelectService(it)))
+                                        accountId?.let { account -> selectionStore.rememberService(account, it) }
                                     },
                                     onConnect = {
                                         state.selectedEntitlementId?.let(::requestProfile)
@@ -794,6 +878,8 @@ fun GanjVpnApp(
                                     onOpenWallet = { accountSurface = GanjAccountSurface.WALLET },
                                     onOpenTransactions = { accountSurface = GanjAccountSurface.TRANSACTIONS },
                                     botStoreApi = botStoreApi,
+                                    onOpenSupport = { accountSurface=GanjAccountSurface.BOT_SUPPORT },
+                                    onOpenFamily = { accountSurface = GanjAccountSurface.FAMILY },
                                     onOpenDevices = { accountSurface = GanjAccountSurface.DEVICES; refreshDevices() },
                                     onOpenNotifications = { openNotifications = true; selectedDestination = GanjDestination.Settings },
                                     onOpenDetails = { accountSurface = GanjAccountSurface.SUBSCRIPTION_DETAILS },

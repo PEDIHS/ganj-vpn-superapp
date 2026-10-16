@@ -39,8 +39,8 @@ internal class GanjBotNativeStoreApi(
     }
 
     private val base = "https://bot.pedramhs.ir/site/api.php"
-    private val reads = setOf("products", "product", "transactions", "wallet_methods", "payment_status", "wallet_card_session", "wallet_crypto_session")
-    private val writes = setOf("purchase_quote", "purchase", "wallet_card", "wallet_crypto", "wallet_gateway")
+    private val reads = setOf("products", "product", "transactions", "wallet_methods", "payment_status", "wallet_card_session", "wallet_crypto_session", "support", "support_departments", "support_tickets")
+    private val writes = setOf("purchase_quote", "purchase", "wallet_card", "wallet_crypto", "wallet_gateway", "support_ticket_create", "support_ticket_reply")
 
     private suspend fun session(required: Boolean) = sessionLock.withLock {
         if (!authenticated) {
@@ -121,7 +121,7 @@ internal class GanjBotNativeStoreApi(
     }
     override suspend fun request(action: String, parameters: Map<String, String>): JSONObject {
         require(action in reads || action in writes)
-        val publicAction = action in setOf("products", "product")
+        val publicAction = action in setOf("products", "product", "support")
         // Retail prices and eligibility vary by account. Do not show guest pricing
         // to a linked user, but do not perform SSO for a genuine guest.
         if (!publicAction || isLinked()) session(required = true)

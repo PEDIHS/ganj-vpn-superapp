@@ -72,7 +72,7 @@ export function createLegacyBotConnectionSource({ environment, repository, fetch
   }
 
   async function candidates(service, principal) {
-    const mapping = await projection(service.id, principal.userId);
+    const mapping = await projection(service.id, service.userId ?? principal.userId);
     if (!mapping) return [];
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5_000);

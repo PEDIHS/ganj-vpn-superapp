@@ -241,6 +241,7 @@ test('connection profile plaintext is a strict versioned server provisioned Xray
   assert.deepEqual(observed.plaintext.transport, { type: 'tcp' });
   assert.deepEqual(observed.plaintext.security, {
     type: 'tls', server_name: 'de-premium.internal.invalid', fingerprint: 'chrome',
+    allow_insecure: false,
   });
   assert.equal(observed.plaintext.schema_version, 1);
   assert.equal(observed.plaintext.protocol, 'vless');

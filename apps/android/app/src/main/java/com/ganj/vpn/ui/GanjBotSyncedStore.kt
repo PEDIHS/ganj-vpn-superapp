@@ -73,12 +73,46 @@ internal data class GanjBotProduct(
     val badge: String,
     val featured: Boolean,
     val oneBuy: Boolean,
+    val deviceLimit: Int = 1,
+    val appTier: String? = null,
+    val appTierName: String? = null,
 ) {
     val key: String get() = panelId + ":" + code
     val purchaseUrl: String get() =
         "https://bot.pedramhs.ir/site/?page=product&id=" +
             URLEncoder.encode(code, "UTF-8") + "&panel=" +
             URLEncoder.encode(panelId, "UTF-8")
+}
+
+/**
+ * Native-only presentation alias for the original bot products. No product codes,
+ * prices, quotas, durations, category IDs or checkout URLs are ever rewritten.
+ * Unrecognized volumes and non-VIP packages retain their official bot names.
+ */
+internal fun GanjBotProduct.appDisplayName(): String {
+    val memberCount = Regex("^([1-3]) کاربر$").matchEntire(category.trim())
+        ?.groupValues?.get(1)?.toIntOrNull()
+    val legacyVipTier = if (
+        panel.contains("VIP", ignoreCase = true) &&
+        name.contains("ویژه تانل") &&
+        memberCount != null &&
+        durationDays == 30
+    ) {
+        when (volumeGb) {
+            30.0 -> "اکونومی"
+            50.0 -> "استاندارد"
+            80.0 -> "پلاس"
+            100.0 -> "حرفه‌ای"
+            else -> null
+        }
+    } else null
+    val alias = appTierName?.takeIf { it.isNotBlank() } ?: legacyVipTier ?: return name
+    val users = memberCount ?: deviceLimit.takeIf { it > 0 }
+    return buildString {
+        append(alias)
+        if (volumeGb > 0) append(" · ").append(volumeGb.toLong().toPersianDigits()).append(" گیگ")
+        if (users != null) append(" · ").append(users.toPersianDigits()).append(" دستگاه")
+    }
 }
 
 internal fun botStorePanels(products: List<GanjBotProduct>): List<Pair<String, String>> =
@@ -99,6 +133,7 @@ internal fun botStoreFilter(
         (panelId == null || product.panelId == panelId) &&
             (category == null || product.category == category) &&
             (cleanQuery.isEmpty() || product.name.contains(cleanQuery, ignoreCase = true) ||
+                product.appDisplayName().contains(cleanQuery, ignoreCase = true) ||
                 product.description.contains(cleanQuery, ignoreCase = true))
     }
 }
@@ -196,6 +231,10 @@ internal fun StitchBotSyncedStoreScreen(
         } catch(cancelled:CancellationException){throw cancelled}
         catch(_:Exception){error=true}
         finally {loading=false}
+    }
+    if(products.any {it.appTier!=null}) {
+        GanjTierCatalog(products,onOpenProduct,onOpenWallet,onOpenTransactions,loading,error,{retryKey++},modifier)
+        return
     }
     val panels=remember(products){botStorePanels(products)}
     val selectedPanel=panelId?.takeIf { key->panels.any {it.first==key} }
@@ -331,7 +370,7 @@ private fun GanjReferenceBotPlan(plan:GanjBotProduct,selected:Boolean,onSelect:(
             Box(Modifier.size(17.dp).border(1.dp,if(selected)accent else MaterialTheme.colorScheme.onSurfaceVariant,androidx.compose.foundation.shape.CircleShape),contentAlignment=Alignment.Center) {
                 if(selected)Box(Modifier.size(7.dp).background(accent,androidx.compose.foundation.shape.CircleShape))
             }
-            Text(plan.name,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurface)
+            Text(plan.appDisplayName(),Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurface)
             if(plan.badge.isNotBlank()) Text(plan.badge,style=MaterialTheme.typography.labelSmall,color=gold)
         }
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -375,6 +414,9 @@ internal fun botStoreReadCatalog(envelope: JSONObject): List<GanjBotProduct> {
                 badge = product.optString("badge").trim().take(60),
                 featured = product.optBoolean("featured", false),
                 oneBuy = product.optBoolean("one_buy", false),
+                deviceLimit = product.optInt("device_limit",1).coerceIn(1,1000),
+                appTier = product.optString("app_tier").takeIf {it in setOf("economy","standard","plus","professional","premium")},
+                appTierName = product.optString("app_tier_name").takeIf {it.isNotBlank()&&it!="null"}?.take(80),
             ))
         }
     }.distinctBy { it.key }

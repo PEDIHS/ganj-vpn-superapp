@@ -155,7 +155,9 @@ function trustedConnection(server, service) {
     protocol: value.protocol,
     credential: value.credential,
     transport,
-    security: { ...security, ...(security.allow_insecure === undefined ? {} : { allow_insecure: false }) },
+    // The Android GVP1 v1 strict parser requires an explicit false on both TLS
+    // and REALITY. The source is untrusted so never forward true or weaken TLS.
+    security: security.type === 'none' ? { type: 'none' } : { ...security, allow_insecure: false },
     flow: value.flow ?? null,
     shadowsocks_method: value.shadowsocks_method ?? null,
   };
@@ -198,6 +200,13 @@ function match(pathname, pattern) {
     else if (expected[index] !== actual[index]) return null;
   }
   return params;
+}
+
+async function requireAccessibleService(repository,userId,serviceId) {
+  requireUuid(serviceId,'service_id');
+  const value=await (repository.findAccessibleService ?? repository.findOwnedService).call(repository,userId,serviceId);
+  if(!value)throw new ApiError(404,'service_not_found','Service was not found.');
+  return value;
 }
 
 async function requireOwnedService(repository, userId, serviceId) {
@@ -455,21 +464,21 @@ export function createApplication({ repository, auth, authSession, telegramAuth,
       }
 
       if (request.method === 'GET' && pathname === '/v1/services') {
-        const owned = await repository.listServices(principal.userId);
+        const owned = await (repository.listAccessibleServices ?? repository.listServices).call(repository,principal.userId);
         const display = serviceMetadata ? await serviceMetadata.decorate({ principal, services: owned }) : owned;
         return { status: 200, body: success(display.map(asService), requestId, clock) };
       }
 
       let params = match(pathname, '/v1/services/:serviceId');
       if (request.method === 'GET' && params) {
-        const owned = await requireOwnedService(repository, principal.userId, params.serviceId);
+        const owned = await requireAccessibleService(repository, principal.userId, params.serviceId);
         const display = serviceMetadata ? (await serviceMetadata.decorate({ principal, services: [owned] }))[0] : owned;
         return { status: 200, body: success(asService(display), requestId, clock) };
       }
 
       if (request.method === 'GET' && pathname === '/v1/servers') {
         const now = clock();
-        const entitlements = (await repository.listServices(principal.userId)).filter((service) => isUsable(service, now));
+        const entitlements = (await (repository.listAccessibleServices ?? repository.listServices).call(repository,principal.userId)).filter((service) => isUsable(service, now));
         const tier = url.searchParams.get('tier');
         const country = url.searchParams.get('country');
         const protocol = url.searchParams.get('protocol');
@@ -501,7 +510,7 @@ export function createApplication({ repository, auth, authSession, telegramAuth,
         if (deviceId !== principal.deviceId) {
           throw new ApiError(403, 'device_mismatch', 'Profile can only be issued to the authenticated device.');
         }
-        const service = await requireOwnedService(repository, principal.userId, params.serviceId);
+        const service = await requireAccessibleService(repository, principal.userId, params.serviceId);
         const now = clock();
         if (service.status !== 'active') throw new ApiError(403, 'service_inactive', 'Service is not active.');
         if (service.expires_at && Date.parse(service.expires_at) <= now.getTime()) {
@@ -551,7 +560,7 @@ export function createApplication({ repository, auth, authSession, telegramAuth,
           },
         });
         await repository.transaction(async () => {
-          const current = await requireOwnedService(repository, principal.userId, service.id);
+          const current = await requireAccessibleService(repository, principal.userId, service.id);
           const currentServer = await repository.findServer(serverId);
           const entitlementChanged = current.status !== 'active'
             || current.expires_at && Date.parse(current.expires_at) <= clock().getTime()
@@ -568,7 +577,8 @@ export function createApplication({ repository, auth, authSession, telegramAuth,
           if (!alreadyBound && current.deviceIds.length >= current.device_limit) {
             throw new ApiError(403, 'device_limit_reached', 'Service device limit has been reached.');
           }
-          if (!alreadyBound) await repository.saveService({ ...current, deviceIds: [...current.deviceIds, deviceId] });
+          if (repository.bindAccessibleDevice) await repository.bindAccessibleDevice(principal,current);
+          else if (!alreadyBound) await repository.saveService({ ...current, deviceIds: [...current.deviceIds, deviceId] });
           const reserved = await repository.reserveConnectionProfile({
             profileId,
             userId: principal.userId,

@@ -105,7 +105,9 @@ function trustedConnection(server, service) {
     protocol: value.protocol,
     credential: value.credential,
     transport,
-    security: { ...security, ...(security.allow_insecure === undefined ? {} : { allow_insecure: false }) },
+    // The Android GVP1 v1 strict parser requires an explicit false on both TLS
+    // and REALITY. The source is untrusted so never forward true or weaken TLS.
+    security: security.type === 'none' ? { type: 'none' } : { ...security, allow_insecure: false },
     flow: value.flow ?? null,
     shadowsocks_method: value.shadowsocks_method ?? null,
   };
@@ -113,7 +115,7 @@ function trustedConnection(server, service) {
 
 async function ownedService(repository, userId, serviceId) {
   requireUuid(serviceId, 'service_id');
-  const service = await repository.findOwnedService(userId, serviceId);
+  const service = await (repository.findAccessibleService ?? repository.findOwnedService).call(repository,userId,serviceId);
   if (!service) throw new ApiError(404, 'service_not_found', 'Service was not found.');
   return service;
 }
@@ -136,7 +138,7 @@ export function createLiveConnectionRouter({ auth, repository, connectionSource,
         const requested = await ownedService(repository, principal.userId, requestedServiceId);
         services = isUsable(requested, now) ? [requested] : [];
       } else {
-        services = (await repository.listServices(principal.userId)).filter((service) => isUsable(service, now));
+        services = (await (repository.listAccessibleServices ?? repository.listServices).call(repository,principal.userId)).filter((service) => isUsable(service, now));
       }
       const tier = url.searchParams.get('tier');
       const country = url.searchParams.get('country');
@@ -195,7 +197,8 @@ export function createLiveConnectionRouter({ auth, repository, connectionSource,
       if (!currentServer || !entitled(currentServer, current)) throw new ApiError(403, 'entitlement_changed', 'Service entitlement changed during profile issuance.');
       const alreadyBound = current.deviceIds.includes(deviceId);
       if (!alreadyBound && current.deviceIds.length >= current.device_limit) throw new ApiError(403, 'device_limit_reached', 'Service device limit has been reached.');
-      if (!alreadyBound) await repository.saveService({ ...current, deviceIds: [...current.deviceIds, deviceId] });
+      if (repository.bindAccessibleDevice) await repository.bindAccessibleDevice(principal,current);
+      else if (!alreadyBound) await repository.saveService({ ...current, deviceIds: [...current.deviceIds, deviceId] });
       const reserved = await repository.reserveConnectionProfile({
         profileId,
         userId: principal.userId,

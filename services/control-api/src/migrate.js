@@ -3,6 +3,11 @@ import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Production safety gate must run before constructing a pool or opening a database connection.
+// Test fixtures are not allowed in the live billing, account or entitlement database.
+if (process.env.NODE_ENV === 'production' && process.env.MIGRATIONS_INCLUDE_TEST_SEED === 'true') {
+  throw new Error('Test seed migrations are forbidden in production.');
+}
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for migrations.');
 const { Pool } = await import('pg');
 const pool = new Pool({

@@ -48,6 +48,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -224,28 +227,44 @@ internal fun StitchConnectionScreen(
                             return@launch
                         }
                         val servers = (response as ApiResult.Success).value
-                        val results = if (latency != null) {
-                            latency.measure(selected.entitlementId, servers.map { it.id })
-                            kotlinx.coroutines.coroutineScope {
-                                servers.map { server ->
-                                    async {
-                                        server.id to latency.awaitCurrent(selected.entitlementId, server.id)
+                        val ids = servers.map { it.id }
+                        val fastest = if (latency != null) {
+                            // The automatic sweep starts on entry. Never block the connect button until
+                            // every single server has finished probing, as was previously the case.
+                            latency.bestRecentServer(selected.entitlementId, ids) ?: run {
+                                latency.measure(selected.entitlementId, ids)
+                                withTimeoutOrNull(5_000L) {
+                                    latency.state.first { snapshot ->
+                                        val observed = servers.mapNotNull { server ->
+                                            snapshot.readings[LatencyKey(selected.entitlementId, server.id)]
+                                        }
+                                        val measured = observed.count { it.result.latencyMillis != null }
+                                        measured >= minOf(2, servers.size) ||
+                                            (snapshot.measuring.none { it.serviceId == selected.entitlementId } &&
+                                                observed.isNotEmpty())
                                     }
-                                }.awaitAll()
+                                }
+                                latency.bestRecentServer(selected.entitlementId, ids)
                             }
                         } else {
                             servers.map { server -> server.id to onProbe(selected.entitlementId, server.id) }
+                                .mapNotNull { (id, result) -> result.latencyMillis?.let { id to it } }
+                                .minByOrNull { it.second }?.first
                         }
-                        val best = results.mapNotNull { (id, result) -> result.latencyMillis?.let { id to it } }
-                            .minByOrNull { it.second }
-                        if (best == null) smartFailure = results.firstNotNullOfOrNull { (_, result) ->
-                            (result as? LatencyProbeResult.Failed)?.failure
-                        } ?: ConnectionFailures.probe("probe.unavailable")
-                        else {
-                            servers.firstOrNull { it.id == best.first }?.let {
+                        if (fastest == null) {
+                            smartFailure = ids.firstNotNullOfOrNull { id ->
+                                (latency?.state?.value?.readings?.get(LatencyKey(selected.entitlementId, id))
+                                    ?.result as? LatencyProbeResult.Failed)?.failure
+                            } ?: ConnectionFailures.probe("probe.unavailable")
+                        } else {
+                            servers.firstOrNull { it.id == fastest }?.let {
                                 onSelectAndConnect(selected.entitlementId, it)
                             }
                         }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        smartFailure = ConnectionFailures.probe("probe.unavailable")
                     } finally { smartBusy = false }
                 }
             },

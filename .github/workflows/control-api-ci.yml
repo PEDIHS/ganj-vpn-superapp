@@ -74,8 +74,15 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://ganj_test:testtest@127.0.0.1:5432/ganj_control_test
 
+      - name: Family membership PostgreSQL security and concurrency
+        run: node --test test/family-postgres.test.js
+        env:
+          FAMILY_TEST_DATABASE_URL: postgres://ganj_test:testtest@127.0.0.1:5432/ganj_control_test
+
       - name: Coverage gates
         run: npm run test:coverage
+        env:
+          FAMILY_TEST_DATABASE_URL: postgres://ganj_test:testtest@127.0.0.1:5432/ganj_control_test
 
       - name: Package manifest smoke test
         run: npm pack --dry-run --ignore-scripts

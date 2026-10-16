@@ -179,7 +179,7 @@ internal fun StitchNativeBotCheckout(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     GanjNativePlanArt(plan, Modifier.size(64.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(plan.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(plan.appDisplayName(), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Text(plan.panel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
