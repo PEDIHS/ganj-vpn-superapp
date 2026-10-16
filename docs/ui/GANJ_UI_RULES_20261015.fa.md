@@ -181,3 +181,10 @@ This document extends the canonical brand and liquid-glass standards.
   invoice recovery, receipts and payment-status authority retain their existing real handlers.
 - A mixed catalog must retain non-tier products. Changing a tier period/device resolves an actual
   existing product; never calculate substitute prices or silently change a bot product.
+
+## 2026-10-16 — Telegram photo and dark contrast (0.3.30)
+- Profile avatar loads exclusively from the authenticated Ganj Bot owner's cached Telegram photo, without exposing bot tokens or accepting a client-supplied Telegram ID.
+- Account logout/switch clears the previously rendered photo immediately; absent/offline/unavailable photos use the branded fallback.
+- Dark theme text inputs explicitly use onSurface/onSurfaceVariant; disabled actions must never paint dark onPrimary text over muted/opaque dark surfaces.
+- Keep the Connect orb and VPN data path unchanged. Preserve existing subscription pricing and bot-side product names.
+- Real Telegram-photo and physical-device upgrade verification remain external QA gates until tested with a linked account.
