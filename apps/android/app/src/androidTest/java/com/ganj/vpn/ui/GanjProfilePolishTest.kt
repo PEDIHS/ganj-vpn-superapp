@@ -14,6 +14,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
@@ -68,6 +69,24 @@ class GanjProfilePolishTest {
         compose.waitUntil(10000) { api.calls == 2 }
         scroll("profile-wallet-topup").performClick()
         compose.runOnIdle { assertEquals(2, wallet) }
+    }
+
+    @Test fun darkDisabledActionsAndInputsNeverUseDarkForegrounds() {
+        render(dark = true) { padding ->
+            Column(Modifier.padding(padding).padding(16.dp)) {
+                GanjGlassButton("غیرفعال", enabled = false, onClick = {})
+                GanjLiquidTextField(value = "۱۴۰۰۰۰", onValueChange = {}, label = "مبلغ شارژ")
+            }
+        }
+        fun assertLightForeground(text: String) {
+            val results = mutableListOf<TextLayoutResult>()
+            compose.onNodeWithText(text, useUnmergedTree = true)
+                .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
+            assertTrue("Dark mode text must contrast with its dark background: $text",
+                results.single().layoutInput.style.color.luminance() > .22f)
+        }
+        assertLightForeground("غیرفعال")
+        assertLightForeground("۱۴۰۰۰۰")
     }
 
     @Test fun avatarFollowsLinkedAccountAndFallsBackWhenUnlinked() {
