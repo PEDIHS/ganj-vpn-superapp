@@ -2,6 +2,10 @@ package com.ganj.vpn.ui
 
 import android.content.Context
 import android.net.Uri
+import android.graphics.Bitmap
+import android.graphics.Color as AndroidColor
+import android.util.Base64
+import java.io.ByteArrayOutputStream
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -64,6 +68,37 @@ class GanjProfilePolishTest {
         compose.waitUntil(10000) { api.calls == 2 }
         scroll("profile-wallet-topup").performClick()
         compose.runOnIdle { assertEquals(2, wallet) }
+    }
+
+    @Test fun avatarFollowsLinkedAccountAndFallsBackWhenUnlinked() {
+        val raw = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(AndroidColor.rgb(18, 135, 96))
+        }
+        val jpeg = ByteArrayOutputStream().also { raw.compress(Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+        val encoded = Base64.encodeToString(jpeg, Base64.NO_WRAP)
+        val linkedAccount = mutableStateOf(true)
+        val avatarApi = object : GanjBotStoreApi {
+            override suspend fun request(action: String, parameters: Map<String, String>): JSONObject {
+                check(action == "profile_avatar")
+                return JSONObject().put("data", JSONObject().put("mime", "image/jpeg").put("image_base64", encoded))
+            }
+            override suspend fun uploadReceipt(context: Context, uri: Uri, order: String, crypto: Boolean, txLink: String): JSONObject =
+                error("No receipt upload in avatar test")
+        }
+        render { padding ->
+            val photo = rememberGanjTelegramAvatar(account.takeIf { linkedAccount.value }, avatarApi)
+            Column(Modifier.padding(padding).padding(12.dp)) {
+                GanjProfileIdentity("حساب تلگرام", "@ganj_preview", linkedAccount.value, true,
+                    onManage = {}, avatar = photo)
+            }
+        }
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithTag("profile-telegram-avatar").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("profile-telegram-avatar").assertExists()
+        compose.runOnIdle { linkedAccount.value = false }
+        compose.onNodeWithTag("profile-telegram-avatar").assertDoesNotExist()
+        compose.onNodeWithTag("profile-identity-orbit").assertExists()
     }
 
     @Test fun largeLightProfileKeepsAmountAndActionLabelsComplete() {
