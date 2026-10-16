@@ -20,6 +20,7 @@ class GanjScrollHapticPolicyTest {
         assertFalse(p.shouldTick(true, true, true, 100, -1))
         assertTrue(p.shouldTick(true, true, false, 100, -1))
         assertFalse(p.shouldTick(true, true, false, 130, 100))
-        assertTrue(p.shouldTick(true, true, false, 165, 100))
+        assertFalse(p.shouldTick(true, true, false, 165, 100))
+        assertTrue(p.shouldTick(true, true, false, 205, 100))
     }
 }
