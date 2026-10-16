@@ -52,6 +52,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
+// Space added at the end of scrollable destinations, not behind the floating bar.
+internal val GanjFloatingNavContentClearance = 132.dp
+
 private val GanjNavGold = Color(0xFFD5A63A)
 
 internal enum class GanjDestination(@StringRes val labelRes: Int) {
@@ -98,7 +101,8 @@ internal fun GanjLiquidBottomNavigation(
     val largeFont = LocalDensity.current.fontScale >= 1.5f
     Column(modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 6.dp)) {
         Box(Modifier.fillMaxWidth().height(if (largeFont) 132.dp else 112.dp).testTag("liquid-bottom-navigation")) {
-            Canvas(Modifier.matchParentSize()) {
+            // The emerald wave is the only painted navigation surface; the rest stays transparent.
+            Canvas(Modifier.matchParentSize().testTag("nav-emerald-wave")) {
                 val w = size.width; val h = size.height - 4.dp.toPx(); val c = w / 2
                 val top = 27.dp.toPx(); val r = 22.dp.toPx(); val mouth = 58.dp.toPx(); val neck = 38.dp.toPx()
                 val wave = androidx.compose.ui.graphics.Path().apply {
@@ -138,7 +142,15 @@ internal fun GanjLiquidBottomNavigation(
                         if (animate) spring(.88f,700f) else snap(), label = "waveTabPress")
                     val label = stringResource(destination.labelRes)
                     val tint = if (active) (if (dark) Color(0xFFE1FFEC) else colors.primary) else (if(dark) Color(0xFFB2E4D0) else colors.onSurfaceVariant)
-                    Column(Modifier.weight(1f).fillMaxHeight().testTag("nav-"+destination.name)
+                    // Limit touch bounds to the visible wave/buttons. Transparent upper
+                    // corners must pass drag gestures through to the scroller below.
+                    Column(Modifier.weight(1f)
+                        .height(if (destination == GanjDestination.Connect) {
+                            if (largeFont) 128.dp else 108.dp
+                        } else {
+                            if (largeFont) 92.dp else 82.dp
+                        })
+                        .testTag("nav-"+destination.name)
                         .semantics { contentDescription = UiAccessibilityPolicy.destinationDescription(label,active,"انتخاب‌شده") }
                         .selectable(active,interactionSource=interaction,indication=null,role=Role.Tab,onClick={
                             if (destination != selectedDestination) {

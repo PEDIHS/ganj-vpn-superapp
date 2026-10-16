@@ -2,58 +2,117 @@ package com.ganj.vpn.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 internal fun exactAppVariant(products: List<GanjBotProduct>, tier: String?, days: Int, devices: Int): GanjBotProduct? =
-    products.firstOrNull {it.appTier==tier&&it.durationDays==days&&it.deviceLimit==devices}
+    products.firstOrNull { it.appTier == tier && it.durationDays == days && it.deviceLimit == devices }
 
-/** Four tier families, backed by exact server products rather than app-calculated prices. */
+/** Every period/device choice resolves to an existing product, never an interpolated price. */
 @Composable
-internal fun GanjTierCatalog(products: List<GanjBotProduct>,onOpenProduct:(String)->Unit,onOpenWallet:()->Unit,
-    onOpenTransactions:()->Unit,loading:Boolean,error:Boolean,onRefresh:()->Unit,modifier:Modifier=Modifier) {
-    var tier by rememberSaveable {mutableStateOf<String?>(null)}
-    var days by rememberSaveable {mutableStateOf(30)}
-    var devices by rememberSaveable {mutableStateOf(1)}
-    val tiers=products.filter {it.appTier!=null}.groupBy {it.appTier!!}
-    val chosen=exactAppVariant(products,tier,days,devices)
-    LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=responsiveHorizontalPadding(),vertical=20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        item {
-            Text("اشتراک VIP گنج",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-            Text("پلن، مدت و تعداد دستگاه را انتخاب کنید.",color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if(loading)item {Text("در حال دریافت…")}
-        if(error)item {GanjInlineStatusPanel("به‌روزرسانی کامل نشد","مبلغ نهایی پیش از پرداخت از ربات بررسی می‌شود.",actionText="تلاش دوباره",onAction=onRefresh)}
-        listOf("economy","standard","plus","professional","premium").forEach {key ->
-            val options=tiers[key].orEmpty()
-            val base=options.minByOrNull {it.priceToman}
-            if(base!=null)item(key=key) {
-                GanjGlassButton((base.appTierName?:key)+" · "+if(key=="premium")"دوره‌های ۳۰، ۶۰ و ۹۰ روزه" else "${base.volumeGb.toInt().toPersianDigits()} گیگ",
-                    {tier=key;days=options.minOf{it.durationDays};devices=options.filter{it.durationDays==days}.minOf{it.deviceLimit}},
-                    Modifier.fillMaxWidth(),filled=tier==key)
-                Text("از ${botMoney(base.priceToman)}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+internal fun GanjTierCatalog(
+    products: List<GanjBotProduct>, onOpenProduct: (String) -> Unit, onOpenWallet: () -> Unit,
+    onOpenTransactions: () -> Unit, loading: Boolean, error: Boolean, onRefresh: () -> Unit,
+    modifier: Modifier = Modifier, vipOnly: Boolean = false, onVipChanged: (Boolean) -> Unit = {},
+) {
+    var tier by rememberSaveable { mutableStateOf<String?>(null) }
+    var days by rememberSaveable { mutableStateOf(30) }
+    var devices by rememberSaveable { mutableStateOf(1) }
+    var regularKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val eligible = products.filter { !vipOnly || it.isVip() || it.appTier == "premium" }
+    val tiers = eligible.filter { it.appTier != null }.groupBy { it.appTier!! }
+    val order = listOf("economy", "standard", "plus", "professional", "premium")
+    val selected = exactAppVariant(eligible, tier, days, devices)
+        ?: eligible.firstOrNull { it.key == regularKey }
+    fun choose(rows: List<GanjBotProduct>, key: String) {
+        regularKey = null; tier = key
+        days = rows.minOf { it.durationDays }
+        devices = rows.filter { it.durationDays == days }.minOf { it.deviceLimit }
+    }
+    LazyColumn(modifier.fillMaxSize().then(profileRevealModifier(if (vipOnly) "tier-vip" else "tier-store"))
+        .testTag("bot-synced-store"), contentPadding=PaddingValues(horizontal=responsiveHorizontalPadding(), vertical=20.dp),
+        verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        item(key = "header") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                if (vipOnly) AccountBackAction({ onVipChanged(false) })
+                Column(Modifier.weight(1f)) {
+                    Text(if (vipOnly) "GANJ · SIGNATURE COLLECTION" else "GANJ · FIND YOUR PLAN",
+                        style=MaterialTheme.typography.labelSmall, color=signatureGold())
+                    Text(if (vipOnly) "گنج VIP" else "فروشگاه", style=MaterialTheme.typography.headlineSmall, fontWeight=FontWeight.SemiBold)
+                    Text("پلن، مدت و تعداد دستگاه را انتخاب کنید.", style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
-        if(tier!=null)item {
-            val rows=tiers[tier].orEmpty()
-            Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                Text("مدت اشتراک",style=MaterialTheme.typography.titleMedium)
-                rows.map{it.durationDays}.distinct().sorted().forEach {period -> GanjChoicePill("${period.toPersianDigits()} روز",days==period,{days=period;devices=rows.filter{it.durationDays==period}.minOf{it.deviceLimit}},Modifier.fillMaxWidth())}
-                Text("تعداد دستگاه",style=MaterialTheme.typography.titleMedium)
-                rows.filter{it.durationDays==days}.map{it.deviceLimit}.distinct().sorted().forEach {limit -> GanjChoicePill("${limit.toPersianDigits()} دستگاه",devices==limit,{devices=limit},Modifier.fillMaxWidth())}
-                chosen?.let {p ->
-                    Text(p.appTierName.orEmpty()+" · ${p.volumeGb.toInt().toPersianDigits()} گیگ · ${p.durationDays.toPersianDigits()} روز · ${p.deviceLimit.toPersianDigits()} دستگاه",style=MaterialTheme.typography.titleMedium)
-                    Text(p.description,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(botMoney(p.priceToman),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-                    GanjGlassButton("بررسی و ادامه خرید",{onOpenProduct(p.purchaseUrl)},Modifier.fillMaxWidth())
-                } ?: Text("این ترکیب موجود نیست؛ گزینه‌های موجود را انتخاب کنید.")
+        if (vipOnly) item(key = "vip-hero") { GanjSignatureVipHero(Modifier.testTag("store-vip-hero")) }
+        else if (products.any { it.isVip() || it.appTier == "premium" }) item(key = "vip-banner") {
+            GanjSignatureBanner("دنیای گنج VIP", "مشاهده و بررسی پلن‌های موجود", { onVipChanged(true) }, Modifier.testTag("vip-upgrade-entry"))
+        }
+        if (loading) item { GanjLoadingState("در حال دریافت پلن‌ها") }
+        if (error) item {
+            GanjInlineStatusPanel("به‌روزرسانی کامل نشد", "اطلاعات قبلی نمایش داده شده؛ مبلغ نهایی پیش از پرداخت از ربات بررسی می‌شود.",
+                actionText="تلاش دوباره", onAction=onRefresh, modifier=Modifier.testTag("bot-store-stale"))
+        }
+        if (eligible.isEmpty() && !loading) item {
+            GanjInlineStatusPanel("پلنی در دسترس نیست", "فروشگاه را دوباره بررسی کنید.",
+                actionText = if (vipOnly) "همه پلن‌ها" else "به‌روزرسانی", onAction = { if (vipOnly) onVipChanged(false) else onRefresh() })
+        }
+        order.forEach { key ->
+            val rows = tiers[key].orEmpty()
+            val base = rows.minByOrNull { it.priceToman }
+            if (base != null) item(key = "tier-$key") {
+                Column(Modifier.testTag("tier-$key"), verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                    GanjReferenceBotPlan(if (tier == key) selected?.takeIf { it.appTier == key } ?: base else base,
+                        tier == key, { choose(rows, key) }, startingPrice=tier != key)
+                    if (tier == key) {
+                        Text("مدت اشتراک", style=MaterialTheme.typography.titleSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp), verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                            rows.map { it.durationDays }.distinct().sorted().forEach { period ->
+                                GanjChoicePill("${period.toPersianDigits()} روز", days == period, {
+                                    days = period
+                                    val limits = rows.filter { it.durationDays == period }.map { it.deviceLimit }
+                                    if (devices !in limits) devices = limits.min()
+                                }, Modifier.testTag("tier-period-$period"), accent=signatureGold())
+                            }
+                        }
+                        Text("تعداد دستگاه", style=MaterialTheme.typography.titleSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp), verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                            rows.filter { it.durationDays == days }.map { it.deviceLimit }.distinct().sorted().forEach { count ->
+                                GanjChoicePill("${count.toPersianDigits()} دستگاه", devices == count, { devices = count },
+                                    Modifier.testTag("tier-devices-$count"), accent=signatureGold())
+                            }
+                        }
+                        val product = selected?.takeIf { it.appTier == key }
+                        if (product != null) {
+                            if (product.description.isNotBlank()) Text(product.description, style=MaterialTheme.typography.bodySmall,
+                                color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            GanjSignatureButton("بررسی و ادامه خرید", { onOpenProduct(product.purchaseUrl) },
+                                Modifier.fillMaxWidth().testTag("bot-buy-" + product.key))
+                        } else Text("این ترکیب موجود نیست؛ گزینه‌های موجود را انتخاب کنید.", color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
-        item {GanjGlassButton("کیف پول",onOpenWallet,Modifier.fillMaxWidth(),filled=false);GanjGlassButton("تراکنش‌ها",onOpenTransactions,Modifier.fillMaxWidth(),filled=false)}
+        // A mixed catalog must not hide original non-tier products.
+        items(eligible.filter { it.appTier == null }, key = { it.key }) { product ->
+            Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                GanjReferenceBotPlan(product, regularKey == product.key, { tier = null; regularKey = product.key })
+                if (regularKey == product.key) GanjSignatureButton("بررسی و ادامه خرید", { onOpenProduct(product.purchaseUrl) },
+                    Modifier.fillMaxWidth().testTag("bot-buy-" + product.key))
+            }
+        }
+        item(key = "finance") {
+            GanjReferenceMenuRow("کیف پول", "موجودی، شارژ و ارسال رسید", icon=GanjDestination.Store, accent=signatureGold(), onClick=onOpenWallet)
+            Spacer(Modifier.height(8.dp))
+            GanjReferenceMenuRow("تراکنش‌ها", "سوابق پرداخت و وضعیت بررسی", icon=GanjDestination.Store, accent=signatureGold(), onClick=onOpenTransactions)
+        }
     }
 }

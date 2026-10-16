@@ -67,6 +67,20 @@ class GanjNavigationTest {
         compose.onNodeWithTag("loading-state").assertDoesNotExist()
     }
 
+    @Test fun restoredEmeraldWaveFloatsOverFullHeightDestinationWithoutBlankBottomContainer() {
+        show(dark = true, large = false, motion = false)
+        compose.onNodeWithTag("floating-navigation-host").assertExists()
+        compose.onNodeWithTag("nav-emerald-wave").assertExists()
+        listOf(GanjDestination.Store, GanjDestination.Connect, GanjDestination.Account).forEach { destination ->
+            compose.onNodeWithTag("nav-${destination.name}").performClick()
+            compose.onNodeWithTag("screen-${destination.name}").assertExists()
+            val screen = compose.onNodeWithTag("screen-${destination.name}").fetchSemanticsNode().boundsInRoot
+            val navigation = compose.onNodeWithTag("liquid-bottom-navigation").fetchSemanticsNode().boundsInRoot
+            assertTrue("Page must continue underneath the fixed wave", screen.bottom > navigation.top)
+        }
+        capture("navigation-floating-original-wave")
+    }
+
     private fun show(dark: Boolean, large: Boolean, motion: Boolean) {
         compose.activityRule.scenario.onActivity { activity ->
             activity.setContent {
@@ -76,8 +90,8 @@ class GanjNavigationTest {
                     GanjTheme(darkTheme = dark, visualEffectsPolicy = GanjVisualEffectsPolicy(
                         if (motion) GanjEffectsTier.Full else GanjEffectsTier.Reduced, false, !motion, false)) {
                         var destination by remember { mutableStateOf(GanjDestination.Connect) }
-                        Scaffold(bottomBar = { GanjLiquidBottomNavigation(destination, { destination = it }) }) { padding ->
-                            GanjDestinationTransition(destination, Modifier.padding(padding)) { current ->
+                        Box(Modifier.fillMaxSize().testTag("floating-navigation-host")) {
+                            GanjDestinationTransition(destination, Modifier.fillMaxSize()) { current ->
                                 DisposableEffect(current) {
                                     mounted.add(current)
                                     onDispose { mounted.remove(current) }
@@ -89,6 +103,8 @@ class GanjNavigationTest {
                                     if (current == GanjDestination.Store) LoadingCard("در حال دریافت پلن‌ها")
                                 }
                             }
+                            GanjLiquidBottomNavigation(destination, { destination = it },
+                                modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
                         }
                     }
                 }

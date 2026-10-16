@@ -4,10 +4,12 @@ import kotlinx.coroutines.flow.collect
 import android.os.SystemClock
 import com.ganj.vpn.presentation.ConnectionSessionTimer
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -18,7 +20,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -86,6 +90,21 @@ internal fun telegramServiceSyncFeedback(
     is ContentState.Error -> TelegramServiceSyncFeedback.Failed(services.failure.retryable)
 }
 
+/**
+ * Recover only an active subscription. The account-scoped persisted user choice
+ * wins over a transient default from an early, unauthenticated refresh.
+ */
+internal fun ganjRecoveredServiceId(
+    services: List<ServiceUiModel>,
+    persistedId: String?,
+    transientId: String?,
+): String? {
+    val active = services.filter { it.isActive }.map { it.entitlementId }.toSet()
+    return persistedId?.takeIf(active::contains)
+        ?: transientId?.takeIf(active::contains)
+        ?: services.firstOrNull { it.isActive }?.entitlementId
+}
+
 @Composable
 fun GanjVpnApp(
     composition: GanjComposition,
@@ -139,6 +158,7 @@ fun GanjVpnApp(
     val accountId = currentAccount?.id?.takeIf { telegramLinked }
 
     var selectedDestination by rememberSaveable { mutableStateOf(GanjDestination.Connect) }
+    var storeVipRequested by rememberSaveable { mutableStateOf(false) }
     var configPickerServiceId by remember(composition) { mutableStateOf<String?>(null) }
     var accountSurface by rememberSaveable { mutableStateOf(GanjAccountSurface.PROFILE) }
     var accountPaymentOrder by rememberSaveable { mutableStateOf("") }
@@ -190,19 +210,31 @@ fun GanjVpnApp(
     fun commit(next: GanjUiState) {
         composition.retainUiState(next)
         state = next
+        // Persist the *verified active* subscription, including the default restored
+        // after an API refresh. A tap isn't the only way selection can change.
+        val account = accountId
+        val active = next.selectedService?.takeIf { it.isActive }
+        if (account != null && active != null &&
+            selectionStore.preferredService(account) != active.entitlementId) {
+            selectionStore.rememberService(account, active.entitlementId)
+        }
     }
 
     fun withRememberedSelection(candidate: GanjUiState): GanjUiState {
-        val account = accountId ?: return candidate
+        if (!telegramLinked) return candidate
         val services = candidate.services as? ContentState.Ready<ServiceUiModel> ?: return candidate
-        val desired = candidate.selectedEntitlementId?.takeIf { id ->
-            services.items.any { it.entitlementId == id && it.isActive }
-        } ?: selectionStore.preferredService(account)?.takeIf { id ->
-            services.items.any { it.entitlementId == id && it.isActive }
-        } ?: services.items.firstOrNull { it.isActive }?.entitlementId
+        val account = accountId
+        // On a cold launch the catalogue may arrive before /me resolves. Keep the
+        // first active service visible, then prefer the account-scoped saved choice
+        // as soon as that verified identity is known. Never restore an inactive plan.
+        val desired = ganjRecoveredServiceId(
+            services.items,
+            account?.let(selectionStore::preferredService),
+            candidate.selectedEntitlementId,
+        )
         if (desired == null) return candidate.copy(selectedEntitlementId = null, selectedConnectionServer = null)
         val existing = candidate.selectedConnectionServer?.takeIf { it.entitlementId == desired }
-        val remembered = if (existing == null) {
+        val remembered = if (existing == null && account != null) {
             val serverId = selectionStore.preferredServer(account, desired)
             selectionStore.cachedCatalog(account, desired).firstOrNull { it.id == serverId }?.let {
                 SelectedConnectionServer(desired, it)
@@ -475,7 +507,8 @@ fun GanjVpnApp(
     fun requestProfile(entitlementId: String) {
         if (disconnectRequested || connectionJob?.isActive == true) return
         val choice = state.selectedConnectionServer?.takeIf { it.entitlementId == entitlementId }
-        if (choice == null) { openConfigs(); return }
+        // No popup picker: the inline list asks the user to choose a config first.
+        if (choice == null) return
         connectionJob?.cancel()
         commit(reducer.reduce(state, GanjUiEvent.ConnectionRequested(entitlementId)))
         val pendingState = state
@@ -664,24 +697,14 @@ fun GanjVpnApp(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Scaffold(
-                    containerColor = Color.Transparent,
-                    bottomBar = {
-                        GanjLiquidBottomNavigation(
-                            selectedDestination = selectedDestination,
-                            onDestinationSelected = { destination ->
-                                selectedDestination = destination
-                                openNotifications = false
-                                if (destination == GanjDestination.Account) {
-                                    accountSurface = GanjAccountSurface.PROFILE
-                                }
-                            },
-                        )
-                    },
-                ) { padding ->
+                // The screen occupies the full viewport. The permanent wave is a
+                // sibling overlay rather than Scaffold.bottomBar, which formerly
+                // reserved a solid background-colored strip over the server list.
+                Box(Modifier.fillMaxSize().statusBarsPadding()
+                    .testTag("floating-navigation-host")) {
                     GanjDestinationTransition(
                         destination = selectedDestination,
-                        modifier = Modifier.padding(padding),
+                        modifier = Modifier.fillMaxSize().navigationBarsPadding(),
                         stateOwner = composition,
                     ) { destination ->
                         when (destination) {
@@ -702,7 +725,9 @@ fun GanjVpnApp(
                                     connectionJob?.cancel()
                                     commit(reducer.reduce(state, GanjUiEvent.SelectService(entitlementId)))
                                     accountId?.let { selectionStore.rememberService(it, entitlementId) }
-                                    openConfigs()
+                                    // The selected subscription's configs now stay inline on Connect.
+                                    configPickerServiceId = null
+                                    selectedDestination = GanjDestination.Connect
                                 },
                                 onRetry = ::refresh,
                                 onOpenStore = { selectedDestination = GanjDestination.Store },
@@ -721,6 +746,18 @@ fun GanjVpnApp(
                                 onOpenServers = ::openConfigs,
                                 onOpenSubscriptions = { selectedDestination = GanjDestination.Servers },
                                 loadServers = ::loadServiceServers,
+                                onSelectServer = { entitlementId, server ->
+                                    if (state.selectedEntitlementId == entitlementId) {
+                                        connectionJob?.cancel()
+                                        commit(reducer.reduce(state, GanjUiEvent.SelectServer(entitlementId, server)))
+                                        accountId?.let { selectionStore.rememberServer(it, entitlementId, server.id) }
+                                        // Keep the entire server list visible. No auto-connection or navigation.
+                                    }
+                                },
+                                accountCacheKey = accountId,
+                                cachedServers = accountId?.let { id ->
+                                    state.selectedService?.let { selectionStore.cachedCatalog(id, it.entitlementId) }
+                                }.orEmpty(),
                                 onSelectAndConnect = { entitlementId, server ->
                                     if (state.selectedEntitlementId == entitlementId) {
                                         commit(reducer.reduce(state, GanjUiEvent.SelectServer(entitlementId, server)))
@@ -733,6 +770,8 @@ fun GanjVpnApp(
                             )
 
                             GanjDestination.Store -> StitchNativeBotStoreDestination(
+                                vipEntryRequested = storeVipRequested,
+                                onVipEntryHandled = { storeVipRequested = false },
                                 onStoreBridgeAuthorization = onStoreBridgeAuthorization,
                                 suppliedApi = botStoreApi,
                                 allowGuestCatalogCache = !telegramLinked,
@@ -850,6 +889,7 @@ fun GanjVpnApp(
                                         selectedDestination = GanjDestination.Connect
                                     },
                                     onBuy = { selectedDestination = GanjDestination.Store },
+                                    onOpenVip = { storeVipRequested = true; selectedDestination = GanjDestination.Store },
                                     onOpenSettings = { accountSurface = GanjAccountSurface.SETTINGS },
                                     onOpenSubscriptions = { selectedDestination = GanjDestination.Servers },
                                     onRetry = ::refresh,
@@ -960,6 +1000,19 @@ fun GanjVpnApp(
                             }
                         }
                     }
+                    // Above every destination, fixed in place; the content really
+                    // scrolls beneath it, with no opaque spacer/panel behind the wave.
+                    GanjLiquidBottomNavigation(
+                        selectedDestination = selectedDestination,
+                        onDestinationSelected = { destination ->
+                            selectedDestination = destination
+                            openNotifications = false
+                            if (destination == GanjDestination.Account) {
+                                accountSurface = GanjAccountSurface.PROFILE
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
                 }
             }
         }

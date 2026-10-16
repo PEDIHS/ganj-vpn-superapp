@@ -286,7 +286,8 @@ internal fun BugReportPanel(
                 Text(
                     text = stringResource(R.string.bug_send),
                     modifier = Modifier.align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = if (consent) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelLarge,
                 )

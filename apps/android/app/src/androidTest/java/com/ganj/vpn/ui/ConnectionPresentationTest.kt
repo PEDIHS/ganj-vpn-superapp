@@ -124,8 +124,13 @@ class ConnectionPresentationTest {
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(smartLayout) }
         assertFalse("Smart Connect must not become a vertical column of individual letters",smartLayout.single().lineCount>2)
         capture("connection-smart-light-large")
-        compose.onNodeWithTag("selected-config").performScrollTo().assertTextContains("کانفیگ آلمان", substring = true)
-        compose.onNodeWithTag("selected-config-flag", useUnmergedTree = true).assertWidthIsEqualTo(76.dp).assertHeightIsEqualTo(50.dp)
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("config-option-fixture-config").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("inline-config-list").performScrollToNode(hasTestTag("config-option-fixture-config"))
+        compose.onNodeWithTag("config-option-fixture-config").assertTextContains("کانفیگ آلمان", substring = true)
+        compose.onNodeWithTag("config-option-flag-fixture-config", useUnmergedTree = true)
+            .assertWidthIsEqualTo(76.dp).assertHeightIsEqualTo(50.dp)
         capture("connection-config-light-large")
     }
 

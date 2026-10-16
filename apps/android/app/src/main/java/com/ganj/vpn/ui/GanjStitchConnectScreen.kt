@@ -100,6 +100,9 @@ internal fun StitchConnectionScreen(
     sessionTimer: ConnectionSessionTimer? = null,
     onOpenNotifications: (() -> Unit)? = null,
     disconnectRequested: Boolean = false,
+    onSelectServer: (String, ConnectionServer) -> Unit = { _, _ -> },
+    cachedServers: List<ConnectionServer> = emptyList(),
+    accountCacheKey: String? = null,
 ) {
     val connection = state.connection
     val service = state.selectedService
@@ -133,8 +136,8 @@ internal fun StitchConnectionScreen(
         modifier = modifier
             .testTag("connection-screen")
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = responsiveHorizontalPadding(), vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         StitchBrandHeader(premium = hasPremium, onOpenStore = onOpenStore, onOpenNotifications = onOpenNotifications)
         val statusColor = when (visualState) {
@@ -143,7 +146,7 @@ internal fun StitchConnectionScreen(
             GanjConnectionVisualState.Connecting, GanjConnectionVisualState.Reconnecting -> StitchGoldBright
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
-        Row(Modifier.fillMaxWidth().padding(top=8.dp),horizontalArrangement=Arrangement.Center,
+        Row(Modifier.fillMaxWidth().padding(top=4.dp),horizontalArrangement=Arrangement.Center,
             verticalAlignment=Alignment.CenterVertically) {
             Box(Modifier.size(6.dp).background(statusColor,CircleShape))
             Spacer(Modifier.width(7.dp))
@@ -162,7 +165,7 @@ internal fun StitchConnectionScreen(
                 when {
                     connection is ConnectionUiState.Connected && !switchingSelection -> onDisconnect()
                     service?.isActive == true -> onConnect(service.entitlementId)
-                    else -> onOpenServers()
+                    else -> onOpenSubscriptions()
                 }
             },
         )
@@ -269,21 +272,20 @@ internal fun StitchConnectionScreen(
                 }
             },
         )
-        StitchReferenceSelection(
-            service=service,server=displayedServer,ping=ping,pingBusy=pingBusy,
-            onOpenSubscriptions=onOpenSubscriptions,onOpenServers=onOpenServers,
-            onMeasure=if(pingKey!=null && latency!=null) ({latency.measure(pingKey.serviceId,listOf(pingKey.serverId))}) else null,
+        StitchReferenceSelection(service = service, onOpenSubscriptions = onOpenSubscriptions)
+        StitchInlineConfigList(
+            service = service,
+            selectedServer = displayedServer,
+            accountCacheKey = accountCacheKey,
+            cachedServers = cachedServers,
+            loadServers = loadServers,
+            latency = latency,
+            onSelect = onSelectServer,
         )
-        reading?.let { Text(latencyReadingTime(it.measuredAtMillis), style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        pingFailure?.let { failure ->
-            Text(failureMessage(failure), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            ConnectionFailureDetails(failure)
-        }
         if (switchingSelection) Text(stringResource(R.string.connection_switch_selection_hint),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(12.dp))
+        // Allow the final server row to scroll completely above the floating wave.
+        Spacer(Modifier.height(GanjFloatingNavContentClearance))
     }
 }
 
@@ -326,46 +328,29 @@ private fun StitchHeaderUpgrade(premium: Boolean, onOpenStore: () -> Unit, modif
 
 @Composable
 private fun StitchReferenceSelection(
-    service: ServiceUiModel?, server: ConnectionServer?, ping: Long?, pingBusy: Boolean,
-    onOpenSubscriptions: () -> Unit, onOpenServers: () -> Unit, onMeasure: (() -> Unit)?,
+    service: ServiceUiModel?,
+    onOpenSubscriptions: () -> Unit,
 ) {
-    val identity=remember(server){server?.let{ganjConfigIdentity(it.name,it.countryCode)}}
-    val muted=MaterialTheme.colorScheme.onSurfaceVariant
-    val large=LocalDensity.current.fontScale>=1.5f
-    val pingDescription=stringResource(if(pingBusy)R.string.ping_measuring else R.string.ping_selected)
-    val shape=RoundedCornerShape(14.dp)
-    Column(Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface)
-        .border(1.dp,MaterialTheme.colorScheme.outlineVariant,shape)) {
-        Row(Modifier.fillMaxWidth().testTag("selected-subscription")
-            .clickable(role=Role.Button,onClick=onOpenSubscriptions).heightIn(min=52.dp).padding(horizontal=12.dp,vertical=6.dp),
-            horizontalArrangement=Arrangement.spacedBy(9.dp),verticalAlignment=Alignment.CenterVertically) {
-            GanjNavigationIcon(GanjDestination.Servers,StitchGoldBright,Modifier.size(17.dp))
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.subscription_selected_label),style=MaterialTheme.typography.labelSmall,color=muted)
-                Text(service?.let{subscriptionUsername(it)}?:stringResource(R.string.subscription_choose_first),
-                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurface)
-            }
-            Text("تغییر",style=MaterialTheme.typography.labelSmall,color=StitchGoldBright)
+    val shape = RoundedCornerShape(14.dp)
+    Row(Modifier.fillMaxWidth().testTag("selected-subscription")
+        .clip(shape).background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+        .clickable(role = Role.Button, onClick = onOpenSubscriptions)
+        .heightIn(min = 56.dp).padding(horizontal = 12.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        GanjNavigationIcon(GanjDestination.Servers, StitchGoldBright, Modifier.size(19.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.subscription_selected_label),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(service?.let { subscriptionUsername(it) }
+                ?: stringResource(R.string.subscription_choose_first),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium)
         }
-        androidx.compose.material3.HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
-        Row(Modifier.fillMaxWidth().testTag("selected-config").clickable(role=Role.Button,onClick=onOpenServers)
-            .heightIn(min=64.dp).padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,
-            horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            GanjConfigFlagBadge(identity?.countryCode,server!=null,
-                Modifier.size(if(large)76.dp else 44.dp,if(large)50.dp else 30.dp).testTag("selected-config-flag"))
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
-                Text(identity?.title?:stringResource(if(service!=null)R.string.config_choose else R.string.subscription_choose_first),
-                    style=MaterialTheme.typography.bodySmall,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurface,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                server?.let { Text("${countryName(it.countryCode)} • ${it.protocols.joinToString(" / "){p->p.name}}",
-                    style=MaterialTheme.typography.labelSmall,color=muted) }
-            }
-            if(onMeasure!=null) Box(Modifier.sizeIn(minWidth=48.dp,minHeight=48.dp)
-                .semantics { contentDescription = pingDescription }.clip(RoundedCornerShape(8.dp))
-                .clickable(enabled=!pingBusy,role=Role.Button,onClick=onMeasure).padding(6.dp),contentAlignment=Alignment.Center) {
-                Text(if(pingBusy) "…" else persianTechnicalMetric(ping?.toString()?:"—","ms"),
-                    style=MaterialTheme.typography.labelSmall,color=StitchGoldBright)
-            } else Text("‹",style=MaterialTheme.typography.titleMedium,color=muted)
-        }
+        Text("تغییر", style = MaterialTheme.typography.labelMedium, color = StitchGoldBright)
     }
 }
 

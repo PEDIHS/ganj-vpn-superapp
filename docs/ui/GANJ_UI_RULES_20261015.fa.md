@@ -163,3 +163,28 @@ This document extends the canonical brand and liquid-glass standards.
 - Reuse the same purchase idempotency key and frozen payload after an uncertain response; disable duplicate submissions. Editing a discount invalidates the displayed quote until the server recomputes it.
 - Receipt types/8MiB limit match the canonical site; native file picker requires no broad storage permission. Poll payment status only while the page is foreground/resumed and preserve server-owned pending invoices.
 - These rules supersede the earlier WebView requirement for Store-owned commerce. Existing Profile finance entry points remain operational; no server business logic is replaced by client code.
+
+## 2026-10-16 — Approved gold/wave Profile, Store and VIP (0.3.29)
+- Approved reference: `design/references/ganj-gold-wave-review.html`. Its numbers are preview fixtures;
+  production identity, wallet, products, prices, periods and capacities remain server-owned.
+- Scope is Profile, Store and VIP only. Do not alter Connect, its orb, navigation, connection
+  states, native runtime, selection or ping behavior as part of this presentation batch.
+- Profile identity uses a 116dp circular emerald avatar within a 146dp orbital area, overlapping
+  a concave wave card. Real account name/link state and actual paid entitlement status determine labels.
+- Signature gold is #F2CE70 (dark) / #80540C (light); metallic actions blend #B98022, #F6D77A,
+  #FFF0AB, #DFB24E and #C5902C with #352409 text. This is a scoped override, not a global palette change.
+- Waves, gold reflection and orbital highlights are lightweight draw-phase effects. Stop while
+  lifecycle is not RESUMED and disable with Reduce Motion/system animator policy. No full-screen blur.
+- Profile premium/banner opens native VIP catalog. VIP rows exist only for real catalog products;
+  absent products show an honest empty state. Do not manufacture benefits or prices from the preview.
+- Store selection, duration/device variants, exact product+panel checkout, CSRF/SSO, idempotency,
+  invoice recovery, receipts and payment-status authority retain their existing real handlers.
+- A mixed catalog must retain non-tier products. Changing a tier period/device resolves an actual
+  existing product; never calculate substitute prices or silently change a bot product.
+
+## 2026-10-16 — Telegram photo and dark contrast (0.3.30)
+- Profile avatar loads exclusively from the authenticated Ganj Bot owner's cached Telegram photo, without exposing bot tokens or accepting a client-supplied Telegram ID.
+- Account logout/switch clears the previously rendered photo immediately; absent/offline/unavailable photos use the branded fallback.
+- Dark theme text inputs explicitly use onSurface/onSurfaceVariant; disabled actions must never paint dark onPrimary text over muted/opaque dark surfaces.
+- Keep the Connect orb and VPN data path unchanged. Preserve existing subscription pricing and bot-side product names.
+- Real Telegram-photo and physical-device upgrade verification remain external QA gates until tested with a linked account.

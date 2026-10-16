@@ -494,7 +494,8 @@ internal fun StitchMiniAction(
         Text(
             text = text,
             modifier = Modifier.align(Alignment.Center),
-            color = if (accent == StitchProductGold) Color(0xFF211600) else MaterialTheme.colorScheme.onPrimary,
+            color = if (!enabled) MaterialTheme.colorScheme.onSurfaceVariant
+                else if (accent == StitchProductGold) Color(0xFF211600) else MaterialTheme.colorScheme.onPrimary,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
         )
