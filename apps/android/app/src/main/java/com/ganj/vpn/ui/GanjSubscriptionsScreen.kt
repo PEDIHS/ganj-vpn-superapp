@@ -469,7 +469,7 @@ internal fun StitchConfigSelectionSheet(
 }
 
 @Composable
-private fun GanjConfigOption(
+internal fun GanjConfigOption(
     server: ConnectionServer,
     selected: Boolean,
     reading: LatencyReading?,
@@ -501,11 +501,14 @@ private fun GanjConfigOption(
     val shape = remember { RoundedCornerShape(12.dp) }
     val pingDescription = stringResource(if (measuring) R.string.ping_measuring else R.string.config_ping)
     val latencyMs = reading?.result?.latencyMillis
+    // Numeric latency is always green, regardless of milliseconds.
+    // Only an actual probe timeout is red; other probe errors stay neutral.
+    val isTimeout = (reading?.result as? LatencyProbeResult.Failed)
+        ?.failure?.diagnosticCode == "probe.timeout"
     val latencyColor = when {
-        latencyMs == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        latencyMs <= 80L -> MaterialTheme.colorScheme.primary
-        latencyMs <= 180L -> palette.premiumText
-        else -> MaterialTheme.colorScheme.error
+        latencyMs != null -> MaterialTheme.colorScheme.primary
+        isTimeout -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     // The app remains RTL, but config rows use LTR for a LEFT flag and RIGHT latency.
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
@@ -566,7 +569,8 @@ private fun GanjConfigOption(
                                 measuring -> "…"
                                 latencyMs != null ->
                                     persianTechnicalMetric(latencyMs.toString(), "ms")
-                                reading?.result is LatencyProbeResult.Failed -> "!"
+                                isTimeout -> "تایم‌اوت"
+                                reading?.result is LatencyProbeResult.Failed -> "خطا"
                                 else -> "—"
                             },
                             style = MaterialTheme.typography.labelMedium,
