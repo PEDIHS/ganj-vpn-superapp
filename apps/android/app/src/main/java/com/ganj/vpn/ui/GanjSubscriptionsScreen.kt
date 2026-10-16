@@ -53,6 +53,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ganj.vpn.R
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.ConnectionServer
@@ -508,6 +509,12 @@ internal fun GanjConfigOption(
         if (reduceMotion) snap() else tween(185), label = "configSelectedRim",
     )
     val shape = remember { RoundedCornerShape(12.dp) }
+    // Fixed columns on every config row, including long names, timeouts and large text.
+    val largeText = LocalDensity.current.fontScale >= 1.5f
+    val narrowScreen = LocalConfiguration.current.screenWidthDp < 380
+    val flagWidth = if (largeText && !narrowScreen) 70.dp else if (narrowScreen) 44.dp else 52.dp
+    val flagHeight = if (largeText && !narrowScreen) 48.dp else if (narrowScreen) 30.dp else 35.dp
+    val pingWidth = if (largeText && !narrowScreen) 106.dp else if (narrowScreen) 90.dp else 98.dp
     val pingDescription = stringResource(if (measuring) R.string.ping_measuring else R.string.config_ping)
     val latencyMs = reading?.result?.latencyMillis
     // Numeric latency is always green, regardless of milliseconds.
@@ -540,14 +547,13 @@ internal fun GanjConfigOption(
                     ))))
             }
             Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = if (largeText) 90.dp else 76.dp)
+                    .padding(horizontal = 9.dp, vertical = 9.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (narrowScreen) 6.dp else 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GanjConfigFlagBadge(identity.countryCode, selected, Modifier.size(
-                    if (LocalDensity.current.fontScale >= 1.5f) 76.dp else 48.dp,
-                    if (LocalDensity.current.fontScale >= 1.5f) 50.dp else 32.dp).testTag("config-option-flag-" + server.id))
+                GanjConfigFlagBadge(identity.countryCode, selected,
+                    Modifier.size(flagWidth, flagHeight).testTag("config-option-flag-" + server.id))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(identity.title, style = MaterialTheme.typography.titleSmall,
                         color = if (selected) palette.onSelected else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold,
@@ -557,12 +563,11 @@ internal fun GanjConfigOption(
                         color = if (selected) palette.selectedMuted else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Box(
-                        modifier = Modifier.testTag("ping-" + server.id)
+                // Every badge has the same width, height, centerline and touch target.
+                Box(
+                        modifier = Modifier.width(pingWidth).height(48.dp).testTag("ping-" + server.id)
                             .semantics { contentDescription = pingDescription }
-                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+
                             .clip(RoundedCornerShape(14.dp))
                             .background(latencyColor.copy(alpha =
                                 if (latencyMs == null) 0.12f else 0.17f))
@@ -582,15 +587,18 @@ internal fun GanjConfigOption(
                                 reading?.result is LatencyProbeResult.Failed -> "خطا"
                                 else -> "—"
                             },
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = if (largeText) 10.sp else 12.sp,
                             color = latencyColor, fontWeight = FontWeight.Bold, maxLines = 1,
+                            softWrap = false, overflow = TextOverflow.Ellipsis,
                         )
                     }
+                Box(Modifier.width(16.dp), contentAlignment = Alignment.Center) {
+                    Text(if (selected) "✓" else "›",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (selected) palette.premiumText else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold)
                 }
-                Text(if (selected) "✓" else "›",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = if (selected) palette.premiumText else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold)
             }
         }
     }
