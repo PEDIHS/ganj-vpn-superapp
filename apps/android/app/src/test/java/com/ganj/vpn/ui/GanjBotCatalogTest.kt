@@ -49,8 +49,11 @@ class GanjBotCatalogTest {
             legacy.copy(volumeGb = 50.0, category = "2 کاربر").appDisplayName())
         assertEquals("حرفه‌ای · ۱۰۰ گیگ · ۳ دستگاه",
             legacy.copy(volumeGb = 100.0, category = "3 کاربر").appDisplayName())
-        assertEquals("💎 ویژه تانل 30 گیگ 💎",
+        assertEquals("پلاس · ۸۰ گیگ · ۱ دستگاه",
             legacy.copy(volumeGb = 80.0).appDisplayName())
+        assertEquals("پلاس · ۸۰ گیگ · ۲ دستگاه",
+            legacy.copy(volumeGb = 80.0, category = "2 کاربر", appTier = "plus",
+                appTierName = "پلاس", deviceLimit = 2).appDisplayName())
         assertEquals(legacy.name,
             legacy.copy(category = "اشتراک VIP نت ملی 🇮🇷").appDisplayName())
         assertEquals(legacy.name,
