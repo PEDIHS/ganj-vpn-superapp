@@ -487,13 +487,19 @@ internal fun GanjConfigOption(
     onSelect: () -> Unit,
     onPing: () -> Unit,
     canPing: Boolean,
+    animateEntrance: Boolean = true,
 ) {
     val palette = LocalGanjContentPalette.current
     val effects = LocalGanjVisualEffectsPolicy.current
     val reduceMotion = effects.reduceMotion
-    val entry = remember(server.id) { androidx.compose.animation.core.Animatable(if (reduceMotion) 1f else 0f) }
-    LaunchedEffect(server.id, reduceMotion) {
-        if (reduceMotion) entry.snapTo(1f) else entry.animateTo(1f, tween(180))
+    // Inline scrolling should not repeatedly animate rows entering the viewport:
+    // only selection/press feedback and container fades move.
+    val entry = remember(server.id, animateEntrance) {
+        androidx.compose.animation.core.Animatable(if (reduceMotion || !animateEntrance) 1f else 0f)
+    }
+    LaunchedEffect(server.id, reduceMotion, animateEntrance) {
+        if (reduceMotion || !animateEntrance) entry.snapTo(1f)
+        else entry.animateTo(1f, tween(180))
     }
     val identity = remember(server.name, server.countryCode) {
         ganjConfigIdentity(server.name, server.countryCode)
