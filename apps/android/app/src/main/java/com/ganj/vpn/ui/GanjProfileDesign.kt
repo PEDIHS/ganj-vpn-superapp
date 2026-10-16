@@ -3,6 +3,7 @@ package com.ganj.vpn.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +21,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Outline
@@ -177,6 +179,7 @@ private object ProfileWaterShape : Shape {
 internal fun GanjProfileIdentity(
     name: String, username: String?, linked: Boolean, premium: Boolean?, onManage: () -> Unit,
     onOpenVip: (() -> Unit)? = null,
+    avatar: ImageBitmap? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val gold = signatureGold()
@@ -236,7 +239,13 @@ internal fun GanjProfileIdentity(
                 drawLine(gold.copy(alpha = sparkle), Offset(x, y-d), Offset(x, y+d), 1.dp.toPx(), StrokeCap.Round)
             }
             val shape = CircleShape
-            Column(Modifier.size(116.dp).clip(shape)
+            if (linked && avatar != null) {
+                Image(bitmap = avatar, contentDescription = "عکس پروفایل تلگرام",
+                    modifier = Modifier.size(116.dp).clip(shape)
+                        .border(1.dp, gold.copy(alpha = .80f), shape)
+                        .clickable(role = Role.Button, onClick = onManage)
+                        .testTag("profile-telegram-avatar"))
+            } else Column(Modifier.size(116.dp).clip(shape)
                 .background(Brush.linearGradient(listOf(Color(0xFF17845D), Color(0xFF07503A))))
                 .background(Brush.radialGradient(listOf(Color(0xFFADFFE0).copy(alpha = .22f), Color.Transparent), radius = 150f))
                 .border(1.dp, Color(0xFFB6D79A), shape).clickable(role = Role.Button, onClick = onManage)
