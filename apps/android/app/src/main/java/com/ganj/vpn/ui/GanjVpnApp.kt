@@ -191,19 +191,30 @@ fun GanjVpnApp(
     fun commit(next: GanjUiState) {
         composition.retainUiState(next)
         state = next
+        // Persist the *verified active* subscription, including the default restored
+        // after an API refresh. A tap isn't the only way selection can change.
+        val account = accountId
+        val active = next.selectedService?.takeIf { it.isActive }
+        if (account != null && active != null &&
+            selectionStore.preferredService(account) != active.entitlementId) {
+            selectionStore.rememberService(account, active.entitlementId)
+        }
     }
 
     fun withRememberedSelection(candidate: GanjUiState): GanjUiState {
-        val account = accountId ?: return candidate
+        if (!telegramLinked) return candidate
         val services = candidate.services as? ContentState.Ready<ServiceUiModel> ?: return candidate
-        val desired = candidate.selectedEntitlementId?.takeIf { id ->
-            services.items.any { it.entitlementId == id && it.isActive }
-        } ?: selectionStore.preferredService(account)?.takeIf { id ->
-            services.items.any { it.entitlementId == id && it.isActive }
-        } ?: services.items.firstOrNull { it.isActive }?.entitlementId
+        val account = accountId
+        // On a cold launch the catalogue may arrive before /me resolves. Keep the
+        // first active service visible, then prefer the account-scoped saved choice
+        // as soon as that verified identity is known. Never restore an inactive plan.
+        val activeIds = services.items.filter { it.isActive }.map { it.entitlementId }.toSet()
+        val desired = account?.let(selectionStore::preferredService)?.takeIf(activeIds::contains)
+            ?: candidate.selectedEntitlementId?.takeIf(activeIds::contains)
+            ?: services.items.firstOrNull { it.isActive }?.entitlementId
         if (desired == null) return candidate.copy(selectedEntitlementId = null, selectedConnectionServer = null)
         val existing = candidate.selectedConnectionServer?.takeIf { it.entitlementId == desired }
-        val remembered = if (existing == null) {
+        val remembered = if (existing == null && account != null) {
             val serverId = selectionStore.preferredServer(account, desired)
             selectionStore.cachedCatalog(account, desired).firstOrNull { it.id == serverId }?.let {
                 SelectedConnectionServer(desired, it)
