@@ -84,7 +84,8 @@ internal fun GanjGlassButton(
                 modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
-                color = contentColor ?: MaterialTheme.colorScheme.onPrimary,
+                color = if (!enabled) MaterialTheme.colorScheme.onSurfaceVariant
+                    else contentColor ?: MaterialTheme.colorScheme.onPrimary,
                 textAlign = TextAlign.Center,
             )
         }
@@ -239,6 +240,17 @@ internal fun GanjLiquidTextField(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = TextFieldDefaults.colors(
+            // Never inherit low-contrast dark foreground defaults for user-entered values.
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            errorTextColor = MaterialTheme.colorScheme.onSurface,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            errorLabelColor = MaterialTheme.colorScheme.error,
+            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
             focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
             unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.50f),
             disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.30f),
@@ -246,7 +258,6 @@ internal fun GanjLiquidTextField(
             unfocusedIndicatorColor = LocalGanjGlassPalette.current.borderSoft.copy(alpha = 0.72f),
             disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
             cursorColor = MaterialTheme.colorScheme.primary,
-            focusedLabelColor = MaterialTheme.colorScheme.primary,
         ),
     )
 }
