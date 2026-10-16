@@ -184,6 +184,8 @@ internal fun StitchInlineConfigList(
                     if (effects.reduceMotion) snap() else tween(100), label = "configScrollThumb")
                 val containerShape = RoundedCornerShape(15.dp)
                 val surface = MaterialTheme.colorScheme.surface
+                val trackColor = MaterialTheme.colorScheme.outline.copy(alpha = .24f)
+                val thumbColor = MaterialTheme.colorScheme.primary.copy(alpha = .86f)
                 Box(Modifier.fillMaxWidth().height(height).clip(containerShape)
                     .background(surface).border(1.dp, MaterialTheme.colorScheme.outlineVariant, containerShape)
                     .testTag("config-scroll-container")) {
@@ -231,12 +233,12 @@ internal fun StitchInlineConfigList(
                         val thumbHeight = (size.height * fraction).coerceAtLeast(24.dp.toPx())
                         val y = (size.height - thumbHeight).coerceAtLeast(0f) * thumbProgress
                         drawRoundRect(
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = .24f),
+                            color = trackColor,
                             topLeft = androidx.compose.ui.geometry.Offset((size.width - trackWidth) / 2f, 0f),
                             size = androidx.compose.ui.geometry.Size(trackWidth, size.height),
                             cornerRadius = CornerRadius(trackWidth / 2f))
                         drawRoundRect(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = .86f),
+                            color = thumbColor,
                             topLeft = androidx.compose.ui.geometry.Offset((size.width - thumbWidth) / 2f, y),
                             size = androidx.compose.ui.geometry.Size(thumbWidth, thumbHeight),
                             cornerRadius = CornerRadius(thumbWidth / 2f))
