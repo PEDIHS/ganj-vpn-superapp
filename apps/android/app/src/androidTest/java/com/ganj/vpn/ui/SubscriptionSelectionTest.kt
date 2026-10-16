@@ -32,59 +32,56 @@ class SubscriptionSelectionTest {
     private val reducer = GanjUiReducer()
     private val reduced = GanjVisualEffectsPolicy(GanjEffectsTier.Reduced, true, true, false)
 
-    @Test fun explicitSubscriptionScopesPickerAndSecondConfigReturnsToConnection() {
+    @Test fun subscriptionListsEveryConfigInlineWithoutPickerAndSelectsSecond() {
         val requested = mutableListOf<String>()
         var connectedChoice: SelectedConnectionServer? = null
         compose.activityRule.scenario.onActivity { activity ->
             activity.setContent {
                 var state by remember { mutableStateOf(GanjUiState(services = ContentState.Ready(listOf(first, second)))) }
                 var subscriptions by remember { mutableStateOf(false) }
-                var picker by remember { mutableStateOf(false) }
                 GanjTheme(darkTheme = true, visualEffectsPolicy = reduced) {
                     Surface(Modifier.fillMaxSize()) {
-                        Box {
-                            if (subscriptions) StitchSubscriptionsScreen(state,
-                                onSelectService = { state = reducer.reduce(state, GanjUiEvent.SelectService(it)); picker = true },
-                                onRetry = {})
-                            else StitchConnectionScreen(state,
-                                onConnect = { connectedChoice = state.selectedConnectionServer },
-                                onDisconnect = { error("Changing the selected config must not disconnect the old config instead") },
-                                onOpenServers = { if (state.selectedService == null) subscriptions = true else picker = true },
-                                onOpenSubscriptions = { subscriptions = true }, loadServers = { ApiResult.Success(configs, ResponseMetadata("ui-fixture", null)) },
-                                onSelectAndConnect = { _, _ -> }, onOpenStore = {}, onRetry = {})
-                            if (picker) state.selectedService?.let { service ->
-                                StitchConfigSelectionSheet(service, state.selectedServer,
-                                    loadServers = { requested += it; ApiResult.Success(configs, ResponseMetadata("ui-fixture", null)) }, latency = null,
-                                    onSelect = {
-                                        state = reducer.reduce(state, GanjUiEvent.SelectServer(service.entitlementId, it))
-                                        state = state.copy(connection = ConnectionUiState.Connected(first.entitlementId, "fixture-profile", configs[0].id), runtimeConnection = com.ganj.vpn.core.vpn.ConnectionState(com.ganj.vpn.core.vpn.ConnectionPhase.CONNECTED, serverId = configs[0].id, serviceId = first.entitlementId))
-                                        picker = false; subscriptions = false
-                                    }, onDismiss = { picker = false })
-                            }
-                        }
+                        if (subscriptions) StitchSubscriptionsScreen(state,
+                            onSelectService = {
+                                state = reducer.reduce(state, GanjUiEvent.SelectService(it))
+                                subscriptions = false // No automatic configuration sheet.
+                            }, onRetry = {})
+                        else StitchConnectionScreen(state,
+                            onConnect = { connectedChoice = state.selectedConnectionServer },
+                            onDisconnect = { error("Selecting another config must not disconnect an old connection") },
+                            onOpenServers = { subscriptions = true },
+                            onOpenSubscriptions = { subscriptions = true },
+                            loadServers = { requested += it; ApiResult.Success(configs, ResponseMetadata("ui-fixture", null)) },
+                            onSelectAndConnect = { _, _ -> },
+                            onSelectServer = { serviceId, server ->
+                                state = reducer.reduce(state, GanjUiEvent.SelectServer(serviceId, server))
+                                state = state.copy(
+                                    connection = ConnectionUiState.Connected(first.entitlementId, "fixture-profile", configs[0].id),
+                                    runtimeConnection = com.ganj.vpn.core.vpn.ConnectionState(
+                                        com.ganj.vpn.core.vpn.ConnectionPhase.CONNECTED,
+                                        serverId = configs[0].id, serviceId = first.entitlementId)
+                                )
+                            },
+                            onOpenStore = {}, onRetry = {})
                     }
                 }
             }
         }
-        compose.onNodeWithTag("selected-subscription").performScrollTo().assertTextContains("اول اشتراکتان را انتخاب کنید", substring = true).performClick()
+        compose.onNodeWithTag("selected-subscription").performScrollTo().performClick()
         compose.onNodeWithTag("subscriptions-screen").assertExists()
-        compose.onNodeWithText("۲۵٪", substring = true).assertExists()
-        val card = compose.onNodeWithTag("subscription-service-a").fetchSemanticsNode().boundsInRoot
-        org.junit.Assert.assertTrue("Subscription should be a compact row", card.height / compose.activity.resources.displayMetrics.density <= 170f)
-        capture("subscriptions-dark")
-        compose.onNodeWithTag("subscriptions-screen").performScrollToNode(hasTestTag("subscription-service-b"))
-        compose.onNodeWithTag("subscription-service-b").performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithTag("config-option-config-one").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithTag("config-picker").assertExists()
-        compose.onNodeWithTag("config-search").assertIsNotFocused()
-        compose.onNodeWithTag("config-picker").performScrollToNode(hasTestTag("config-option-config-two"))
-        val row = compose.onNodeWithTag("config-option-config-two").fetchSemanticsNode().boundsInRoot
-        org.junit.Assert.assertTrue("Config row should stay compact", row.height / compose.activity.resources.displayMetrics.density <= 80f)
-        capture("config-picker-dark")
-        compose.onNodeWithTag("config-option-config-two").performScrollTo().performClick()
-        compose.onNodeWithTag("config-picker").assertDoesNotExist()
+        compose.onNodeWithTag("subscription-service-b").performScrollTo().performClick()
         compose.onNodeWithTag("connection-screen").assertExists()
-        compose.onNodeWithText("کانفیگ دوم", substring = true).assertExists()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("config-option-config-two").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("config-picker").assertDoesNotExist()
+        compose.onNodeWithTag("inline-config-list").performScrollToNode(hasTestTag("config-option-config-two"))
+        compose.onNodeWithTag("config-option-config-two").assertExists()
+        capture("config-inline-dark")
+        compose.onNodeWithTag("config-option-config-two").performClick()
+        compose.onNodeWithTag("config-option-config-two").assertIsSelected()
+        compose.onNodeWithTag("connection-screen").assertExists()
+        compose.onNodeWithTag("config-picker").assertDoesNotExist()
         compose.onNodeWithTag("connect-action").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(listOf(second.entitlementId), requested)
