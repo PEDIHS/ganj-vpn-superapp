@@ -96,39 +96,39 @@ internal fun GanjLiquidBottomNavigation(
         }
     }
     val largeFont = LocalDensity.current.fontScale >= 1.5f
-    Column(modifier.navigationBarsPadding().padding(horizontal = 13.dp, vertical = 4.dp)) {
-        Box(Modifier.fillMaxWidth().height(if (largeFont) 122.dp else 104.dp).testTag("liquid-bottom-navigation")) {
-            // Two separate floating islands, never a full-width panel behind Connect.
-            // The scaffold reserves this height, so the islands never overlay the server list.
-            Canvas(Modifier.matchParentSize()) {
-                val slot = size.width / 3f
-                val bottom = size.height - 5.dp.toPx()
-                val islandHeight = (if (largeFont) 77 else 68).dp.toPx()
-                val inset = 6.dp.toPx()
-                val radius = 20.dp.toPx()
-                val islandColor = if (dark) Color(0xFF102C27) else colors.surface
-                listOf(0, 2).forEach { i ->
-                    val topLeft = Offset(i * slot + inset, bottom - islandHeight)
-                    val dimensions = Size(slot - inset * 2f, islandHeight)
-                    drawRoundRect(islandColor.copy(alpha = .92f), topLeft, dimensions,
-                        CornerRadius(radius))
-                    drawRoundRect(GanjReference.Gold.copy(alpha = .23f),
-                        topLeft, dimensions, CornerRadius(radius),
-                        style = Stroke(.8.dp.toPx()))
+    Column(modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 6.dp)) {
+        Box(Modifier.fillMaxWidth().height(if (largeFont) 132.dp else 112.dp).testTag("liquid-bottom-navigation")) {
+            // The emerald wave is the only painted navigation surface; the rest stays transparent.
+            Canvas(Modifier.matchParentSize().testTag("nav-emerald-wave")) {
+                val w = size.width; val h = size.height - 4.dp.toPx(); val c = w / 2
+                val top = 27.dp.toPx(); val r = 22.dp.toPx(); val mouth = 58.dp.toPx(); val neck = 38.dp.toPx()
+                val wave = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(r, top); lineTo(c - mouth, top)
+                    cubicTo(c - neck, top, c - neck, 75.dp.toPx(), c, 75.dp.toPx())
+                    cubicTo(c + neck, 75.dp.toPx(), c + neck, top, c + mouth, top)
+                    lineTo(w - r, top); quadraticTo(w, top, w, top + r)
+                    lineTo(w, h - r); quadraticTo(w, h, w - r, h)
+                    lineTo(r, h); quadraticTo(0f, h, 0f, h-r)
+                    lineTo(0f, top+r); quadraticTo(0f, top, r, top); close()
                 }
+                val baseTop = if (dark) GanjReference.NavTop else colors.primaryContainer
+                val baseBottom = if (dark) GanjReference.NavBottom else colors.surface
+                drawPath(wave, Brush.linearGradient(listOf(baseTop, baseBottom)))
+                if (!effects.reduceTransparency) {
+                    drawPath(wave, Brush.linearGradient(listOf(Color.White.copy(alpha = .13f), Color.Transparent, GanjReference.Gold.copy(alpha = .08f))))
+                }
+                drawPath(wave, Brush.linearGradient(listOf(GanjReference.Gold.copy(alpha = .65f), Color(0xFFBCFFE2).copy(alpha = .5f), colors.primary.copy(alpha = .2f))), style = Stroke(.85.dp.toPx()))
                 val logical = position.value.coerceIn(0f, 2f)
-                val physical = if (rtl) 2f - logical else logical
-                val tailDelta = abs(position.value - tail.value).coerceAtMost(.3f)
-                if (physical < .55f || physical > 1.45f) {
-                    val i = if (physical < 1f) 0 else 2
-                    val lensInset = inset + 6.dp.toPx()
-                    val lensSize = Size(slot - lensInset * 2f, islandHeight - 12.dp.toPx())
-                    val lensTopLeft = Offset(i * slot + lensInset, bottom - islandHeight + 6.dp.toPx())
-                    drawRoundRect(colors.primary.copy(alpha = .12f + tailDelta * .12f),
-                        lensTopLeft, lensSize, CornerRadius(15.dp.toPx()))
-                    drawRoundRect(GanjReference.Gold.copy(alpha = .55f), lensTopLeft,
-                        lensSize, CornerRadius(15.dp.toPx()), style = Stroke(.8.dp.toPx()))
-                }
+                val physical = if (rtl) 2f-logical else logical
+                val slot = w/3
+                val visibility = abs(logical-1f).coerceIn(0f,1f)
+                val stretch = (abs(position.value-tail.value)*.13f).coerceAtMost(.18f)
+                val lensW = (slot-22.dp.toPx())*(1f+stretch)
+                val origin = Offset((physical+.5f)*slot-lensW/2, 36.dp.toPx())
+                val bounds = Size(lensW, h-43.dp.toPx())
+                drawRoundRect(Color(0xFFBEFFDF).copy(alpha = .14f*visibility), origin,bounds,CornerRadius(15.dp.toPx()))
+                drawRoundRect(Color(0xFFBED4AA).copy(alpha = .4f*visibility), origin,bounds,CornerRadius(15.dp.toPx()), style = Stroke(.7.dp.toPx()))
+                drawRoundRect(GanjReference.Gold.copy(alpha = visibility),Offset(origin.x + lensW/2 - 9.dp.toPx(), h - 9.dp.toPx()),Size(18.dp.toPx(),2.dp.toPx()),CornerRadius(1.dp.toPx()))
             }
             Row(Modifier.fillMaxSize().selectableGroup(), verticalAlignment = Alignment.Bottom) {
                 GanjPrimaryDestinations.forEach { destination ->
