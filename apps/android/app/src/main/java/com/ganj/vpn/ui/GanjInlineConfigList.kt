@@ -206,7 +206,8 @@ internal fun StitchInlineConfigList(
                                 measuring = key in readings.measuring,
                                 onSelect = { onSelect(serviceId, server) },
                                 onPing = { latency?.measure(serviceId, listOf(server.id), force = true) },
-                                canPing = latency != null
+                                canPing = latency != null,
+                                animateEntrance = false
                             )
                         }
                     }
