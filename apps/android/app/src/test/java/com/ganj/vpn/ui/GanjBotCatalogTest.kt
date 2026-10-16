@@ -41,6 +41,27 @@ class GanjBotCatalogTest {
             product.purchaseUrl,
         )
     }
+    @Test fun nativeVipAliasesUseOfficialVolumeButNeverChangeBotCheckout() {
+        val legacy = plan("original-30", "vip", "1 کاربر", "💎 ویژه تانل 30 گیگ 💎")
+            .copy(panel = "💎 اشتراک VIP مولتی لوکیشن حجمی 💎", volumeGb = 30.0, deviceLimit = 1)
+        assertEquals("اکونومی · ۳۰ گیگ · ۱ دستگاه", legacy.appDisplayName())
+        assertEquals("استاندارد · ۵۰ گیگ · ۲ دستگاه",
+            legacy.copy(volumeGb = 50.0, category = "2 کاربر").appDisplayName())
+        assertEquals("حرفه‌ای · ۱۰۰ گیگ · ۳ دستگاه",
+            legacy.copy(volumeGb = 100.0, category = "3 کاربر").appDisplayName())
+        assertEquals("💎 ویژه تانل 30 گیگ 💎",
+            legacy.copy(volumeGb = 80.0).appDisplayName())
+        assertEquals(legacy.name,
+            legacy.copy(category = "اشتراک VIP نت ملی 🇮🇷").appDisplayName())
+        assertEquals(legacy.name,
+            legacy.copy(panel = "اشتراک سرور ترکیه").appDisplayName())
+        assertTrue(botStoreFilter(listOf(legacy), null, null, "اکونومی").contains(legacy))
+        assertEquals(
+            "https://bot.pedramhs.ir/site/?page=product&id=original-30&panel=vip",
+            legacy.purchaseUrl,
+        )
+    }
+
     @Test fun nativeAmountInputNormalizesPersianAndArabicDigitsWithoutGroupingCharacters() {
         assertEquals("140000", botStoreAmountDigits("۱۴۰٬۰۰۰"))
         assertEquals("250000", botStoreAmountDigits("٢٥٠,٠٠٠ تومان"))
