@@ -8,7 +8,7 @@ import org.junit.Test
 
 class GanjScrollHapticPolicyTest {
     @Test fun compatiblePlatformHaptics() {
-        assertEquals(HapticFeedbackType.TextHandleMove, GanjScrollHapticPolicy.feedbackForSdk(24))
+        assertEquals(HapticFeedbackType.LongPress, GanjScrollHapticPolicy.feedbackForSdk(24))
         assertEquals(HapticFeedbackType.TextHandleMove, GanjScrollHapticPolicy.feedbackForSdk(33))
         assertEquals(HapticFeedbackType.SegmentFrequentTick, GanjScrollHapticPolicy.feedbackForSdk(34))
         assertEquals(HapticFeedbackType.SegmentFrequentTick, GanjScrollHapticPolicy.feedbackForSdk(36))
