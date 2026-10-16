@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -255,6 +256,8 @@ internal fun GanjProfileWalletCard(
 ) {
     val colors = MaterialTheme.colorScheme
     val gold = profileAccent(GanjProfileAccent.Gold)
+    // Preserve the entire server-owned balance at 2x accessibility font scale.
+    val walletTextScaleIsLarge = LocalDensity.current.fontScale >= 1.3f
     val shape = RoundedCornerShape(18.dp)
     Column(Modifier.fillMaxWidth().testTag("profile-wallet-live").clip(shape)
         .background(gold.copy(alpha = if (referenceDark()) .09f else .07f).compositeOver(colors.surface))
@@ -277,8 +280,10 @@ internal fun GanjProfileWalletCard(
             .clickable(role = Role.Button, onClick = onOpenWallet).testTag("profile-to-wallet")
             .padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(balance?.let(::botMoney) ?: if (busy) "در حال دریافت موجودی…" else "موجودی در دسترس نیست",
-                style = if (balance != null) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold, color = gold, modifier = Modifier.testTag("profile-wallet-balance"))
+                style = if (balance != null && !walletTextScaleIsLarge) MaterialTheme.typography.headlineMedium
+                    else MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold, color = gold, maxLines = 2, softWrap = true,
+                modifier = Modifier.fillMaxWidth().testTag("profile-wallet-balance"))
             if (message != null) Text(message, style = MaterialTheme.typography.bodySmall, color = colors.error)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
