@@ -3,8 +3,9 @@ package com.ganj.vpn.ui
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import android.os.Build
+import android.os.SystemClock
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -164,13 +165,20 @@ internal fun StitchInlineConfigList(
                     if (listState.canScrollForward) 1f else 0f,
                     if (effects.reduceMotion) snap() else tween(180), label = "configBottomFade")
                 val haptic = LocalHapticFeedback.current
-                // Subtle detents: only on a real gesture crossing a row boundary.
-                // Never vibrate during restoration, idle recomposition or reduced motion.
-                LaunchedEffect(serviceId, listState, effects.reduceMotion) {
+                // Android 7-13 need a compatible tactile detent. No per-pixel haptics.
+                val tickType = remember { GanjScrollHapticPolicy.feedbackForSdk(Build.VERSION.SDK_INT) }
+                LaunchedEffect(serviceId, accountCacheKey, listState, effects.reduceMotion) {
                     var previousIndex = listState.firstVisibleItemIndex
-                    snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
-                        if (index != previousIndex && listState.isScrollInProgress && !effects.reduceMotion) {
-                            haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                    var lastTickMs = -1L
+                    snapshotFlow {
+                        listState.firstVisibleItemIndex to listState.isScrollInProgress
+                    }.collect { (index, scrolling) ->
+                        val now = SystemClock.uptimeMillis()
+                        if (GanjScrollHapticPolicy.shouldTick(
+                                index != previousIndex, scrolling, effects.reduceMotion, now, lastTickMs
+                            )) {
+                            haptic.performHapticFeedback(tickType)
+                            lastTickMs = now
                         }
                         previousIndex = index
                     }

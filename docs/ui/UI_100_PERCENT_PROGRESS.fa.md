@@ -1,4 +1,6 @@
 # Ganj VPN — UI 100% Completion Progress Ledger
+> 0.3.34 (2026-10-16): Add SDK-compatible row-detent haptics on config scrolling and throttle ticks; host unit tests added. Physical handset haptic/performance QA is pending; no new leaf marked done.
+
 
 > **Baseline تاریخی هنگام ایجاد Ledger: 54٪ برآورد قدیمی — دیگر معیار پیشرفت نیست.**  
 > **وضعیت سخت‌گیرانه فعلی پس از ممیزی اتصال 2026-09-13: 196 / 492 = 39.8٪**  
