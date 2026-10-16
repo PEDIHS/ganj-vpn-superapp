@@ -39,7 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import com.ganj.vpn.presentation.SessionLatencyManager
 import com.ganj.vpn.presentation.LatencyKey
-import com.ganj.vpn.presentation.LatencySnapshot
 import androidx.compose.ui.res.stringResource
 import com.ganj.vpn.composition.ConnectionServerCompositionRegistry
 import com.ganj.vpn.core.controlapi.ApiResult
@@ -107,7 +106,6 @@ internal fun StitchConnectionScreen(
     val connection = state.connection
     val service = state.selectedService
     val scope = rememberCoroutineScope()
-    val latencyState = latency?.state?.collectAsState()?.value ?: LatencySnapshot()
     var smartBusy by remember { mutableStateOf(false) }
     var smartFailure by remember { mutableStateOf<UiFailure?>(null) }
     val displayedServer = state.selectedServer
@@ -117,9 +115,11 @@ internal fun StitchConnectionScreen(
         connection.entitlementId == displayServiceId && connection.serverId == displayServerId
     val switchingSelection = connection is ConnectionUiState.Connected && service?.isActive == true && !connectedSelection
     val pingKey = if (displayServiceId != null && displayServerId != null) LatencyKey(displayServiceId, displayServerId) else null
-    val reading = latencyState.readings[pingKey]
+    // Probe updates for other servers no longer rebuild the whole Connect screen.
+    val selectedProbe = rememberGanjProbeVisual(latency, pingKey)
+    val reading = selectedProbe.reading
     val ping = reading?.result?.latencyMillis
-    val pingBusy = pingKey in latencyState.measuring
+    val pingBusy = selectedProbe.measuring
     val pingFailure = (reading?.result as? LatencyProbeResult.Failed)?.failure
     val visualState = ganjConnectionVisualState(state.runtimeConnection.phase, connection, service?.isActive == true)
     val disconnecting = disconnectRequested || state.runtimeConnection.phase == ConnectionPhase.DISCONNECTING
