@@ -430,8 +430,8 @@ fun GanjVpnApp(
         accountSyncFeedback = if (telegramLinked) TelegramServiceSyncFeedback.Syncing else null
         refreshJob = scope.launch {
             val refreshed = controller.refreshFast(loadingState)
-            commit(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
-                GanjUiEvent.ServicesResolved(refreshed.services)))
+            commit(withRememberedSelection(reducer.reduce(reducer.reduce(state, GanjUiEvent.CatalogResolved(refreshed.catalog)),
+                GanjUiEvent.ServicesResolved(refreshed.services))))
             accountSyncFeedback = if (telegramLinked) {
                 telegramServiceSyncFeedback(refreshed.services)
             } else {
@@ -534,8 +534,12 @@ fun GanjVpnApp(
         // Refresh the server identity from the authenticated API before using a restored choice.
         val result = loadServiceServers(serviceId)
         val confirmed = (result as? ApiResult.Success)?.value?.firstOrNull { it.id == rememberedId }
-        if (confirmed != null && state.selectedEntitlementId == serviceId &&
-            state.selectedServer?.id != confirmed.id) {
+        if (state.selectedEntitlementId != serviceId) return@LaunchedEffect
+        if (confirmed == null && result is ApiResult.Success &&
+            state.selectedServer?.id == rememberedId) {
+            // Authoritative catalog no longer includes this config: remove the stale choice.
+            commit(state.copy(selectedConnectionServer = null))
+        } else if (confirmed != null && state.selectedServer != confirmed) {
             commit(reducer.reduce(state, GanjUiEvent.SelectServer(serviceId, confirmed)))
         }
     }
