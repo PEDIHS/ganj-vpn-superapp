@@ -29,7 +29,7 @@ internal fun GanjTierCatalog(products: List<GanjBotProduct>,onOpenProduct:(Strin
         }
         if(loading)item {Text("در حال دریافت…")}
         if(error)item {GanjInlineStatusPanel("به‌روزرسانی کامل نشد","مبلغ نهایی پیش از پرداخت از ربات بررسی می‌شود.",actionText="تلاش دوباره",onAction=onRefresh)}
-        listOf("economy","standard","professional","premium").forEach {key ->
+        listOf("economy","standard","plus","professional","premium").forEach {key ->
             val options=tiers[key].orEmpty()
             val base=options.minByOrNull {it.priceToman}
             if(base!=null)item(key=key) {
