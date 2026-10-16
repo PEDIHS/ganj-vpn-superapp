@@ -456,3 +456,12 @@ Local backend suite: 168 passed, zero failed, one PostgreSQL integration test sk
 ### 2026-10-16 — Service family work in progress
 
 Baseline `a33a12b` / deployed 0.3.25; branch `feat/service-family-sharing`. Product explicitly cancelled phone/email/password login. Do not restore `phone-account-routes`, retail synthetic identities or credential menus. Family uses existing Telegram identities and wallets, migration 023, separate member/invite records, accessible-service reads/profile issuance with owner-only commerce untouched. Device/user FK remains enforced; service FK is independent to permit family device ownership. Membership joins/removals/device binding serialize on the service row. Opaque invitation tokens are hashed at rest and only sent in a URL fragment; all mutation requests require existing device proof. The foreground VPN now checks a lightweight service/device access endpoint every 30 seconds, disconnects on authoritative revocation, and allows at most five minutes of transport-failure grace. One process-wide session manager prevents competing refresh-token rotations. Native runtime evidence for this new guard remains pending. Native catalog and bot support wiring are implemented as a candidate; separate panel admin ganj_app (display گنج اپ, ID 5, owner role and all seven current groups) exists. Production bot PHP overlay and 18 additive catalog variants installed with restorable snapshots; native/legacy catalog checks and six mock-send picker states passed. Temporary panel service creation was confirmed under ganj_app and cleaned up (204). Family backend production migration and Android release remain pending. No APK publication claimed.
+
+
+## 2026-10-16 — Signature profile/store/VIP candidate
+Product approved gold/wave review and explicitly excluded Connect changes. Branch
+`feat/profile-polish-20261016` is based on PR #70's 0.3.28 head; this batch modifies
+native Profile/Store/VIP only and targets 0.3.29-alpha (code 32). Preserve original
+bot products, all payment authority, family and device routes. Review reference and
+scoped palette override in UI rules. Do not infer publication or test success from
+this source note; append actual CI/render/artifact evidence before publishing.

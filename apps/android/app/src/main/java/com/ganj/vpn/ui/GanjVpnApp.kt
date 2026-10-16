@@ -139,6 +139,7 @@ fun GanjVpnApp(
     val accountId = currentAccount?.id?.takeIf { telegramLinked }
 
     var selectedDestination by rememberSaveable { mutableStateOf(GanjDestination.Connect) }
+    var storeVipRequested by rememberSaveable { mutableStateOf(false) }
     var configPickerServiceId by remember(composition) { mutableStateOf<String?>(null) }
     var accountSurface by rememberSaveable { mutableStateOf(GanjAccountSurface.PROFILE) }
     var accountPaymentOrder by rememberSaveable { mutableStateOf("") }
@@ -733,6 +734,8 @@ fun GanjVpnApp(
                             )
 
                             GanjDestination.Store -> StitchNativeBotStoreDestination(
+                                vipEntryRequested = storeVipRequested,
+                                onVipEntryHandled = { storeVipRequested = false },
                                 onStoreBridgeAuthorization = onStoreBridgeAuthorization,
                                 suppliedApi = botStoreApi,
                                 allowGuestCatalogCache = !telegramLinked,
@@ -850,6 +853,7 @@ fun GanjVpnApp(
                                         selectedDestination = GanjDestination.Connect
                                     },
                                     onBuy = { selectedDestination = GanjDestination.Store },
+                                    onOpenVip = { storeVipRequested = true; selectedDestination = GanjDestination.Store },
                                     onOpenSettings = { accountSurface = GanjAccountSurface.SETTINGS },
                                     onOpenSubscriptions = { selectedDestination = GanjDestination.Servers },
                                     onRetry = ::refresh,

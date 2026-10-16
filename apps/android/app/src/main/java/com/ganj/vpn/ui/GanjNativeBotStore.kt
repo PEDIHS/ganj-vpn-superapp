@@ -53,9 +53,12 @@ internal fun StitchNativeBotStoreDestination(
     modifier: Modifier = Modifier,
     suppliedApi: GanjBotStoreApi? = null,
     allowGuestCatalogCache: Boolean = false,
+    vipEntryRequested: Boolean = false,
+    onVipEntryHandled: () -> Unit = {},
 ) {
     val api = remember(suppliedApi, onStoreBridgeAuthorization) { suppliedApi ?: GanjBotNativeStoreApi(onStoreBridgeAuthorization) }
     var page by rememberSaveable { mutableStateOf("catalog") }
+    LaunchedEffect(vipEntryRequested) { if (vipEntryRequested) page = "catalog" }
     var productCode by rememberSaveable { mutableStateOf("") }
     var panelCode by rememberSaveable { mutableStateOf("") }
     var shortfall by rememberSaveable { mutableLongStateOf(0L) }
@@ -93,6 +96,8 @@ internal fun StitchNativeBotStoreDestination(
                 onOpenTransactions = { page = "transactions" },
                 loadCatalog = { botStoreReadCatalog(api.request("products")) },
                 enablePublicCache = allowGuestCatalogCache,
+                vipEntryRequested = vipEntryRequested,
+                onVipEntryHandled = onVipEntryHandled,
             )
         }
     }
@@ -225,7 +230,7 @@ internal fun StitchNativeBotCheckout(
                     accent = LocalGanjContentPalette.current.premiumText)
             }
             item {
-                GanjGlassButton(if (busy) "در حال خرید…" else if (attempted) "پیگیری خرید" else "تأیید خرید", {
+                GanjSignatureButton(if (busy) "در حال خرید…" else if (attempted) "پیگیری خرید" else "تأیید خرید", {
                     if (!busy && quote?.enough == true) {
                         busy = true; attempted = true; error = null
                         scope.launch {
@@ -327,7 +332,7 @@ internal fun StitchNativeBotWallet(
             Text("در حال حاضر روش پرداختی برای حساب شما فعال نیست.", style = MaterialTheme.typography.bodySmall)
         }
         item {
-            GanjGlassButton(if (busy) "در حال آماده‌سازی فاکتور…" else "ادامه پرداخت", {
+            GanjSignatureButton(if (busy) "در حال آماده‌سازی فاکتور…" else "ادامه پرداخت", {
                 val method = methods.firstOrNull { it.optString("id") == selected }
                 val value = amount.toLongOrNull()
                 when {

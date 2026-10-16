@@ -1155,3 +1155,21 @@ Overall UI completion: 196/492 = 39.8% (calculator formula; 100% forbidden until
 > **2026-10-16 Remembered connection UX — source implemented, device QA pending:** Persist only account-scoped active service ID, selected server ID and bounded public server catalog metadata in app-private storage; no VPN credentials, session bearer, profile or decrypted endpoint may persist. On startup, reconcile the remembered service with the authenticated entitlement list; restore server selection from safe metadata and refresh the authenticated catalog before trusting it for a new profile. The server picker displays the last account-scoped list immediately, retains rows on transient refresh failures, and shows a stale notice instead of flashing an empty loading list. Definitive empty responses and auth failures invalidate it. Ping measurements are deduplicated and reused for two minutes per service, with explicit manual remeasurement; automatic ping may start once per selected subscription rather than once per entire session. Tests include Android instrumentation for persistent account isolation, empty-list invalidation, and JVM latency switching/freshness. **Unverified:** real cold-launch/force-stop upgrade, Telegram account switch, airplane mode and reconnection on authorized phones, battery/latency responsiveness, screenshot fidelity and sign-off. No executable ledger checkboxes changed until these pass; calculator remains 196/492 = 39.8%. Sections touched: 4, 6, 8, 12, 17, 20, 23, 25; leaf items completed: none.
 
 > **2026-10-16 Smart Connect follow-up — source implemented, pending CI:** The Connect smart action first ranks recent (≤120-second) real measured pings for the selected authenticated entitlement. Without fresh measurements, it starts the bounded native batch and selects from initial available results after at most five seconds rather than blocking for all servers. Explicit refresh forces a new measurement. No guessed ping or first-config fallback is used; an unavailable result remains an error, and the server-side encrypted profile authorization still governs actual connection. Regression tests cover expiry, best-ping choice, and cross-subscription separation. Sections touched: 6, 12, 17, 23, 25; leaf items completed: none until emulator and physical-device verification, ledger total still 196/492 (39.8%).
+
+
+> **2026-10-16 Approved signature Profile/Store/VIP — source candidate 0.3.29:** Implements the
+> approved `design/references/ganj-gold-wave-review.html`: circular account identity, concave
+> emerald/gold waves, bright metallic actions, grouped account controls, real bot balance,
+> native Store/VIP catalog and exact product variant checkout. Profile balance state belongs
+> to the screen/account rather than a recycled lazy item; scrolling cannot restart its request.
+> Foreground resume/manual refresh retrieves canonical bot balance, with explicit unknown/stale
+> states and no interpolated financial values. Profile VIP opens the actual native catalog;
+> mixed catalogs preserve original non-tier products. Existing payment/receipt and family/device/
+> support routes remain wired. Connect screen/runtime/ping/selection and bot catalog are unchanged.
+> Android instrumentation covers exact tier/day/device purchase URL, original-product reachability,
+> VIP entry, real wallet callbacks, no scroll refetch, unknown/zero/stale/account-switch balance,
+> 200% label layout and motion policy. Execution and native screenshot inspection pending CI.
+> UI Ledger sections touched: 1, 5, 6, 10, 15, 21, 23, 24, 25.
+> Leaf items completed: none; full DoD including physical-device QA remains open.
+> Remaining unchecked leaves in touched sections: 1=9, 5=19, 6=8, 10=5, 15=17, 21=12,
+> 23=9, 24=16, 25=17. Overall UI completion: 196/492 = 39.8% (calculator), 296 remaining.

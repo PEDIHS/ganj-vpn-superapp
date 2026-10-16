@@ -1,0 +1,268 @@
+<div id="ganj-gold-wave" class="viz-dotted-background" dir="rtl">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap');
+#ganj-gold-wave{font-family:Vazirmatn,Tahoma,sans-serif;padding:18px 8px 24px}
+#ganj-gold-wave *{box-sizing:border-box}
+#ganj-gold-wave .gg-app{--bg:#101817;--surface:#192522;--raised:#21332c;--border:#31463b;--text:#f0f5ec;--muted:#aabcb1;--green:#4de7ab;--gold:#f2ce70;--gold-light:#fff1ae;--gold-deep:#9f6a16;--cool:#9ccedc;--violet:#bcb6eb;--warm:#30281a;color-scheme:dark;max-width:404px;margin:auto;border:1px solid #405344;border-radius:26px;background:var(--bg);color:var(--text);font-size:14px;line-height:1.7;overflow:hidden;box-shadow:0 16px 45px #00000018}
+#ganj-gold-wave .gg-light{--bg:#f2f6f1;--surface:#ffffff;--raised:#e4eee7;--border:#cddcd1;--text:#173427;--muted:#576f60;--green:#087b51;--gold:#8a5b0e;--gold-light:#9b6c14;--gold-deep:#7b5110;--cool:#246983;--violet:#6556a0;--warm:#f6ecd2;color-scheme:light}
+#ganj-gold-wave button,#ganj-gold-wave input{font:inherit}
+#ganj-gold-wave button{color:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform 140ms,background 200ms,border-color 200ms}
+#ganj-gold-wave button:active{transform:scale(.97)}
+#ganj-gold-wave button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+#ganj-gold-wave svg{width:22px;height:22px;stroke-width:1.65;flex-shrink:0}
+#ganj-gold-wave [hidden]{display:none!important}
+#ganj-gold-wave h2,#ganj-gold-wave h3,#ganj-gold-wave p{margin:0}
+#ganj-gold-wave .gg-system{display:flex;justify-content:space-between;align-items:center;direction:ltr;padding:14px 24px 5px;color:var(--muted);font:500 12px Arial,sans-serif}
+#ganj-gold-wave .gg-system div{display:flex;align-items:center;gap:5px}
+#ganj-gold-wave .gg-system svg{width:14px;height:14px}
+#ganj-gold-wave .gg-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:18px 20px 16px}
+#ganj-gold-wave .gg-head h2{font-weight:600;font-size:23px;line-height:1.5}
+#ganj-gold-wave .gg-eyebrow{font-size:10px;letter-spacing:2px;color:var(--gold);direction:ltr;text-align:right;margin-bottom:2px}
+#ganj-gold-wave .gg-head-actions{display:flex;gap:6px}
+#ganj-gold-wave .gg-icon-btn{height:44px;width:44px;display:grid;place-items:center;border:1px solid var(--border);border-radius:13px;background:var(--surface);color:var(--muted)}
+#ganj-gold-wave .gg-main{padding:0 18px 6px}
+#ganj-gold-wave .gg-page{animation:gg-arrive 340ms cubic-bezier(.2,.75,.2,1) both}
+#ganj-gold-wave .gg-profile-hero{position:relative;padding-top:2px;margin-bottom:16px;isolation:isolate}
+#ganj-gold-wave .gg-orb-wrap{position:relative;margin:0 auto -69px;width:146px;height:146px;z-index:3;display:grid;place-items:center}
+#ganj-gold-wave .gg-orbit{position:absolute;inset:2px;border-radius:50%;border:1px solid #be9f4666}
+#ganj-gold-wave .gg-orbit:before{content:'';position:absolute;inset:6px;border:1px solid #689a7536;border-radius:50%}
+#ganj-gold-wave .gg-orbit:after{content:'';position:absolute;inset:-1px;border-radius:50%;border:1.6px solid transparent;border-top-color:#ffe9a0;border-bottom-color:#c59a3a;transform:rotate(-35deg);animation:gg-orbit 7s ease-in-out infinite alternate}
+#ganj-gold-wave .gg-avatar{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;width:116px;height:116px;border-radius:50%;border:1px solid #b6d79a;background:radial-gradient(ellipse at 28% 0%,#adffe04d,transparent 65%),linear-gradient(145deg,#17845d,#07503a 80%);box-shadow:inset 0 2px 2px #d8ffbb66,inset 0 -6px 10px #002c2c55,0 8px 20px #00000030;color:#eaffd5}
+#ganj-gold-wave .gg-avatar:before{content:'';position:absolute;inset:5px;border:1px solid #d0e5a333;border-radius:50%;z-index:-1}
+#ganj-gold-wave .gg-avatar:after{content:'';position:absolute;width:155px;height:75px;top:-24px;left:-30px;border-radius:50%;background:linear-gradient(#ffffff23,transparent);transform:rotate(-22deg);z-index:-1}
+#ganj-gold-wave .gg-avatar svg{width:37px;height:37px;stroke-width:1.45}
+#ganj-gold-wave .gg-avatar small{font:500 8px Arial,sans-serif;letter-spacing:2.8px;color:#def4c1}
+#ganj-gold-wave .gg-star{position:absolute;width:18px;height:18px;top:10px;left:16px;color:#fff1ae;z-index:4;animation:gg-star 5.5s ease-in-out infinite}
+#ganj-gold-wave .gg-star svg{width:18px;height:18px;stroke-width:1.3}
+#ganj-gold-wave .gg-water{position:relative;overflow:hidden;border-radius:18px;background:var(--surface);border:1px solid #9b8a414d;mask-image:radial-gradient(circle 77px at 50% -4px,transparent 98%,#000 100%);isolation:isolate}
+#ganj-gold-wave .gg-wave{position:absolute;top:30px;left:-28%;width:156%;height:120px;border-radius:47% 53% 0 0;background:linear-gradient(180deg,#45d8a432,#2e97651b 25%,transparent 80%);border-top:1px solid #90e6ad4d;transform:rotate(-5deg);z-index:-1;animation:gg-wave 7s ease-in-out infinite alternate;pointer-events:none}
+#ganj-gold-wave .gg-wave.gg-wave-gold{top:42px;left:-25%;border-radius:55% 45% 0 0;background:linear-gradient(180deg,#e6bc4629,transparent 75%);border-color:#f6d3745e;animation:gg-wave-back 8.5s ease-in-out infinite alternate;transform:rotate(6deg)}
+#ganj-gold-wave .gg-identity-copy{text-align:center;padding:83px 16px 17px}
+#ganj-gold-wave .gg-identity-copy h3{font-size:21px;font-weight:500}
+#ganj-gold-wave .gg-username{display:block;font-size:11px;color:var(--muted);margin:1px 0 11px}
+#ganj-gold-wave .gg-metal{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(120deg,#b98022 0%,#f6d77a 28%,#fff0ab 48%,#dfb24e 72%,#c5902c 100%);color:#352409!important;border:1px solid #f2d887;box-shadow:inset 0 1px 0 #fff4c7aa,inset 0 -1px 0 #79501344}
+#ganj-gold-wave .gg-metal:after{content:'';position:absolute;top:-40%;bottom:-40%;width:34%;left:-55%;background:linear-gradient(90deg,transparent,#fffbedb3,transparent);transform:skewX(-24deg);pointer-events:none;animation:gg-sheen 7.5s ease-in-out infinite}
+#ganj-gold-wave .gg-premium{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:8px;padding:7px 16px;min-height:38px;font-size:11px;font-weight:600;letter-spacing:1px}
+#ganj-gold-wave .gg-premium svg{width:15px;height:15px}
+#ganj-gold-wave .gg-account-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 15px;border-top:1px solid var(--border);font-size:11px}
+#ganj-gold-wave .gg-linked{display:flex;align-items:center;gap:6px;color:var(--muted)}
+#ganj-gold-wave .gg-linked:before{content:'';height:5px;width:5px;border-radius:50%;background:var(--green)}
+#ganj-gold-wave .gg-link{background:transparent;border:0;display:flex;align-items:center;gap:5px;min-height:32px;padding:0;color:var(--gold);font-size:11px}
+#ganj-gold-wave .gg-link svg{width:14px;height:14px}
+#ganj-gold-wave .gg-wallet{position:relative;isolation:isolate;overflow:hidden;padding:16px;border:1px solid #d1ac5266;border-radius:17px;background:var(--warm);margin-bottom:13px}
+#ganj-gold-wave .gg-wallet:before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 0% 0%,#ffd15a1c,transparent 70%);pointer-events:none;z-index:-1}
+#ganj-gold-wave .gg-wallet:after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,#fff1ae,transparent);opacity:.7}
+#ganj-gold-wave .gg-wallet-head{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--gold)}
+#ganj-gold-wave .gg-wallet-head>span{flex:1}
+#ganj-gold-wave .gg-wallet-head svg{height:18px;width:18px}
+#ganj-gold-wave .gg-refresh{height:34px;width:34px;display:grid;place-items:center;background:transparent;border:0;color:var(--gold)}
+#ganj-gold-wave .gg-refresh.gg-refreshing svg{animation:gg-spin 650ms ease-in-out}
+#ganj-gold-wave .gg-balance{display:flex;align-items:baseline;gap:8px;width:100%;padding:5px 0 11px;border:0;background:transparent;text-align:right}
+#ganj-gold-wave .gg-balance strong{font-weight:600;font-size:32px;letter-spacing:-1px;color:var(--gold-light);font-variant-numeric:tabular-nums}
+#ganj-gold-wave .gg-balance small{font-size:12px;color:var(--muted)}
+#ganj-gold-wave .gg-actions{display:flex;gap:8px;flex-wrap:wrap}
+#ganj-gold-wave .gg-action{display:flex;align-items:center;justify-content:center;gap:7px;min-height:45px;border-radius:10px;padding:10px 13px;background:var(--surface);border:1px solid #bc984551;color:var(--gold);font-size:12px;flex:1}
+#ganj-gold-wave .gg-action.gg-metal{background:linear-gradient(120deg,#b98022 0%,#f6d77a 28%,#fff0ab 48%,#dfb24e 72%,#c5902c 100%);border:1px solid #f2d887}
+#ganj-gold-wave .gg-action svg{height:17px;width:17px}
+#ganj-gold-wave .gg-title{font-size:12px;font-weight:500;color:var(--muted);margin:20px 2px 9px;display:flex;justify-content:space-between;align-items:center}
+#ganj-gold-wave .gg-group{border:1px solid var(--border);border-radius:15px;overflow:hidden;background:var(--surface)}
+#ganj-gold-wave .gg-row{position:relative;display:flex;align-items:center;gap:11px;width:100%;min-height:66px;padding:11px 13px;border:0;text-align:right;background:transparent}
+#ganj-gold-wave .gg-row+.gg-row:before{content:'';position:absolute;top:0;right:63px;left:13px;background:var(--border);height:1px;opacity:.7}
+#ganj-gold-wave .gg-icon-tile{display:grid;place-items:center;width:39px;height:39px;flex-shrink:0;border-radius:12px;color:var(--green);background:#4de7ab12;border:1px solid #4de7ab21}
+#ganj-gold-wave .gg-icon-tile.gg-iris{color:var(--violet);background:#bcb6eb12;border-color:#bcb6eb21}
+#ganj-gold-wave .gg-icon-tile.gg-cool{color:var(--cool);background:#9ccedc12;border-color:#9ccedc21}
+#ganj-gold-wave .gg-icon-tile.gg-gold{color:var(--gold);background:#f2ce7012;border-color:#f2ce7021}
+#ganj-gold-wave .gg-copy{flex:1;min-width:0}
+#ganj-gold-wave .gg-copy strong{font-weight:500;font-size:13px;display:block}
+#ganj-gold-wave .gg-copy small{font-size:11px;color:var(--muted);display:block;margin-top:2px}
+#ganj-gold-wave .gg-row>svg{height:15px;width:15px;color:var(--muted)}
+#ganj-gold-wave .gg-summary{border:1px solid var(--border);border-radius:15px;background:var(--surface);padding:14px;margin-bottom:12px}
+#ganj-gold-wave .gg-summary-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}
+#ganj-gold-wave .gg-summary-head .gg-name{font:500 13px Arial,sans-serif}
+#ganj-gold-wave .gg-summary-head span{color:var(--muted);font-size:11px}
+#ganj-gold-wave .gg-track{height:4px;background:#8eaf9d22;border-radius:4px;overflow:hidden;margin:11px 0 8px}
+#ganj-gold-wave .gg-track span{display:block;width:70%;height:100%;background:linear-gradient(90deg,#1a9c70,#5ee4a6);border-radius:4px}
+#ganj-gold-wave .gg-stats{display:flex;justify-content:space-between;gap:7px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+#ganj-gold-wave .gg-stats strong{font-weight:500;color:var(--text)}
+#ganj-gold-wave .gg-vip-banner{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;gap:13px;background:var(--warm);border:1px solid #c79e4590;border-radius:16px;width:100%;padding:17px;text-align:right;margin:15px 0;color:var(--gold)}
+#ganj-gold-wave .gg-vip-banner:before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,#e7b5461a,transparent 60%);z-index:-1}
+#ganj-gold-wave .gg-vip-banner strong{font-weight:500;color:var(--gold-light);font-size:15px}
+#ganj-gold-wave .gg-vip-banner small{font-size:11px}
+#ganj-gold-wave .gg-gem-tile{height:48px;width:48px;display:grid;place-items:center;border-radius:14px;transform:rotate(-6deg);flex-shrink:0}
+#ganj-gold-wave .gg-gem-tile svg{height:26px;width:26px;transform:rotate(6deg)}
+#ganj-gold-wave .gg-filters{display:flex;gap:7px;flex-wrap:wrap;margin:13px 0}
+#ganj-gold-wave .gg-chip{min-height:40px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);padding:8px 14px;font-size:12px}
+#ganj-gold-wave .gg-chip[aria-pressed=true]{color:var(--gold);border-color:#cda64b99;background:var(--warm)}
+#ganj-gold-wave .gg-product{position:relative;border:1px solid var(--border);border-radius:16px;padding:15px;background:var(--surface);margin:11px 0;transition:border-color 220ms,background 220ms}
+#ganj-gold-wave .gg-product.gg-selected{border-color:#d9b75e;background:var(--raised)}
+#ganj-gold-wave .gg-product-head{display:flex;align-items:center;gap:12px}
+#ganj-gold-wave .gg-volume{height:63px;width:63px;border-radius:13px;flex-shrink:0;background:linear-gradient(140deg,#32956824,#e4c4670b);border:1px solid #6eaf7d55;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--green)}
+#ganj-gold-wave .gg-volume strong{font-size:24px;font-weight:500;line-height:1.2}
+#ganj-gold-wave .gg-volume small{font:400 10px Arial,sans-serif;letter-spacing:1px;margin-top:4px}
+#ganj-gold-wave .gg-product-head .gg-copy strong{font-size:15px}
+#ganj-gold-wave .gg-select{height:44px;width:44px;display:grid;place-items:center;border:0;background:transparent;color:var(--muted)}
+#ganj-gold-wave .gg-select .gg-check{height:22px;width:22px;border:1px solid var(--border);border-radius:50%;display:grid;place-items:center}
+#ganj-gold-wave .gg-check svg{height:14px;width:14px;opacity:0}
+#ganj-gold-wave .gg-selected .gg-check{background:#eecb73;border-color:#eecb73;color:#2e250e}
+#ganj-gold-wave .gg-selected .gg-check svg{opacity:1}
+#ganj-gold-wave .gg-product-meta{display:flex;gap:12px;flex-wrap:wrap;margin:15px 0 12px;color:var(--muted);font-size:11px}
+#ganj-gold-wave .gg-product-meta span{display:flex;align-items:center;gap:4px}
+#ganj-gold-wave .gg-product-meta svg{height:13px;width:13px}
+#ganj-gold-wave .gg-price{display:flex;align-items:center;justify-content:space-between;gap:7px;border-top:1px solid var(--border);padding-top:11px}
+#ganj-gold-wave .gg-price strong{font-size:19px;font-weight:500;color:var(--text)}
+#ganj-gold-wave .gg-price small{font-size:11px;color:var(--muted);font-weight:400}
+#ganj-gold-wave .gg-label{font-size:10px;color:var(--green);padding:3px 7px;border:1px solid #4de7ab2b;border-radius:6px}
+#ganj-gold-wave .gg-order{margin:20px 0 8px}
+#ganj-gold-wave .gg-order-top{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-bottom:10px}
+#ganj-gold-wave .gg-order-top strong{color:var(--gold);font-weight:500}
+#ganj-gold-wave .gg-full{width:100%}
+#ganj-gold-wave .gg-vip-hero{position:relative;text-align:center;isolation:isolate;padding:17px 14px 22px;border-radius:18px;background:var(--warm);border:1px solid #d0a94b77;overflow:hidden}
+#ganj-gold-wave .gg-vip-hero:before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 20%,#f8ce5b1c,transparent 65%);z-index:-1}
+#ganj-gold-wave .gg-vip-emblem{height:140px;width:140px;margin:0 auto 12px;display:grid;place-items:center;position:relative}
+#ganj-gold-wave .gg-vip-emblem:before{content:'';position:absolute;inset:3px;border:1px solid #d2a84666;border-radius:50%;box-shadow:0 0 0 10px #d4b65906,0 0 0 11px #d4b65917}
+#ganj-gold-wave .gg-vip-emblem:after{content:'';position:absolute;inset:3px;border:1px solid transparent;border-top-color:#fff0ad;border-bottom-color:#c78a23;border-radius:50%;transform:rotate(-30deg);animation:gg-orbit 7s ease-in-out infinite alternate}
+#ganj-gold-wave .gg-vip-jewel{height:96px;width:96px;display:grid;place-items:center;border-radius:27px;transform:rotate(-9deg);box-shadow:inset 0 2px 1px #fff4bf,0 12px 24px #00000033}
+#ganj-gold-wave .gg-vip-jewel svg{width:49px;height:49px;stroke-width:1.3;transform:rotate(9deg)}
+#ganj-gold-wave .gg-vip-word{font:600 29px Arial,sans-serif;letter-spacing:5px;background:linear-gradient(110deg,#ca9030,#fff1ae 50%,#e4b448);color:transparent;background-clip:text;direction:ltr;margin-bottom:7px}
+#ganj-gold-wave .gg-vip-hero h3{font-size:17px;font-weight:500;color:var(--text)}
+#ganj-gold-wave .gg-vip-hero p{font-size:12px;color:var(--muted);margin-top:4px}
+#ganj-gold-wave .gg-vip-features{display:flex;justify-content:center;gap:10px;margin-top:19px;flex-wrap:wrap}
+#ganj-gold-wave .gg-vip-features span{font-size:11px;color:var(--gold);display:flex;align-items:center;gap:5px}
+#ganj-gold-wave .gg-vip-features svg{width:15px;height:15px}
+#ganj-gold-wave .gg-vip-plan{margin:14px 0;border:1px solid #d8af5377;border-radius:15px;padding:16px;background:var(--surface)}
+#ganj-gold-wave .gg-vip-plan-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:15px}
+#ganj-gold-wave .gg-vip-plan-head strong{font-size:16px;font-weight:500}
+#ganj-gold-wave .gg-vip-plan-head span{font-size:11px;color:var(--gold)}
+#ganj-gold-wave .gg-vip-data{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-bottom:15px}
+#ganj-gold-wave .gg-vip-data>div{text-align:center}
+#ganj-gold-wave .gg-vip-data strong{display:block;font-size:20px;font-weight:500;color:var(--gold-light)}
+#ganj-gold-wave .gg-vip-data small{font-size:11px;color:var(--muted)}
+#ganj-gold-wave .gg-vip-data>div+div{border-right:1px solid var(--border)}
+#ganj-gold-wave .gg-detail{border:1px solid var(--border);border-radius:15px;padding:15px;background:var(--surface)}
+#ganj-gold-wave .gg-datum{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;font-size:12px}
+#ganj-gold-wave .gg-datum+.gg-datum{border-top:1px solid var(--border)}
+#ganj-gold-wave .gg-datum span{color:var(--muted)}
+#ganj-gold-wave .gg-datum strong{font-weight:500}
+#ganj-gold-wave .gg-note{border:1px solid var(--border);border-radius:12px;padding:12px;font-size:12px;color:var(--muted);margin-top:13px;background:var(--surface)}
+#ganj-gold-wave .gg-input-label{display:block;font-size:12px;color:var(--muted);margin:18px 0 7px}
+#ganj-gold-wave .gg-input{width:100%;min-height:48px;padding:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:11px;text-align:right;font-size:16px}
+#ganj-gold-wave .gg-switch{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:right;padding:13px;min-height:56px;border:1px solid var(--border);border-radius:12px;background:var(--surface);font-size:13px;margin-bottom:10px}
+#ganj-gold-wave .gg-switch>span:last-child{width:42px;height:24px;border-radius:15px;background:#809c8233;position:relative;flex-shrink:0}
+#ganj-gold-wave .gg-switch>span:last-child:after{content:'';position:absolute;left:3px;top:3px;height:18px;width:18px;border-radius:50%;background:var(--muted);transition:transform 200ms}
+#ganj-gold-wave .gg-switch[aria-checked=true]>span:last-child:after{transform:translateX(18px);background:var(--green)}
+#ganj-gold-wave .gg-nav{position:relative;display:flex;height:79px;margin:29px 12px 0;isolation:isolate;direction:rtl;padding:0 6px}
+#ganj-gold-wave .gg-nav:before{content:'';position:absolute;inset:0;z-index:-2;border-radius:22px;background:linear-gradient(130deg,#7de4ae26,#07583d33),#0b503b;mask-image:radial-gradient(circle 37px at 50% -5px,transparent 98%,#000 101%)}
+#ganj-gold-wave .gg-nav button{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:0;background:transparent;color:#acd8c2;font-size:11px}
+#ganj-gold-wave .gg-nav button[aria-pressed=true]{color:#fff1b9}
+#ganj-gold-wave .gg-nav button[aria-pressed=true]:before{content:'';position:absolute;inset:6px 11px;border:1px solid #f2d58266;border-radius:15px;background:linear-gradient(145deg,#cdf5b52b,#3cc88916);z-index:-1}
+#ganj-gold-wave .gg-nav button[aria-pressed=true]:after{content:'';position:absolute;bottom:9px;width:17px;height:2px;border-radius:2px;background:#f2ce70}
+#ganj-gold-wave .gg-nav .gg-nav-power{padding-top:27px;color:#f2ce70}
+#ganj-gold-wave .gg-nav-power>span:first-child{position:absolute;top:-30px;width:60px;height:60px;border-radius:50%;border:1px solid #dbd99c;background:linear-gradient(145deg,#299b6c,#07523b);box-shadow:inset 0 2px 1px #e5f3bb77,0 6px 15px #00000033;display:grid;place-items:center}
+#ganj-gold-wave .gg-nav-power svg{width:25px;height:25px;color:#edffcc}
+#ganj-gold-wave .gg-nav .gg-nav-power[aria-pressed=true]:before,#ganj-gold-wave .gg-nav .gg-nav-power[aria-pressed=true]:after{display:none}
+#ganj-gold-wave .gg-homebar{height:3px;width:100px;margin:14px auto 12px;border-radius:3px;background:var(--muted);opacity:.45}
+#ganj-gold-wave .gg-caption{font-size:12px;color:var(--muted-foreground);text-align:center;margin:13px 0 0}
+#ganj-gold-wave .gg-connect{min-height:340px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center}
+#ganj-gold-wave .gg-connect .gg-avatar{width:200px;height:200px;gap:13px}
+#ganj-gold-wave .gg-connect .gg-avatar svg{width:45px;height:45px}
+#ganj-gold-wave .gg-connect .gg-avatar span{font-size:13px}
+#ganj-gold-wave .gg-connect p{font-size:12px;color:var(--muted)}
+#ganj-gold-wave .gg-paused *,#ganj-gold-wave .gg-paused *:after{animation-play-state:paused!important}
+#ganj-gold-wave .gg-reduced *,#ganj-gold-wave .gg-reduced *:before,#ganj-gold-wave .gg-reduced *:after{animation:none!important;transition:none!important}
+@keyframes gg-arrive{from{opacity:.5;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes gg-orbit{from{transform:rotate(-35deg);opacity:.55}to{transform:rotate(12deg);opacity:1}}
+@keyframes gg-wave{from{transform:translateX(-8px) rotate(-5deg)}to{transform:translateX(10px) rotate(3deg)}}
+@keyframes gg-wave-back{from{transform:translateX(10px) rotate(6deg)}to{transform:translateX(-10px) rotate(-3deg)}}
+@keyframes gg-sheen{0%,60%{left:-55%;opacity:0}64%{opacity:.9}84%{left:125%;opacity:0}100%{left:125%;opacity:0}}
+@keyframes gg-star{0%,55%,100%{opacity:.35;transform:scale(.8)}70%{opacity:1;transform:scale(1.1)}}
+@keyframes gg-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){#ganj-gold-wave *,#ganj-gold-wave *:before,#ganj-gold-wave *:after{animation:none!important;transition:none!important}}
+@media(max-width:360px){#ganj-gold-wave .gg-main{padding:0 13px 6px}#ganj-gold-wave .gg-head{padding:16px 15px}#ganj-gold-wave .gg-chip{padding:8px 10px}#ganj-gold-wave .gg-product{padding:12px}#ganj-gold-wave .gg-balance strong{font-size:30px}}
+</style>
+<div class="gg-app">
+ <div class="gg-system"><span>9:41</span><div><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i><i data-lucide="battery-full" aria-hidden="true"></i></div></div>
+ <header class="gg-head"><div><div class="gg-eyebrow">GANJ · PERSONAL SPACE</div><h2 data-heading>پروفایل</h2></div><div class="gg-head-actions"><button type="button" class="gg-icon-btn cursor-interaction" data-go="settings" aria-label="تنظیمات ظاهر"><i data-lucide="sliders-horizontal" aria-hidden="true"></i></button><button type="button" class="gg-icon-btn cursor-interaction" data-back hidden aria-label="بازگشت"><i data-lucide="arrow-right" aria-hidden="true"></i></button></div></header>
+ <main class="gg-main">
+  <section class="gg-page" data-page="profile" aria-label="پروفایل">
+   <div class="gg-profile-hero">
+    <div class="gg-orb-wrap"><div class="gg-orbit" aria-hidden="true"></div><button type="button" class="gg-avatar cursor-interaction" data-go="account" aria-label="مدیریت حساب کاربر گنج"><i data-lucide="user-round" aria-hidden="true"></i><small>GANJ MEMBER</small></button><span class="gg-star" aria-hidden="true"><i data-lucide="sparkle"></i></span></div>
+    <div class="gg-water"><div class="gg-wave" aria-hidden="true"></div><div class="gg-wave gg-wave-gold" aria-hidden="true"></div><div class="gg-identity-copy"><h3>کاربر گنج</h3><bdi class="gg-username">@ganj_user</bdi><button type="button" class="gg-premium gg-metal cursor-interaction" data-go="vip"><i data-lucide="crown" aria-hidden="true"></i>PREMIUM MEMBER</button></div><div class="gg-account-bottom"><span class="gg-linked">حساب تلگرام متصل</span><button type="button" class="gg-link cursor-interaction" data-go="account">مدیریت حساب<i data-lucide="chevron-left" aria-hidden="true"></i></button></div></div>
+   </div>
+   <div class="gg-wallet"><div class="gg-wallet-head"><i data-lucide="wallet" aria-hidden="true"></i><span data-sync>موجودی کیف پول</span><button type="button" class="gg-refresh cursor-interaction" data-refresh aria-label="به‌روزرسانی موجودی"><i data-lucide="refresh-cw" aria-hidden="true"></i></button></div><button type="button" class="gg-balance cursor-interaction" data-go="wallet"><strong>۱۰۰٬۰۰۰</strong><small>تومان</small></button><div class="gg-actions"><button type="button" class="gg-action gg-metal cursor-interaction" data-go="wallet"><i data-lucide="plus" aria-hidden="true"></i>افزایش موجودی</button><button type="button" class="gg-action cursor-interaction" data-go="transactions"><i data-lucide="history" aria-hidden="true"></i>تراکنش‌ها</button></div></div>
+   <div class="gg-summary"><div class="gg-summary-head"><bdi class="gg-name">ganj-premium</bdi><button type="button" class="gg-link cursor-interaction" data-go="subscription">اشتراک من<i data-lucide="arrow-up-left" aria-hidden="true"></i></button></div><div class="gg-track" role="progressbar" aria-label="حجم باقی‌مانده نمونه" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100"><span></span></div><div class="gg-stats"><span><strong>۴۲</strong> از ۶۰ گیگابایت باقی‌مانده</span><span>۲۱ روز اعتبار</span></div></div>
+   <h3 class="gg-title">حساب و سرویس‌ها</h3><div class="gg-group"><button type="button" class="gg-row cursor-interaction" data-go="subscription"><span class="gg-icon-tile"><i data-lucide="server" aria-hidden="true"></i></span><span class="gg-copy"><strong>اشتراک‌های من</strong><small>مدیریت و تمدید سرویس‌ها</small></span><i data-lucide="chevron-left" aria-hidden="true"></i></button><button type="button" class="gg-row cursor-interaction" data-go="family"><span class="gg-icon-tile gg-iris"><i data-lucide="users-round" aria-hidden="true"></i></span><span class="gg-copy"><strong>اعضا و ظرفیت اشتراک</strong><small>اشتراک‌گذاری با خانواده</small></span><i data-lucide="chevron-left" aria-hidden="true"></i></button><button type="button" class="gg-row cursor-interaction" data-go="devices"><span class="gg-icon-tile gg-cool"><i data-lucide="monitor-smartphone" aria-hidden="true"></i></span><span class="gg-copy"><strong>دستگاه‌های من</strong><small>مدیریت دسترسی دستگاه‌ها</small></span><i data-lucide="chevron-left" aria-hidden="true"></i></button></div>
+   <button type="button" class="gg-vip-banner cursor-interaction" data-go="vip"><span class="gg-gem-tile gg-metal"><i data-lucide="gem" aria-hidden="true"></i></span><span class="gg-copy"><strong>گنج، یک سطح بالاتر</strong><small>پلن‌های VIP را ببین</small></span><i data-lucide="arrow-up-left" aria-hidden="true"></i></button>
+   <h3 class="gg-title">تنظیمات و پشتیبانی</h3><div class="gg-group"><button type="button" class="gg-row cursor-interaction" data-go="settings"><span class="gg-icon-tile gg-iris"><i data-lucide="palette" aria-hidden="true"></i></span><span class="gg-copy"><strong>ظاهر و دسترس‌پذیری</strong><small>رنگ، حرکت و شفافیت</small></span><i data-lucide="chevron-left" aria-hidden="true"></i></button><button type="button" class="gg-row cursor-interaction" data-go="privacy"><span class="gg-icon-tile"><i data-lucide="shield-check" aria-hidden="true"></i></span><span class="gg-copy"><strong>حریم خصوصی و امنیت</strong></span><i data-lucide="chevron-left" aria-hidden="true"></i></button><button type="button" class="gg-row cursor-interaction" data-go="support"><span class="gg-icon-tile gg-cool"><i data-lucide="headset" aria-hidden="true"></i></span><span class="gg-copy"><strong>پشتیبانی گنج</strong><small>کنارت هستیم</small></span><i data-lucide="chevron-left" aria-hidden="true"></i></button></div>
+  </section>
+  <section class="gg-page" data-page="store" hidden aria-label="فروشگاه">
+   <div class="gg-summary-head"><span>پلن مناسبِ استفادهٔ تو</span><button type="button" class="gg-link cursor-interaction" data-go="wallet"><i data-lucide="wallet" aria-hidden="true"></i>۱۰۰٬۰۰۰ تومان</button></div>
+   <button type="button" class="gg-vip-banner cursor-interaction" data-go="vip"><span class="gg-gem-tile gg-metal"><i data-lucide="gem" aria-hidden="true"></i></span><span class="gg-copy"><strong>دنیای گنج VIP</strong><small>یک انتخاب متمایز</small></span><i data-lucide="arrow-up-left" aria-hidden="true"></i></button>
+   <h3 class="gg-title">انتخاب موقعیت</h3><div class="gg-filters" aria-label="موقعیت سرویس"><button type="button" class="gg-chip cursor-interaction" data-location="all" aria-pressed="true">همه</button><button type="button" class="gg-chip cursor-interaction" data-location="de" aria-pressed="false">آلمان</button><button type="button" class="gg-chip cursor-interaction" data-location="fr" aria-pressed="false">فرانسه</button></div>
+   <h3 class="gg-title">پلن‌ها<span>۳۰ روزه</span></h3>
+   <article class="gg-product gg-selected" data-product="premium" data-country="de"><div class="gg-product-head"><div class="gg-volume"><strong>۶۰</strong><small>GB</small></div><div class="gg-copy"><strong>گنج پریمیوم</strong><small>آلمان · اشتراک ماهانه</small></div><button type="button" class="gg-select cursor-interaction" data-select="premium" aria-label="انتخاب گنج پریمیوم" aria-pressed="true"><span class="gg-check"><i data-lucide="check" aria-hidden="true"></i></span></button></div><div class="gg-product-meta"><span><i data-lucide="calendar-days" aria-hidden="true"></i>۳۰ روز اعتبار</span><span><i data-lucide="monitor-smartphone" aria-hidden="true"></i>۳ دستگاه</span></div><div class="gg-price"><span class="gg-label">پریمیوم</span><strong>۲۴۰٬۰۰۰ <small>تومان</small></strong></div></article>
+   <article class="gg-product" data-product="standard" data-country="fr"><div class="gg-product-head"><div class="gg-volume"><strong>۳۰</strong><small>GB</small></div><div class="gg-copy"><strong>گنج استاندارد</strong><small>فرانسه · اشتراک ماهانه</small></div><button type="button" class="gg-select cursor-interaction" data-select="standard" aria-label="انتخاب گنج استاندارد" aria-pressed="false"><span class="gg-check"><i data-lucide="check" aria-hidden="true"></i></span></button></div><div class="gg-product-meta"><span><i data-lucide="calendar-days" aria-hidden="true"></i>۳۰ روز اعتبار</span><span><i data-lucide="monitor-smartphone" aria-hidden="true"></i>۲ دستگاه</span></div><div class="gg-price"><span class="gg-label">استاندارد</span><strong>۱۶۰٬۰۰۰ <small>تومان</small></strong></div></article>
+   <div class="gg-order"><div class="gg-order-top"><span data-order-name>گنج پریمیوم</span><strong data-order-price>۲۴۰٬۰۰۰ تومان</strong></div><button type="button" class="gg-action gg-metal gg-full cursor-interaction" data-buy>ادامه و بررسی خرید<i data-lucide="arrow-left" aria-hidden="true"></i></button></div>
+  </section>
+  <section class="gg-page" data-page="vip" hidden aria-label="پلن‌های VIP">
+   <div class="gg-vip-hero"><div class="gg-vip-emblem"><div class="gg-vip-jewel gg-metal"><i data-lucide="gem" aria-hidden="true"></i></div></div><div class="gg-vip-word">GANJ VIP</div><h3>گنج، یک سطح بالاتر</h3><p>انتخابی برای استفادهٔ بیشتر</p><div class="gg-vip-features"><span><i data-lucide="database" aria-hidden="true"></i>حجم بیشتر</span><span><i data-lucide="users-round" aria-hidden="true"></i>دستگاه‌های بیشتر</span></div></div>
+   <h3 class="gg-title">اعتبار اشتراک</h3><div class="gg-filters" aria-label="مدت پلن VIP"><button type="button" class="gg-chip cursor-interaction" data-period="30" aria-pressed="true">یک‌ماهه</button><button type="button" class="gg-chip cursor-interaction" data-period="90" aria-pressed="false">سه‌ماهه</button></div>
+   <div class="gg-vip-plan"><div class="gg-vip-plan-head"><strong>اشتراک VIP</strong><span data-vip-label>یک‌ماهه</span></div><div class="gg-vip-data"><div><strong data-vip-volume>۱۰۰</strong><small>گیگابایت</small></div><div><strong data-vip-days>۳۰</strong><small>روز اعتبار</small></div><div><strong>۵</strong><small>دستگاه</small></div></div><div class="gg-price"><span class="gg-label" style="color:var(--gold);border-color:#f2ce7033">VIP</span><strong><span data-vip-price>۳۹۰٬۰۰۰</span> <small>تومان</small></strong></div></div>
+   <button type="button" class="gg-action gg-metal gg-full cursor-interaction" data-buy-vip><i data-lucide="crown" aria-hidden="true"></i>انتخاب پلن VIP</button>
+  </section>
+  <section class="gg-page" data-page="wallet" hidden aria-label="کیف پول"><div class="gg-wallet"><div class="gg-wallet-head"><i data-lucide="wallet" aria-hidden="true"></i><span>اعتبار حساب شما</span></div><div class="gg-balance"><strong>۱۰۰٬۰۰۰</strong><small>تومان</small></div><button type="button" class="gg-link cursor-interaction" data-go="transactions">مشاهده تراکنش‌ها<i data-lucide="arrow-up-left" aria-hidden="true"></i></button></div><label class="gg-input-label" for="gg-amount">مبلغ افزایش موجودی (تومان)</label><input id="gg-amount" class="gg-input" value="۱۰۰٬۰۰۰" inputmode="numeric" autocomplete="off"><div class="gg-filters"><button type="button" class="gg-chip cursor-interaction" data-amount="۱۰۰٬۰۰۰" aria-pressed="true">۱۰۰ هزار</button><button type="button" class="gg-chip cursor-interaction" data-amount="۲۰۰٬۰۰۰" aria-pressed="false">۲۰۰ هزار</button><button type="button" class="gg-chip cursor-interaction" data-amount="۵۰۰٬۰۰۰" aria-pressed="false">۵۰۰ هزار</button></div><button type="button" class="gg-action gg-metal gg-full cursor-interaction" data-payment>ادامه</button><p class="gg-note" data-payment-note hidden aria-live="polite">این پیش‌نمایش است؛ پرداختی انجام نمی‌شود.</p></section>
+  <section class="gg-page" data-page="checkout" hidden aria-label="بررسی خرید"><div class="gg-detail"><div class="gg-datum"><span>پلن انتخاب‌شده</span><strong data-checkout-name></strong></div><div class="gg-datum"><span>مبلغ</span><strong data-checkout-price></strong></div><div class="gg-datum"><span>موجودی کیف پول</span><strong>۱۰۰٬۰۰۰ تومان</strong></div><div class="gg-datum"><span>مبلغ موردنیاز</span><strong data-shortfall></strong></div></div><button type="button" class="gg-action gg-metal gg-full cursor-interaction" data-go="wallet" style="margin-top:16px">افزایش موجودی<i data-lucide="plus" aria-hidden="true"></i></button><p class="gg-note">قیمت‌ها و اعداد این پیش‌نمایش نمونه‌اند.</p></section>
+  <section class="gg-page" data-page="settings" hidden aria-label="تنظیمات ظاهر"><button type="button" class="gg-switch cursor-interaction" data-light role="switch" aria-checked="false"><span>حالت روشن</span><span aria-hidden="true"></span></button><button type="button" class="gg-switch cursor-interaction" data-motion role="switch" aria-checked="false"><span>کاهش حرکت</span><span aria-hidden="true"></span></button></section>
+  <section class="gg-page" data-page="connect" hidden aria-label="اتصال"><div class="gg-connect"><button type="button" class="gg-avatar cursor-interaction" data-connect><i data-lucide="power" aria-hidden="true"></i><span>برای اتصال کلیک کنید</span></button><p data-connect-note>آمادهٔ اتصال</p></div><div class="gg-summary"><div class="gg-summary-head"><span>اشتراک انتخاب‌شده</span><bdi class="gg-name">ganj-premium</bdi></div></div></section>
+  <section class="gg-page" data-page="detail" hidden><div class="gg-detail" data-detail></div></section>
+ </main>
+ <nav class="gg-nav" aria-label="ناوبری اصلی"><button type="button" class="cursor-interaction" data-nav="store" aria-pressed="false"><i data-lucide="shopping-bag" aria-hidden="true"></i><span>فروشگاه</span></button><button type="button" class="gg-nav-power cursor-interaction" data-nav="connect" aria-pressed="false"><span><i data-lucide="power" aria-hidden="true"></i></span><span>اتصال</span></button><button type="button" class="cursor-interaction" data-nav="profile" aria-pressed="true"><i data-lucide="user-round" aria-hidden="true"></i><span>پروفایل</span></button></nav><div class="gg-homebar" aria-hidden="true"></div>
+</div>
+<p class="gg-caption">پیش‌نمایش طراحی · موجودی، قیمت‌ها و مشخصات پلن‌ها نمونه‌اند</p>
+<script>
+(()=>{
+ const root=document.getElementById('ganj-gold-wave');
+ const app=root.querySelector('.gg-app');
+ const heading=root.querySelector('[data-heading]');
+ const back=root.querySelector('[data-back]');
+ const titles={profile:'پروفایل',store:'فروشگاه',vip:'گنج VIP',wallet:'کیف پول',checkout:'بررسی خرید',settings:'ظاهر و حرکت',account:'مدیریت حساب',subscription:'اشتراک‌های من',family:'اعضا و ظرفیت اشتراک',devices:'دستگاه‌های من',privacy:'حریم خصوصی',support:'پشتیبانی گنج',transactions:'تراکنش‌ها',connect:'اتصال'};
+ const names={premium:'گنج پریمیوم',standard:'گنج استاندارد',vip:'گنج VIP'};
+ const prices={premium:240000,standard:160000};
+ const money=n=>new Intl.NumberFormat('fa-IR').format(n)+' تومان';
+ const datum=(label,value)=>`<div class="gg-datum"><span>${label}</span><strong>${value}</strong></div>`;
+ const details={account:datum('نام حساب','کاربر گنج')+datum('تلگرام','<bdi>@ganj_user</bdi>')+datum('وضعیت','متصل'),subscription:datum('اشتراک','<bdi>ganj-premium</bdi>')+datum('حجم باقی‌مانده','۴۲ گیگابایت')+datum('اعتبار','۲۱ روز'),transactions:datum('افزایش موجودی · نمونه','۱۰۰٬۰۰۰ تومان')+datum('وضعیت','تأییدشده'),family:datum('اشتراک نمونه','پریمیوم')+datum('ظرفیت دستگاه','۳ دستگاه'),devices:datum('دستگاه نمونه','Android')+datum('وضعیت','همین دستگاه'),privacy:datum('ورود به حساب','تلگرام')+datum('مدیریت نشست','حساب گنج'),support:datum('پشتیبانی','درخواست‌های شما')+datum('پیام تازه','ندارید')};
+ let page='profile',history=[],selected='premium',period=30;
+ function show(next,push=true){
+  if(push&&next!==page)history.push(page);page=next;
+  const direct=['profile','store','vip','wallet','checkout','settings','connect'].includes(next);
+  root.querySelectorAll('[data-page]').forEach(el=>{el.hidden=el.dataset.page!==(direct?next:'detail');});
+  heading.textContent=titles[next]||'پروفایل';back.hidden=['profile','store','connect'].includes(next);
+  root.querySelector('.gg-eyebrow').textContent=next==='vip'?'GANJ · SIGNATURE COLLECTION':next==='store'?'GANJ · FIND YOUR PLAN':'GANJ · PERSONAL SPACE';
+  if(!direct)root.querySelector('[data-detail]').innerHTML=details[next]||'';
+  const nav=next==='store'||next==='vip'||next==='checkout'?'store':next==='connect'?'connect':'profile';
+  root.querySelectorAll('[data-nav]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.nav===nav)));
+  app.scrollIntoView({behavior:'instant',block:'start'});
+ }
+ root.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.go)));
+ root.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>{history=[];show(b.dataset.nav,false);}));
+ back.addEventListener('click',()=>show(history.pop()||'profile',false));
+ function choose(id){selected=id;root.querySelectorAll('[data-product]').forEach(el=>el.classList.toggle('gg-selected',el.dataset.product===id));root.querySelectorAll('[data-select]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.select===id)));root.querySelector('[data-order-name]').textContent=names[id];root.querySelector('[data-order-price]').textContent=money(prices[id]);}
+ root.querySelectorAll('[data-select]').forEach(b=>b.addEventListener('click',()=>choose(b.dataset.select)));
+ root.querySelectorAll('[data-location]').forEach(b=>b.addEventListener('click',()=>{const loc=b.dataset.location;root.querySelectorAll('[data-location]').forEach(el=>el.setAttribute('aria-pressed',String(el===b)));root.querySelectorAll('[data-product]').forEach(el=>{el.hidden=loc!=='all'&&el.dataset.country!==loc;});if(loc!=='all')choose(loc==='de'?'premium':'standard');}));
+ root.querySelectorAll('[data-period]').forEach(b=>b.addEventListener('click',()=>{period=Number(b.dataset.period);root.querySelectorAll('[data-period]').forEach(el=>el.setAttribute('aria-pressed',String(el===b)));root.querySelector('[data-vip-label]').textContent=period===30?'یک‌ماهه':'سه‌ماهه';root.querySelector('[data-vip-days]').textContent=period===30?'۳۰':'۹۰';root.querySelector('[data-vip-volume]').textContent=period===30?'۱۰۰':'۳۰۰';root.querySelector('[data-vip-price]').textContent=period===30?'۳۹۰٬۰۰۰':'۱٬۱۷۰٬۰۰۰';}));
+ function checkout(id,price){root.querySelector('[data-checkout-name]').textContent=names[id];root.querySelector('[data-checkout-price]').textContent=money(price);root.querySelector('[data-shortfall]').textContent=money(price-100000);show('checkout');}
+ root.querySelector('[data-buy]').addEventListener('click',()=>checkout(selected,prices[selected]));
+ root.querySelector('[data-buy-vip]').addEventListener('click',()=>checkout('vip',period===30?390000:1170000));
+ root.querySelector('[data-refresh]').addEventListener('click',e=>{const b=e.currentTarget;if(b.disabled)return;b.disabled=true;b.classList.add('gg-refreshing');root.querySelector('[data-sync]').textContent='به‌روزرسانی…';setTimeout(()=>{b.disabled=false;b.classList.remove('gg-refreshing');root.querySelector('[data-sync]').textContent='موجودی کیف پول';},700);});
+ root.querySelectorAll('[data-amount]').forEach(b=>b.addEventListener('click',()=>{root.querySelector('#gg-amount').value=b.dataset.amount;root.querySelectorAll('[data-amount]').forEach(el=>el.setAttribute('aria-pressed',String(el===b)));}));
+ root.querySelector('#gg-amount').addEventListener('input',()=>root.querySelectorAll('[data-amount]').forEach(b=>b.setAttribute('aria-pressed','false')));
+ root.querySelector('[data-payment]').addEventListener('click',()=>{root.querySelector('[data-payment-note]').hidden=false;});
+ root.querySelector('[data-light]').addEventListener('click',e=>{e.currentTarget.setAttribute('aria-checked',String(app.classList.toggle('gg-light')));});
+ root.querySelector('[data-motion]').addEventListener('click',e=>{e.currentTarget.setAttribute('aria-checked',String(app.classList.toggle('gg-reduced')));});
+ root.querySelector('[data-connect]').addEventListener('click',()=>{root.querySelector('[data-connect-note]').textContent='این پیش‌نمایش است؛ اتصال واقعی برقرار نمی‌شود.';});
+ let inView=true;
+ const pause=()=>app.classList.toggle('gg-paused',document.hidden||!inView);
+ document.addEventListener('visibilitychange',pause);
+ if('IntersectionObserver'in window)new IntersectionObserver(entries=>{inView=entries[0].isIntersecting;pause();},{threshold:0}).observe(app);
+})();
+</script>
+</div>

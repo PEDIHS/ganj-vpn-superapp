@@ -1,5 +1,11 @@
 package com.ganj.vpn.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,15 +61,24 @@ internal fun GanjReferenceMenuRow(
     modifier: Modifier = Modifier,
     accent: Color = MaterialTheme.colorScheme.primary,
     icon: GanjDestination = GanjDestination.Account,
+    grouped: Boolean = false,
+    leading: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
+    val effects = LocalGanjVisualEffectsPolicy.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale = animateFloatAsState(if (pressed && !effects.reduceMotion) .985f else 1f,
+        if (effects.reduceMotion) snap() else tween(GanjMotion.Press), label = "accountRowPress")
     val shape = RoundedCornerShape(12.dp)
-    Row(modifier.fillMaxWidth().heightIn(min = 56.dp).clip(shape)
+    Row(modifier.fillMaxWidth().heightIn(min = 56.dp)
+        .graphicsLayer { scaleX = scale.value; scaleY = scale.value }.clip(shape)
         .background(MaterialTheme.colorScheme.surface)
-        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), shape)
-        .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp),
+        .then(if (grouped) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), shape))
+        .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+        .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        GanjNavigationIcon(icon, accent, Modifier.size(20.dp))
+        if (leading != null) leading() else GanjNavigationIcon(icon, accent, Modifier.size(20.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface)

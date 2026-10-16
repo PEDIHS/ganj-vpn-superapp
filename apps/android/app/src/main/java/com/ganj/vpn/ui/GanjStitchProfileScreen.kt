@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.key
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,7 +51,7 @@ import com.ganj.vpn.presentation.GanjUiState
 import com.ganj.vpn.presentation.ServiceUiModel
 import com.ganj.vpn.presentation.UiTier
 
-private val ProfileGold = Color(0xFFD5A63A)
+private val ProfileGold = GanjReference.Gold
 private val ProfileGoldBright = Color(0xFFF0CD70)
 private val ProfileEmerald = Color(0xFF72FCB6)
 
@@ -80,6 +83,7 @@ internal fun StitchProfileScreen(
     onOpenPrivacy: (() -> Unit)? = null,
     onOpenSupport: (() -> Unit)? = null,
     onOpenDetails: (() -> Unit)? = null,
+    onOpenVip: (() -> Unit)? = null,
 ) {
     val activeServices = remember(state.services) { state.serviceItems.filter { it.isActive } }
     val premium = activeServices.any { it.tier != UiTier.FREE }
@@ -90,7 +94,8 @@ internal fun StitchProfileScreen(
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val name = telegramIdentityDisplayName(currentAccount) ?: if(linked) "حساب گنج" else "به گنج خوش آمدید"
     val username = telegramIdentityUsername(currentAccount)
-    LazyColumn(modifier.fillMaxSize().testTag("reference-profile"),
+    val wallet = if (linked && botStoreApi != null) rememberGanjProfileWallet(botStoreApi, currentAccount?.id) else null
+    LazyColumn(modifier.fillMaxSize().then(profileRevealModifier(panel)).testTag("reference-profile"),
         contentPadding = PaddingValues(horizontal=responsiveHorizontalPadding(),vertical=20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item(key="profile-header") {
@@ -124,28 +129,14 @@ internal fun StitchProfileScreen(
             }
             else -> {
                 item(key="profile-identity") {
-                    val shape=RoundedCornerShape(18.dp)
-                    Column(Modifier.fillMaxWidth().clip(shape)
-                        .background(if(referenceDark())Brush.linearGradient(listOf(Color(0xFF194632),Color(0xFF1B3328),Color(0xFF393E28)))
-                            else Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer,MaterialTheme.colorScheme.surface)))
-                        .border(1.dp,LocalGanjContentPalette.current.premiumText.copy(alpha=.45f),shape).padding(18.dp),
-                        verticalArrangement=Arrangement.spacedBy(14.dp)) {
-                        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                            Box(Modifier.size(55.dp).clip(RoundedCornerShape(17.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha=.20f))
-                                .border(1.dp,LocalGanjContentPalette.current.premiumText.copy(alpha=.7f),RoundedCornerShape(17.dp)),contentAlignment=Alignment.Center) {
-                                GanjNavigationIcon(GanjDestination.Account,MaterialTheme.colorScheme.primary,Modifier.size(28.dp))
-                            }
-                            Column(Modifier.weight(1f)) {
-                                Text(name,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold,color=ink,maxLines=2,overflow=TextOverflow.Ellipsis)
-                                Text(username?.let(::isolateTechnicalLtr) ?: if(linked) "حساب تلگرام متصل" else "ورود با تلگرام",style=MaterialTheme.typography.labelSmall,color=muted)
-                            }
-                            if(state.services is ContentState.Ready) ProfileBadge(if(premium)"پریمیوم" else "استاندارد",premium)
-                        }
-                        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-                            Text(if(linked) "تلگرام متصل است" else "حساب هنوز متصل نیست",style=MaterialTheme.typography.labelSmall,color=muted)
-                            GanjGlassButton("مدیریت حساب",{panel="account"},filled=false,shapeRadius=8.dp)
-                        }
-                    }
+                    GanjProfileIdentity(name, username, linked,
+                        if (state.services is ContentState.Ready) premium else null,
+                        onManage = { panel = "account" }, onOpenVip = onOpenVip ?: onBuy)
+                }
+                if (linked && onOpenWallet != null) item(key="wallet-summary") {
+                    GanjProfileWalletCard(wallet?.balance, wallet?.busy ?: false, wallet?.message,
+                        onOpenWallet, onOpenTransactions ?: onOpenWallet,
+                        onRefresh = { wallet?.refresh() })
                 }
                 if (state.servicesStale) item(key="profile-services-stale") {
                     GanjInlineStatusPanel(
@@ -158,7 +149,10 @@ internal fun StitchProfileScreen(
                 item(key="profile-summary") {
                     GanjGlassSurface(GanjGlassRole.OpaqueFallback,modifier=Modifier.fillMaxWidth(),shapeRadius=14.dp,padding=PaddingValues(15.dp)) {
                         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                            Text("اشتراک انتخاب‌شده",style=MaterialTheme.typography.labelMedium,color=muted)
+                            Row(Modifier.weight(1f), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                                GanjProfileIcon(GanjProfileSymbol.Subscription, MaterialTheme.colorScheme.primary, Modifier.size(18.dp))
+                                Text("اشتراک انتخاب‌شده",style=MaterialTheme.typography.labelMedium,color=muted)
+                            }
                             if(selected!=null) GanjStatusPill(profileServiceStatus(selected),if(selected.isActive)GanjStatusTone.Positive else GanjStatusTone.Neutral)
                         }
                         Text(selected?.let { subscriptionUsername(it) } ?: "اشتراکی انتخاب نشده است",style=MaterialTheme.typography.titleMedium,color=ink,fontWeight=FontWeight.Medium)
@@ -167,47 +161,54 @@ internal fun StitchProfileScreen(
                                 Text(profileTraffic(service.trafficUsedBytes)+" از "+profileTraffic(service.trafficLimitBytes)+" مصرف شده",style=MaterialTheme.typography.bodyMedium,color=ink)
                                 GanjSlimProgress(service.usageFraction!!)
                             }
-                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-                                Text(if(service.trafficUsageAvailable) profileTraffic(service.remainingBytes)+" باقی‌مانده" else "اطلاعات مصرف در دسترس نیست",style=MaterialTheme.typography.labelSmall,color=muted,modifier=Modifier.weight(1f))
+                            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(12.dp), verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                                Text(if(service.trafficUsageAvailable) profileTraffic(service.remainingBytes)+" باقی‌مانده" else "اطلاعات مصرف در دسترس نیست",style=MaterialTheme.typography.labelSmall,color=muted)
                                 Text(profileExpiry(service.expiresAt),style=MaterialTheme.typography.labelSmall,color=muted)
                             }
                         }
                         GanjGlassButton(if(selected==null)"انتخاب اشتراک" else "جزئیات اشتراک",{if(selected==null)onOpenSubscriptions() else onOpenDetails?.invoke() ?: run{panel="services"}},filled=false,modifier=Modifier.fillMaxWidth())
                     }
                 }
-                if (linked && onOpenWallet != null) item(key="wallet-summary") {
-                    if (botStoreApi != null && onOpenTransactions != null) {
-                        GanjBotProfileWalletSummary(botStoreApi, onOpenWallet, onOpenTransactions)
-                    } else {
-                        // Keep wallet navigation available even if the live finance adapter
-                        // is temporarily absent. Never show an invented local balance.
-                        GanjReferenceMenuRow(
-                            "کیف پول گنج", "مشاهده موجودی و افزایش اعتبار",
-                            icon = GanjDestination.Store,
-                            modifier = Modifier.testTag("profile-to-wallet"),
-                            onClick = onOpenWallet,
-                        )
+                item(key="account-services") {
+                    ProfileSectionTitle("حساب و سرویس‌ها")
+                    ProfileMenuGroup {
+                        ProfileMenuAction("اشتراک‌های من",
+                            if (state.services is ContentState.Ready) activeServices.size.toPersianDigits() + " سرویس فعال" else "بررسی و انتخاب اشتراک",
+                            GanjProfileSymbol.Subscription, GanjProfileAccent.Emerald,
+                            Modifier.testTag("profile-to-subscriptions"), onOpenSubscriptions)
+                        if (linked) {
+                            onOpenFamily?.let {
+                                ProfileMenuDivider()
+                                ProfileMenuAction("اعضا و ظرفیت اشتراک", "دعوت و مدیریت اعضا",
+                                    GanjProfileSymbol.Family, GanjProfileAccent.Iris, onClick = it)
+                            }
+                            onOpenDevices?.let {
+                                ProfileMenuDivider()
+                                ProfileMenuAction("دستگاه‌های من", "مدیریت دسترسی دستگاه‌ها",
+                                    GanjProfileSymbol.Devices, GanjProfileAccent.Sky, onClick = it)
+                            }
+                        }
                     }
                 }
-                item(key="account-services") {
-                    Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                        ProfileSectionTitle("حساب و سرویس‌ها")
-                        GanjReferenceMenuRow("اشتراک‌های من",if(state.services is ContentState.Ready) activeServices.size.toPersianDigits()+" سرویس فعال" else "بررسی و انتخاب اشتراک",icon=GanjDestination.Servers,modifier=Modifier.testTag("profile-to-subscriptions"),onClick=onOpenSubscriptions)
-                        if(linked) {
-                            onOpenFamily?.let { GanjReferenceMenuRow("اعضا و ظرفیت اشتراک","دعوت، خروج و مدیریت اعضا",onClick=it) }
-                            onOpenDevices?.let { GanjReferenceMenuRow("دستگاه‌های من","مدیریت دسترسی دستگاه‌ها",onClick=it) }
-                            onOpenTransactions?.let { GanjReferenceMenuRow("تراکنش‌ها","سوابق همان حساب گنج",icon=GanjDestination.Store,onClick=it) }
-                        }
-                        GanjReferenceMenuRow("خرید یا ارتقا به VIP","بررسی پلن‌های موجود",accent=LocalGanjContentPalette.current.premiumText,icon=GanjDestination.Store,onClick=onBuy)
-                    }
+                item(key="profile-upgrade") {
+                    GanjSignatureBanner("گنج، یک سطح بالاتر", "مشاهدهٔ پلن‌های VIP", onOpenVip ?: onBuy,
+                        Modifier.testTag("profile-to-vip"))
                 }
                 item(key="settings-support") {
-                    Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                        ProfileSectionTitle("تنظیمات و پشتیبانی")
-                        GanjReferenceMenuRow("ظاهر و دسترس‌پذیری","تنظیمات رنگ، حرکت و شفافیت",icon=GanjDestination.Settings,modifier=Modifier.testTag("profile-to-settings"),onClick=onOpenSettings)
-                        GanjReferenceMenuRow("حریم خصوصی و امنیت",icon=GanjDestination.Settings,onClick=onOpenPrivacy ?: onOpenSettings)
-                        GanjReferenceMenuRow("پشتیبانی و گزارش مشکل",onClick=onOpenSupport ?: {panel="support"})
-                        GanjReferenceMenuRow("عیب‌یابی اتصال",icon=GanjDestination.Connect,onClick={panel="support"})
+                    ProfileSectionTitle("تنظیمات و پشتیبانی")
+                    ProfileMenuGroup {
+                        ProfileMenuAction("ظاهر و دسترس‌پذیری", "رنگ، حرکت و شفافیت",
+                            GanjProfileSymbol.Appearance, GanjProfileAccent.Iris,
+                            Modifier.testTag("profile-to-settings"), onOpenSettings)
+                        ProfileMenuDivider()
+                        ProfileMenuAction("حریم خصوصی و امنیت", "تنظیمات حساب و دسترسی‌ها",
+                            GanjProfileSymbol.Shield, GanjProfileAccent.Emerald, onClick = onOpenPrivacy ?: onOpenSettings)
+                        ProfileMenuDivider()
+                        ProfileMenuAction("پشتیبانی و گزارش مشکل", "ارتباط با تیم گنج",
+                            GanjProfileSymbol.Support, GanjProfileAccent.Sky, onClick = onOpenSupport ?: { panel = "support" })
+                        ProfileMenuDivider()
+                        ProfileMenuAction("عیب‌یابی اتصال", "بررسی و گزارش وضعیت اتصال",
+                            GanjProfileSymbol.Diagnostics, GanjProfileAccent.Gold, onClick = { panel = "support" })
                     }
                 }
                 item(key="account-session") {
@@ -217,6 +218,26 @@ internal fun StitchProfileScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ProfileMenuGroup(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f), shape), content = content)
+}
+
+@Composable
+private fun ProfileMenuAction(
+    title: String, subtitle: String, symbol: GanjProfileSymbol, tone: GanjProfileAccent,
+    modifier: Modifier = Modifier, onClick: () -> Unit,
+) = GanjReferenceMenuRow(title, subtitle, modifier, accent = profileAccent(tone), grouped = true,
+    leading = { GanjProfileIconTile(symbol, tone) }, onClick = onClick)
+
+@Composable
+private fun ProfileMenuDivider() {
+    HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), thickness = .5.dp)
 }
 
 @Composable
