@@ -75,8 +75,11 @@ class SubscriptionSelectionTest {
             compose.onAllNodesWithTag("config-option-config-two").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("config-picker").assertDoesNotExist()
+        // First scroll the outer Connect page until its bounded inner list is visible.
+        // performScrollToNode only moves the inner LazyColumn, not the outer page.
+        compose.onNodeWithTag("inline-config-list").performScrollTo()
         compose.onNodeWithTag("inline-config-list").performScrollToNode(hasTestTag("config-option-config-two"))
-        compose.onNodeWithTag("config-option-config-two").assertExists()
+        compose.onNodeWithTag("config-option-config-two").performScrollTo().assertExists()
         capture("config-inline-dark")
         compose.onNodeWithTag("config-option-config-two").performClick()
         compose.runOnIdle {
