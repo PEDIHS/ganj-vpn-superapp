@@ -4,10 +4,12 @@ import kotlinx.coroutines.flow.collect
 import android.os.SystemClock
 import com.ganj.vpn.presentation.ConnectionSessionTimer
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +20,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
@@ -693,24 +696,14 @@ fun GanjVpnApp(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Scaffold(
-                    containerColor = Color.Transparent,
-                    bottomBar = {
-                        GanjLiquidBottomNavigation(
-                            selectedDestination = selectedDestination,
-                            onDestinationSelected = { destination ->
-                                selectedDestination = destination
-                                openNotifications = false
-                                if (destination == GanjDestination.Account) {
-                                    accountSurface = GanjAccountSurface.PROFILE
-                                }
-                            },
-                        )
-                    },
-                ) { padding ->
+                // The screen occupies the full viewport. The permanent wave is a
+                // sibling overlay rather than Scaffold.bottomBar, which formerly
+                // reserved a solid background-colored strip over the server list.
+                Box(Modifier.fillMaxSize().statusBarsPadding()
+                    .testTag("floating-navigation-host")) {
                     GanjDestinationTransition(
                         destination = selectedDestination,
-                        modifier = Modifier.padding(padding),
+                        modifier = Modifier.fillMaxSize().navigationBarsPadding(),
                         stateOwner = composition,
                     ) { destination ->
                         when (destination) {
@@ -1006,6 +999,19 @@ fun GanjVpnApp(
                             }
                         }
                     }
+                    // Above every destination, fixed in place; the content really
+                    // scrolls beneath it, with no opaque spacer/panel behind the wave.
+                    GanjLiquidBottomNavigation(
+                        selectedDestination = selectedDestination,
+                        onDestinationSelected = { destination ->
+                            selectedDestination = destination
+                            openNotifications = false
+                            if (destination == GanjDestination.Account) {
+                                accountSurface = GanjAccountSurface.PROFILE
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
                 }
             }
         }
