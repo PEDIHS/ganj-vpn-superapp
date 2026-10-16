@@ -468,6 +468,15 @@ internal fun StitchConfigSelectionSheet(
     }
 }
 
+internal enum class GanjPingTone { Measured, Timeout, Unknown }
+
+internal fun ganjPingTone(result: LatencyProbeResult?): GanjPingTone = when (result) {
+    is LatencyProbeResult.Measured -> GanjPingTone.Measured
+    is LatencyProbeResult.Failed -> if (result.failure.diagnosticCode == "probe.timeout")
+        GanjPingTone.Timeout else GanjPingTone.Unknown
+    null -> GanjPingTone.Unknown
+}
+
 @Composable
 internal fun GanjConfigOption(
     server: ConnectionServer,
@@ -503,12 +512,12 @@ internal fun GanjConfigOption(
     val latencyMs = reading?.result?.latencyMillis
     // Numeric latency is always green, regardless of milliseconds.
     // Only an actual probe timeout is red; other probe errors stay neutral.
-    val isTimeout = (reading?.result as? LatencyProbeResult.Failed)
-        ?.failure?.diagnosticCode == "probe.timeout"
-    val latencyColor = when {
-        latencyMs != null -> MaterialTheme.colorScheme.primary
-        isTimeout -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    val latencyTone = ganjPingTone(reading?.result)
+    val isTimeout = latencyTone == GanjPingTone.Timeout
+    val latencyColor = when (latencyTone) {
+        GanjPingTone.Measured -> MaterialTheme.colorScheme.primary
+        GanjPingTone.Timeout -> MaterialTheme.colorScheme.error
+        GanjPingTone.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     // The app remains RTL, but config rows use LTR for a LEFT flag and RIGHT latency.
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
