@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -154,6 +157,10 @@ internal fun GanjGlassSurface(
     )
 }
 
+/** Readable ink on emerald/gold in both themes; all new filled actions share this rule. */
+internal fun ganjActionForeground(background: Color): Color =
+    if (background.luminance() >= 0.38f) Color(0xFF092219) else Color.White
+
 @Composable
 internal fun GanjLiquidAction(
     onClick: () -> Unit,
@@ -180,7 +187,11 @@ internal fun GanjLiquidAction(
         GanjEffectsTier.Reduced -> 0.86f
     }
 
-    Box(
+    CompositionLocalProvider(
+        LocalContentColor provides if (enabled) ganjActionForeground(effectiveAccent)
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Box(
         modifier = modifier
             .heightIn(min = GanjLiquidGlassPolicy.MinimumTouchTargetDp.dp)
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
@@ -209,4 +220,5 @@ internal fun GanjLiquidAction(
             ),
         content = content,
     )
+    }
 }

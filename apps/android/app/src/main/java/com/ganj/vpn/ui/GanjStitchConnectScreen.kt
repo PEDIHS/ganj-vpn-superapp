@@ -444,7 +444,7 @@ private fun StitchPremiumCard(premium: Boolean, onOpenStore: () -> Unit) {
                 Text(
                     text = if (premium) "مدیریت" else "ارتقا دهید",
                     modifier = Modifier.align(Alignment.Center),
-                    color = Color(0xFF211600),
+                    color = ganjActionForeground(GanjGold),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                 )

@@ -23,11 +23,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// Account/family tools use a restrained cool accent. VPN connection status keeps its own semantic colors.
-private val FamilyIndigo = Color(0xFF8B91EE)
-private val FamilyCyan = Color(0xFF62BFD7)
-private val FamilyMint = Color(0xFF6AC5B0)
-
 internal fun familyError(error: ApiError): String = when(error) {
     is ApiError.Network -> "ارتباط برقرار نشد؛ دوباره تلاش کنید."
     is ApiError.AuthenticationExpired, is ApiError.AuthenticationRequired -> "ابتدا با حساب تلگرام خود وارد شوید."
@@ -48,6 +43,8 @@ internal fun GanjFamilyScreen(
     onBack: ()->Unit, onRefreshServices: ()->Unit, onRevokeDevice: (String)->Unit,
 ) {
     val context=LocalContext.current
+    val emerald = MaterialTheme.colorScheme.primary
+    val gold = MaterialTheme.colorScheme.secondary
     val scope=rememberCoroutineScope()
     var serviceId by rememberSaveable { mutableStateOf(selectedServiceId ?: services.firstOrNull()?.entitlementId) }
     var reply by remember { mutableStateOf<FamilyReply?>(null) }
@@ -100,23 +97,22 @@ internal fun GanjFamilyScreen(
     LaunchedEffect(serviceId) {reply=null;load()}
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
+            .padding(start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(),
+                top = 18.dp, bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         AccountBackAction(onBack)
-        Text("مدیریت اشتراک مشترک", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(
-            "اعضای خانواده با تلگرام خودشان وارد می‌شوند. حساب، کیف پول و تراکنش هر نفر مستقل می‌ماند.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        GanjSectionHeader(
+            "مدیریت اشتراک مشترک",
+            "اعضای خانواده با تلگرام خودشان وارد می‌شوند؛ کیف پول و حساب هر نفر مستقل می‌ماند.",
         )
         if (services.isEmpty()) {
-            GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyIndigo, shapeRadius = 14.dp) {
+            GanjGlassSurface(GanjGlassRole.Regular, accent = gold, shapeRadius = 14.dp) {
                 Text("هنوز اشتراکی برای مدیریت وجود ندارد.", style = MaterialTheme.typography.titleMedium)
                 Text("بعد از فعال شدن اشتراک یا قبول دعوت، اعضا و دستگاه‌ها اینجا نمایش داده می‌شوند.")
             }
         } else {
-            GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyIndigo, shapeRadius = 14.dp) {
+            GanjGlassSurface(GanjGlassRole.Regular, accent = gold, shapeRadius = 14.dp) {
                 Text("انتخاب اشتراک", style = MaterialTheme.typography.titleMedium)
                 services.forEach { service ->
                     GanjChoicePill(
@@ -141,8 +137,8 @@ internal fun GanjFamilyScreen(
             val usage = if (data.deviceLimit > 0) {
                 (data.slotsUsed.toFloat() / data.deviceLimit).coerceIn(0f, 1f)
             } else 0f
-            GanjGlassSurface(GanjGlassRole.Prominent, accent = FamilyIndigo, shapeRadius = 14.dp) {
-                Text("اشتراک فعال", style = MaterialTheme.typography.labelMedium, color = FamilyIndigo)
+            GanjGlassSurface(GanjGlassRole.Prominent, accent = gold, shapeRadius = 14.dp) {
+                Text("اشتراک فعال", style = MaterialTheme.typography.labelMedium, color = gold)
                 Text(data.serviceName.orEmpty(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
                     data.slotsUsed.toPersianDigits() + " از " + data.deviceLimit.toPersianDigits() + " جایگاه استفاده شده",
@@ -151,7 +147,7 @@ internal fun GanjFamilyScreen(
                 LinearProgressIndicator(
                     progress = { usage },
                     modifier = Modifier.fillMaxWidth().height(5.dp),
-                    color = FamilyIndigo,
+                    color = gold,
                     trackColor = MaterialTheme.colorScheme.outlineVariant,
                 )
                 Text(
@@ -165,15 +161,14 @@ internal fun GanjFamilyScreen(
                         { mutate { apiClient, id -> apiClient.createInvite(id) } },
                         Modifier.fillMaxWidth(),
                         enabled = !busy && slotsAvailable > 0,
-                        accent = FamilyIndigo,
-                        contentColor = Color(0xFF101427),
+                        accent = gold,
                     )
                     Text("لینک هر دعوت فقط یک بار قابل استفاده است و ۲۴ ساعت اعتبار دارد.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyMint, shapeRadius = 14.dp) {
+            GanjGlassSurface(GanjGlassRole.Regular, accent = emerald, shapeRadius = 14.dp) {
                 Text("افراد دارای دسترسی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 if (data.members.isEmpty()) Text("هنوز عضو دیگری به اشتراک اضافه نشده است.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -188,13 +183,13 @@ internal fun GanjFamilyScreen(
                             GanjGlassButton(
                                 if (member.current) "خروج از این اشتراک" else "حذف دسترسی عضو",
                                 { confirmation = member.id to member.name },
-                                enabled = !busy, filled = false, accent = FamilyMint,
+                                enabled = !busy, filled = false, accent = emerald,
                             )
                         }
                     }
                 }
             }
-            GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyCyan, shapeRadius = 14.dp) {
+            GanjGlassSurface(GanjGlassRole.Regular, accent = emerald, shapeRadius = 14.dp) {
                 Text("دستگاه‌های متصل", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 if (data.devices.isEmpty()) Text("هیچ دستگاهی به این اشتراک اختصاص نیافته است.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -206,20 +201,20 @@ internal fun GanjFamilyScreen(
                             GanjGlassButton(
                                 "لغو دسترسی دستگاه",
                                 { onRevokeDevice(device.id) },
-                                enabled = !busy, filled = false, accent = FamilyCyan,
+                                enabled = !busy, filled = false, accent = emerald,
                             )
                         }
                     }
                 }
             }
             if (data.owner && data.invites.isNotEmpty()) {
-                GanjGlassSurface(GanjGlassRole.Regular, accent = FamilyIndigo, shapeRadius = 14.dp) {
+                GanjGlassSurface(GanjGlassRole.Regular, accent = gold, shapeRadius = 14.dp) {
                     Text("دعوت‌های استفاده‌نشده", style = MaterialTheme.typography.titleMedium)
                     data.invites.forEach { invite ->
                         GanjGlassButton(
                             "لغو دعوت · " + invite.expiresAt.take(10),
                             { mutate { apiClient, id -> apiClient.revokeInvite(id, invite.id) } },
-                            filled = false, enabled = !busy, accent = FamilyIndigo,
+                            filled = false, enabled = !busy, accent = gold,
                         )
                     }
                 }
@@ -235,6 +230,7 @@ internal fun GanjFamilyInvitation(
     api: FamilyApi?, token: String, linked: Boolean, onLogin: ()->Unit, onDismiss: ()->Unit, onJoined: ()->Unit,
 ) {
     val scope=rememberCoroutineScope()
+    val gold=MaterialTheme.colorScheme.secondary
     var data by remember(token) {mutableStateOf<FamilyReply?>(null)}
     var busy by remember(token) {mutableStateOf(false)}
     var error by remember(token) {mutableStateOf<String?>(null)}
@@ -262,7 +258,7 @@ internal fun GanjFamilyInvitation(
         }
     }
     Dialog(onDismissRequest={if(!busy)onDismiss()}) {
-        GanjGlassSurface(role=GanjGlassRole.Dense,accent=FamilyIndigo,modifier=Modifier.fillMaxWidth().heightIn(max=600.dp).verticalScroll(rememberScrollState()),shapeRadius=18.dp,padding=PaddingValues(20.dp)) {
+        GanjGlassSurface(role=GanjGlassRole.Dense,accent=gold,modifier=Modifier.fillMaxWidth().heightIn(max=600.dp).verticalScroll(rememberScrollState()),shapeRadius=18.dp,padding=PaddingValues(20.dp)) {
             Text("دعوت خصوصی به اشتراک",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
             Text("مالک اشتراک، دسترسی استفاده از سرویس را با شما به اشتراک می‌گذارد؛ مالک حساب و کیف پول شما نمی‌شود.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             if(!linked) {
@@ -277,7 +273,7 @@ internal fun GanjFamilyInvitation(
                             is ApiResult.Success -> onJoined()
                             is ApiResult.Failure -> error=familyError(result.error)
                         }} finally {busy=false}}}
-                    },Modifier.fillMaxWidth(),enabled=!busy&&!invite.ownInvite,accent=FamilyIndigo,contentColor=Color(0xFF101427))
+                    },Modifier.fillMaxWidth(),enabled=!busy&&!invite.ownInvite,accent=gold)
                 }
                 if(busy)Text("در حال بررسی…")
                 error?.let {Text(it,color=MaterialTheme.colorScheme.error);GanjGlassButton("تلاش دوباره",{ previewRevision++ },enabled=!busy,filled=false)}
