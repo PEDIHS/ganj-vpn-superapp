@@ -174,7 +174,11 @@ class SessionLatencyManagerTest {
             manager.measure("one", listOf("a"))
             assertEquals(1, probes)
             manager.measure("one", listOf("a"), force = true)
-            withTimeout(2000) { manager.state.first { it.readings.size == 1 && it.measuring.isEmpty() } }
+            withTimeout(2000) {
+                while (probes < 2 || manager.state.value.measuring.isNotEmpty()) {
+                    kotlinx.coroutines.yield()
+                }
+            }
             assertEquals(2, probes)
         } finally { manager.close() }
     }
