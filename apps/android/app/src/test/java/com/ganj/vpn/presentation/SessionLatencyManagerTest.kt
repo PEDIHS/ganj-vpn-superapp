@@ -183,4 +183,21 @@ class SessionLatencyManagerTest {
         } finally { manager.close() }
     }
 
+    @Test fun smartConnectUsesFastestRecentPingAndRejectsExpiredReadings() = runBlocking {
+        var now = 200_000L
+        val manager = SessionLatencyManager(
+            { _, id -> LatencyProbeResult.Measured(if (id == "fast") 19 else 85) },
+            CoroutineScope(coroutineContext + SupervisorJob()),
+            { now },
+        )
+        try {
+            manager.measure("subscription", listOf("slow", "fast"))
+            withTimeout(2000) { manager.state.first { it.readings.size == 2 && it.measuring.isEmpty() } }
+            assertEquals("fast", manager.bestRecentServer("subscription", listOf("slow", "fast")))
+            assertNull(manager.bestRecentServer("another-subscription", listOf("slow", "fast")))
+            now += 120_001L
+            assertNull(manager.bestRecentServer("subscription", listOf("slow", "fast")))
+        } finally { manager.close() }
+    }
+
 }
