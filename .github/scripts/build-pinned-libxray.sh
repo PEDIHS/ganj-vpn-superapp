@@ -45,6 +45,9 @@ cleanup() {
 }
 trap cleanup EXIT
 source_dir="$work/source"
+patch_file="$repo_root/.github/patches/libxray-v2rayng-real-delay.patch"
+test -s "$patch_file"
+patch_sha="$(sha256sum "$patch_file" | cut -d ' ' -f 1)"
 
 git init -q "$source_dir"
 git -C "$source_dir" remote add origin "$repository"
@@ -107,6 +110,14 @@ if [[ "$actual_xray_license_sha" != "$xray_license_sha" ]]; then
   exit 1
 fi
 
+# Apply a version-controlled, auditable diff ONLY after checking official pins.
+# This keeps upstream trust and patch provenance separate.
+git apply --check "$patch_file"
+git apply "$patch_file"
+git add -N xray/ping_batch_real_delay_test.go
+git diff --check
+git diff --binary | cmp - "$patch_file"
+
 go test ./... -count=1 -timeout 15m
 go install "$gomobile_module/cmd/gobind@$gomobile_version"
 go install "$gomobile_module/cmd/gomobile@$gomobile_version"
@@ -122,7 +133,8 @@ gomobile bind \
   .
 test -s "$aar"
 test -s "$sources"
-git diff --exit-code
+# Build must not mutate patched source or pull in unreviewed modifications.
+git diff --binary | cmp - "$patch_file"
 popd >/dev/null
 
 unzip -tqq "$aar"
@@ -158,6 +170,7 @@ install -m 0644 "$xray_dir/LICENSE" "$evidence/Xray-core-LICENSE-MPL-2.0.txt"
 install -m 0644 "$source_dir/go.mod" "$evidence/libXray-go.mod"
 install -m 0644 "$source_dir/go.sum" "$evidence/libXray-go.sum"
 install -m 0644 "$lock" "$evidence/UPSTREAM.lock.json"
+install -m 0644 "$patch_file" "$evidence/libxray-v2rayng-real-delay.patch"
 
 group_path="${requested_group//./\/}"
 maven_dir="$output/maven/$group_path/$requested_artifact/$requested_version"
@@ -171,7 +184,7 @@ printf '%s\n' \
   "  <artifactId>$requested_artifact</artifactId>" \
   "  <version>$requested_version</version>" \
   '  <packaging>aar</packaging>' \
-  '  <name>Ganj CI override rebuilt from official XTLS libXray source</name>' \
+  '  <name>Ganj audited v2rayNG real-delay patch on verified XTLS libXray source</name>' \
   "  <url>${repository%.git}</url>" \
   '  <licenses><license><name>MIT License</name><url>https://opensource.org/license/mit</url></license></licenses>' \
   '  <properties>' \
@@ -193,6 +206,7 @@ jq -n \
   --arg gomobile_version "$gomobile_version" \
   --arg ndk_version "$ndk_version" \
   --arg xray_version "$xray_version" \
+  --arg real_delay_patch_sha256 "$patch_sha" \
   --arg aar_sha256 "$aar_sha" \
   --arg sources_sha256 "$sources_sha" \
   --arg built_at_utc "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
@@ -206,6 +220,8 @@ jq -n \
     gomobileVersion: $gomobile_version,
     androidNdkVersion: $ndk_version,
     xrayCoreVersion: $xray_version,
+    localPatch: "libxray-v2rayng-real-delay.patch",
+    localPatchSha256: $real_delay_patch_sha256,
     aarSha256: $aar_sha256,
     sourcesJarSha256: $sources_sha256,
     builtAtUtc: $built_at_utc
@@ -215,6 +231,7 @@ jq -n \
   cd "$evidence"
   sha256sum \
     UPSTREAM.lock.json \
+    libxray-v2rayng-real-delay.patch \
     Xray-core-LICENSE-MPL-2.0.txt \
     libXRay-sources.jar \
     libXray-LICENSE-MIT.txt \

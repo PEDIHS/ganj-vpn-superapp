@@ -26,8 +26,8 @@ class XrayRuntimeTest {
             )
             assertEquals(listOf(NativeProbeResult.Measured(21L), NativeProbeResult.Measured(22L)), result)
             assertTrue(LibXray.observedRequest.orEmpty().contains("\"method\":\"pingBatch\""))
-            assertTrue(LibXray.observedRequest.orEmpty().contains("\"timeout\":4"))
-            assertEquals("three real native HTTP outbound rounds", 3, LibXray.pingBatchCallCount)
+            assertTrue(LibXray.observedRequest.orEmpty().contains("\"timeout\":12"))
+            assertEquals("one native call performs two reused GET requests", 1, LibXray.pingBatchCallCount)
             assertTrue(directory.listFiles().orEmpty().isEmpty())
         } finally {
             directory.deleteRecursively()

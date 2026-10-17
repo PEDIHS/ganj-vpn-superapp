@@ -15,7 +15,7 @@ jobs:
         id: native-cache
         with:
           path: ${{ runner.temp }}/pinned-libxray
-          key: ganj-libxray-linux-v1-${{ hashFiles('UPSTREAM.lock.json', '.github/scripts/build-pinned-libxray.sh') }}
+          key: ganj-libxray-linux-v1-${{ hashFiles('UPSTREAM.lock.json', '.github/scripts/build-pinned-libxray.sh', '.github/patches/libxray-v2rayng-real-delay.patch') }}
       - uses: actions/setup-go@v6
         if: steps.native-cache.outputs.cache-hit != 'true'
         with:

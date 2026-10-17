@@ -1,0 +1,159 @@
+diff --git a/xray/ping_batch.go b/xray/ping_batch.go
+index 947498d..052e343 100644
+--- a/xray/ping_batch.go
++++ b/xray/ping_batch.go
+@@ -374,8 +374,12 @@ func measureOutboundDelay(
+ 	targetURL string,
+ ) (int64, error) {
+ 	httpTimeout := time.Second * time.Duration(timeout)
++	// Match v2rayNG's Real Delay: one transport for two GET requests.
++	// Reusing the authenticated proxy connection avoids counting its cold
++	// handshake as the steady-state connection latency on every sample.
+ 	transport := &http.Transport{
+-		DisableKeepAlives: true,
++		TLSHandshakeTimeout: 6 * time.Second,
++		DisableKeepAlives:   false,
+ 		DialContext: func(
+ 			ctx context.Context,
+ 			network string,
+@@ -398,7 +402,55 @@ func measureOutboundDelay(
+ 		Transport: transport,
+ 		Timeout:   httpTimeout,
+ 	}
+-	return nodep.PingHTTPRequest(client, targetURL, timeout)
++	return pingV2rayNGRealDelay(client, targetURL)
++}
++
++// pingV2rayNGRealDelay follows AndroidLibXrayLite's measureInstDelay logic:
++// two GETs via the same outbound, read and close the body to allow HTTP
++// keep-alive, accept only HTTP 200/204, and return the fastest successful
++// request. Startup, config parsing and endpoint lease times are not measured.
++func pingV2rayNGRealDelay(client *http.Client, targetURL string) (int64, error) {
++	const samples = 2
++	minimum := int64(-1)
++	var lastErr error
++	for i := 0; i < samples; i++ {
++		req, err := http.NewRequest(http.MethodGet, targetURL, nil)
++		if err != nil {
++			lastErr = err
++			continue
++		}
++		started := time.Now()
++		response, err := client.Do(req)
++		if err != nil {
++			lastErr = err
++			continue
++		}
++		_, readErr := io.Copy(io.Discard, response.Body)
++		closeErr := response.Body.Close()
++		if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusNoContent {
++			lastErr = fmt.Errorf("invalid status: %s", response.Status)
++			continue
++		}
++		if readErr != nil {
++			lastErr = fmt.Errorf("failed to read response body: %w", readErr)
++			continue
++		}
++		if closeErr != nil {
++			lastErr = fmt.Errorf("failed to close response body: %w", closeErr)
++			continue
++		}
++		duration := time.Since(started).Milliseconds()
++		if minimum == -1 || duration < minimum {
++			minimum = duration
++		}
++	}
++	if minimum == -1 {
++		if lastErr == nil {
++			lastErr = errors.New("real delay: both attempts failed")
++		}
++		return nodep.PingDelayError, lastErr
++	}
++	return minimum, nil
+ }
+ 
+ func failedPingBatchResult(delay int64, err error) PingBatchResult {
+diff --git a/xray/ping_batch_real_delay_test.go b/xray/ping_batch_real_delay_test.go
+new file mode 100644
+index 0000000..8a54b3c
+--- /dev/null
++++ b/xray/ping_batch_real_delay_test.go
+@@ -0,0 +1,78 @@
++package xray
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestPingV2rayNGRealDelayReusesConnectionAndReturnsFastest(t *testing.T) {
++	var mu sync.Mutex
++	requests := 0
++	connections := map[string]bool{}
++	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		mu.Lock()
++		requests++
++		attempt := requests
++		connections[r.RemoteAddr] = true
++		mu.Unlock()
++		if r.Method != http.MethodGet {
++			t.Errorf("wanted GET; got %s", r.Method)
++		}
++		if attempt == 1 {
++			time.Sleep(100 * time.Millisecond)
++		}
++		w.WriteHeader(http.StatusNoContent)
++	}))
++	defer server.Close()
++	transport := &http.Transport{DisableKeepAlives: false}
++	defer transport.CloseIdleConnections()
++	client := &http.Client{Transport: transport, Timeout: 2 * time.Second}
++	measured, err := pingV2rayNGRealDelay(client, server.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if measured < 0 || measured >= 90 {
++		t.Fatalf("fastest request was %dms", measured)
++	}
++	mu.Lock()
++	defer mu.Unlock()
++	if requests != 2 {
++		t.Fatalf("expected 2 GETs; got %d", requests)
++	}
++	if len(connections) != 1 {
++		t.Fatalf("expected single reusable TCP connection; got %d", len(connections))
++	}
++}
++
++func TestPingV2rayNGRealDelayRejectsNon204Non200(t *testing.T) {
++	requests := 0
++	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		requests++
++		w.WriteHeader(http.StatusForbidden)
++	}))
++	defer server.Close()
++	measured, err := pingV2rayNGRealDelay(server.Client(), server.URL)
++	if err == nil || measured != 10000 || requests != 2 {
++		t.Fatalf("unexpected failure handling delay=%d err=%v requests=%d", measured, err, requests)
++	}
++}
++
++func TestPingV2rayNGRealDelayOneValidResultStillSucceeds(t *testing.T) {
++	requests := 0
++	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		requests++
++		if requests == 1 {
++			w.WriteHeader(http.StatusOK)
++		} else {
++			w.WriteHeader(http.StatusForbidden)
++		}
++	}))
++	defer server.Close()
++	measured, err := pingV2rayNGRealDelay(server.Client(), server.URL)
++	if err != nil || measured < 0 || requests != 2 {
++		t.Fatalf("expected valid first result; delay=%d err=%v requests=%d", measured, err, requests)
++	}
++}

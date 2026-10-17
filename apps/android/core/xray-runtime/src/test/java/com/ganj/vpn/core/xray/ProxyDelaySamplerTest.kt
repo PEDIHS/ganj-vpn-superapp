@@ -5,56 +5,58 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ProxyDelaySamplerTest {
-    @Test fun `median of successful real outbound requests ignores one slow sample`() {
-        val values = listOf(54L, 800L, 58L).iterator()
-        val calls = mutableListOf<List<Int>>()
-        val result = ProxyDelaySampler.measure(1, listOf("https://one.test")) { _, indices ->
-            calls += indices
-            listOf(NativeProbeResult.Measured(values.next()))
+    @Test fun `one native invocation returns fast real delay without repeated cold handshakes`() {
+        var count = 0
+        val result = ProxyDelaySampler.measure(1, listOf("gstatic")) { _, indexes ->
+            count++
+            indexes.map { NativeProbeResult.Measured(87L) }
         }
-        assertEquals(listOf(NativeProbeResult.Measured(58L)), result)
-        assertEquals(3, calls.size)
+        assertEquals(listOf(NativeProbeResult.Measured(87L)), result)
+        assertEquals(1, count)
     }
 
-    @Test fun `blocked primary checks second target using identical config`() {
-        val targets = mutableListOf<String>()
-        val result = ProxyDelaySampler.measure(1, listOf("primary", "fallback")) { target, _ ->
-            targets += target
-            listOf(if (target == "primary") NativeProbeResult.Failed("probe.timeout")
-                else NativeProbeResult.Measured(70L))
+    @Test fun `primary failure falls back to same profile once`() {
+        val requests = mutableListOf<Pair<String, List<Int>>>()
+        val result = ProxyDelaySampler.measure(1, listOf("gstatic", "google")) { url, indexes ->
+            requests += url to indexes
+            indexes.map { if (url == "gstatic") NativeProbeResult.Failed("probe.timeout") else NativeProbeResult.Measured(71L) }
         }
-        assertEquals(NativeProbeResult.Measured(70L), result.single())
-        assertEquals(listOf("primary", "fallback", "fallback", "fallback"), targets)
+        assertEquals(NativeProbeResult.Measured(71L), result.single())
+        assertEquals(listOf("gstatic" to listOf(0), "google" to listOf(0)), requests)
     }
 
-    @Test fun `all network failures stay failures never zero or optimistic TCP`() {
-        val result = ProxyDelaySampler.measure(2, listOf("primary", "fallback")) { _, indexes ->
+    @Test fun `unreachable proxy cannot become a fabricated low latency`() {
+        val result = ProxyDelaySampler.measure(2, listOf("gstatic", "google")) { _, indexes ->
             indexes.map { NativeProbeResult.Failed("probe.timeout") }
         }
         assertTrue(result.all { it is NativeProbeResult.Failed })
     }
 
-    @Test fun `configuration failures do not retry or leak to other server`() {
-        val selections = mutableListOf<List<Int>>()
-        val result = ProxyDelaySampler.measure(2, listOf("primary", "fallback")) { _, indexes ->
-            selections += indexes
+    @Test fun `a successful server is not retried if another server fails`() {
+        val requests = mutableListOf<Pair<String, List<Int>>>()
+        val result = ProxyDelaySampler.measure(3, listOf("gstatic", "google")) { url, indexes ->
+            requests += url to indexes
             indexes.map { index ->
-                if (index == 0) NativeProbeResult.Failed("xray.config_invalid")
-                else NativeProbeResult.Measured(91L)
+                when (index) {
+                    0 -> NativeProbeResult.Measured(68L)
+                    1 -> if (url == "gstatic") NativeProbeResult.Failed("probe.timeout") else NativeProbeResult.Measured(89L)
+                    else -> NativeProbeResult.Failed("xray.config_invalid")
+                }
             }
         }
-        assertEquals(NativeProbeResult.Failed("xray.config_invalid"), result[0])
-        assertEquals(NativeProbeResult.Measured(91L), result[1])
-        assertEquals(listOf(listOf(0, 1), listOf(1), listOf(1)), selections)
+        assertEquals(NativeProbeResult.Measured(68L), result[0])
+        assertEquals(NativeProbeResult.Measured(89L), result[1])
+        assertEquals(NativeProbeResult.Failed("xray.config_invalid"), result[2])
+        assertEquals(listOf("gstatic" to listOf(0, 1, 2), "google" to listOf(1)), requests)
     }
 
-    @Test fun `one successful request followed by failures is not reliable latency`() {
-        var calls = 0
-        val result = ProxyDelaySampler.measure(1, listOf("primary")) { _, _ ->
-            calls++
-            listOf(if (calls == 1) NativeProbeResult.Measured(40L)
-                else NativeProbeResult.Failed("probe.timeout"))
+    @Test fun `native throw is a per-config failure with fallback`() {
+        var count = 0
+        val result = ProxyDelaySampler.measure(1, listOf("gstatic", "google")) { _, _ ->
+            count++
+            if (count == 1) throw IllegalStateException("temporary failure")
+            listOf(NativeProbeResult.Measured(111L))
         }
-        assertTrue(result.single() is NativeProbeResult.Failed)
+        assertEquals(NativeProbeResult.Measured(111L), result.single())
     }
 }
