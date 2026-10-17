@@ -74,20 +74,23 @@ internal fun GanjLiquidCanvas(
 ) {
     val colors = MaterialTheme.colorScheme
     val effects = LocalGanjVisualEffectsPolicy.current
+    val canvasBrush = remember(
+        colors.background, colors.primary, colors.tertiary, effects.ambientBackgroundEffects,
+    ) {
+        Brush.radialGradient(
+            colors = ganjCanvasColors(
+                background = colors.background,
+                primary = colors.primary,
+                tertiary = colors.tertiary,
+                ambientEffects = effects.ambientBackgroundEffects,
+            ),
+            radius = if (effects.ambientBackgroundEffects) 1150f else 760f,
+        )
+    }
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = ganjCanvasColors(
-                        background = colors.background,
-                        primary = colors.primary,
-                        tertiary = colors.tertiary,
-                        ambientEffects = effects.ambientBackgroundEffects,
-                    ),
-                    radius = if (effects.ambientBackgroundEffects) 1150f else 760f,
-                ),
-            ),
+            .background(canvasBrush),
         content = content,
     )
 }
@@ -136,20 +139,21 @@ internal fun GanjGlassSurface(
         else -> 0.10f
     }
 
+    val highlightBrush = remember(glass.highlight, accent, highlightAlpha, accentStrength, effectiveRole) {
+        Brush.linearGradient(
+            colors = listOf(
+                glass.highlight.copy(alpha = highlightAlpha),
+                Color.Transparent,
+                accent.copy(alpha = if (effectiveRole == GanjGlassRole.OpaqueFallback) 0f else accentStrength),
+                Color.Transparent,
+            ),
+        )
+    }
     Column(
         modifier = modifier
             .clip(shape)
             .background(base)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        glass.highlight.copy(alpha = highlightAlpha),
-                        Color.Transparent,
-                        accent.copy(alpha = if (effectiveRole == GanjGlassRole.OpaqueFallback) 0f else accentStrength),
-                        Color.Transparent,
-                    ),
-                ),
-            )
+            .background(highlightBrush)
             .border(1.dp, border.copy(alpha = if (effects.reduceTransparency) 0.46f else 0.72f), shape)
             .padding(padding),
         verticalArrangement = verticalArrangement,

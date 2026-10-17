@@ -48,14 +48,24 @@ internal fun signatureGold(): Color = if (referenceDark()) Color(0xFFF2CE70) els
 internal val SignatureMetal = listOf(Color(0xFFB98022), Color(0xFFF6D77A), Color(0xFFFFF0AB), Color(0xFFDFB24E), Color(0xFFC5902C))
 internal val SignatureInk = Color(0xFF352409)
 
+/** Keep the gold glint on capable devices, but never run a hidden shimmer.
+ * Low-memory devices retain the same static gold finish without per-frame work.
+ */
+internal fun shouldRunSignaturePhase(
+    active: Boolean,
+    reduceMotion: Boolean,
+    tier: GanjEffectsTier,
+): Boolean = active && !reduceMotion && tier != GanjEffectsTier.Reduced
+
 /** Read only inside drawing lambdas. Offscreen lazy items and paused screens stop their work. */
 @Composable
-internal fun rememberSignaturePhase(): State<Float> {
+internal fun rememberSignaturePhase(active: Boolean = true): State<Float> {
     val effects = LocalGanjVisualEffectsPolicy.current
     val owner = LocalLifecycleOwner.current
     val phase = remember { Animatable(0f) }
-    LaunchedEffect(effects.reduceMotion, owner) {
-        if (effects.reduceMotion) phase.snapTo(0f)
+    val animate = shouldRunSignaturePhase(active, effects.reduceMotion, effects.tier)
+    LaunchedEffect(animate, owner) {
+        if (!animate) phase.snapTo(0f)
         else owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (isActive) {
                 phase.snapTo(0f)
@@ -73,7 +83,7 @@ internal fun GanjSignatureButton(text: String, onClick: () -> Unit, modifier: Mo
     val effects = LocalGanjVisualEffectsPolicy.current
     val scale = animateFloatAsState(if (pressed && !effects.reduceMotion) .975f else 1f,
         if (effects.reduceMotion) snap() else tween(GanjMotion.Press), label = "signaturePress")
-    val phase = rememberSignaturePhase()
+    val phase = rememberSignaturePhase(active = enabled)
     val shape = RoundedCornerShape(10.dp)
     val disabled = MaterialTheme.colorScheme.surfaceVariant
     val disabledInk = MaterialTheme.colorScheme.onSurfaceVariant

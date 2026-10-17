@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -36,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -158,11 +160,19 @@ internal fun StitchInlineConfigList(
                     (servers.size * (rowDp + 7) + 8).dp
                 ).coerceAtLeast(72.dp)
                 val effects = LocalGanjVisualEffectsPolicy.current
-                val topFade by animateFloatAsState(
-                    if (listState.canScrollBackward) 1f else 0f,
+                // Scroll pixels must not recompose the configuration catalog.
+                // Only edge visibility changes are observable by this composition.
+                val topVisible by remember(listState) {
+                    derivedStateOf { listState.canScrollBackward }
+                }
+                val bottomVisible by remember(listState) {
+                    derivedStateOf { listState.canScrollForward }
+                }
+                val topFade = animateFloatAsState(
+                    if (topVisible) 1f else 0f,
                     if (effects.reduceMotion) snap() else tween(180), label = "configTopFade")
-                val bottomFade by animateFloatAsState(
-                    if (listState.canScrollForward) 1f else 0f,
+                val bottomFade = animateFloatAsState(
+                    if (bottomVisible) 1f else 0f,
                     if (effects.reduceMotion) snap() else tween(180), label = "configBottomFade")
                 val haptic = LocalHapticFeedback.current
                 // Hardware support for SEGMENT_FREQUENT_TICK starts at Android 14.
@@ -187,6 +197,12 @@ internal fun StitchInlineConfigList(
                 }
                 val containerShape = RoundedCornerShape(17.dp)
                 val surface = MaterialTheme.colorScheme.surface
+                val topBrush = remember(surface) {
+                    Brush.verticalGradient(listOf(surface.copy(alpha = .94f), Color.Transparent))
+                }
+                val bottomBrush = remember(surface) {
+                    Brush.verticalGradient(listOf(Color.Transparent, surface.copy(alpha = .98f)))
+                }
                 Box(Modifier.fillMaxWidth().height(height).clip(containerShape)
                     .testTag("config-scroll-container")) {
                     LazyColumn(
@@ -213,15 +229,15 @@ internal fun StitchInlineConfigList(
                         }
                     }
                     // Non-interactive fades signal additional rows without hiding the edges.
-                    if (topFade > 0f) Box(
+                    Box(
                         Modifier.align(Alignment.TopCenter).fillMaxWidth().height(21.dp)
-                            .background(Brush.verticalGradient(listOf(
-                                surface.copy(alpha = topFade * 0.94f), Color.Transparent)))
+                            .graphicsLayer { alpha = topFade.value }
+                            .background(topBrush)
                             .testTag("config-top-fade"))
-                    if (bottomFade > 0f) Box(
+                    Box(
                         Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(25.dp)
-                            .background(Brush.verticalGradient(listOf(
-                                Color.Transparent, surface.copy(alpha = bottomFade * 0.98f))))
+                            .graphicsLayer { alpha = bottomFade.value }
+                            .background(bottomBrush)
                             .testTag("config-bottom-fade"))
 
                 }
