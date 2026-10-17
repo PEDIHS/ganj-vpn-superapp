@@ -98,7 +98,7 @@ class ReflectiveLibXrayBridge(
     ): NativeProbeResult = probeBatchDetailed(listOf(config), privateDirectory, targetUrls).single()
 
     /**
-     * Xray's native pingBatch originates on the PHONE and sends a real HTTPS HEAD
+     * Xray's native pingBatch originates on the PHONE and sends two HTTPS GETs over a reusable transport
      * through the user's leased VLESS/REALITY/XHTTP outbound. DNS/TLS, proxy
      * handshake and remote response are real, not an upstream port reachability test.
      * Native worker timings exclude control-API leases and Compose rendering.
@@ -126,7 +126,7 @@ class ReflectiveLibXrayBridge(
                         .put("configPath", files[index].absolutePath)
                         .put("outboundTag", "proxy"))
                 }
-                val payload = JSONObject().put("configs", entries).put("timeout", 4).put("url", target)
+                val payload = JSONObject().put("configs", entries).put("timeout", 12).put("url", target)
                 val request = JSONObject().put("apiVersion", 1).put("method", "pingBatch").put("payload", payload)
                 val response = JSONObject(invokeMethod().invoke(null, request.toString()) as String)
                 if (!response.optBoolean("success")) {

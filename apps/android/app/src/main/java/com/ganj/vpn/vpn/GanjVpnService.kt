@@ -419,31 +419,40 @@ class GanjVpnService : VpnService(), TunnelPlatform {
                 NativeProbeResult.Failed(NativeFailureClassifier.probe(error))
             }
         }
-        // Bind every attempt to this VPN network. A disconnect between attempts must
-        // fail instead of quietly timing a direct connection on the physical network.
+        // Use only the live Android VPN network, never physical internet.
         val vpnNetwork = connectivityManager.allNetworks.firstOrNull {
             connectivityManager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
         } ?: return NativeProbeResult.Failed("probe.network_unreachable")
-        return ProxyProbeFallback.measure { target ->
-            var connection: HttpURLConnection? = null
+        return ActiveTunnelDelaySampler.measure(ProxyProbeFallback.targets) { target ->
+            val connection = vpnNetwork.openConnection(URL(target)) as HttpURLConnection
+            var keepReusable = false
             try {
-                val started = SystemClock.elapsedRealtime()
-                connection = vpnNetwork.openConnection(URL(target)) as HttpURLConnection
                 connection.connectTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MS
                 connection.readTimeout = ACTIVE_TUNNEL_PROBE_TIMEOUT_MS
                 connection.instanceFollowRedirects = false
-                connection.requestMethod = "HEAD"
+                connection.requestMethod = "GET"
                 connection.useCaches = false
-                connection.setRequestProperty("Cache-Control", "no-store")
-                connection.setRequestProperty("Connection", "close")
-                // Like libXray, a received HTTP response measures latency even when the target denies access.
-                if (connection.responseCode in 100..599) {
-                    NativeProbeResult.Measured((SystemClock.elapsedRealtime() - started).coerceAtLeast(0L))
-                } else NativeProbeResult.Failed("probe.http_failed")
-            } finally { connection?.disconnect() }
+                val started = SystemClock.elapsedRealtimeNanos()
+                val status = connection.responseCode
+                if (status != HttpURLConnection.HTTP_OK && status != HttpURLConnection.HTTP_NO_CONTENT) {
+                    NativeProbeResult.Failed("probe.http_failed")
+                } else {
+                    connection.inputStream.use { input ->
+                        val bytes = ByteArray(8192)
+                        while (input.read(bytes) != -1) { /* consume for keep-alive */ }
+                    }
+                    keepReusable = true
+                    NativeProbeResult.Measured(
+                        ((SystemClock.elapsedRealtimeNanos() - started) / 1_000_000L).coerceAtLeast(0L),
+                    )
+                }
+            } finally {
+                // Do not call disconnect() on successful GET, Android may reuse
+                // the pooled TLS socket after its response body is fully read.
+                if (!keepReusable) connection.disconnect()
+            }
         }
     }
-
 
     inner class LocalBinder internal constructor() : Binder() {
         suspend fun probe(profile: ProvisionedProfile): Long? = probeDetailed(profile).latencyMillis
@@ -593,7 +602,7 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         private const val NOTIFICATION_CHANNEL_ID = "ganj_vpn_connection"
         private const val NOTIFICATION_ID = 4201
         private const val NATIVE_FIXTURE_PROBE_URL = "http://198.18.0.1:18080/ganj-tun-check"
-        private const val ACTIVE_TUNNEL_PROBE_TIMEOUT_MS = 5_000
+        private const val ACTIVE_TUNNEL_PROBE_TIMEOUT_MS = 12_000
         private const val IPV4_CLIENT_ADDRESS = "10.111.222.2"
         private const val IPV4_PREFIX_LENGTH = 32
         private const val IPV4_DEFAULT_ROUTE = "0.0.0.0"
