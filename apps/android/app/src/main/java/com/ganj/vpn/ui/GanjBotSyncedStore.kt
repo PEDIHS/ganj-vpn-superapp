@@ -360,8 +360,15 @@ internal fun StitchBotSyncedStoreScreen(
         item(key="finance-shortcuts") {
             Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
                 Text("حساب و پرداخت",style=MaterialTheme.typography.labelMedium,color=muted)
-                GanjReferenceMenuRow("کیف پول","موجودی، شارژ و ارسال رسید",icon=GanjDestination.Store,onClick=onOpenWallet)
-                GanjReferenceMenuRow("تراکنش‌ها","سوابق پرداخت و وضعیت بررسی",icon=GanjDestination.Store,onClick=onOpenTransactions)
+                GanjReferenceMenuRow("کیف پول", "موجودی، شارژ و ارسال رسید",
+                    accent=profileAccent(GanjProfileAccent.Sky),
+                    leading={ GanjProfileIconTile(GanjProfileSymbol.Wallet, GanjProfileAccent.Sky) },
+                    onClick=onOpenWallet)
+                GanjReferenceMenuRow("تراکنش‌ها", "سوابق پرداخت و وضعیت بررسی",
+                    accent=ganjSignatureTone(GanjSignatureTone.Coral),
+                    leading={ GanjProfileIcon(GanjProfileSymbol.History,
+                        ganjSignatureTone(GanjSignatureTone.Coral), Modifier.size(25.dp)) },
+                    onClick=onOpenTransactions)
             }
         }
     }

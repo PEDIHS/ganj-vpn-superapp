@@ -117,9 +117,16 @@ internal fun GanjTierCatalog(
             }
         }
         item(key = "finance") {
-            GanjReferenceMenuRow("کیف پول", "موجودی، شارژ و ارسال رسید", icon=GanjDestination.Store, accent=ganjSignatureTone(GanjSignatureTone.Azure), onClick=onOpenWallet)
+            GanjReferenceMenuRow("کیف پول", "موجودی، شارژ و ارسال رسید",
+                accent=ganjSignatureTone(GanjSignatureTone.Azure),
+                leading={ GanjProfileIconTile(GanjProfileSymbol.Wallet, GanjProfileAccent.Sky) },
+                onClick=onOpenWallet)
             Spacer(Modifier.height(8.dp))
-            GanjReferenceMenuRow("تراکنش‌ها", "سوابق پرداخت و وضعیت بررسی", icon=GanjDestination.Store, accent=ganjSignatureTone(GanjSignatureTone.Coral), onClick=onOpenTransactions)
+            GanjReferenceMenuRow("تراکنش‌ها", "سوابق پرداخت و وضعیت بررسی",
+                accent=ganjSignatureTone(GanjSignatureTone.Coral),
+                leading={ GanjProfileIcon(GanjProfileSymbol.History,
+                    ganjSignatureTone(GanjSignatureTone.Coral), Modifier.size(25.dp)) },
+                onClick=onOpenTransactions)
         }
     }
 }

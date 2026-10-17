@@ -35,14 +35,14 @@ internal fun ganjSignatureTone(tone: GanjSignatureTone): Color {
 
 @Composable
 internal fun ganjSignatureSurface(tone: GanjSignatureTone): Brush {
-    val accent = ganjSignatureTone(tone)
+    val gold = ganjSignatureTone(GanjSignatureTone.Gold)
+    val emerald = MaterialTheme.colorScheme.primary
     val background = MaterialTheme.colorScheme.surface
-    val dark = referenceDark()
     return Brush.linearGradient(
         listOf(
-            accent.copy(alpha = if (dark) .21f else .11f).compositeOver(background),
+            gold.copy(alpha = .075f).compositeOver(background),
             background,
-            accent.copy(alpha = if (dark) .085f else .05f).compositeOver(background),
+            emerald.copy(alpha = .055f).compositeOver(background),
         ),
     )
 }
