@@ -496,12 +496,13 @@ internal fun GanjConfigOption(
     val reduceMotion = effects.reduceMotion
     // Inline scrolling should not repeatedly animate rows entering the viewport:
     // only selection/press feedback and container fades move.
-    val entry = remember(server.id, animateEntrance) {
-        androidx.compose.animation.core.Animatable(if (reduceMotion || !animateEntrance) 1f else 0f)
-    }
-    LaunchedEffect(server.id, reduceMotion, animateEntrance) {
-        if (reduceMotion || !animateEntrance) entry.snapTo(1f)
-        else entry.animateTo(1f, tween(180))
+    // The embedded list displays rows immediately. Allocating an Animatable and
+    // running LaunchedEffect for each flung row caused unnecessary main-thread work.
+    val entry = if (animateEntrance && !reduceMotion) {
+        remember(server.id) { androidx.compose.animation.core.Animatable(0f) }
+    } else null
+    if (entry != null) {
+        LaunchedEffect(server.id, entry) { entry.animateTo(1f, tween(180)) }
     }
     val identity = remember(server.name, server.countryCode) {
         ganjConfigIdentity(server.name, server.countryCode)
@@ -540,7 +541,13 @@ internal fun GanjConfigOption(
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Box(
             modifier = Modifier.fillMaxWidth().testTag("config-option-" + server.id)
-                .graphicsLayer { scaleX = pressScale.value; scaleY = pressScale.value; alpha = entry.value; translationX = (1f-entry.value)*8.dp.toPx() }
+                .graphicsLayer {
+                    val entrance = entry?.value ?: 1f
+                    scaleX = pressScale.value
+                    scaleY = pressScale.value
+                    alpha = entrance
+                    translationX = (1f - entrance) * 8.dp.toPx()
+                }
                 .clip(shape)
                 .background(if (selected) palette.selectedSurface else MaterialTheme.colorScheme.surface)
                 .border(if (selected) 1.5.dp else 1.dp, rim, shape)
