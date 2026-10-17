@@ -42,11 +42,22 @@ internal fun rememberGanjProfileWallet(api: GanjBotStoreApi, accountKey: String?
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(api, accountKey, state.refreshGeneration, lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            state.busy = true
+            // Retain a verified in-session value while refreshing; don't flash a
+            // loading placeholder on every screen resume.
+            state.busy = state.balance == null
             state.message = null
             try {
-                val payload = api.request("wallet_methods").getJSONObject("data")
-                state.balance = botReadVerifiedBalance(payload)
+                // One cheap owner-scoped DB snapshot, with existing bot API as
+                // backward-compatible fallback until the PHP endpoint is deployed.
+                val value = try {
+                    val snapshot = api.request("app_snapshot").getJSONObject("data")
+                    botReadVerifiedBalance(snapshot.getJSONObject("account"))
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    botReadVerifiedBalance(api.request("wallet_methods").getJSONObject("data"))
+                }
+                state.balance = value
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {

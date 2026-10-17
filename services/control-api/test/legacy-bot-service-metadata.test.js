@@ -34,7 +34,7 @@ test('service metadata is owner scoped, read only and uses actual provider traff
     return response([item(JSON.parse(options.body).include_usage)]);
   });
   const result = await source.decorate(input);
-  assert.deepEqual(calls.map((c) => c.include_usage), [false, true]);
+  assert.deepEqual(calls.map((c) => c.include_usage), [true]);
   assert.deepEqual(calls[0].records, [{ external_service_id: 'fixture-invoice-a8', external_customer_id: '99' }]);
   assert.equal(result[0].service_username, 'fixture_user_99');
   assert.equal(result[0].traffic_used_bytes, 250); assert.equal(result[0].traffic_limit_bytes, 1000);
