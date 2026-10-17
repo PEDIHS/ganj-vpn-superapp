@@ -341,6 +341,19 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         return try {
             if (engine.hasTunnel()) return NativeProbeResult.Failed("probe.active_tunnel_busy")
             if (profile.isExpired(System.currentTimeMillis())) return NativeProbeResult.Failed("vpn.profile_expired")
+            // The native integration fixture must still exercise a true VLESS proxy
+            // handshake and encrypted response, not merely an open TCP listener.
+            if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
+                val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
+                val installed = native.installSocketProtector(
+                    SocketProtector { fd -> fd >= 0 && (!engine.hasTunnel() || protect(fd)) },
+                )
+                return if (!installed.success)
+                    NativeProbeResult.Failed(installed.errorCode ?: "xray.socket_protection_unavailable")
+                else XrayConfigCompiler().compileProbe(profile).use { config ->
+                    native.probeDetailed(config, noBackupFilesDir, listOf(NATIVE_FIXTURE_PROBE_URL))
+                }
+            }
             val networks = listOfNotNull(connectivityManager.activeNetwork) +
                 underlyingNetworks.toList() + connectivityManager.allNetworks.toList()
             val physical = networks.distinct().firstOrNull { network ->
