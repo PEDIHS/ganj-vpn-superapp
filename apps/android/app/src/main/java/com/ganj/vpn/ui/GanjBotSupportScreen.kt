@@ -64,10 +64,12 @@ internal fun GanjBotSupportScreen(api: GanjBotStoreApi, onBack: () -> Unit) {
     ) {
         item {
             AccountBackAction(onBack)
-            GanjSectionHeader(
-                "پشتیبانی گنج",
-                "درخواست‌ها و پاسخ‌ها با همان حساب تلگرام در ربات و اپلیکیشن همگام می‌شوند.",
+            GanjInnerPageHeading(
+                "مرکز پشتیبانی",
+                "پیگیری درخواست‌ها و پاسخ‌های حساب گنج",
+                GanjProfileSymbol.Support, GanjSignatureTone.Iris,
             )
+            GanjInnerMetadataPill("همگام‌سازی با ربات گنج", GanjProfileAccent.Emerald)
         }
         if (username != null) item {
             GanjGlassButton(
@@ -114,9 +116,10 @@ internal fun GanjBotSupportScreen(api: GanjBotStoreApi, onBack: () -> Unit) {
             }
         } } ?: run {
             item {
-                GanjGlassSurface(GanjGlassRole.Dense, accent = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxWidth(), shapeRadius = 14.dp) {
-                    GanjSectionHeader("موضوع پیام", "بخشی که درخواست شما به آن مربوط است را انتخاب کنید.")
+                GanjInnerFeatureSection(
+                    "موضوع پیام", "دپارتمان مربوط به درخواست را انتخاب کنید",
+                    GanjProfileSymbol.Support, GanjProfileAccent.Iris,
+                ) {
                     departments.forEach { dep ->
                         val id = dep.optString("id")
                         GanjChoicePill(dep.optString("name_departman"), department == id,
@@ -131,10 +134,11 @@ internal fun GanjBotSupportScreen(api: GanjBotStoreApi, onBack: () -> Unit) {
         }
 
         item {
-            GanjGlassSurface(GanjGlassRole.Regular, accent = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth(), shapeRadius = 14.dp) {
-                Text(if (selected == null) "متن درخواست" else "پاسخ شما",
-                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            GanjInnerFeatureSection(
+                if (selected == null) "درخواست جدید" else "پاسخ به درخواست",
+                "توضیحات را بدون اطلاعات حساس ارسال کنید",
+                GanjProfileSymbol.Support, GanjProfileAccent.Sky,
+            ) {
                 GanjLiquidTextField(draft, { draft = it.take(1500) }, "متن پیام",
                     Modifier.fillMaxWidth(), enabled = !busy, singleLine = false, minLines = 4)
                 GanjGlassButton("ارسال به پشتیبانی", {
@@ -164,7 +168,8 @@ internal fun GanjBotSupportScreen(api: GanjBotStoreApi, onBack: () -> Unit) {
             }
         }
         item {
-            GanjSectionHeader("پیام‌های قبلی", "وضعیت درخواست‌ها و پاسخ‌های پشتیبانی")
+            GanjInnerSectionTitle("درخواست‌های قبلی",
+                "تاریخچه و پاسخ‌های دریافت‌شده از پشتیبانی")
             GanjGlassButton("به‌روزرسانی پیام‌ها", ::refresh, Modifier.fillMaxWidth(),
                 enabled = !busy, filled = false)
         }
@@ -178,7 +183,8 @@ internal fun GanjBotSupportScreen(api: GanjBotStoreApi, onBack: () -> Unit) {
             val ticket = tickets[index]
             GanjReferenceMenuRow(
                 title = ticket.optString("name_departman").ifBlank { "درخواست پشتیبانی" },
-                subtitle = ticket.optString("text").take(110),
+                subtitle = ticket.optString("text").take(90) +
+                    " · پیگیری " + ticket.optString("Tracking"),
                 accent = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { if (!busy) { selected = ticket; draft = "" } },

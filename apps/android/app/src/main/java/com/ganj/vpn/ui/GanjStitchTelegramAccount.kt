@@ -92,25 +92,11 @@ internal fun StitchTelegramAccountCard(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(TelegramBlue.copy(alpha = 0.13f))
-                    .border(1.dp, TelegramBlue.copy(alpha = 0.42f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = when {
-                        waitingForApproval -> "…"
-                        linked -> "✓"
-                        else -> "TG"
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = if (linked && !waitingForApproval) AccountEmerald else TelegramBlue,
-                )
-            }
+            GanjProfileIconTile(
+                GanjProfileSymbol.Account,
+                if (linked && !waitingForApproval) GanjProfileAccent.Emerald
+                    else GanjProfileAccent.Sky,
+            )
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -138,6 +124,15 @@ internal fun StitchTelegramAccountCard(
                 positive = linked && !waitingForApproval,
             )
         }
+
+        GanjInnerMetadataPill(
+            when {
+                waitingForApproval -> "تأیید اتصال در ربات"
+                linked -> "حساب امن و همگام"
+                else -> "ورود مستقل با تلگرام"
+            },
+            if (linked) GanjProfileAccent.Emerald else GanjProfileAccent.Sky,
+        )
 
         if (busy) {
             GanjInlineStatusBanner(
