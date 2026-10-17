@@ -10,8 +10,8 @@ class LibXray private constructor() {
         var observedRequest: String? = null
             private set
         var observedDns: String? = null
-        var pingBatchCallCount: Int = 0
             private set
+        var pingBatchCallCount: Int = 0
             private set
         var dnsReset: Boolean = false
             private set
