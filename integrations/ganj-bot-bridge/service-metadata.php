@@ -33,35 +33,22 @@ try {
     $root = dirname(__DIR__, 4);
     require_once $root . '/config.php';
     require_once $root . '/function.php';
-    require_once $root . '/panels.php';
     if (!isset($pdo) || !($pdo instanceof PDO)) ganjMetadataFail(503, 'database_unavailable');
-    $sql = 'SELECT id_invoice,id_user,username,Service_location FROM invoice WHERE id_invoice IN ('
+    $sql = 'SELECT i.id_invoice,i.id_user,i.username,i.Service_location,'
+        . 'c.payload_json,c.updated_at AS cache_updated_at FROM invoice i '
+        . 'LEFT JOIN ganj_web_service_cache c ON c.user_id=i.id_user AND c.invoice_id=i.id_invoice '
+        . 'WHERE i.id_invoice IN ('
         . implode(',', array_fill(0, count($records), '?')) . ')';
     $stmt = $pdo->prepare($sql); $stmt->execute(array_keys($records));
     $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $output = [];
-    $deadline = microtime(true) + 4.0;
     foreach ($invoices as $invoice) {
         $record = $records[(string)$invoice['id_invoice']] ?? null;
-        // Recheck current invoice ownership; a delayed reconciliation cannot disclose a transferred service.
+        // Invoice owner is checked against the server-side projection again.
         if ($record === null || (string)$invoice['id_user'] !== $record['external_customer_id']) continue;
-        $data = null;
-        if ($body['include_usage'] && microtime(true) < $deadline) {
-            $panel = select('marzban_panel', '*', 'name_panel', $invoice['Service_location'], 'select');
-            if (is_array($panel) && in_array((string)($panel['type'] ?? ''), ['marzban', 'rebecca'], true)) {
-                // Read only the user JSON. DataUser also downloads the entire subscription and update history.
-                $response = getuser((string)$invoice['username'], (string)$invoice['Service_location']);
-                if (is_array($response) && empty($response['error']) && (int)($response['status'] ?? 200) < 400) {
-                    $decoded = json_decode((string)($response['body'] ?? ''), true);
-                    if (is_array($decoded)) $data = $decoded;
-                }
-            } else {
-                require_once $root . '/panels.php';
-                $candidate = (new ManagePanel())->DataUser((string)$invoice['Service_location'], (string)$invoice['username']);
-                if (is_array($candidate) && ($candidate['status'] ?? 'Unsuccessful') !== 'Unsuccessful') $data = $candidate;
-            }
-        }
-        $output[] = ganjServiceMetadata($invoice, $data);
+        $output[] = $body['include_usage']
+            ? ganjServiceMetadataFromBotCache($invoice,time())
+            : ganjServiceMetadata($invoice);
     }
     echo json_encode(['items' => $output], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 } catch (Throwable $error) { ganjMetadataFail(503, 'metadata_unavailable'); }

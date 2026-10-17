@@ -22,4 +22,16 @@ foreach ([null, ['username' => 'another-owner', 'data_limit' => 1000, 'used_traf
 }
 foreach ([-1, 1.5, '1.5', '999999999999999999', INF, NAN, true] as $invalid) expectMetadata(ganjMetadataInteger($invalid) === null, 'Unsafe integer accepted');
 expectMetadata(ganjMetadataInteger('107374182400') === 107374182400, 'Byte precision lost');
-echo "Service metadata PHP privacy/precision/unknown-usage checks passed\n";
+$invoice['cache_updated_at']=1000;
+$invoice['payload_json']=json_encode([
+    'data_fresh'=>true,'used_gb'=>1.5,'total_gb'=>10,
+    'configs'=>['vless://secret'], 'subscription_url'=>'https://secret.invalid',
+]);
+$r=ganjServiceMetadataFromBotCache($invoice,1010);
+expectMetadata($r['traffic_used_bytes']===1610612736
+    && $r['traffic_limit_bytes']===10737418240
+    && $r['traffic_usage_available']===true,'fresh bot DB usage cache not read');
+expectMetadata(!str_contains(json_encode($r),'secret'),'leaked raw bot cache');
+expectMetadata(ganjServiceMetadataFromBotCache($invoice,1500)['traffic_usage_available']===false,
+    'stale cache must not be shown as real-time');
+echo "Service metadata PHP privacy/precision/cache-only checks passed\n";

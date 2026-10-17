@@ -79,3 +79,38 @@ The endpoint accepts authenticated POST only with the existing `/etc/ganj-bot/ap
 The Control API automatically enables this display source when the private connection resolver is configured. It reads only the caller's projections, fetches cheap names first and uses at most three bounded usage batches. Unknown, slow or unsupported panel usage is represented by `traffic_usage_available: false`, not a fabricated zero. This display source does not write consumption/entitlement state or affect profile issuance. No database migration or bot restart is required.
 
 Validation: `php -l service-metadata.php`, `php -l service-metadata-core.php`, `php service-metadata-core.test.php` and the Control API metadata/ownership unit tests. Deployment must preserve the independently installed connection parser hotfix and verify API health/readiness plus 401 for unauthenticated metadata POST and 405 for GET.
+
+## پیش‌نویس نمای مشترک مشتری — فقط برای نسخه بعدی (منتشر نشده)
+
+فایل `app-account-snapshot.php` فقط یک نمای **خواندنی** بر پایه دیتابیس اصلی ربات است.
+اپلیکیشن به MySQL یا دیتابیس پنل دسترسی مستقیم ندارد. سرویس‌های موجود از
+`invoice` و `ganj_web_service_cache`، کیف پول از `user.Balance` و
+پرداخت‌ها از `Payment_report` خوانده می‌شوند؛ هیچ درخواست `ManagePanel::DataUser`
+یا تماس HTTP با پنل VPN از این endpoint انجام نمی‌شود.
+
+برای فعال‌سازی در آینده، پس از QA و **با تأیید انتشار**، تابع را در بوت‌استرپ
+امن `site/api.php` بارگذاری کنید و این route را پیش از fallback 404 قرار دهید (مسیر را متناسب با
+محل واقعی نصب افزونه تنظیم کنید). اگر API یک allowlist
+`$botGateExempt` دارد، `app_snapshot` را فقط با احراز هویت
+`webRequireUser` به فهرست عملیات مجاز آن اضافه کنید:
+
+```php
+require_once __DIR__.'/../.ganj-app-bridge/app-account-snapshot.php';
+if ($action === 'app_snapshot') {
+    $u = webRequireUser($pdo);
+    header('Cache-Control: private, no-store');
+    webJson(true, '', ganjAppAccountSnapshot($pdo, $u));
+}
+```
+
+مهم: handler باید همان Session/SSO ربات را برای احراز هویت مالک استفاده کند.
+هیچ `user_id` ارسالی از گوشی پذیرفته نمی‌شود. اطلاعات raw `payload_json`
+(شامل کانفیگ، credential و لینک اشتراک) **نباید** به گوشی منتقل شوند.
+هیچ trigger، migration، دستور SQL برای تغییر پول و هیچ فایل PHP
+روی سرور تولیدی در این شاخه اعمال نشده است.
+
+کش کوتاه‌مدت اپ فقط مدل نمایش است. پس از خرید/شارژ/آپلود رسید invalidate می‌شود
+و دادهٔ دقیق مجدداً از bot MySQL خوانده می‌شود. تغییرات انجام‌شده در ربات دیگر
+با تأخیرِ TTL کوتاه، ورود دوباره به صفحه یا refresh کاربر دیده می‌شوند؛
+برای «کاملاً لحظه‌ای» باید در آینده رویداد تغییرات revision از سرور به گوشی
+فرستاده شود. استعلام زنده پنل صرفاً در worker مستقل و محدود انجام شود.

@@ -24,3 +24,35 @@ function ganjServiceMetadata(array $invoice, ?array $data = null): array {
         'traffic_usage_available' => $available,
     ];
 }
+
+/**
+ * Reuse ONLY the existing Bot-DB service cache; never contact a panel while
+ * rendering app account details. A 2-minute freshness gate prevents outdated
+ * quotas from being represented as real-time usage.
+ */
+function ganjServiceMetadataFromBotCache(array $invoice, int $now): array {
+    $updated=(int)($invoice['cache_updated_at']??0);
+    if ($updated<=0 || $updated>$now || $updated<$now-120) {
+        return ganjServiceMetadata($invoice);
+    }
+    $payload=json_decode((string)($invoice['payload_json']??''),true);
+    if (!is_array($payload) || empty($payload['data_fresh'])) {
+        return ganjServiceMetadata($invoice);
+    }
+    $used=$payload['used_gb']??null;
+    $total=$payload['total_gb']??null;
+    if (!is_numeric($used) || !is_numeric($total)
+        || !is_finite((float)$used) || !is_finite((float)$total)
+        || (float)$used<0 || (float)$total<0
+        || (float)$used>1000000 || (float)$total>1000000) {
+        return ganjServiceMetadata($invoice);
+    }
+    $gb=1073741824;
+    $data=[
+        'username'=>(string)($invoice['username']??''),
+        'used_traffic'=>(int)round((float)$used*$gb),
+        'data_limit'=>(float)$total===0.0 ? null : (int)round((float)$total*$gb),
+    ];
+    // Convert only explicitly allowlisted usage fields, not a byte of config.
+    return ganjServiceMetadata($invoice,$data);
+}

@@ -61,21 +61,29 @@ export function createLegacyBotServiceMetadataSource({ environment, repository, 
       const records = rows.map((r) => ({ external_service_id: r.external_service_id, external_customer_id: r.external_customer_id }));
       const metadata = new Map();
       if (records.length) {
-        // Names are cheap invoice metadata and survive a slow/unavailable usage provider.
+        // The new bot endpoint reads ONE MySQL snapshot/join and never polls
+        // a live provider. One combined request replaces the old name read
+        // followed by three separate panel-usage queries.
         const merge = (items) => {
           for (const item of items) {
             const key = `${item.external_service_id}:${item.external_customer_id}`;
             metadata.set(key, { ...metadata.get(key), ...item });
           }
         };
-        try { merge(await read(records, false)); } catch { /* Names can be recovered by the usage pass. */ }
-        // At most three bounded reads prevent a large account from serially timing out the list.
-        // Each PHP batch also has a provider deadline; late/unknown usage remains explicit.
         const batchSize = Math.ceil(records.length / 3);
         const batches = [];
-        for (let offset = 0; offset < records.length; offset += batchSize) batches.push(records.slice(offset, offset + batchSize));
+        for (let offset = 0; offset < records.length; offset += batchSize) {
+          batches.push(records.slice(offset, offset + batchSize));
+        }
         await Promise.all(batches.map(async (batch) => {
-          try { merge(await read(batch, true)); } catch { /* The connection path remains available. */ }
+          try {
+            merge(await read(batch, true));
+          } catch {
+            // Safe fallback for older bot bridge revisions or stale metrics.
+            // Ownership-verified invoice username still displays, but usage
+            // remains unavailable instead of inventing a zero.
+            try { merge(await read(batch, false)); } catch { /* fail closed */ }
+          }
         }));
       }
       const byService = new Map(rows.map((r) => [r.control_service_id,
