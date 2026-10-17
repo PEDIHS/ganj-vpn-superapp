@@ -2,7 +2,7 @@ package com.ganj.vpn.core.xray
 
 /** Both attempts must use the same proxy/TUN; never fall back to a direct internet request. */
 object ProxyProbeFallback {
-    val targets = listOf("https://cp.cloudflare.com/", "https://www.gstatic.com/generate_204")
+    val targets = listOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/")
 
     fun measure(targets: List<String> = this.targets, request: (String) -> NativeProbeResult): NativeProbeResult {
         var last: NativeProbeResult = NativeProbeResult.Failed("probe.unavailable")

@@ -11,6 +11,8 @@ class LibXray private constructor() {
             private set
         var observedDns: String? = null
             private set
+        var pingBatchCallCount: Int = 0
+            private set
         var dnsReset: Boolean = false
             private set
         private var controller: DialerController? = null
@@ -43,6 +45,7 @@ class LibXray private constructor() {
             }
             observedRequest = request
             if (request.contains("\"method\":\"pingBatch\"")) {
+                pingBatchCallCount++
                 val count = Regex("\"outboundTag\":\"proxy\"").findAll(request).count()
                 val items = (1..count).joinToString(",") { "{\"success\":true,\"delay\":" + (20 + it) + "}" }
                 return "{\"success\":true,\"data\":{\"results\":[$items]}}"
@@ -59,6 +62,7 @@ class LibXray private constructor() {
 
         fun resetObservations() {
             observedRequest = null
+            pingBatchCallCount = 0
             observedDns = null
             dnsReset = false
             simulateStoppedAfterStart = false
