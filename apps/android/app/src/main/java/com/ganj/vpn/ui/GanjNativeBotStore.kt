@@ -132,7 +132,8 @@ private fun NativeStoreHeader(title: String, onBack: () -> Unit, busy: Boolean =
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         AccountBackAction({ if (!busy) onBack() })
-        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         Text("GANJ", style = MaterialTheme.typography.labelSmall, color = LocalGanjContentPalette.current.premiumText)
     }
 }
@@ -273,7 +274,8 @@ private fun NativePriceRow(label: String, value: String, prominent: Boolean = fa
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = if (prominent) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodySmall,
-            fontWeight = if (prominent) FontWeight.SemiBold else FontWeight.Normal)
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (prominent) FontWeight.Bold else FontWeight.Normal)
     }
 }
 
@@ -326,28 +328,67 @@ internal fun StitchNativeBotWallet(
     LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-wallet"), contentPadding = PaddingValues(start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(), top = 18.dp,
         bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { NativeStoreHeader("کیف پول و پرداخت", onBack, busy) }
+        item { NativeStoreHeader("کیف پول و افزایش موجودی", onBack, busy) }
+        item { GanjInnerPageHeading(
+            "مدیریت اعتبار",
+            "موجودی و روش‌های پرداخت، متصل به ربات گنج",
+            GanjProfileSymbol.Wallet, GanjSignatureTone.Azure,
+        ) }
         if (loading) item { GanjLoadingState("در حال دریافت روش‌های پرداخت") }
-        balance?.let { value -> item { NativeStorePanel { NativePriceRow("موجودی فعلی", botMoney(value), true) } } }
-        openCard?.let { id -> item { GanjGlassButton("ادامه فاکتور کارت‌به‌کارت", { onPayment(id, false) }, Modifier.fillMaxWidth(), filled = false) } }
-        openCrypto?.let { id -> item { GanjGlassButton("ادامه فاکتور TRX", { onPayment(id, true) }, Modifier.fillMaxWidth(), filled = false) } }
-        item { GanjLiquidTextField(amount, { amount = botStoreAmountDigits(it).take(12) }, "مبلغ افزایش موجودی (تومان)",
-            Modifier.fillMaxWidth().testTag("native-wallet-amount"), enabled = !busy) }
+        balance?.let { value -> item {
+            GanjInnerFinanceHero("موجودی کیف پول", botMoney(value),
+                "موجودی واقعی حساب از سرویس گنج دریافت شده است")
+        } }
+        openCard?.let { id -> item {
+            GanjGlassButton("ادامه فاکتور کارت‌به‌کارت", { onPayment(id, false) },
+                Modifier.fillMaxWidth(), filled = false,
+                accent = ganjSignatureTone(GanjSignatureTone.Azure))
+        } }
+        openCrypto?.let { id -> item {
+            GanjGlassButton("ادامه فاکتور TRX", { onPayment(id, true) },
+                Modifier.fillMaxWidth(), filled = false,
+                accent = ganjSignatureTone(GanjSignatureTone.Iris))
+        } }
+        item {
+            NativeStorePanel {
+                GanjInnerSectionTitle("افزایش موجودی",
+                    "مبلغ را به تومان وارد کن؛ پیش از پرداخت فاکتور نمایش داده می‌شود",
+                    GanjSignatureTone.Azure)
+                GanjLiquidTextField(amount, { amount = botStoreAmountDigits(it).take(12) },
+                    "مبلغ افزایش موجودی (تومان)",
+                    Modifier.fillMaxWidth().testTag("native-wallet-amount"), enabled = !busy)
+            }
+        }
+        if (methods.isNotEmpty()) item {
+            GanjInnerSectionTitle("انتخاب روش پرداخت",
+                "هر روش به همان سیستم صدور فاکتور ربات متصل است",
+                GanjSignatureTone.Iris)
+        }
         items(methods, key = { it.getString("id") }) { method ->
-            GanjGlassButton(method.optString("title"), { selected = method.getString("id") },
-                Modifier.fillMaxWidth().testTag("native-wallet-method-" + method.getString("id")), enabled = !busy,
-                filled = selected == method.getString("id"))
-            val minimum = method.optLong("min"); val maximum = method.optLong("max")
-            if (minimum > 0 || maximum > 0) Text(
-                (if (minimum > 0) "حداقل ${botMoney(minimum)}" else "") +
-                    (if (minimum > 0 && maximum > 0) " · " else "") + (if (maximum > 0) "حداکثر ${botMoney(maximum)}" else ""),
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val methodId = method.getString("id")
+            val tone = if (methodId == "crypto_trx") GanjSignatureTone.Iris
+                else GanjSignatureTone.Azure
+            NativeStorePanel {
+                GanjChoicePill(method.optString("title"),
+                    selected = selected == methodId,
+                    onClick = { selected = methodId },
+                    modifier = Modifier.fillMaxWidth().testTag("native-wallet-method-" + methodId),
+                    enabled = !busy, accent = ganjSignatureTone(tone))
+                val minimum = method.optLong("min")
+                val maximum = method.optLong("max")
+                if (minimum > 0 || maximum > 0) Text(
+                    (if (minimum > 0) "حداقل ${botMoney(minimum)}" else "") +
+                        (if (minimum > 0 && maximum > 0) " · " else "") +
+                        (if (maximum > 0) "حداکثر ${botMoney(maximum)}" else ""),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         if (!loading && methods.isEmpty() && error == null) item {
             Text("در حال حاضر روش پرداختی برای حساب شما فعال نیست.", style = MaterialTheme.typography.bodySmall)
         }
         item {
-            GanjSignatureButton(if (busy) "در حال آماده‌سازی فاکتور…" else "ادامه پرداخت", {
+            GanjGlassButton(if (busy) "در حال آماده‌سازی فاکتور…" else "ادامه و مشاهده فاکتور", {
                 val method = methods.firstOrNull { it.optString("id") == selected }
                 val value = amount.toLongOrNull()
                 when {
@@ -379,7 +420,9 @@ internal fun StitchNativeBotWallet(
                         }
                     }
                 }
-            }, Modifier.fillMaxWidth().testTag("native-wallet-pay"), enabled = !busy && !loading && methods.isNotEmpty())
+            }, Modifier.fillMaxWidth().testTag("native-wallet-pay"),
+                enabled = !busy && !loading && methods.isNotEmpty(),
+                accent = MaterialTheme.colorScheme.primary)
         }
         error?.let { message -> item { NativeStoreError(message, { if (!busy) retry++ }, onAccount) } }
     }
@@ -452,13 +495,23 @@ internal fun StitchNativeBotPayment(
         bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader("پرداخت امن گنج", onBack, busy) }
+        item { GanjInnerPageHeading(
+            "وضعیت فاکتور", "پرداخت و رسید از طریق سیستم رسمی گنج پیگیری می‌شوند",
+            GanjProfileSymbol.Shield, GanjSignatureTone.Emerald,
+        ) }
         item { NativeStorePanel {
-            Text(if (status.isBlank()) "در حال دریافت وضعیت فاکتور" else botFinanceStatusText(status),
-                style = MaterialTheme.typography.titleSmall,
-                color = if (status == "paid") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-            Text("فاکتور ${isolateTechnicalLtr(order)}", style = MaterialTheme.typography.labelSmall)
-            if (status == "unpaid" && hasDeadline) Text("زمان باقی‌مانده: ${(seconds/60).toPersianDigits()}:${(seconds%60).toString().padStart(2,'0').toPersianDigits()}",
-                style = MaterialTheme.typography.bodySmall, color = LocalGanjContentPalette.current.premiumText)
+            GanjSignatureMiniPill(
+                if (status.isBlank()) "در حال بررسی فاکتور" else botFinanceStatusText(status),
+                when(status) {
+                    "paid" -> GanjSignatureTone.Emerald
+                    "rejected", "reject", "expired", "expire" -> GanjSignatureTone.Coral
+                    else -> GanjSignatureTone.Gold
+                })
+            GanjInnerSummaryLine("شناسه فاکتور", isolateTechnicalLtr(order))
+            if (status == "unpaid" && hasDeadline) Text(
+                "زمان باقی‌مانده: ${(seconds/60).toPersianDigits()}:${(seconds%60).toString().padStart(2,'0').toPersianDigits()}",
+                style = MaterialTheme.typography.bodySmall,
+                color = ganjSignatureTone(GanjSignatureTone.Gold))
         } }
         invoice?.let { data ->
             if (status == "unpaid" && (data.optString("card_number").isNotBlank() || data.optString("wallet").isNotBlank())) {
@@ -518,6 +571,7 @@ internal fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Uni
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var retry by remember { mutableIntStateOf(0) }
+    var selectedKind by rememberSaveable { mutableStateOf("all") }
     LaunchedEffect(retry) {
         loading = true; error = null
         try {
@@ -527,27 +581,91 @@ internal fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Uni
         catch (e: Exception) { error = ganjBotStoreError(e) }
         finally { loading = false }
     }
-    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-transactions"), contentPadding = PaddingValues(start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(), top = 18.dp,
-        bottom = GanjFloatingNavContentClearance),
-        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val visibleRows = rows.filter { data ->
+        selectedKind == "all" || data.optString("kind") == selectedKind
+    }
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("native-store-transactions"),
+        contentPadding = PaddingValues(
+            start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(),
+            top = 18.dp, bottom = GanjFloatingNavContentClearance),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader("تراکنش‌های گنج", onBack) }
+        item { GanjInnerPageHeading(
+            "سوابق مالی", "گردش واقعی پرداخت‌ها و کیف پول حساب شما",
+            GanjProfileSymbol.History, GanjSignatureTone.Coral,
+        ) }
         if (loading) item { GanjLoadingState("در حال دریافت سوابق") }
-        if (!loading && rows.isEmpty() && error == null) item { Text("تراکنشی ثبت نشده است.", style = MaterialTheme.typography.bodySmall) }
-        items(rows) { data -> NativeStorePanel {
-            Text(data.optString("Payment_Method"), style = MaterialTheme.typography.titleSmall)
-            NativePriceRow("مبلغ", botMoney(data.getDouble("price").toLong()))
-            Text(if (data.optString("kind") == "wallet") "ثبت‌شده" else botFinanceStatusText(data.optString("payment_Status")), style = MaterialTheme.typography.labelSmall)
-            val timestamp = data.optLong("created_at")
-            if (timestamp > 0) Text(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM,
-                java.text.DateFormat.SHORT, Locale("fa")).format(java.util.Date(timestamp * 1000)).toPersianDigits(),
-                style = MaterialTheme.typography.labelSmall)
-            if (data.optString("description").isNotBlank()) Text(data.optString("description"), style = MaterialTheme.typography.bodySmall)
-            val id = data.optString("id_order")
-            if (data.optString("kind") == "payment" && id.matches(Regex("[A-Za-z0-9_-]{6,64}"))) {
-                GanjGlassButton("مشاهده وضعیت فاکتور", { onPayment(id, data.optString("Payment_Method") == "arze digital offline") },
-                    Modifier.fillMaxWidth(), filled = false)
+        if (!loading && rows.isEmpty() && error == null) item {
+            GanjInlineStatusPanel("هنوز تراکنشی وجود ندارد",
+                "پس از اولین خرید یا افزایش موجودی، سوابق از ربات گنج نمایش داده می‌شوند.",
+                accent = MaterialTheme.colorScheme.primary)
+        }
+        if (rows.isNotEmpty()) {
+            item {
+                GanjInnerSectionTitle("فیلتر تراکنش‌ها", "مرتب‌سازی بر اساس نوع ثبت‌شده در ربات")
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    GanjChoicePill("همه", selectedKind == "all",
+                        { selectedKind = "all" }, Modifier.weight(1f),
+                        accent = MaterialTheme.colorScheme.primary)
+                    GanjChoicePill("پرداخت", selectedKind == "payment",
+                        { selectedKind = "payment" }, Modifier.weight(1f),
+                        accent = ganjSignatureTone(GanjSignatureTone.Coral))
+                    GanjChoicePill("کیف پول", selectedKind == "wallet",
+                        { selectedKind = "wallet" }, Modifier.weight(1f),
+                        accent = ganjSignatureTone(GanjSignatureTone.Azure))
+                }
             }
-        } }
+        }
+        if (!loading && rows.isNotEmpty() && visibleRows.isEmpty()) item {
+            GanjInlineStatusPanel("تراکنشی در این دسته وجود ندارد",
+                "برای مشاهده سایر سوابق، فیلتر همه را انتخاب کن.",
+                accent = ganjSignatureTone(GanjSignatureTone.Azure),
+                actionText = "نمایش همه", onAction = { selectedKind = "all" })
+        }
+        items(visibleRows) { data ->
+            val isWallet = data.optString("kind") == "wallet"
+            val isCrypto = data.optString("Payment_Method") == "arze digital offline"
+            val accent = ganjSignatureTone(
+                if (isWallet) GanjSignatureTone.Azure else GanjSignatureTone.Coral)
+            NativeStorePanel {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    GanjProfileIconTile(
+                        if (isWallet) GanjProfileSymbol.Wallet else GanjProfileSymbol.History,
+                        if (isWallet) GanjProfileAccent.Sky else GanjProfileAccent.Gold)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(data.optString("Payment_Method").ifBlank {
+                            if (isWallet) "تراکنش کیف پول" else "پرداخت"
+                        }, style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold)
+                        Text(if (isWallet) "ثبت‌شده"
+                            else botFinanceStatusText(data.optString("payment_Status")),
+                            style = MaterialTheme.typography.labelSmall, color = accent)
+                    }
+                }
+                GanjInnerSummaryLine("مبلغ تراکنش",
+                    botMoney(data.optDouble("price").toLong()))
+                val timestamp = data.optLong("created_at")
+                if (timestamp > 0) Text(
+                    java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM,
+                        java.text.DateFormat.SHORT, Locale("fa"))
+                        .format(java.util.Date(timestamp * 1000)).toPersianDigits(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (data.optString("description").isNotBlank()) Text(
+                    data.optString("description"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val id = data.optString("id_order")
+                if (data.optString("kind") == "payment" &&
+                    id.matches(Regex("[A-Za-z0-9_-]{6,64}"))) {
+                    GanjGlassButton("مشاهده وضعیت فاکتور", { onPayment(id, isCrypto) },
+                        Modifier.fillMaxWidth(), filled = false,
+                        accent = ganjSignatureTone(GanjSignatureTone.Azure))
+                }
+            }
+        }
         error?.let { message -> item { NativeStoreError(message, { retry++ }, onAccount) } }
     }
 }

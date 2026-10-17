@@ -153,8 +153,12 @@ internal fun GanjGlassSurface(
             .border(1.dp, border.copy(alpha = if (effects.reduceTransparency) 0.46f else 0.72f), shape)
             .padding(padding),
         verticalArrangement = verticalArrangement,
-        content = content,
-    )
+    ) {
+        // Dense translucent account cards retain on-surface ink independent of parent.
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+            content()
+        }
+    }
 }
 
 /** Readable ink on emerald/gold in both themes; all new filled actions share this rule. */

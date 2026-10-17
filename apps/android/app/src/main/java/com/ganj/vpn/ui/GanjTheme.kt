@@ -1,6 +1,7 @@
 package com.ganj.vpn.ui
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -279,7 +280,12 @@ internal fun GanjTheme(
         MaterialTheme(
             colorScheme = if (darkTheme) GanjDarkColors else GanjLightColors,
             typography = GanjTypography,
-            content = content,
-        )
+        ) {
+            // MaterialTheme does not impose a text foreground on non-Surface roots.
+            // Without this, unstyled Text() inherits platform black in dark mode.
+            CompositionLocalProvider(
+                LocalContentColor provides MaterialTheme.colorScheme.onSurface,
+            ) { content() }
+        }
     }
 }
