@@ -137,10 +137,12 @@ internal fun StitchSettingsScreen(
             ContentCard(accent = MaterialTheme.colorScheme.primary) {
                 onOpenAccount?.let { SettingsActionRow(
                     title = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.settings_account_title),
-                    description = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.settings_account_body), onClick = it) }
+                    description = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.settings_account_body),
+                    onClick = it, symbol = GanjProfileSymbol.Account, tone = GanjProfileAccent.Sky) }
                 onOpenHome?.let { SettingsActionRow(
                     title = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.nav_home),
-                    description = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.settings_home_body), onClick = it) }
+                    description = androidx.compose.ui.res.stringResource(com.ganj.vpn.R.string.settings_home_body),
+                    onClick = it, symbol = GanjProfileSymbol.Subscription) }
             }
         }
 
@@ -156,6 +158,7 @@ internal fun StitchSettingsScreen(
                 title = "مرکز اعلان و تنظیمات",
                 description = "اعلان‌های حساب، سرویس، امنیت و انتخاب دسته‌بندی‌ها",
                 onClick = { showNotificationHub = true },
+                symbol = GanjProfileSymbol.History, tone = GanjProfileAccent.Sky,
             )
         }
 
@@ -171,6 +174,7 @@ internal fun StitchSettingsScreen(
                 title = "حریم خصوصی و ایمنی داده",
                 description = "چه داده‌هایی مجازند، چه چیزهایی هرگز جمع‌آوری نمی‌شوند و مسیر گزارش امنیتی",
                 onClick = { showPrivacyCenter = true },
+                symbol = GanjProfileSymbol.Shield, tone = GanjProfileAccent.Emerald,
             )
         }
 
@@ -186,6 +190,7 @@ internal fun StitchSettingsScreen(
                 title = "مرکز پشتیبانی",
                 description = "ثبت درخواست، مشاهده وضعیت و گفت‌وگو با پشتیبانی گنج",
                 onClick = { showSupportHub = true },
+                symbol = GanjProfileSymbol.Support, tone = GanjProfileAccent.Iris,
             )
         }
 
@@ -284,6 +289,7 @@ internal fun StitchSettingsScreen(
                 title = "نمایش دوباره راهنمای شروع",
                 description = "راهنمای شروع رایگان و اولین اتصال دوباره نمایش داده می‌شود.",
                 onClick = onRestartOnboarding,
+                symbol = GanjProfileSymbol.Refresh, tone = GanjProfileAccent.Gold,
             )
             Text(
                 text = "گنج VPN",
@@ -305,7 +311,7 @@ internal fun StitchSettingsEntry(
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.56f))
+            .background(MaterialTheme.colorScheme.surface)
             .border(
                 1.dp,
                 LocalGanjGlassPalette.current.borderSoft.copy(alpha = 0.62f),
@@ -316,25 +322,7 @@ internal fun StitchSettingsEntry(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                .border(
-                    1.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
-                    CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "⚙",
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        GanjProfileIconTile(GanjProfileSymbol.Appearance, GanjProfileAccent.Iris)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "تنظیمات",
@@ -469,6 +457,8 @@ private fun SettingsActionRow(
     title: String,
     description: String,
     onClick: () -> Unit,
+    symbol: GanjProfileSymbol = GanjProfileSymbol.Appearance,
+    tone: GanjProfileAccent = GanjProfileAccent.Emerald,
 ) {
     Row(
         modifier = Modifier
@@ -479,6 +469,8 @@ private fun SettingsActionRow(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        GanjProfileIconTile(symbol, tone)
+        Spacer(Modifier.size(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,

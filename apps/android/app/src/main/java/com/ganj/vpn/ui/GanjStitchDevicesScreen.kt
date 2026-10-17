@@ -59,25 +59,17 @@ internal fun StitchDevicesEntry(
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.56f))
+            .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, LocalGanjGlassPalette.current.borderSoft.copy(alpha = 0.62f), shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 15.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("▣", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        }
+        GanjProfileIconTile(GanjProfileSymbol.Devices, GanjProfileAccent.Iris)
         Column(modifier = Modifier.weight(1f)) {
-            Text("دستگاه‌ها", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("دستگاه‌ها", style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Text(
                 "مدیریت دستگاه‌های متصل به حساب",
                 style = MaterialTheme.typography.bodySmall,

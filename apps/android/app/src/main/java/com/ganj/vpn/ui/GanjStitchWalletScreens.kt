@@ -66,7 +66,8 @@ internal fun StitchWalletEntry(
 ) = WalletNavigationEntry(
     title = "کیف پول",
     description = "موجودی و آخرین تراکنش‌ها",
-    symbol = "﷼",
+    symbol = GanjProfileSymbol.Wallet,
+    accent = GanjProfileAccent.Sky,
     onClick = onClick,
     modifier = modifier,
 )
@@ -78,7 +79,8 @@ internal fun StitchTransactionsEntry(
 ) = WalletNavigationEntry(
     title = "تراکنش‌ها",
     description = "تاریخچه کامل گردش حساب",
-    symbol = "↕",
+    symbol = GanjProfileSymbol.History,
+    accent = GanjProfileAccent.Gold,
     onClick = onClick,
     modifier = modifier,
 )
@@ -87,7 +89,8 @@ internal fun StitchTransactionsEntry(
 private fun WalletNavigationEntry(
     title: String,
     description: String,
-    symbol: String,
+    symbol: GanjProfileSymbol,
+    accent: GanjProfileAccent,
     onClick: () -> Unit,
     modifier: Modifier,
 ) {
@@ -97,25 +100,17 @@ private fun WalletNavigationEntry(
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.56f))
+            .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, LocalGanjGlassPalette.current.borderSoft.copy(alpha = 0.62f), shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 15.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(symbol, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        }
+        GanjProfileIconTile(symbol, accent)
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface)
             Text(
                 description,
                 style = MaterialTheme.typography.bodySmall,
@@ -567,6 +562,7 @@ private fun WalletTransactionRow(
                     transactionTitle(transaction.type),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 transaction.description?.takeIf(String::isNotBlank)?.let {
                     Text(
@@ -614,7 +610,8 @@ private fun WalletHeader(title: String, subtitle: String, onBack: () -> Unit) {
     ) {
         GanjBackPill(onClick = onBack)
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

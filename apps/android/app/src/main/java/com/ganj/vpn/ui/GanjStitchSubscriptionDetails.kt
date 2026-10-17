@@ -43,7 +43,9 @@ internal fun StitchSubscriptionDetailsScreen(
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
+            .padding(start = responsiveHorizontalPadding(),
+                end = responsiveHorizontalPadding(), top = 18.dp,
+                bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(
