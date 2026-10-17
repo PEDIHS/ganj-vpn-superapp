@@ -114,7 +114,7 @@ internal fun StitchDevicesScreen(
                 start = responsiveHorizontalPadding(),
                 end = responsiveHorizontalPadding(),
                 top = 18.dp,
-                bottom = 28.dp,
+                bottom = GanjFloatingNavContentClearance,
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -123,6 +123,13 @@ internal fun StitchDevicesScreen(
                     title = "دستگاه‌های من",
                     subtitle = "دستگاه‌های ثبت‌شده روی حساب گنج",
                     onBack = onBack,
+                )
+            }
+            item {
+                GanjInnerPageHeading(
+                    "نشست‌های امن",
+                    "مشاهده و مدیریت دستگاه‌های مجاز حساب",
+                    GanjProfileSymbol.Devices, GanjSignatureTone.Iris,
                 )
             }
             when (state) {
@@ -231,7 +238,7 @@ private fun StitchDeviceDetailScreen(
             start = responsiveHorizontalPadding(),
             end = responsiveHorizontalPadding(),
             top = 18.dp,
-            bottom = 28.dp,
+            bottom = GanjFloatingNavContentClearance,
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -243,6 +250,13 @@ private fun StitchDeviceDetailScreen(
             )
         }
         item {
+            GanjInnerPageHeading(
+                "امنیت دستگاه",
+                "بررسی نشست ثبت‌شده و آخرین فعالیت",
+                GanjProfileSymbol.Devices, GanjSignatureTone.Iris,
+            )
+        }
+        item {
             GanjGlassSurface(
                 role = GanjGlassRole.Regular,
                 accent = if (device.status == TrustedDeviceStatus.ACTIVE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
@@ -250,12 +264,24 @@ private fun StitchDeviceDetailScreen(
                 shapeRadius = 26.dp,
                 padding = PaddingValues(18.dp),
             ) {
-                DeviceDetailValue("وضعیت", deviceStatusLabel(device))
-                DeviceDetailValue("پلتفرم", device.platform)
-                device.appVersion?.let { DeviceDetailValue("نسخه برنامه", it) }
-                device.osVersion?.let { DeviceDetailValue("نسخه اندروید", it) }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    GanjProfileIconTile(GanjProfileSymbol.Devices, GanjProfileAccent.Iris)
+                    Column(Modifier.weight(1f)) {
+                        Text(safeDeviceLabel(device), style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(deviceStatusLabel(device), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                GanjInnerSectionTitle("مشخصات نشست", "اطلاعات ذخیره‌شده برای این دستگاه")
+                GanjInnerSummaryLine("وضعیت", deviceStatusLabel(device))
+                GanjInnerSummaryLine("پلتفرم", device.platform)
+                device.appVersion?.let { GanjInnerSummaryLine("نسخه برنامه", it) }
+                device.osVersion?.let { GanjInnerSummaryLine("نسخه سیستم‌عامل", it) }
+                GanjInnerSectionTitle("شناسه و فعالیت", "برای پیگیری و بررسی امنیت حساب")
                 DeviceDetailValue("شناسه دستگاه", isolateTechnicalLtr(device.id))
-                DeviceDetailValue(
+                GanjInnerSummaryLine(
                     "آخرین فعالیت",
                     device.lastSeenAt?.let(::formatDeviceDate) ?: "اطلاعاتی ثبت نشده",
                 )
@@ -311,18 +337,13 @@ private fun DeviceRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(if (device.current) "●" else "▣", color = MaterialTheme.colorScheme.primary)
-            }
+            GanjProfileIconTile(
+                GanjProfileSymbol.Devices,
+                if (active) GanjProfileAccent.Emerald else GanjProfileAccent.Iris,
+            )
             Column(modifier = Modifier.weight(1f)) {
-                Text(safeDeviceLabel(device), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(safeDeviceLabel(device), style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text(
                     deviceStatusLabel(device),
                     style = MaterialTheme.typography.bodySmall,
@@ -361,7 +382,8 @@ private fun formatDeviceDate(value: String): String =
 private fun DeviceDetailValue(label: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        Text(value, style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -374,7 +396,8 @@ private fun DevicesHeader(title: String, subtitle: String, onBack: () -> Unit) {
     ) {
         GanjBackPill(onClick = onBack)
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(title, style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -410,7 +433,8 @@ private fun DevicesMessageCard(
         shapeRadius = 22.dp,
         padding = PaddingValues(16.dp),
     ) {
-        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
         Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (action != null && onAction != null) DevicesTextAction(action, onAction)
     }
