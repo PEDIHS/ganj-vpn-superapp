@@ -282,8 +282,12 @@ private fun SupportCenterScreen(
     modifier: Modifier,
 ) {
     Page(modifier.fillMaxSize()) {
-        AppHeader("پشتیبانی", "درخواست‌ها و پاسخ‌های واقعی تیم پشتیبانی", onRefresh)
         AccountBackAction(onBack)
+        GanjInnerPageHeading(
+            "مرکز درخواست‌ها", "پیگیری درخواست‌های ثبت‌شده و پیام‌های پشتیبانی",
+            GanjProfileSymbol.Support, GanjSignatureTone.Iris,
+        )
+        GanjGlassButton("به‌روزرسانی", onRefresh, Modifier.fillMaxWidth(), filled = false)
         GanjLiquidAction(onClick = onNewTicket, modifier = Modifier.fillMaxWidth()) {
             Text("درخواست جدید", modifier = Modifier.align(Alignment.Center), fontWeight = FontWeight.Bold)
         }
@@ -327,8 +331,11 @@ private fun SupportTicketRow(ticket: SupportTicket, onOpenTicket: (String) -> Un
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            GanjProfileIconTile(GanjProfileSymbol.Support, GanjProfileAccent.Iris)
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(ticket.subject, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                Text(ticket.subject, fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall)
                 Text(
                     "${supportCategoryLabel(ticket.category)} · ${supportPriorityLabel(ticket.priority)}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -372,8 +379,11 @@ private fun SupportNewTicketScreen(
             .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        AppHeader("درخواست جدید", "مشکل را بدون اطلاعات محرمانه توضیح دهید", null)
         AccountBackAction(onBack)
+        GanjInnerPageHeading(
+            "ثبت درخواست جدید", "جزئیات مشکل را بدون اطلاعات محرمانه بنویسید",
+            GanjProfileSymbol.Support, GanjSignatureTone.Iris,
+        )
         Text("دسته‌بندی", fontWeight = FontWeight.Bold)
         Row(
             modifier = Modifier
@@ -457,8 +467,13 @@ private fun SupportTicketDetailScreen(
     modifier: Modifier,
 ) {
     Page(modifier.fillMaxSize()) {
-        AppHeader("گفت‌وگوی پشتیبانی", "پیام‌های ثبت‌شده روی همین درخواست", onRefresh)
         AccountBackAction(onBack)
+        GanjInnerPageHeading(
+            "گفت‌وگوی پشتیبانی", "سوابق و پاسخ‌های همین درخواست",
+            GanjProfileSymbol.Support, GanjSignatureTone.Iris,
+        )
+        GanjGlassButton("به‌روزرسانی گفتگو", onRefresh,
+            Modifier.fillMaxWidth(), filled = false)
         when (state) {
             SupportDetailState.Loading -> LoadingCard("در حال دریافت گفت‌وگو")
             is SupportDetailState.Error -> ContentCard(MaterialTheme.colorScheme.error) {

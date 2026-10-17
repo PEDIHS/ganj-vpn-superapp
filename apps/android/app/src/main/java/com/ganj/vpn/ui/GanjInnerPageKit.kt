@@ -103,3 +103,52 @@ internal fun GanjInnerSummaryLine(label: String, value: String, tint: Color? = n
             textAlign = TextAlign.End)
     }
 }
+
+/** A balanced editorial section: emerald and gold surfaces, feature-only accent. */
+@Composable
+internal fun GanjInnerFeatureSection(
+    title: String,
+    subtitle: String,
+    symbol: GanjProfileSymbol,
+    accent: GanjProfileAccent = GanjProfileAccent.Emerald,
+    modifier: Modifier = Modifier,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    GanjGlassSurface(
+        role = GanjGlassRole.Dense,
+        accent = profileAccent(accent),
+        shapeRadius = 20.dp,
+        modifier = modifier.fillMaxWidth(),
+        padding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            GanjProfileIconTile(symbol, accent)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        content()
+    }
+}
+
+@Composable
+internal fun GanjInnerMetadataPill(
+    text: String,
+    accent: GanjProfileAccent = GanjProfileAccent.Emerald,
+) {
+    val tint = profileAccent(accent)
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        Modifier.clip(shape).background(tint.copy(alpha = .12f))
+            .border(1.dp,tint.copy(alpha = .35f),shape)
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Text(text, style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface)
+    }
+}

@@ -51,12 +51,14 @@ internal fun StitchNotificationsScreen(
     modifier: Modifier = Modifier,
 ) {
     Page(modifier = modifier.fillMaxSize()) {
-        AppHeader(
-            title = "اعلان‌ها",
-            subtitle = "رویدادهای حساب، سرویس و امنیت گنج",
-            onRefresh = onRefresh,
-        )
         AccountBackAction(onBack)
+        GanjInnerPageHeading(
+            "مرکز اعلان‌ها",
+            "رویدادهای حساب، سرویس و امنیت گنج",
+            GanjProfileSymbol.History, GanjSignatureTone.Azure,
+        )
+        GanjGlassButton("به‌روزرسانی اعلان‌ها", onRefresh,
+            modifier = Modifier.fillMaxWidth(), filled = false)
 
         when (state) {
             NotificationUiState.Loading -> LoadingCard("در حال دریافت اعلان‌ها")
@@ -179,9 +181,25 @@ private fun NotificationCard(item: UserNotification, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            GanjProfileIconTile(
+                when (tone) {
+                    GanjStatusTone.Danger -> GanjProfileSymbol.Shield
+                    GanjStatusTone.Premium -> GanjProfileSymbol.Subscription
+                    GanjStatusTone.Warning -> GanjProfileSymbol.Diagnostics
+                    else -> GanjProfileSymbol.History
+                },
+                when (tone) {
+                    GanjStatusTone.Premium, GanjStatusTone.Warning -> GanjProfileAccent.Gold
+                    GanjStatusTone.Danger -> GanjProfileAccent.Iris
+                    else -> GanjProfileAccent.Sky
+                },
+            )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(item.title, fontWeight = if (item.read) FontWeight.SemiBold else FontWeight.Bold)
-                Text(item.body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(item.title, style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (item.read) FontWeight.SemiBold else FontWeight.Bold)
+                Text(item.body, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             GanjStatusPill(
                 text = if (item.read) "خوانده‌شده" else "جدید",
@@ -228,8 +246,10 @@ internal fun StitchNotificationPreferencesScreen(
 ) {
     var showPermissionPrePrompt by remember { mutableStateOf(false) }
     Page(modifier = modifier.fillMaxSize()) {
-        AppHeader("تنظیمات اعلان", "کنترل اعلان‌های ضروری و اختیاری", onRefresh)
         AccountBackAction(onBack)
+        GanjInnerPageHeading("تنظیمات اعلان", "کنترل اعلان‌های ضروری و اختیاری",
+            GanjProfileSymbol.Appearance, GanjSignatureTone.Azure)
+        GanjGlassButton("بازخوانی تنظیمات", onRefresh, Modifier.fillMaxWidth(), filled = false)
 
         ContentCard(MaterialTheme.colorScheme.primary) {
             Text("اجازه اعلان Android", fontWeight = FontWeight.Bold)

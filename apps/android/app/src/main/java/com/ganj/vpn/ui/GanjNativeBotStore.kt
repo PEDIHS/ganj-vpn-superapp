@@ -193,9 +193,16 @@ internal fun StitchNativeBotCheckout(
         contentPadding = PaddingValues(start = responsiveHorizontalPadding(), end = responsiveHorizontalPadding(), top = 18.dp,
         bottom = GanjFloatingNavContentClearance), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { NativeStoreHeader(if (completedInvoice == null) "بررسی و تأیید خرید" else "خرید ثبت شد", onBack, busy) }
+        item { GanjInnerPageHeading(
+            if (completedInvoice == null) "جزئیات خرید" else "سفارش شما",
+            "خرید امن با موجودی واقعی کیف پول گنج",
+            GanjProfileSymbol.Subscription, GanjSignatureTone.Gold,
+        ) }
         if (loading) item { GanjLoadingState("در حال بررسی سرویس و موجودی") }
         product?.let { plan -> item {
             NativeStorePanel {
+                GanjInnerSectionTitle("سرویس انتخابی",
+                    "مشخصات دقیق سرویس از ربات گنج دریافت شده‌اند")
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     GanjNativePlanArt(plan, Modifier.size(64.dp))
                     Column(Modifier.weight(1f)) {
@@ -220,6 +227,9 @@ internal fun StitchNativeBotCheckout(
         } else {
             quote?.let { q -> item {
                 NativeStorePanel(Modifier.testTag("native-purchase-quote")) {
+                    GanjInnerSectionTitle("خلاصه پرداخت",
+                        "مبلغ قطعی با قیمت‌های فعلی ربات محاسبه شده است",
+                        GanjSignatureTone.Gold)
                     NativePriceRow("مبلغ نهایی", botMoney(q.price), true)
                     if (q.saved > 0) NativePriceRow("تخفیف", botMoney(q.saved))
                     NativePriceRow("موجودی کیف پول", botMoney(q.balance))
@@ -227,16 +237,28 @@ internal fun StitchNativeBotCheckout(
                 }
             } }
             item {
-                GanjLiquidTextField(discount, { discount = it.take(100); quote = null }, "کد تخفیف",
-                    Modifier.fillMaxWidth().testTag("native-purchase-discount"), enabled = !busy && !attempted)
-                GanjGlassButton("بررسی قیمت", { if (!busy) retry++ }, Modifier.fillMaxWidth(),
-                    enabled = !busy && !loading && !attempted, filled = false)
+                GanjInnerFeatureSection("کد تخفیف", "تخفیف معتبر را پیش از خرید بررسی کنید",
+                    GanjProfileSymbol.Subscription, GanjProfileAccent.Gold) {
+                    GanjLiquidTextField(discount, { discount = it.take(100); quote = null },
+                        "کد تخفیف", Modifier.fillMaxWidth().testTag("native-purchase-discount"),
+                        enabled = !busy && !attempted)
+                    GanjGlassButton("بررسی قیمت", { if (!busy) retry++ }, Modifier.fillMaxWidth(),
+                        enabled = !busy && !loading && !attempted, filled = false)
+                }
             }
             item {
-                GanjGlassButton("تنظیمات اختیاری", { optional = !optional }, Modifier.fillMaxWidth(), enabled = !busy && !attempted, filled = false)
-                if (optional) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GanjLiquidTextField(username, { username = it.take(64) }, "نام کاربری دلخواه", Modifier.fillMaxWidth(), enabled = !busy && !attempted)
-                    GanjLiquidTextField(note, { note = it.take(250) }, "یادداشت سرویس", Modifier.fillMaxWidth(), enabled = !busy && !attempted)
+                GanjInnerFeatureSection("شخصی‌سازی سرویس",
+                    "این موارد اختیاری‌اند و در قیمت‌گذاری دخالت ندارند",
+                    GanjProfileSymbol.Appearance, GanjProfileAccent.Iris) {
+                    GanjGlassButton(if (optional) "بستن گزینه‌های اختیاری" else "نمایش گزینه‌های اختیاری",
+                        { optional = !optional }, Modifier.fillMaxWidth(), enabled = !busy && !attempted,
+                        filled = false, accent = ganjSignatureTone(GanjSignatureTone.Iris))
+                    if (optional) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GanjLiquidTextField(username, { username = it.take(64) },
+                            "نام کاربری دلخواه", Modifier.fillMaxWidth(), enabled = !busy && !attempted)
+                        GanjLiquidTextField(note, { note = it.take(250) },
+                            "یادداشت سرویس", Modifier.fillMaxWidth(), enabled = !busy && !attempted)
+                    }
                 }
             }
             if (quote?.enough == false) item {
@@ -260,8 +282,10 @@ internal fun StitchNativeBotCheckout(
                         }
                     }
                 }, Modifier.fillMaxWidth().testTag("native-purchase-confirm"), enabled = !busy && !loading && quote?.enough == true)
-                Text("مبلغ و دسترسی سرویس فقط پس از اعتبارسنجی سرور ثبت می‌شود.", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                GanjInnerMetadataPill(
+                    "ثبت خرید فقط پس از اعتبارسنجی سرور",
+                    GanjProfileAccent.Emerald,
+                )
             }
         }
         error?.let { message -> item { NativeStoreError(message, { if (!busy) retry++ }, onAccount) } }
@@ -531,10 +555,13 @@ internal fun StitchNativeBotPayment(
                     }
                 } }
                 item {
-                    NativeStorePanel {
-                        Text("ارسال رسید پرداخت", style = MaterialTheme.typography.titleSmall)
-                        Text("JPG، PNG، WebP یا PDF تا ۸ مگابایت", style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    GanjInnerFeatureSection(
+                        "ارسال رسید پرداخت",
+                        "تصویر رسید یا فایل PDF را برای بررسی ربات ارسال کنید",
+                        GanjProfileSymbol.Wallet, GanjProfileAccent.Sky,
+                    ) {
+                        GanjInnerMetadataPill("JPG، PNG، WebP یا PDF تا ۸ مگابایت",
+                            GanjProfileAccent.Sky)
                         if (crypto) GanjLiquidTextField(txLink, { txLink = it.take(500) }, "لینک تراکنش TRX (اختیاری)", Modifier.fillMaxWidth(), enabled = !busy)
                         GanjGlassButton(if (receipt == null) "انتخاب فایل رسید" else "رسید انتخاب شد؛ تغییر فایل", {
                             picker.launch(arrayOf("image/jpeg", "image/png", "image/webp", "application/pdf"))

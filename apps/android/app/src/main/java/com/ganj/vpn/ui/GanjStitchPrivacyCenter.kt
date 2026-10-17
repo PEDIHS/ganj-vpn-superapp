@@ -55,15 +55,17 @@ internal fun StitchPrivacyCenter(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = responsiveHorizontalPadding(), vertical = 18.dp),
+            .padding(start = responsiveHorizontalPadding(),
+                end = responsiveHorizontalPadding(), top = 18.dp,
+                bottom = GanjFloatingNavContentClearance),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        AppHeader(
-            title = "حریم خصوصی و ایمنی داده",
-            subtitle = "خلاصه‌ی داخل اپ از قرارداد Privacy/Observability گنج",
-            onRefresh = null,
-        )
         AccountBackAction(onBack)
+        GanjInnerPageHeading(
+            "حریم خصوصی و ایمنی",
+            "مرکز شفافیت و مدیریت داده‌ها در گنج",
+            GanjProfileSymbol.Shield, GanjSignatureTone.Emerald,
+        )
 
         GanjGlassSurface(
             role = GanjGlassRole.Prominent,
@@ -90,25 +92,15 @@ internal fun StitchPrivacyCenter(
             title = "خلاصه Data Safety",
             supporting = "موارد زیر مستقیماً از قرارداد داخلی حریم خصوصی پروژه گرفته شده‌اند.",
         )
-        canonicalPrivacySafetyFacts.forEach { fact ->
-            GanjGlassSurface(
-                role = GanjGlassRole.Regular,
-                accent = if (fact.positive) MaterialTheme.colorScheme.primary else GanjWarning,
-                modifier = Modifier.fillMaxWidth(),
-                shapeRadius = 21.dp,
-                padding = PaddingValues(15.dp),
+        canonicalPrivacySafetyFacts.forEachIndexed { index, fact ->
+            GanjInnerFeatureSection(
+                title = fact.title,
+                subtitle = if (index < 3) "حفاظت پیش‌فرض از داده‌ها" else "کنترل و رضایت کاربر",
+                symbol = if (index == 4) GanjProfileSymbol.Diagnostics else GanjProfileSymbol.Shield,
+                accent = if (fact.positive) GanjProfileAccent.Emerald else GanjProfileAccent.Gold,
             ) {
-                Text(
-                    text = fact.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = fact.body,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text(fact.body, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 

@@ -102,18 +102,30 @@ internal fun GanjFamilyScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         AccountBackAction(onBack)
-        GanjSectionHeader(
-            "مدیریت اشتراک مشترک",
-            "اعضای خانواده با تلگرام خودشان وارد می‌شوند؛ کیف پول و حساب هر نفر مستقل می‌ماند.",
+        GanjInnerPageHeading(
+            "اشتراک خانوادگی",
+            "دعوت، مدیریت اعضا و ظرفیت دستگاه‌های مشترک",
+            GanjProfileSymbol.Family, GanjSignatureTone.Gold,
         )
+        GanjInnerFeatureSection(
+            "حریم خصوصی اعضا",
+            "حساب و کیف پول هر نفر مستقل باقی می‌ماند",
+            GanjProfileSymbol.Shield, GanjProfileAccent.Emerald,
+        ) {
+            Text("هر عضو با تلگرام خودش وارد می‌شود؛ فقط دسترسی به سرویس مشترک است.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall)
+        }
         if (services.isEmpty()) {
             GanjGlassSurface(GanjGlassRole.Regular, accent = gold, shapeRadius = 14.dp) {
                 Text("هنوز اشتراکی برای مدیریت وجود ندارد.", style = MaterialTheme.typography.titleMedium)
                 Text("بعد از فعال شدن اشتراک یا قبول دعوت، اعضا و دستگاه‌ها اینجا نمایش داده می‌شوند.")
             }
         } else {
-            GanjGlassSurface(GanjGlassRole.Regular, accent = gold, shapeRadius = 14.dp) {
-                Text("انتخاب اشتراک", style = MaterialTheme.typography.titleMedium)
+            GanjInnerFeatureSection(
+                "اشتراک انتخاب‌شده", "انتخاب سرویس برای مدیریت اعضا و دعوت‌ها",
+                GanjProfileSymbol.Subscription, GanjProfileAccent.Gold,
+            ) {
                 services.forEach { service ->
                     GanjChoicePill(
                         service.username ?: service.displayName,
@@ -137,13 +149,13 @@ internal fun GanjFamilyScreen(
             val usage = if (data.deviceLimit > 0) {
                 (data.slotsUsed.toFloat() / data.deviceLimit).coerceIn(0f, 1f)
             } else 0f
-            GanjGlassSurface(GanjGlassRole.Prominent, accent = gold, shapeRadius = 14.dp) {
-                Text("اشتراک فعال", style = MaterialTheme.typography.labelMedium, color = gold)
-                Text(data.serviceName.orEmpty(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(
-                    data.slotsUsed.toPersianDigits() + " از " + data.deviceLimit.toPersianDigits() + " جایگاه استفاده شده",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            GanjGlassSurface(GanjGlassRole.Prominent, accent = gold, shapeRadius = 20.dp) {
+                GanjInnerMetadataPill("اشتراک فعال", GanjProfileAccent.Gold)
+                Text(data.serviceName.orEmpty(), style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                GanjInnerSummaryLine("ظرفیت استفاده‌شده",
+                    data.slotsUsed.toPersianDigits() + " از " +
+                    data.deviceLimit.toPersianDigits() + " دستگاه")
                 LinearProgressIndicator(
                     progress = { usage },
                     modifier = Modifier.fillMaxWidth().height(5.dp),
@@ -168,8 +180,10 @@ internal fun GanjFamilyScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            GanjGlassSurface(GanjGlassRole.Regular, accent = emerald, shapeRadius = 14.dp) {
-                Text("افراد دارای دسترسی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            GanjInnerFeatureSection(
+                "اعضای اشتراک", "مدیریت دسترسی حساب‌های متصل",
+                GanjProfileSymbol.Family, GanjProfileAccent.Emerald,
+            ) {
                 if (data.members.isEmpty()) Text("هنوز عضو دیگری به اشتراک اضافه نشده است.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 data.members.forEach { member ->
@@ -189,8 +203,10 @@ internal fun GanjFamilyScreen(
                     }
                 }
             }
-            GanjGlassSurface(GanjGlassRole.Regular, accent = emerald, shapeRadius = 14.dp) {
-                Text("دستگاه‌های متصل", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            GanjInnerFeatureSection(
+                "دستگاه‌های متصل", "دستگاه‌های استفاده‌کننده از اشتراک",
+                GanjProfileSymbol.Devices, GanjProfileAccent.Iris,
+            ) {
                 if (data.devices.isEmpty()) Text("هیچ دستگاهی به این اشتراک اختصاص نیافته است.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 data.devices.forEach { device ->
@@ -208,8 +224,10 @@ internal fun GanjFamilyScreen(
                 }
             }
             if (data.owner && data.invites.isNotEmpty()) {
-                GanjGlassSurface(GanjGlassRole.Regular, accent = gold, shapeRadius = 14.dp) {
-                    Text("دعوت‌های استفاده‌نشده", style = MaterialTheme.typography.titleMedium)
+                GanjInnerFeatureSection(
+                    "دعوت‌های استفاده‌نشده", "دعوت‌های فعال را اینجا لغو کنید",
+                    GanjProfileSymbol.History, GanjProfileAccent.Gold,
+                ) {
                     data.invites.forEach { invite ->
                         GanjGlassButton(
                             "لغو دعوت · " + invite.expiresAt.take(10),
@@ -259,7 +277,11 @@ internal fun GanjFamilyInvitation(
     }
     Dialog(onDismissRequest={if(!busy)onDismiss()}) {
         GanjGlassSurface(role=GanjGlassRole.Dense,accent=gold,modifier=Modifier.fillMaxWidth().heightIn(max=600.dp).verticalScroll(rememberScrollState()),shapeRadius=18.dp,padding=PaddingValues(20.dp)) {
-            Text("دعوت خصوصی به اشتراک",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+            GanjInnerPageHeading(
+                "دعوت خصوصی به اشتراک",
+                "اشتراک‌گذاری امن با حساب تلگرام مستقل",
+                GanjProfileSymbol.Family, GanjSignatureTone.Gold,
+            )
             Text("مالک اشتراک، دسترسی استفاده از سرویس را با شما به اشتراک می‌گذارد؛ مالک حساب و کیف پول شما نمی‌شود.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             if(!linked) {
                 Text("برای دیدن و پذیرش دعوت، با حساب تلگرام خود وارد شوید.")
