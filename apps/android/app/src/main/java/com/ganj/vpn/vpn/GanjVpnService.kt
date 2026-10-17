@@ -20,7 +20,6 @@ import com.ganj.vpn.presentation.ActiveTunnelProbe
 import com.ganj.vpn.presentation.LatencyProbeResult
 import com.ganj.vpn.presentation.latencyMillis
 import com.ganj.vpn.presentation.ConnectionFailures
-import com.ganj.vpn.presentation.TcpLatencySampler
 import com.ganj.vpn.core.xray.NativeProbeResult
 import com.ganj.vpn.core.xray.ProxyProbeFallback
 import com.ganj.vpn.core.xray.NativeFailureClassifier
@@ -40,15 +39,10 @@ import com.ganj.vpn.core.xray.TunnelPlatform
 import com.ganj.vpn.core.xray.VpnRuntimeException
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
-import java.net.Inet4Address
-import java.net.Inet6Address
 import java.net.Socket
 import java.net.URL
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -330,61 +324,71 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         return if (server is java.net.Inet6Address) "[$host]:53" else "$host:53"
     }
 
-    /**
-     * The server-list metric is the median *idle TCP handshake RTT* from this Android
-     * device to the selected VPN endpoint, on the underlying non-VPN network.
-     * Unlike a proxied HTTP delay, this excludes remote website, DNS, TLS and core
-     * boot time. It does NOT claim to measure throughput or post-connect tunnel quality.
-     * Active tunnel quality is measured separately in probeEstablishedTunnel().
-     */
     private fun probeProfile(profile: ProvisionedProfile): NativeProbeResult {
         return try {
-            if (engine.hasTunnel()) return NativeProbeResult.Failed("probe.active_tunnel_busy")
+            // v26.7.28 temporary native cores can overwrite process-wide Xray
+            // dialer/DNS while the managed VPN is running. Never overlap them.
+            if (engine.hasTunnel()) {
+                return NativeProbeResult.Failed("probe.active_tunnel_busy")
+            }
             if (profile.isExpired(System.currentTimeMillis())) return NativeProbeResult.Failed("vpn.profile_expired")
-            // The native integration fixture must still exercise a true VLESS proxy
-            // handshake and encrypted response, not merely an open TCP listener.
-            if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
-                val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
-                val installed = native.installSocketProtector(
-                    SocketProtector { fd -> fd >= 0 && (!engine.hasTunnel() || protect(fd)) },
-                )
-                return if (!installed.success)
-                    NativeProbeResult.Failed(installed.errorCode ?: "xray.socket_protection_unavailable")
-                else XrayConfigCompiler().compileProbe(profile).use { config ->
+            val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
+            // Do not create a native test core while the managed VPN is active.
+            // The native lifecycle lock and the explicit guard above protect Go globals.
+            val installed = if (engine.hasTunnel()) com.ganj.vpn.core.xray.NativeCallResult(true)
+            else native.installSocketProtector(SocketProtector { fd -> fd >= 0 && (!engine.hasTunnel() || protect(fd)) })
+            if (!installed.success) NativeProbeResult.Failed(installed.errorCode ?: "xray.socket_protection_unavailable")
+            else XrayConfigCompiler().compileProbe(profile).use { config ->
+                if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) {
                     native.probeDetailed(config, noBackupFilesDir, listOf(NATIVE_FIXTURE_PROBE_URL))
+                } else native.probeDetailed(config, noBackupFilesDir)
+            }
+        } finally { profile.close() }
+    }
+
+    /**
+     * This is intentionally called under nativeLifecycleLock: the live TUN must
+     * never be stopped or reconfigured while the local native batch is running.
+     */
+    private fun probeProfiles(profiles: List<ProvisionedProfile>): List<NativeProbeResult> {
+        val failures = MutableList<NativeProbeResult>(profiles.size) {
+            NativeProbeResult.Failed("probe.unavailable")
+        }
+        try {
+            if (engine.hasTunnel()) {
+                return failures.map { NativeProbeResult.Failed("probe.active_tunnel_busy") }
+            }
+            val native = ReflectiveLibXrayBridge(applicationContext.classLoader, protectedDnsServer = ::protectedDnsServer)
+            val installed = if (engine.hasTunnel()) com.ganj.vpn.core.xray.NativeCallResult(true)
+                else native.installSocketProtector(SocketProtector { fd -> fd >= 0 && (!engine.hasTunnel() || protect(fd)) })
+            if (!installed.success) {
+                return failures.map { NativeProbeResult.Failed(installed.errorCode ?: "xray.socket_protection_unavailable") }
+            }
+            val compiled = mutableListOf<Pair<Int, com.ganj.vpn.core.xray.SensitiveXrayConfig>>()
+            profiles.forEachIndexed { index, profile ->
+                if (profile.isExpired(System.currentTimeMillis())) {
+                    failures[index] = NativeProbeResult.Failed("vpn.profile_expired")
+                } else {
+                    try {
+                        compiled += index to XrayConfigCompiler().compileProbe(profile)
+                    } catch (error: Exception) {
+                        failures[index] = NativeProbeResult.Failed(NativeFailureClassifier.probe(error))
+                    }
                 }
             }
-            val networks = listOfNotNull(connectivityManager.activeNetwork) +
-                underlyingNetworks.toList() + connectivityManager.allNetworks.toList()
-            val physical = networks.distinct().firstOrNull { network ->
-                val capabilities = connectivityManager.getNetworkCapabilities(network)
-                capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN) == true &&
-                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            } ?: return NativeProbeResult.Failed("probe.network_unreachable")
-            // DNS is performed once, outside the RTT timer, using the same physical network.
-            // Trying at most two addresses handles broken IPv6 without scanning endpoints.
-            val resolved = physical.getAllByName(profile.endpoint).distinct()
-            val first = resolved.firstOrNull()
-            val alternateFamily = if (first is Inet4Address)
-                resolved.firstOrNull { it is Inet6Address }
-            else resolved.firstOrNull { it is Inet4Address }
-            val addresses = listOfNotNull(first, alternateFamily).distinct()
-            for (address in addresses) {
-                val ping = TcpLatencySampler {
-                    try {
-                        physical.socketFactory.createSocket().use { socket ->
-                            val begin = SystemClock.elapsedRealtimeNanos()
-                            socket.connect(InetSocketAddress(address, profile.port), SERVER_RTT_TIMEOUT_MS)
-                            ((SystemClock.elapsedRealtimeNanos() - begin + 999_999L) / 1_000_000L).coerceAtLeast(1L)
-                        }
-                    } catch (_: Exception) { null }
-                }.measure()
-                if (ping != null) return NativeProbeResult.Measured(ping)
+            if (compiled.isEmpty()) return failures
+            val measured = native.probeBatchDetailed(
+                compiled.map { it.second }, noBackupFilesDir,
+                if (com.ganj.vpn.BuildConfig.NATIVE_FIXTURE_DIAGNOSTICS) listOf(NATIVE_FIXTURE_PROBE_URL)
+                else ProxyProbeFallback.targets,
+            )
+            compiled.forEachIndexed { position, (index, _) ->
+                failures[index] = measured.getOrElse(position) { NativeProbeResult.Failed("probe.native_failed") }
             }
-            NativeProbeResult.Failed("probe.network_unreachable")
-        } catch (error: Exception) {
-            NativeProbeResult.Failed(NativeFailureClassifier.probe(error))
-        } finally { profile.close() }
+            return failures
+        } finally {
+            profiles.forEach { it.close() }
+        }
     }
 
     private fun NativeProbeResult.asLatencyResult(): LatencyProbeResult = when (this) {
@@ -445,14 +449,17 @@ class GanjVpnService : VpnService(), TunnelPlatform {
         suspend fun probe(profile: ProvisionedProfile): Long? = probeDetailed(profile).latencyMillis
 
         suspend fun probeDetailed(profile: ProvisionedProfile): LatencyProbeResult = withContext(Dispatchers.IO) {
-            probeProfile(profile).asLatencyResult()
+            synchronized(nativeLifecycleLock) {
+                if (engine.hasTunnel() && engine.currentState().phase != ConnectionPhase.CONNECTED) {
+                    profile.close()
+                    LatencyProbeResult.Failed(ConnectionFailures.probe("probe.active_tunnel_busy"))
+                } else probeProfile(profile).asLatencyResult()
+            }
         }
 
         suspend fun probeDetailedBatch(profiles: List<ProvisionedProfile>): List<LatencyProbeResult> =
             withContext(Dispatchers.IO) {
-                coroutineScope {
-                    profiles.map { profile -> async { probeProfile(profile).asLatencyResult() } }.awaitAll()
-                }
+                synchronized(nativeLifecycleLock) { probeProfiles(profiles).map { it.asLatencyResult() } }
             }
 
         suspend fun probeActive(serviceId: String, serverId: String): ActiveTunnelProbe =
@@ -580,7 +587,6 @@ class GanjVpnService : VpnService(), TunnelPlatform {
     }
 
     companion object {
-        private const val SERVER_RTT_TIMEOUT_MS = 1_300
         const val ACTION_LOCAL_BIND = "com.ganj.vpn.action.BIND_LOCAL_TUNNEL"
         const val ACTION_PREPARE = "com.ganj.vpn.action.PREPARE_TUNNEL"
         const val ACTION_DISCONNECT = "com.ganj.vpn.action.DISCONNECT"
