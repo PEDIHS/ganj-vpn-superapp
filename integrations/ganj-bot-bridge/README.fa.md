@@ -89,9 +89,13 @@ Validation: `php -l service-metadata.php`, `php -l service-metadata-core.php`, `
 یا تماس HTTP با پنل VPN از این endpoint انجام نمی‌شود.
 
 برای فعال‌سازی در آینده، پس از QA و **با تأیید انتشار**، تابع را در بوت‌استرپ
-امن `site/api.php` بارگذاری کنید و این route را پیش از fallback 404 قرار دهید:
+امن `site/api.php` بارگذاری کنید و این route را پیش از fallback 404 قرار دهید (مسیر را متناسب با
+محل واقعی نصب افزونه تنظیم کنید). اگر API یک allowlist
+`$botGateExempt` دارد، `app_snapshot` را فقط با احراز هویت
+`webRequireUser` به فهرست عملیات مجاز آن اضافه کنید:
 
 ```php
+require_once __DIR__.'/../.ganj-app-bridge/app-account-snapshot.php';
 if ($action === 'app_snapshot') {
     $u = webRequireUser($pdo);
     header('Cache-Control: private, no-store');

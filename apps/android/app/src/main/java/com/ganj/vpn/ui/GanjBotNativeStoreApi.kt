@@ -22,7 +22,7 @@ internal interface GanjBotStoreApi {
     suspend fun uploadReceipt(context: Context, uri: Uri, order: String, crypto: Boolean = false, txLink: String = ""): JSONObject
 }
 
-internal class GanjBotStoreException(message: String) : Exception(message)
+internal class GanjBotStoreException(message: String, val httpStatus: Int? = null) : Exception(message)
 
 internal class GanjBotNativeStoreApi(
     private val authorization: () -> String?,
@@ -32,10 +32,12 @@ internal class GanjBotNativeStoreApi(
     private var authenticated = false
     private var csrf: String? = null
     private val accountReadCache = GanjBotAccountReadCache()
+    @Volatile private var snapshotEndpointAbsent = false
 
     /** Re-scope all cached customer reads whenever Telegram identity changes. */
     suspend fun switchAccount(accountId: String?) = sessionLock.withLock {
         accountReadCache.switchIdentity(accountId)
+        snapshotEndpointAbsent = false
         authenticated = false
         csrf = null
     }
@@ -43,6 +45,7 @@ internal class GanjBotNativeStoreApi(
     /** Clear in-memory customer snapshots and the private bot SSO session on logout. */
     suspend fun invalidateSession() = sessionLock.withLock {
         accountReadCache.invalidate()
+        snapshotEndpointAbsent = false
         authenticated = false
         csrf = null
     }
@@ -126,7 +129,7 @@ internal class GanjBotNativeStoreApi(
         val envelope = JSONObject(text)
         if (status !in 200..299 || !envelope.optBoolean("status")) {
             throw GanjBotStoreException(envelope.optString("message").take(500)
-                .ifBlank { "درخواست انجام نشد. دوباره تلاش کنید." })
+                .ifBlank { "درخواست انجام نشد. دوباره تلاش کنید." }, httpStatus = status)
         }
         return envelope
     }
@@ -139,6 +142,11 @@ internal class GanjBotNativeStoreApi(
     }
     override suspend fun request(action: String, parameters: Map<String, String>): JSONObject {
         require(action in reads || action in writes)
+        // Old bot installations have no snapshot route. Discover only once
+        // per authenticated account, then fall back to the existing wallet API.
+        if (action == "app_snapshot" && snapshotEndpointAbsent) {
+            throw GanjBotStoreException("Customer snapshot is not installed", httpStatus = 404)
+        }
         val publicAction = action in setOf("products", "product", "support")
         if (!publicAction || isLinked()) session(required = true)
         val post = action in writes
@@ -163,6 +171,9 @@ internal class GanjBotNativeStoreApi(
                 accountReadCache.read(action, parameters, ttl, load)
             } else load()
             return JSONObject(text)
+        } catch (failure: GanjBotStoreException) {
+            if (action == "app_snapshot" && failure.httpStatus == 404) snapshotEndpointAbsent = true
+            throw failure
         } finally {
             if (post) accountReadCache.invalidate()
         }

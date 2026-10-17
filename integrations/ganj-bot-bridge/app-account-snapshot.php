@@ -84,7 +84,7 @@ function ganjAppAccountSnapshot(PDO $pdo,array $owner):array {
            FROM invoice i
            LEFT JOIN ganj_web_service_cache c
              ON c.user_id=i.id_user AND c.invoice_id=i.id_invoice
-          WHERE i.id_user=? AND i.name_product<>'سرویس تست'
+          WHERE i.id_user=? AND i.name_product<>'سرویس تست' AND COALESCE(i.hidden_from_user,0)=0
           ORDER BY CAST(i.time_sell AS UNSIGNED) DESC LIMIT 40"
     );
     $stmt->execute([$id]);
