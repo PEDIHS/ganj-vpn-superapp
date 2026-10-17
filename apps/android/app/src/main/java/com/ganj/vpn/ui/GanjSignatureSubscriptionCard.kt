@@ -27,20 +27,18 @@ internal fun GanjSignatureSubscriptionCard(
     onOpen: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    val cyan = ganjSignatureTone(GanjSignatureTone.Aqua)
+    val cyan = ganjSignatureTone(GanjSignatureTone.Emerald)
     val coral = ganjSignatureTone(GanjSignatureTone.Coral)
     val iris = ganjSignatureTone(GanjSignatureTone.Iris)
     val dark = referenceDark()
     val shape = RoundedCornerShape(19.dp)
     Column(
         Modifier.fillMaxWidth().clip(shape)
-            .background(
-                Brush.linearGradient(
-                    if (dark) listOf(Color(0xFF183D3D), Color(0xFF202B41), Color(0xFF31263C))
-                    else listOf(Color(0xFFDDF9F4), Color(0xFFE5EEFF), Color(0xFFF4E8FF)),
-                ),
-            )
-            .border(1.dp, cyan.copy(alpha = .62f), shape)
+            .background(Brush.linearGradient(
+                if (dark) listOf(Color(0xFF1A2F26), Color(0xFF1B2722), Color(0xFF242D24))
+                else listOf(Color(0xFFF3F9F4), Color(0xFFFFFFFF), Color(0xFFF4F7F0)),
+            ))
+            .border(1.dp, colors.primary.copy(alpha = .42f), shape)
             .padding(17.dp).testTag("profile-subscription-signature"),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
