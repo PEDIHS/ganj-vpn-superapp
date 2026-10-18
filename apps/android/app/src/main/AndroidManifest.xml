@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".GanjApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
@@ -43,6 +44,14 @@
                 <data android:scheme="https" android:host="bot.pedramhs.ir" android:path="/app/join" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".notifications.GanjFirebaseMessageService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <service
             android:name=".vpn.GanjVpnService"

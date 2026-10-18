@@ -1,9 +1,11 @@
 import { ApiError, requireUuid, success } from './errors.js';
+import { updatePushDevice, removePushDevice } from './phone-push-devices.js';
 
 const DEFAULT_LIMIT = 30;
 const MAX_LIMIT = 50;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const KINDS = new Set([
+  'subscription_usage',
   'subscription_expiry',
   'purchase_success',
   'payment_failure',
@@ -120,20 +122,67 @@ function validatePreferences(body) {
   return Object.fromEntries(PREFERENCE_KEYS.map((key) => [key, body[key]]));
 }
 
-export function createNotificationRouter({ auth, repository, parseBody, clock = () => new Date() }) {
+export function createNotificationRouter({ auth, repository, parseBody, clock = () => new Date(),
+  pushEncryptionKey = process.env.GANJ_PUSH_TOKEN_ENCRYPTION_KEY }) {
   if (!auth || typeof auth.authenticate !== 'function') throw new Error('Authentication adapter is required.');
   if (typeof parseBody !== 'function') throw new Error('parseBody is required.');
 
   return async function route({ request, url, requestId }) {
+    const eventsPath = url.pathname === '/v1/notifications/events';
+    const pushPath = url.pathname === '/v1/notifications/push-device';
     const listPath = url.pathname === '/v1/notifications';
     const readAllPath = url.pathname === '/v1/notifications/read-all';
     const preferencesPath = url.pathname === '/v1/notifications/preferences';
     const readMatch = url.pathname.match(/^\/v1\/notifications\/([0-9a-f-]{36})\/read$/i);
-    if (!listPath && !readAllPath && !preferencesPath && !readMatch) return null;
+    if (!listPath && !readAllPath && !preferencesPath && !readMatch && !pushPath && !eventsPath) return null;
 
     const principal = await auth.authenticate(request);
     requireUuid(principal.userId, 'authenticated user id');
     const database = databaseFor(repository);
+
+    if (request.method === 'POST' && pushPath) {
+      const body = await parseBody(request, 4_200);
+      if (Object.keys(body).length !== 1 || typeof body.token !== 'string') {
+        throw new ApiError(400, 'invalid_request', 'Expected only token.');
+      }
+      await updatePushDevice({
+        database, principal, token: body.token,
+        secretHex: pushEncryptionKey,
+      });
+      return { status: 204, body: null };
+    }
+    if (request.method === 'DELETE' && pushPath) {
+      await removePushDevice({ database, principal });
+      return { status: 204, body: null };
+    }
+
+    if (request.method === 'GET' && eventsPath) {
+      // Journal sequence is durable. Missed FCM signals are replayable.
+      const after = url.searchParams.get('after') ?? '0';
+      if (!/^(?:0|[1-9][0-9]{0,17})$/.test(after)) {
+        throw new ApiError(400, 'invalid_request', 'after must be a nonnegative event sequence.');
+      }
+      const pageSize = Math.min(parseLimit(url), 50);
+      const delta = await database.query(
+        'SELECT j.event_seq::text AS seq, n.id, n.kind, n.title, n.body,' +
+        ' n.action, n.read_at, n.created_at' +
+        ' FROM control_customer_event_journal j' +
+        ' JOIN control_notifications n ON n.id = j.notification_id' +
+        ' WHERE j.user_id = $1 AND j.event_seq > $2::bigint' +
+        ' ORDER BY j.event_seq ASC LIMIT $3',
+        [principal.userId, after, pageSize + 1],
+      );
+      const more = delta.rows.length > pageSize;
+      const events = delta.rows.slice(0, pageSize);
+      return {
+        status: 200,
+        body: success({
+          notifications: events.map(row => ({ ...mapNotification(row), sequence: row.seq })),
+          next_after: events.length ? events[events.length - 1].seq : after,
+          has_more: more,
+        }, requestId, clock),
+      };
+    }
 
     if (request.method === 'GET' && listPath) {
       const limit = parseLimit(url);

@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 enum class NotificationKind {
+    SUBSCRIPTION_USAGE,
     SUBSCRIPTION_EXPIRY,
     PURCHASE_SUCCESS,
     PAYMENT_FAILURE,
@@ -58,6 +59,8 @@ interface NotificationApi {
     fun markAllRead(): ApiResult<Unit>
     fun preferences(): ApiResult<NotificationPreferences>
     fun updatePreferences(value: NotificationPreferences): ApiResult<NotificationPreferences>
+    fun registerPushDevice(token: String): ApiResult<Unit>
+    fun unregisterPushDevice(): ApiResult<Unit>
 }
 
 object NotificationApiFactory {
@@ -130,9 +133,20 @@ internal class DefaultNotificationApi(
         }
     }
 
-    private fun executeEmpty(method: HttpMethod, path: String): ApiResult<Unit> {
+    override fun registerPushDevice(token: String): ApiResult<Unit> {
+        if (token.length !in 64..4096 || !token.matches(Regex("^[A-Za-z0-9:_-]+$"))) {
+            return ApiResult.Failure(ApiError.Validation(field = "token", reason = "invalid_fcm_token"))
+        }
+        val body = JsonEncoder.objectValue("token" to token).toByteArray(StandardCharsets.UTF_8)
+        return executeEmpty(HttpMethod.POST, "/notifications/push-device", body)
+    }
+
+    override fun unregisterPushDevice(): ApiResult<Unit> =
+        executeEmpty(HttpMethod.DELETE, "/notifications/push-device")
+
+    private fun executeEmpty(method: HttpMethod, path: String, body: ByteArray? = null): ApiResult<Unit> {
         val token = tokenProvider.currentAccessToken() ?: return ApiResult.Failure(ApiError.AuthenticationRequired())
-        return when (val result = transport.execute(HttpRequest(method, path, mapOf("Authorization" to token.authorizationValue())))) {
+        return when (val result = transport.execute(HttpRequest(method, path, mapOf("Authorization" to token.authorizationValue()), body = body))) {
             is TransportResult.Failure -> ApiResult.Failure(ApiError.Network(kind = result.kind))
             is TransportResult.Response -> {
                 if (result.value.statusCode == 204) {
@@ -197,6 +211,7 @@ internal class DefaultNotificationApi(
         return UserNotification(
             id = value.requiredString("id").canonicalUuid("id"),
             kind = when (value.requiredString("kind")) {
+                "subscription_usage" -> NotificationKind.SUBSCRIPTION_USAGE
                 "subscription_expiry" -> NotificationKind.SUBSCRIPTION_EXPIRY
                 "purchase_success" -> NotificationKind.PURCHASE_SUCCESS
                 "payment_failure" -> NotificationKind.PAYMENT_FAILURE

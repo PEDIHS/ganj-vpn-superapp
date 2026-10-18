@@ -148,3 +148,36 @@ test('marketing notification preference defaults can be explicitly persisted wit
   assert.equal(response.status, 200);
   assert.deepEqual(response.body.data, expected);
 });
+
+test('durable customer event replay is strictly scoped and cursor bounded', async () => {
+  const calls = [];
+  const db = {
+    async query(sql, args) {
+      calls.push({ sql, args });
+      return {
+        rows: [{
+          seq: '17', id: '70000000-0000-4000-8000-000000000003',
+          kind: 'subscription_usage', title: '۸۰٪ مصرف', body: 'هشدار حجم',
+          action: { type: 'open_subscription', id: '80000000-0000-4000-8000-000000000001' },
+          read_at: null, created_at: new Date('2026-08-30T08:59:00Z'),
+        }],
+      };
+    },
+  };
+  const route = routerWithDatabase(db);
+  const incoming = request('/v1/notifications/events?after=10&limit=25');
+  const result = await route({ request: incoming, url: new URL(incoming.url), requestId });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data.notifications[0].kind, 'subscription_usage');
+  assert.equal(result.body.data.next_after, '17');
+  assert.equal(result.body.data.has_more, false);
+  assert.deepEqual(calls[0].args, [principal.userId, '10', 26]);
+  assert.match(calls[0].sql, /j.user_id = \$1/);
+});
+test('invalid or negative journal cursor fails closed', async () => {
+  const route = routerWithDatabase({async query() { throw Error('unexpected database access'); }});
+  for (const after of ['-1', '1e9', '9999999999999999999999999']) {
+    const incoming = request('/v1/notifications/events?after=' + after);
+    await assert.rejects(route({request: incoming,url:new URL(incoming.url),requestId}),e=>e.status===400);
+  }
+});

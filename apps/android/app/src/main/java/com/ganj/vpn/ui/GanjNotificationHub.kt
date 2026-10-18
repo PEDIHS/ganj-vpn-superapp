@@ -16,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.ganj.vpn.composition.GanjAccountSessionProvider
 import com.ganj.vpn.composition.NotificationCompositionRegistry
 import com.ganj.vpn.composition.NotificationUnreadRegistry
 import com.ganj.vpn.core.controlapi.ApiError
@@ -75,6 +76,10 @@ internal fun StitchNotificationHub(
                 is ApiResult.Success -> {
                     nextCursor = result.value.nextCursor
                     NotificationUnreadRegistry.update(result.value.unreadCount)
+                    withContext(Dispatchers.IO) {
+                        val activeAccount = GanjAccountSessionProvider.currentVerifiedUserId()
+                        GanjPhoneNotifications.publish(context.applicationContext, activeAccount, result.value.items)
+                    }
                     state = NotificationUiState.Ready(
                         items = result.value.items,
                         unreadCount = result.value.unreadCount,

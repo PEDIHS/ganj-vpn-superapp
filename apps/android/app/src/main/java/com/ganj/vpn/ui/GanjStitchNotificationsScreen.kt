@@ -388,6 +388,7 @@ private fun NotificationSecondaryAction(
 }
 
 internal fun notificationKindLabel(kind: NotificationKind): String = when (kind) {
+    NotificationKind.SUBSCRIPTION_USAGE -> "هشدار حجم"
     NotificationKind.SUBSCRIPTION_EXPIRY -> "تمدید سرویس"
     NotificationKind.PURCHASE_SUCCESS -> "خرید"
     NotificationKind.PAYMENT_FAILURE -> "پرداخت"
@@ -406,6 +407,7 @@ internal fun notificationActionLabel(type: NotificationActionType): String = whe
 }
 
 internal fun notificationTone(kind: NotificationKind): GanjStatusTone = when (kind) {
+    NotificationKind.SUBSCRIPTION_USAGE -> GanjStatusTone.Warning
     NotificationKind.SUBSCRIPTION_EXPIRY -> GanjStatusTone.Warning
     NotificationKind.PURCHASE_SUCCESS -> GanjStatusTone.Positive
     NotificationKind.PAYMENT_FAILURE -> GanjStatusTone.Danger

@@ -11,6 +11,13 @@ val telegramRedirectUri = providers.gradleProperty("GANJ_TELEGRAM_REDIRECT_URI")
     .get()
 val alphaArm64Only = providers.gradleProperty("GANJ_ALPHA_ARM64_ONLY").orElse("false").get().toBoolean()
 val nativeFixtureDiagnostics = providers.gradleProperty("GANJ_NATIVE_FIXTURE_DIAGNOSTICS").orElse("false").get().toBoolean()
+// These four values are PUBLIC Firebase client identifiers, never server credentials.
+val fcmAppId = providers.gradleProperty("GANJ_FCM_APP_ID").orElse("").get()
+val fcmSender = providers.gradleProperty("GANJ_FCM_SENDER_ID").orElse("").get()
+val fcmProject = providers.gradleProperty("GANJ_FCM_PROJECT_ID").orElse("").get()
+val fcmApiKey = providers.gradleProperty("GANJ_FCM_API_KEY").orElse("").get()
+val fcmEnabled = listOf(fcmAppId, fcmSender, fcmProject, fcmApiKey).all(String::isNotBlank)
+fun kotlinLiteral(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 require(!alphaArm64Only || !nativeFixtureDiagnostics) { "Native fixture diagnostics must never ship in Alpha" }
 val controlApiUri = controlApiBaseUrl.takeIf { it.isNotBlank() }?.let(::URI)
 controlApiUri?.let { uri ->
@@ -47,6 +54,11 @@ android {
         versionCode = 49
         versionName = "0.3.46-alpha"
         buildConfigField("boolean", "NATIVE_FIXTURE_DIAGNOSTICS", nativeFixtureDiagnostics.toString())
+        buildConfigField("boolean", "FCM_ENABLED", fcmEnabled.toString())
+        buildConfigField("String", "FCM_APP_ID", kotlinLiteral(fcmAppId))
+        buildConfigField("String", "FCM_SENDER_ID", kotlinLiteral(fcmSender))
+        buildConfigField("String", "FCM_PROJECT_ID", kotlinLiteral(fcmProject))
+        buildConfigField("String", "FCM_API_KEY", kotlinLiteral(fcmApiKey))
         buildConfigField("String", "CONTROL_API_BASE_URL", "\"$escapedControlApiBaseUrl\"")
         buildConfigField("String", "TELEGRAM_REDIRECT_URI", "\"$escapedTelegramRedirectUri\"")
         manifestPlaceholders["telegramAuthHost"] = telegramRedirect.host
@@ -93,6 +105,10 @@ android {
 }
 
 dependencies {
+    // Cloud Messaging is optional at runtime. The default build does not
+    // enroll in Firebase without an explicitly configured GANJ project.
+    implementation(platform("com.google.firebase:firebase-bom:35.0.2"))
+    implementation("com.google.firebase:firebase-messaging")
     implementation(project(":core:billing"))
     implementation(project(":core:control-api"))
     implementation(project(":core:device-identity"))

@@ -9,7 +9,7 @@ const environment = process.env.NODE_ENV === 'production'
   ? await loadProductionEnvironment(process.env)
   : process.env;
 const runtime = await createRuntime(environment);
-const adminApplication = createAdminAwareApplication(runtime);
+const adminApplication = createAdminAwareApplication(runtime, { environment });
 const legacyAdminApplication = typeof runtime.repository?.database === 'function'
   ? createLegacyAdminApplication({
       baseApplication: adminApplication,
