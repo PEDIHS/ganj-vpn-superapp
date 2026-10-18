@@ -33,6 +33,11 @@ class GanjCompositionOwner internal constructor(
     internal val familyApi: com.ganj.vpn.core.controlapi.FamilyApi? = null,
 ) : ViewModel() {
     internal fun currentAccount(): ApiResult<CurrentAccount>? = accountSession?.currentAccount()
+    internal fun verifiedTelegramAccounts(): List<String> = GanjAccountSessionProvider.verifiedAccounts()
+    internal fun confirmTelegramAccount(account: CurrentAccount): Boolean =
+        account.telegramLinked && GanjAccountSessionProvider.rememberVerifiedAccount(account.id)
+    internal fun switchTelegramAccount(userId: String): Boolean =
+        GanjAccountSessionProvider.switchAccount(userId)
     /** Short-lived control API bearer used only by native HTTPS bot store bridge. */
     internal fun storeBridgeAuthorization(): String? =
         accountSession?.currentAccessToken()?.trustedServerAuthorizationValue()

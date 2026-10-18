@@ -14,8 +14,9 @@ import javax.crypto.spec.GCMParameterSpec
 class AndroidKeystoreSessionVault(
     context: Context,
     private val keyAlias: String = DEFAULT_KEY_ALIAS,
+    private val preferencesName: String = PREFERENCES,
 ) : SessionCredentialVault {
-    private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+    private val preferences = context.applicationContext.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
     private val lock = Any()
 
     @Volatile

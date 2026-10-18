@@ -40,6 +40,12 @@ internal class AndroidAuthSessionManager(
     TelegramAuthSessionGateway {
     private val lock = Any()
 
+    /** Reset local VPN/session-bound state after swapping encrypted account slots. */
+    fun onAccountChangedLocally(): Unit = synchronized(lock) {
+        forceRefresh = false
+        runCatching { sessionRevocationSink.onSessionInvalidated() }
+    }
+
     @Volatile
     private var forceRefresh = false
 
@@ -240,8 +246,12 @@ internal class AndroidAuthSessionManager(
     }
 
     private fun persistLocked(value: AuthSessionCredentials): AuthSessionCredentials? {
-        if (vault.save(value).isFailure) {
-            invalidateSessionLocked()
+        val saved = vault.save(value)
+        if (saved.isFailure) {
+            // A fourth account must not destroy the three valid sessions the
+            // customer already owns; unlike failed refresh rotation it does
+            // not invalidate an existing token.
+            if (saved.exceptionOrNull() !is GanjAccountLimitReached) invalidateSessionLocked()
             return null
         }
         return value

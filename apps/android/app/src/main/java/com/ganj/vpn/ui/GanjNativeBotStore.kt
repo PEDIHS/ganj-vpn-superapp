@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -43,6 +44,71 @@ import java.util.Locale
 import java.util.UUID
 
 internal fun botMoney(value: Long): String = String.format(Locale.US, "%,d", value).toPersianDigits() + " تومان"
+/** Display-only Persian wording. Canonical amount, fees and limits come from the bot. */
+internal fun botTomanInWords(amount: Long): String {
+    if (amount < 0) return "مبلغ نامعتبر"
+    if (amount == 0L) return "صفر تومان"
+    val ones = listOf("", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه")
+    val teens = listOf("ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده")
+    val tens = listOf("", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود")
+    val hundreds = listOf("", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد")
+    val groups = listOf("", "هزار", "میلیون", "میلیارد", "تریلیون", "بیلیارد")
+    fun chunk(value: Int): String {
+        val parts = mutableListOf<String>()
+        if (value >= 100) parts += hundreds[value / 100]
+        val last = value % 100
+        when {
+            last >= 20 -> { parts += tens[last / 10]; if (last % 10 != 0) parts += ones[last % 10] }
+            last >= 10 -> parts += teens[last - 10]
+            last > 0 -> parts += ones[last]
+        }
+        return parts.joinToString(" و ")
+    }
+    var rest = amount
+    var index = 0
+    val sections = mutableListOf<String>()
+    while (rest > 0 && index < groups.size) {
+        val part = (rest % 1000).toInt()
+        if (part != 0) sections += listOf(chunk(part), groups[index]).filter(String::isNotBlank).joinToString(" ")
+        rest /= 1000
+        index++
+    }
+    return sections.asReversed().joinToString(" و ") + " تومان"
+}
+
+internal fun botTopUpSuggestions(minimum: Long, maximum: Long): List<Long> {
+    val start = minimum.coerceAtLeast(0L)
+    if (maximum > 0 && start > maximum) return emptyList()
+    val base = if (start > 0) listOf(start) else emptyList()
+    return (base + listOf(200_000L, 500_000L, 1_000_000L, 2_000_000L))
+        .distinct().filter { it >= start && (maximum <= 0 || it <= maximum) }.take(5)
+}
+
+@Composable
+private fun NativePaymentSpotlight(
+    caption: String,
+    amount: Long,
+    context: String,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(22.dp)
+    val ink = Color(0xFF253A34)
+    Column(
+        modifier.fillMaxWidth().clip(shape)
+            .background(Brush.linearGradient(listOf(Color(0xFFFFFBF0), Color(0xFFF0F7F3))))
+            .border(1.dp, Color(0xFFD7C397), shape)
+            .padding(horizontal = 19.dp, vertical = 19.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(caption, style = MaterialTheme.typography.labelMedium, color = ink.copy(alpha = 0.78f))
+        Text(botMoney(amount), style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold, color = ink)
+        Text(botTomanInWords(amount), style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold, color = Color(0xFF856018))
+        Text(context, style = MaterialTheme.typography.bodySmall, color = ink.copy(alpha = 0.82f))
+    }
+}
+
 
 /** Same web storefront hierarchy, rendered entirely by Compose. No AndroidView/WebView here. */
 @Composable
@@ -230,8 +296,12 @@ internal fun StitchNativeBotCheckout(
                     GanjInnerSectionTitle("خلاصه پرداخت",
                         "مبلغ قطعی با قیمت‌های فعلی ربات محاسبه شده است",
                         GanjSignatureTone.Gold)
-                    NativePriceRow("مبلغ نهایی", botMoney(q.price), true)
-                    if (q.saved > 0) NativePriceRow("تخفیف", botMoney(q.saved))
+                    NativePaymentSpotlight(
+                        "مبلغ نهایی سفارش", q.price,
+                        "حجم، مدت و مبلغ را پیش از ثبت سفارش بررسی کنید.",
+                        Modifier.testTag("native-checkout-total-highlight"),
+                    )
+                    if (q.saved > 0) NativePriceRow("تخفیف شما", botMoney(q.saved))
                     NativePriceRow("موجودی کیف پول", botMoney(q.balance))
                     NativePriceRow(if (q.enough) "موجودی پس از خرید" else "مبلغ موردنیاز", botMoney(if (q.enough) (q.balance-q.price).coerceAtLeast(0) else (q.price-q.balance).coerceAtLeast(0)))
                 }
@@ -282,10 +352,13 @@ internal fun StitchNativeBotCheckout(
                         }
                     }
                 }, Modifier.fillMaxWidth().testTag("native-purchase-confirm"), enabled = !busy && !loading && quote?.enough == true)
-                GanjInnerMetadataPill(
-                    "ثبت خرید فقط پس از اعتبارسنجی سرور",
-                    GanjProfileAccent.Emerald,
+                GanjInlineStatusBanner(
+                    message = if (quote?.enough == true)
+                        "با تأیید، مبلغ از کیف پول همین حساب کسر و سفارش در ربات گنج ثبت می‌شود."
+                    else "موجودی کافی نیست؛ ابتدا کیف پول همین حساب را شارژ کنید.",
+                    tone = AccountBannerTone.Info,
                 )
+                GanjInnerMetadataPill("قیمت و موجودی از سرور رسمی ربات گنج", GanjProfileAccent.Emerald)
             }
         }
         error?.let { message -> item { NativeStoreError(message, { if (!busy) retry++ }, onAccount) } }
@@ -314,6 +387,11 @@ internal fun StitchNativeBotWallet(
     var balance by remember { mutableStateOf<Long?>(null) }
     var selected by rememberSaveable { mutableStateOf("") }
     var amount by rememberSaveable { mutableStateOf(if (initialAmount > 0) initialAmount.toString() else "") }
+    val selectedMethod = methods.firstOrNull { it.optString("id") == selected }
+    val parsedAmount = amount.toLongOrNull()
+    val minAmount = selectedMethod?.optLong("min")?.coerceAtLeast(0L) ?: 0L
+    val maxAmount = selectedMethod?.optLong("max")?.coerceAtLeast(0L) ?: 0L
+    val suggestedAmounts = remember(minAmount, maxAmount) { botTopUpSuggestions(minAmount, maxAmount) }
     var loading by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
     var retry by remember { mutableIntStateOf(0) }
@@ -378,9 +456,50 @@ internal fun StitchNativeBotWallet(
                 GanjInnerSectionTitle("افزایش موجودی",
                     "مبلغ را به تومان وارد کن؛ پیش از پرداخت فاکتور نمایش داده می‌شود",
                     GanjSignatureTone.Azure)
+                Text("مبالغ پیشنهادی", style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                androidx.compose.foundation.layout.FlowRow(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    suggestedAmounts.forEach { value ->
+                        GanjChoicePill(
+                            botMoney(value), selected = parsedAmount == value,
+                            onClick = { amount = value.toString() }, enabled = !busy,
+                            accent = ganjSignatureTone(GanjSignatureTone.Gold),
+                            modifier = Modifier.testTag("native-wallet-suggested-" + value),
+                        )
+                    }
+                }
+                Text("یا مبلغ دلخواه (تومان)", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 GanjLiquidTextField(amount, { amount = botStoreAmountDigits(it).take(12) },
-                    "مبلغ افزایش موجودی (تومان)",
+                    "مثلاً ۲۰۰۰۰۰ تومان",
                     Modifier.fillMaxWidth().testTag("native-wallet-amount"), enabled = !busy)
+                if (parsedAmount != null && parsedAmount > 0) {
+                    NativePaymentSpotlight(
+                        "مبلغ انتخابی برای افزایش موجودی", parsedAmount,
+                        "مبلغ نوشته‌شده با حروف را بخوانید تا صفر اضافی وارد نشود.",
+                        Modifier.testTag("native-wallet-amount-words"),
+                    )
+                } else GanjInlineStatusBanner(
+                    "مبلغ را انتخاب یا وارد کنید؛ پیش از پرداخت به حروف نمایش داده می‌شود.",
+                    tone = AccountBannerTone.Info,
+                )
+                if (minAmount > 0 || maxAmount > 0)
+                    Text(
+                        (if (minAmount > 0) "حداقل: " + botMoney(minAmount) else "") +
+                            (if (minAmount > 0 && maxAmount > 0) "  •  " else "") +
+                            (if (maxAmount > 0) "حداکثر: " + botMoney(maxAmount) else ""),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface,
+                    )
+                if (parsedAmount != null &&
+                    ((minAmount > 0 && parsedAmount < minAmount) ||
+                    (maxAmount > 0 && parsedAmount > maxAmount)))
+                    GanjInlineStatusBanner("مبلغ خارج از محدودهٔ مجاز این روش پرداخت است.",
+                        tone = AccountBannerTone.Error)
             }
         }
         if (methods.isNotEmpty()) item {
@@ -393,9 +512,22 @@ internal fun StitchNativeBotWallet(
             val tone = if (methodId == "crypto_trx") GanjSignatureTone.Iris
                 else GanjSignatureTone.Azure
             NativeStorePanel {
-                GanjChoicePill(method.optString("title"),
-                    selected = selected == methodId,
-                    onClick = { selected = methodId },
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    GanjProfileIconTile(GanjProfileSymbol.Wallet,
+                        if (methodId == "crypto_trx") GanjProfileAccent.Iris else GanjProfileAccent.Gold)
+                    Column(Modifier.weight(1f)) {
+                        Text(method.optString("title"), style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(if (methodId == "card") "کارت‌به‌کارت و ارسال رسید"
+                             else if (methodId == "crypto_trx") "پرداخت رمزارزی و پیگیری تراکنش"
+                             else "پرداخت از روش رسمی ربات گنج",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                GanjChoicePill(if (selected == methodId) "روش انتخاب‌شده" else "انتخاب این روش",
+                    selected = selected == methodId, onClick = { selected = methodId },
                     modifier = Modifier.fillMaxWidth().testTag("native-wallet-method-" + methodId),
                     enabled = !busy, accent = ganjSignatureTone(tone))
                 val minimum = method.optLong("min")
@@ -411,8 +543,14 @@ internal fun StitchNativeBotWallet(
         if (!loading && methods.isEmpty() && error == null) item {
             Text("در حال حاضر روش پرداختی برای حساب شما فعال نیست.", style = MaterialTheme.typography.bodySmall)
         }
+        if (parsedAmount != null && parsedAmount > 0 && selectedMethod != null) item {
+            NativePaymentSpotlight("خلاصه پیش از صدور فاکتور", parsedAmount,
+                "روش انتخابی: " + selectedMethod.optString("title") +
+                " — حداقل و سقف پرداخت توسط ربات کنترل می‌شود.",
+                Modifier.testTag("native-wallet-payment-summary"))
+        }
         item {
-            GanjGlassButton(if (busy) "در حال آماده‌سازی فاکتور…" else "ادامه و مشاهده فاکتور", {
+            GanjGlassButton(if (busy) "در حال آماده‌سازی فاکتور…" else "صدور فاکتور و ادامه پرداخت", {
                 val method = methods.firstOrNull { it.optString("id") == selected }
                 val value = amount.toLongOrNull()
                 when {
@@ -540,7 +678,11 @@ internal fun StitchNativeBotPayment(
         invoice?.let { data ->
             if (status == "unpaid" && (data.optString("card_number").isNotBlank() || data.optString("wallet").isNotBlank())) {
                 item { NativeStorePanel {
-                    NativePriceRow("مبلغ فاکتور", botMoney(data.getDouble("amount").toLong()), true)
+                    NativePaymentSpotlight("مبلغ دقیق همین فاکتور",
+                        data.getDouble("amount").toLong(),
+                        if (crypto) "پیش از انتقال TRX، آدرس کیف پول و شبکه را بررسی کنید."
+                        else "دقیقاً همین مبلغ را واریز کنید؛ سپس رسید را ارسال کنید.",
+                        Modifier.testTag("native-payment-invoice-highlight"))
                     if (data.optBoolean("resumed")) Text("فاکتور ناتمام قبلی بازیابی شد؛ مبلغ همین فاکتور را پرداخت کنید.", style = MaterialTheme.typography.labelSmall)
                     if (crypto) {
                         Text("${data.optString("trx_amount")} TRX", style = MaterialTheme.typography.titleMedium)

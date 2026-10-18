@@ -113,6 +113,9 @@ fun GanjVpnApp(
     telegramWaiting: Boolean,
     telegramErrorCode: String?,
     currentAccount: CurrentAccount?,
+    savedTelegramAccountIds: List<String> = emptyList(),
+    onTelegramAddAccount: () -> Unit = {},
+    onTelegramSwitchAccount: (String) -> Unit = {},
     onStoreBridgeAuthorization: () -> String?,
     accountIdentityLoading: Boolean,
     accountIdentityErrorCode: String?,
@@ -167,6 +170,18 @@ fun GanjVpnApp(
     var accountPaymentOrder by rememberSaveable { mutableStateOf("") }
     var accountPaymentCrypto by rememberSaveable { mutableStateOf(false) }
     var accountPaymentReturn by rememberSaveable { mutableStateOf(GanjAccountSurface.WALLET) }
+    var lastAccountScope by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(accountId) {
+        val nextScope = accountId ?: "__guest__"
+        if (lastAccountScope != null && lastAccountScope != nextScope) {
+            // Switching users closes old wallet/receipt/checkout screens.
+            // Ordinary refreshes of the same account do not disrupt payments.
+            accountPaymentOrder = ""
+            accountSurface = GanjAccountSurface.PROFILE
+            selectedDestination = GanjDestination.Account
+        }
+        lastAccountScope = nextScope
+    }
     var openNotifications by remember { mutableStateOf(false) }
     var purchaseConfirmationPlan by remember { mutableStateOf<PlanUiModel?>(null) }
     var accountSyncFeedback by remember { mutableStateOf<TelegramServiceSyncFeedback?>(null) }
@@ -772,7 +787,8 @@ fun GanjVpnApp(
                                 onRetry = ::refresh,
                             )
 
-                            GanjDestination.Store -> StitchNativeBotStoreDestination(
+                            GanjDestination.Store -> androidx.compose.runtime.key(accountId ?: "__guest__") {
+                                StitchNativeBotStoreDestination(
                                 vipEntryRequested = storeVipRequested,
                                 onVipEntryHandled = { storeVipRequested = false },
                                 activeVip = telegramLinked && state.serviceItems.any {
@@ -786,7 +802,8 @@ fun GanjVpnApp(
                                     accountSurface = GanjAccountSurface.PROFILE
                                     selectedDestination = GanjDestination.Account
                                 },
-                            )
+                                )
+                            }
 
                             GanjDestination.Settings -> StitchSettingsScreen(
                                 preferences = userPreferences,
@@ -938,6 +955,9 @@ fun GanjVpnApp(
                                                 waitingForApproval = telegramWaiting,
                                                 errorCode = telegramErrorCode,
                                                 currentAccount = currentAccount,
+                                                savedAccountIds = savedTelegramAccountIds,
+                                                onAddAccount = onTelegramAddAccount,
+                                                onSwitchAccount = onTelegramSwitchAccount,
                                                 accountIdentityLoading = accountIdentityLoading,
                                                 accountIdentityErrorCode = accountIdentityErrorCode,
                                                 syncFeedback = accountSyncFeedback,
