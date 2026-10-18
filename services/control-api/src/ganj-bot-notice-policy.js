@@ -4,17 +4,18 @@
  * Nothing here changes a wallet, subscription or entitlement.
  */
 const finite = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const BOT_KEY = /^[A-Za-z0-9_-]{1,64}$/;
 
 function validId(value) {
-  return typeof value === 'string' && UUID.test(value);
+  return typeof value === 'string' && BOT_KEY.test(value);
 }
 function cleanLabel(value) {
   return typeof value === 'string' && value.length > 0 && value.length <= 70
     ? value.replace(/[\u0000-\u001f<>]/g, '').slice(0, 70) : 'اشتراک گنج';
 }
 function notice(key, kind, title, body, serviceId) {
-  return { eventKey: key, kind, title, body, action: serviceId ? { type: 'open_subscription', id: serviceId } : { type: 'open_wallet' } };
+  return { eventKey: key, kind, title, body, action: serviceId ? (UUID.test(serviceId) ? { type: 'open_subscription', id: serviceId } : { type: 'open_subscription' }) : { type: 'open_wallet' } };
 }
 
 /** Alert once per service billing cycle; caller persists the key under a unique constraint. */
@@ -65,10 +66,11 @@ export function expiryNotices({ serviceId, cycleId, label, expiresAt, previousOb
 export function paymentNotice({ paymentId, previousStatus, status }) {
   if (!validId(paymentId)) throw new Error('invalid_payment_id');
   if (previousStatus === status || !['pending', 'reviewing'].includes(previousStatus)) return [];
-  const eventKey = 'payment:' + paymentId + ':' + status;
-  if (status === 'approved') return [notice(eventKey, 'purchase_success',
+  const finalStatus = status === 'paid' ? 'approved' : status === 'failed' ? 'rejected' : status;
+  const eventKey = 'payment:' + paymentId + ':' + finalStatus;
+  if (finalStatus === 'approved') return [notice(eventKey, 'purchase_success',
     'پرداخت شما تأیید شد', 'پرداخت شما تأیید شد. وضعیت سرویس و فاکتور را در گنج مشاهده کنید.', null)];
-  if (status === 'rejected') return [notice(eventKey, 'payment_failure',
+  if (finalStatus === 'rejected') return [notice(eventKey, 'payment_failure',
     'پرداخت شما تأیید نشد', 'رسید پرداخت رد شد. دلیل را در فاکتور بررسی کنید و در صورت نیاز با پشتیبانی در تماس باشید.', null)];
   return [];
 }

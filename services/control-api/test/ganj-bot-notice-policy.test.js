@@ -23,3 +23,12 @@ test('payment transitions only; duplicate or unknown status does not notify',()=
  assert.deepEqual(paymentNotice({paymentId:id,previousStatus:'approved',status:'approved'}),[]);
  assert.deepEqual(paymentNotice({paymentId:id,previousStatus:'pending',status:'unknown'}),[]);
 });
+
+test('legacy bot numeric invoice keys and paid payment status', () => {
+  const notice=subscriptionNotices({serviceId:'23459',cycleId:'23148',label:'Economy',observedAt:'2026-10-18T10:00:00Z',quotaBytes:1000,previousUsedBytes:600,usedBytes:810})[0];
+  assert.equal(notice.action.type,'open_subscription');
+  assert.equal(Object.hasOwn(notice.action,'id'),false);
+  assert.match(notice.eventKey,/23459:23148:usage80/);
+  assert.equal(paymentNotice({paymentId:'65212',previousStatus:'pending',status:'paid'})[0].kind,'purchase_success');
+  assert.equal(paymentNotice({paymentId:'65212',previousStatus:'pending',status:'failed'})[0].kind,'payment_failure');
+});
