@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.ganj.vpn.core.controlapi.CurrentAccount
 
+private const val MULTI_ACCOUNT_ENROLLMENT_ENABLED = true
 private val TelegramBlue = Color(0xFF229ED9)
 private val AccountEmerald = Color(0xFF72FCB6)
 private val AccountGold = Color(0xFFD5A63A)
@@ -45,6 +46,9 @@ internal fun StitchTelegramAccountCard(
     waitingForApproval: Boolean,
     errorCode: String?,
     currentAccount: CurrentAccount?,
+    savedAccountIds: List<String> = emptyList(),
+    onAddAccount: () -> Unit = {},
+    onSwitchAccount: (String) -> Unit = {},
     accountIdentityLoading: Boolean,
     accountIdentityErrorCode: String?,
     syncFeedback: TelegramServiceSyncFeedback?,
@@ -58,6 +62,8 @@ internal fun StitchTelegramAccountCard(
 ) {
     var showLoginConfirmation by remember { mutableStateOf(false) }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
+    var pendingSwitchId by remember { mutableStateOf<String?>(null) }
+    var confirmAccountAddition by remember { mutableStateOf(false) }
     val identityName = telegramIdentityDisplayName(currentAccount)
     val identityUsername = telegramIdentityUsername(currentAccount)
     val accent = if (linked) MaterialTheme.colorScheme.primary else TelegramBlue
@@ -155,6 +161,65 @@ internal fun StitchTelegramAccountCard(
                 message = telegramAuthErrorMessage(code),
                 tone = if (code == "auth.bot_approval_cancelled") AccountBannerTone.Info else AccountBannerTone.Error,
             )
+        }
+
+        if (!waitingForApproval && savedAccountIds.isNotEmpty()) {
+            GanjInnerSectionTitle("حساب‌های تلگرام",
+                "حساب‌های تأییدشده روی این دستگاه؛ با تعویض، اطلاعات کیف پول و سرویس‌های همان حساب نمایش داده می‌شود.",
+                GanjSignatureTone.Gold)
+            savedAccountIds.take(3).forEachIndexed { index, account ->
+                val active = currentAccount?.id == account
+                val shape = RoundedCornerShape(17.dp)
+                Row(
+                    Modifier.fillMaxWidth().clip(shape)
+                        .background(if (active) AccountEmerald.copy(alpha = 0.13f)
+                            else MaterialTheme.colorScheme.surface)
+                        .border(1.dp, if (active) AccountEmerald.copy(alpha = 0.7f)
+                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), shape)
+                        .clickable(enabled = !busy && !active, role = Role.Button) {
+                            pendingSwitchId = account
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    GanjProfileIconTile(
+                        GanjProfileSymbol.Account,
+                        if (active) GanjProfileAccent.Emerald else GanjProfileAccent.Sky,
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(if (active) (identityName ?: "حساب فعال")
+                             else "حساب " + (index + 1).toPersianDigits(),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface)
+                        Text(if (active) "حساب فعال • خرید و کیف پول این اکانت"
+                             else "شناسهٔ امن: …" + account.takeLast(6),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    AccountStatusBadge(if (active) "فعال" else "تعویض", active)
+                }
+            }
+            if (savedAccountIds.size < 3 && !busy) {
+                // Explicitly gate enrollment until the server issues independent
+                // per-account device-bound sessions; the old endpoint returns
+                // telegram_identity_conflict for second Telegram identity.
+                AccountSecondaryAction(
+                    text = "افزودن حساب دوم یا سوم",
+                    enabled = MULTI_ACCOUNT_ENROLLMENT_ENABLED,
+                    onClick = { confirmAccountAddition = true },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (!MULTI_ACCOUNT_ENROLLMENT_ENABLED) {
+                    GanjInlineStatusBanner(
+                        "جابه‌جایی حساب‌های تأییدشده آماده شده؛ اتصال حساب جدید پس از پشتیبانی احراز هویت مستقل سرور فعال می‌شود.",
+                        AccountBannerTone.Info,
+                    )
+                }
+            } else if (savedAccountIds.size >= 3) {
+                GanjInnerMetadataPill("حداکثر سه حساب تأییدشده", GanjProfileAccent.Gold)
+            }
         }
 
         if (linked && !waitingForApproval) {
@@ -310,6 +375,26 @@ internal fun StitchTelegramAccountCard(
         }
     }
 
+    if (confirmAccountAddition) GanjLiquidConfirmDialog(
+        title = "افزودن حساب تلگرام جدید",
+        body = "برای حساب دوم یا سوم، یک هویت دستگاه جدا و نشست امن مستقل ساخته می‌شود. اتصال VPN فعلی قطع می‌شود؛ حساب‌های قبلی حفظ خواهند شد. سپس حساب جدید را در ربات گنج تأیید کنید.",
+        confirmText = "تأیید و باز کردن تلگرام",
+        dismissText = "انصراف",
+        onConfirm = { confirmAccountAddition = false; onAddAccount() },
+        onDismiss = { confirmAccountAddition = false },
+    )
+
+    pendingSwitchId?.let { destination ->
+        GanjLiquidConfirmDialog(
+            title = "تعویض حساب تلگرام",
+            body = "قبل از جابه‌جایی، اتصال VPN فعلی قطع می‌شود و سرویس‌ها، کیف پول و سفارش‌ها از حساب انتخابی مجدداً دریافت می‌شوند. ادامه می‌دهید؟",
+            confirmText = "تعویض امن حساب",
+            dismissText = "انصراف",
+            onConfirm = { pendingSwitchId = null; onSwitchAccount(destination) },
+            onDismiss = { pendingSwitchId = null },
+        )
+    }
+
     if (showLoginConfirmation) {
         GanjLiquidConfirmDialog(
             title = if (linked) "ورود دوباره با ربات گنج" else "ورود با ربات گنج",
@@ -401,10 +486,10 @@ internal fun GanjLiquidConfirmDialog(
     }
 }
 
-private enum class AccountBannerTone { Info, Error }
+internal enum class AccountBannerTone { Info, Error }
 
 @Composable
-private fun GanjInlineStatusBanner(message: String, tone: AccountBannerTone) {
+internal fun GanjInlineStatusBanner(message: String, tone: AccountBannerTone) {
     val accent = if (tone == AccountBannerTone.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     Box(
         modifier = Modifier

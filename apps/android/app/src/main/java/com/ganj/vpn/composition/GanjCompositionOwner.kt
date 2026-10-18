@@ -33,6 +33,14 @@ class GanjCompositionOwner internal constructor(
     internal val familyApi: com.ganj.vpn.core.controlapi.FamilyApi? = null,
 ) : ViewModel() {
     internal fun currentAccount(): ApiResult<CurrentAccount>? = accountSession?.currentAccount()
+    internal fun verifiedTelegramAccounts(): List<String> = GanjAccountSessionProvider.verifiedAccounts()
+    internal fun beginAdditionalTelegramAccount(): Boolean = GanjAccountSessionProvider.beginAdditionalAccount()
+    internal fun abortAdditionalTelegramAccount(): Boolean = GanjAccountSessionProvider.abortAdditionalAccount()
+    internal fun hasPendingAccountAddition(): Boolean = GanjAccountSessionProvider.hasPendingAccountAddition()
+    internal fun confirmTelegramAccount(account: CurrentAccount): Boolean =
+        account.telegramLinked && GanjAccountSessionProvider.rememberVerifiedAccount(account.id)
+    internal fun switchTelegramAccount(userId: String): Boolean =
+        GanjAccountSessionProvider.switchAccount(userId)
     /** Short-lived control API bearer used only by native HTTPS bot store bridge. */
     internal fun storeBridgeAuthorization(): String? =
         accountSession?.currentAccessToken()?.trustedServerAuthorizationValue()
@@ -57,7 +65,7 @@ class GanjCompositionOwner internal constructor(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(GanjCompositionOwner::class.java))
-            val deviceIdentity = AndroidDeviceIdentity.create(application)
+            val deviceIdentity = GanjAccountSessionProvider.identity(application)
 
             if (!endpoint.isValidControlApiEndpoint()) {
                 return GanjCompositionOwner(

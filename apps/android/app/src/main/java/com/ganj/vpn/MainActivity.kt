@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
 
     private val familyInviteToken = mutableStateOf<String?>(null)
     private val telegramLinked = mutableStateOf(false)
+    private val linkedAccountIds = mutableStateOf<List<String>>(emptyList())
     private val telegramBusy = mutableStateOf(false)
     private val telegramWaiting = mutableStateOf(false)
     private val telegramErrorCode = mutableStateOf<String?>(null)
@@ -98,6 +99,7 @@ class MainActivity : ComponentActivity() {
         )[GanjCompositionOwner::class.java]
 
         telegramLinked.value = owner.telegramAuth?.isLinked() == true
+        linkedAccountIds.value = owner.verifiedTelegramAccounts()
         telegramWaiting.value = owner.telegramAuth?.hasPendingBotApproval() == true
         handleTelegramIntent(intent)
 
@@ -116,6 +118,9 @@ class MainActivity : ComponentActivity() {
                     telegramWaiting = telegramWaiting.value,
                     telegramErrorCode = telegramErrorCode.value,
                     currentAccount = currentAccount.value,
+                    savedTelegramAccountIds = linkedAccountIds.value,
+                    onTelegramAddAccount = ::addTelegramAccount,
+                    onTelegramSwitchAccount = ::switchTelegramAccount,
                     onStoreBridgeAuthorization = {
                         if (telegramLinked.value) owner.storeBridgeAuthorization() else null
                     },
@@ -225,6 +230,18 @@ class MainActivity : ComponentActivity() {
                 null -> accountIdentityErrorCode.value = "account.unavailable"
                 is ApiResult.Success -> {
                     currentAccount.value = result.value
+                    if (result.value.telegramLinked) {
+                        if (!owner.confirmTelegramAccount(result.value)) {
+                            // Duplicate account or Keystore persistence failure:
+                            // do not expose unverified billing data.
+                            currentAccount.value = null
+                            linkedAccountIds.value = owner.verifiedTelegramAccounts()
+                            recoverFromUnfinishedAccountAddition()
+                            accountIdentityErrorCode.value = "account.secure_profile_unavailable"
+                            return@launch
+                        }
+                        linkedAccountIds.value = owner.verifiedTelegramAccounts()
+                    }
                     lifecycleScope.launch(Dispatchers.IO) {
                         owner.familyApi?.updateDevice((android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL).take(120),BuildConfig.VERSION_NAME,android.os.Build.VERSION.RELEASE.take(64))
                     }
@@ -351,6 +368,9 @@ class MainActivity : ComponentActivity() {
     private fun applyTelegramResult(result: TelegramAuthResult) {
         when (result) {
             TelegramAuthResult.Linked -> {
+                // Never reuse the previous Telegram account's bot web-session.
+                botStoreClearSession()
+                currentAccount.value = null
                 telegramLinked.value = true
                 telegramWaiting.value = false
                 telegramErrorCode.value = null
@@ -362,11 +382,14 @@ class MainActivity : ComponentActivity() {
                 telegramErrorCode.value = null
             }
             TelegramAuthResult.Cancelled -> {
+                recoverFromUnfinishedAccountAddition()
                 telegramLinked.value = owner.telegramAuth?.isLinked() == true
+                linkedAccountIds.value = owner.verifiedTelegramAccounts()
                 telegramWaiting.value = false
                 telegramErrorCode.value = "auth.bot_approval_cancelled"
             }
             TelegramAuthResult.LoggedOut -> {
+                linkedAccountIds.value = owner.verifiedTelegramAccounts()
                 telegramLinked.value = false
                 telegramWaiting.value = false
                 telegramErrorCode.value = null
@@ -374,11 +397,83 @@ class MainActivity : ComponentActivity() {
                 accountIdentityErrorCode.value = null
             }
             is TelegramAuthResult.Failed -> {
+                // A transient approval-status failure keeps the pending slot.
+                // Terminal rejection/expiry restores the original account.
+                if (owner.telegramAuth?.hasPendingBotApproval() != true) {
+                    recoverFromUnfinishedAccountAddition()
+                }
                 telegramLinked.value = owner.telegramAuth?.isLinked() == true
+                linkedAccountIds.value = owner.verifiedTelegramAccounts()
                 telegramWaiting.value = owner.telegramAuth?.hasPendingBotApproval() == true
                 telegramErrorCode.value = result.code
             }
             is TelegramAuthResult.Launch -> Unit
+        }
+    }
+
+    private fun addTelegramAccount() {
+        if (telegramBusy.value || telegramWaiting.value || accountIdentityLoading.value) return
+        if (!telegramLinked.value || currentAccount.value == null ||
+            linkedAccountIds.value.size >= 3) return
+        telegramBusy.value = true
+        telegramErrorCode.value = null
+        lifecycleScope.launch {
+            val prepared = withContext(Dispatchers.IO) {
+                owner.beginAdditionalTelegramAccount()
+            }
+            telegramBusy.value = false
+            if (!prepared) {
+                telegramErrorCode.value = "auth.account_slot_unavailable"
+                return@launch
+            }
+            // Switching to a dedicated guest device proof cannot reuse the
+            // previous account's web cookies or on-screen billing state.
+            botStoreClearSession()
+            owner.telegramAuth?.reconcileLinkedState(false)
+            telegramLinked.value = false
+            currentAccount.value = null
+            accountIdentityErrorCode.value = null
+            accountRefreshGeneration.value += 1
+            beginTelegramLogin()
+        }
+    }
+
+    private fun recoverFromUnfinishedAccountAddition() {
+        if (!owner.hasPendingAccountAddition()) return
+        val recovered = owner.abortAdditionalTelegramAccount()
+        if (!recovered) return
+        botStoreClearSession()
+        owner.telegramAuth?.reconcileLinkedState(true)
+        telegramLinked.value = true
+        telegramWaiting.value = false
+        currentAccount.value = null
+        linkedAccountIds.value = owner.verifiedTelegramAccounts()
+        accountRefreshGeneration.value += 1
+        refreshCurrentAccount()
+    }
+
+    private fun switchTelegramAccount(userId: String) {
+        if (telegramBusy.value || accountIdentityLoading.value ||
+            userId !in linkedAccountIds.value || currentAccount.value?.id == userId) return
+        telegramBusy.value = true
+        telegramErrorCode.value = null
+        lifecycleScope.launch {
+            // Fail closed before changing tokens: cookies and UI must not expose
+            // either account's purchases to the other.
+            botStoreClearSession()
+            val switched = withContext(Dispatchers.IO) { owner.switchTelegramAccount(userId) }
+            telegramBusy.value = false
+            if (switched) {
+                currentAccount.value = null
+                accountIdentityErrorCode.value = null
+                telegramLinked.value = true
+                owner.telegramAuth?.reconcileLinkedState(true)
+                accountRefreshGeneration.value += 1
+                refreshCurrentAccount()
+            } else {
+                telegramErrorCode.value = "auth.account_switch_failed"
+                refreshCurrentAccount()
+            }
         }
     }
 
@@ -400,6 +495,7 @@ class MainActivity : ComponentActivity() {
                 botStoreClearSession()
                 accountRefreshGeneration.value += 1
                 currentAccount.value = null
+                linkedAccountIds.value = owner.verifiedTelegramAccounts()
                 accountIdentityErrorCode.value = null
             }
             applyTelegramResult(result)
