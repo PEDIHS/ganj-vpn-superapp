@@ -18,15 +18,23 @@ import com.ganj.vpn.core.controlapi.SessionCredentialVault
  */
 internal class GanjAccountLimitReached : IllegalStateException("Maximum three verified accounts")
 
-internal class GanjMultiAccountVault(context: Context) : SessionCredentialVault {
+internal class GanjMultiAccountVault(
+    context: Context,
+    private val namespaceSuffix: String = "",
+) : SessionCredentialVault {
+    init { require(namespaceSuffix.matches(Regex("[a-zA-Z0-9_-]{0,40}"))) }
     private val guard = Any()
-    private val prefs = context.applicationContext.getSharedPreferences("ganj_account_slots_v1", Context.MODE_PRIVATE)
-    private val legacy = AndroidKeystoreSessionVault(context)
+    private val prefs = context.applicationContext.getSharedPreferences("ganj_account_slots_v1" + namespaceSuffix, Context.MODE_PRIVATE)
+    private val legacy = if (namespaceSuffix.isEmpty()) {
+        AndroidKeystoreSessionVault(context)
+    } else AndroidKeystoreSessionVault(context,
+        keyAlias = "ganj.auth.session.aes.test.legacy." + namespaceSuffix,
+        preferencesName = "ganj_auth_session_test_legacy_" + namespaceSuffix)
     private val slots = (0 until 3).map { index ->
         AndroidKeystoreSessionVault(
             context,
-            keyAlias = "ganj.auth.session.aes.v2.slot." + index,
-            preferencesName = "ganj_auth_session_slot_" + index,
+            keyAlias = "ganj.auth.session.aes.v2.slot." + index + namespaceSuffix,
+            preferencesName = "ganj_auth_session_slot_" + index + namespaceSuffix,
         )
     }
     private var active = prefs.getInt("active", -1).takeIf { it in -1..2 } ?: -1
