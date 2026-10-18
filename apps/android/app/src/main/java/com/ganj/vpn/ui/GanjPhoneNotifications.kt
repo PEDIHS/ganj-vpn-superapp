@@ -14,7 +14,9 @@ import com.ganj.vpn.R
 import com.ganj.vpn.core.controlapi.NotificationKind
 import com.ganj.vpn.core.controlapi.UserNotification
 import java.security.MessageDigest
-import java.time.Instant
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 /**
  * Native phone notifications. Android controls heads-up presentation via
@@ -76,7 +78,14 @@ internal object GanjPhoneNotifications {
     }
 
     private fun recent(value: String, now: Long): Boolean {
-        val whenMs = runCatching { Instant.parse(value).toEpochMilli() }.getOrNull() ?: return false
+        // java.time.Instant needs API 26 unless desugaring is enabled;
+        // keep compatibility with all supported Android 24+ devices.
+        val whenMs = runCatching {
+            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX", Locale.US)
+            parser.isLenient = false
+            parser.timeZone = TimeZone.getTimeZone("UTC")
+            parser.parse(value)?.time
+        }.getOrNull() ?: return false
         val age = now - whenMs
         return age in 0..FRESH_MS
     }

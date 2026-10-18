@@ -4,6 +4,7 @@ import { createAccountRouter } from './account-routes.js';
 import { createAdminControlPlaneRouter } from './admin-control-plane.js';
 import { createAdminSupportRouter } from './admin-support-routes.js';
 import { createBotApprovalRouter } from './bot-approval-routes.js';
+import { createBotCustomerEventRouter } from './bot-customer-event-routes.js';
 import { createDeviceRouter } from './device-routes.js';
 import { ApiError, failure } from './errors.js';
 import { createLiveConnectionRouter } from './live-connection-routes.js';
@@ -16,12 +17,21 @@ import { createWalletRouter } from './wallet-routes.js';
  * Keeps the base user-facing Control API intact while mounting isolated operator, account, device,
  * notification, support-thread, wallet, live connection and Telegram Bot Approval route groups ahead of it.
  */
-export function createAdminAwareApplication(runtime, { clock = () => new Date() } = {}) {
+export function createAdminAwareApplication(runtime, {
+  clock = () => new Date(), environment = process.env,
+} = {}) {
   const base = createApplication({ ...runtime, clock });
+  const customerEventRouter = createBotCustomerEventRouter({
+    repository: runtime.repository,
+    secret: environment.GANJ_BOT_CUSTOMER_EVENT_HMAC_SECRET,
+    environment,
+    clock,
+  });
   const accountRouter = createAccountRouter({ auth: runtime.auth, repository: runtime.repository, authSession: runtime.authSession, clock });
   const familyRouter=createFamilyRouter({auth:runtime.auth,repository:runtime.repository,clock});
   const deviceRouter = createDeviceRouter({ auth: runtime.auth, repository: runtime.repository, clock });
-  const notificationRouter = createNotificationRouter({ auth: runtime.auth, repository: runtime.repository, parseBody, clock });
+  const notificationRouter = createNotificationRouter({ auth: runtime.auth, repository: runtime.repository, parseBody, clock,
+    pushEncryptionKey: environment.GANJ_PUSH_TOKEN_ENCRYPTION_KEY });
   const supportThreadRouter = createSupportThreadRouter({ auth: runtime.auth, repository: runtime.repository, parseBody, clock });
   const walletRouter = createWalletRouter({ auth: runtime.auth, repository: runtime.repository, clock });
   const liveConnectionRouter = createLiveConnectionRouter({
@@ -43,6 +53,7 @@ export function createAdminAwareApplication(runtime, { clock = () => new Date() 
   return async function handle(request) {
     const url = new URL(request.url);
     const familyPath=url.pathname.startsWith('/v1/family/') || /^\/v1\/services\/[0-9a-f-]{36}\/family(?:\/|$)/i.test(url.pathname);
+    const customerEventPath = url.pathname === '/v1/internal/ganj-bot/customer-event';
     const botApprovalPath = url.pathname.startsWith('/v1/auth/telegram/bot/') || url.pathname === '/v1/internal/telegram/bot-approval';
     const accountPath = url.pathname === '/v1/me' || url.pathname === '/v1/me/store-identity';
     const devicePath = url.pathname === '/v1/me/devices' || url.pathname.startsWith('/v1/me/devices/');
@@ -55,7 +66,7 @@ export function createAdminAwareApplication(runtime, { clock = () => new Date() 
     );
     const adminPath = url.pathname.startsWith('/v1/admin/control-plane/');
     const adminSupportPath = url.pathname.startsWith('/v1/admin/support/');
-    if (!familyPath && !botApprovalPath && !accountPath && !devicePath && !notificationPath && !supportThreadPath
+    if (!customerEventPath && !familyPath && !botApprovalPath && !accountPath && !devicePath && !notificationPath && !supportThreadPath
       && !walletPath && !liveConnectionPath && !adminPath && !adminSupportPath) {
       return base(request);
     }
@@ -63,6 +74,7 @@ export function createAdminAwareApplication(runtime, { clock = () => new Date() 
     const requestIdHeader = request.headers.get('x-request-id');
     const requestId = /^[0-9a-f-]{36}$/i.test(requestIdHeader ?? '') ? requestIdHeader : randomUUID();
     try {
+      if (customerEventPath) return await customerEventRouter({ request, url, requestId });
       if(familyPath)return await familyRouter({request,url,requestId});
       if (botApprovalPath) {
         const response = await botApprovalRouter({ request, url, requestId });

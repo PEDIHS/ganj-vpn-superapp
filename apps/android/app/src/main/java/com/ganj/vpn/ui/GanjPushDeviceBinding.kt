@@ -8,6 +8,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import com.ganj.vpn.BuildConfig
 import com.ganj.vpn.composition.NotificationCompositionRegistry
+import com.ganj.vpn.notifications.GanjFirebaseTokenEpoch
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -23,7 +26,8 @@ import kotlin.coroutines.resume
 @Composable
 internal fun GanjPushDeviceBinding(verifiedAccountId: String?) {
     val context = LocalContext.current
-    LaunchedEffect(verifiedAccountId) {
+    val tokenVersion by GanjFirebaseTokenEpoch.value.collectAsState()
+    LaunchedEffect(verifiedAccountId, tokenVersion) {
         if (!BuildConfig.FCM_ENABLED || verifiedAccountId.isNullOrBlank()) return@LaunchedEffect
         if (Build.VERSION.SDK_INT >= 33 &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return@LaunchedEffect

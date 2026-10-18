@@ -39,8 +39,8 @@ class GanjFirebaseMessageService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        // Registration occurs after verified account sign-in through the
-        // authenticated /notifications/push-device endpoint. Never send a
-        // token to an unverified guest or embed it in a Telegram URL.
+        // No unauthenticated push-token upload from a background service.
+        // Active foreground login will perform a signed account rebind.
+        GanjFirebaseTokenEpoch.updated()
     }
 }
