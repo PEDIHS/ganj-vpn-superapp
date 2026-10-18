@@ -3,7 +3,7 @@ package com.ganj.vpn.composition
 import com.ganj.vpn.core.controlapi.ApiResult
 import com.ganj.vpn.core.controlapi.ConnectionServer
 import com.ganj.vpn.core.controlapi.ServerApi
-import com.ganj.vpn.core.deviceidentity.AndroidDeviceIdentity
+import com.ganj.vpn.core.deviceidentity.DeviceIdentity
 import com.ganj.vpn.core.deviceidentity.DeviceProofRequest
 import com.ganj.vpn.presentation.ConnectionProfileContext
 import com.ganj.vpn.presentation.ConnectionProfileContextProvider
@@ -20,7 +20,7 @@ internal fun connectionProfileProofPath(entitlementId: String): String =
 
 internal class LiveConnectionProfileContextProvider(
     private val serverApi: ServerApi,
-    private val identity: AndroidDeviceIdentity,
+    private val identity: DeviceIdentity,
     private val nowEpochSeconds: () -> Long = { System.currentTimeMillis() / 1_000L },
 ) : ConnectionProfileContextProvider, ConnectionServerController {
     @Volatile private var catalog: CatalogSnapshot? = null

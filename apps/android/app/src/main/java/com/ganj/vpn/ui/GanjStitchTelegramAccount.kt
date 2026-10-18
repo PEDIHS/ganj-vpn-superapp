@@ -486,10 +486,10 @@ internal fun GanjLiquidConfirmDialog(
     }
 }
 
-private enum class AccountBannerTone { Info, Error }
+internal enum class AccountBannerTone { Info, Error }
 
 @Composable
-private fun GanjInlineStatusBanner(message: String, tone: AccountBannerTone) {
+internal fun GanjInlineStatusBanner(message: String, tone: AccountBannerTone) {
     val accent = if (tone == AccountBannerTone.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     Box(
         modifier = Modifier

@@ -154,7 +154,8 @@ internal class GanjBotNativeStoreApi(
         requireCurrentAccount(epoch)
         csrf?.let { return it }
         val value = exchange("csrf", emptyMap(), false, epoch = epoch)
-        requireCurrentAccount(epoch).getJSONObject("data").getString("csrf")
+            .getJSONObject("data").getString("csrf")
+        requireCurrentAccount(epoch)
         check(value.matches(Regex("[0-9a-f]{64}")))
         csrf = value
         return value
