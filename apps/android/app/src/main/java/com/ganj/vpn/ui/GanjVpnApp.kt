@@ -159,6 +159,7 @@ fun GanjVpnApp(
     val selectionStore = remember(appContext) { GanjConnectionSelectionStore(appContext) }
     // Selection and display metadata belong to the verified Telegram account, never to a shared device-wide profile.
     val accountId = currentAccount?.id?.takeIf { telegramLinked }
+    GanjPushDeviceBinding(accountId)
     LaunchedEffect(botStoreApi, accountId) {
         botStoreApi.switchAccount(accountId)
     }

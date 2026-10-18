@@ -1,4 +1,5 @@
 import { ApiError, requireUuid, success } from './errors.js';
+import { updatePushDevice, removePushDevice } from './phone-push-devices.js';
 
 const DEFAULT_LIMIT = 30;
 const MAX_LIMIT = 50;
@@ -126,15 +127,32 @@ export function createNotificationRouter({ auth, repository, parseBody, clock = 
   if (typeof parseBody !== 'function') throw new Error('parseBody is required.');
 
   return async function route({ request, url, requestId }) {
+    const pushPath = url.pathname === '/v1/notifications/push-device';
     const listPath = url.pathname === '/v1/notifications';
     const readAllPath = url.pathname === '/v1/notifications/read-all';
     const preferencesPath = url.pathname === '/v1/notifications/preferences';
     const readMatch = url.pathname.match(/^\/v1\/notifications\/([0-9a-f-]{36})\/read$/i);
-    if (!listPath && !readAllPath && !preferencesPath && !readMatch) return null;
+    if (!listPath && !readAllPath && !preferencesPath && !readMatch && !pushPath) return null;
 
     const principal = await auth.authenticate(request);
     requireUuid(principal.userId, 'authenticated user id');
     const database = databaseFor(repository);
+
+    if (request.method === 'POST' && pushPath) {
+      const body = await parseBody(request, 4_200);
+      if (Object.keys(body).length !== 1 || typeof body.token !== 'string') {
+        throw new ApiError(400, 'invalid_request', 'Expected only token.');
+      }
+      await updatePushDevice({
+        database, principal, token: body.token,
+        secretHex: process.env.GANJ_PUSH_TOKEN_ENCRYPTION_KEY,
+      });
+      return { status: 204, body: null };
+    }
+    if (request.method === 'DELETE' && pushPath) {
+      await removePushDevice({ database, principal });
+      return { status: 204, body: null };
+    }
 
     if (request.method === 'GET' && listPath) {
       const limit = parseLimit(url);
