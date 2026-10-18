@@ -41,6 +41,16 @@ internal class AndroidAuthSessionManager(
     private val lock = Any()
 
     /** Reset local VPN/session-bound state after swapping encrypted account slots. */
+    /** Serialize account transitions with token refresh, minting and signing. */
+    fun transitionAccount(change: () -> Boolean): Boolean = synchronized(lock) {
+        val changed = change()
+        if (changed) {
+            forceRefresh = false
+            runCatching { sessionRevocationSink.onSessionInvalidated() }
+        }
+        changed
+    }
+
     fun onAccountChangedLocally(): Unit = synchronized(lock) {
         forceRefresh = false
         runCatching { sessionRevocationSink.onSessionInvalidated() }

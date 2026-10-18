@@ -26,23 +26,20 @@ internal object GanjAccountSessionProvider {
     }
     @Synchronized fun verifiedAccounts(): List<String> = accountVault?.verifiedAccounts().orEmpty()
     @Synchronized fun beginAdditionalAccount(): Boolean {
-        val prepared = accountVault?.beginAddition() == true
-        if (prepared) manager?.onAccountChangedLocally()
-        return prepared
+        val change = { accountVault?.beginAddition() == true }
+        return manager?.transitionAccount(change) ?: change()
     }
     @Synchronized fun abortAdditionalAccount(): Boolean {
-        val aborted = accountVault?.abortAddition() == true
-        if (aborted) manager?.onAccountChangedLocally()
-        return aborted
+        val change = { accountVault?.abortAddition() == true }
+        return manager?.transitionAccount(change) ?: change()
     }
     @Synchronized fun hasPendingAccountAddition(): Boolean =
         accountVault?.hasPendingAddition() == true
     @Synchronized fun rememberVerifiedAccount(userId: String): Boolean = accountVault?.confirmLinked(userId) == true
     @Synchronized fun switchAccount(userId: String): Boolean {
         if (userId !in verifiedAccounts()) return false
-        val switched = accountVault?.selectVerified(userId) == true
-        if (switched) manager?.onAccountChangedLocally()
-        return switched
+        val change = { accountVault?.selectVerified(userId) == true }
+        return manager?.transitionAccount(change) ?: change()
     }
 
     fun family(application: Application, baseUrl: String) = get(application,baseUrl).let {session ->

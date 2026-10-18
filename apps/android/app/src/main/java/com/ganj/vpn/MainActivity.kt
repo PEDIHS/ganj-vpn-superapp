@@ -231,7 +231,15 @@ class MainActivity : ComponentActivity() {
                 is ApiResult.Success -> {
                     currentAccount.value = result.value
                     if (result.value.telegramLinked) {
-                        owner.confirmTelegramAccount(result.value)
+                        if (!owner.confirmTelegramAccount(result.value)) {
+                            // Duplicate account or Keystore persistence failure:
+                            // do not expose unverified billing data.
+                            currentAccount.value = null
+                            linkedAccountIds.value = owner.verifiedTelegramAccounts()
+                            recoverFromUnfinishedAccountAddition()
+                            accountIdentityErrorCode.value = "account.secure_profile_unavailable"
+                            return@launch
+                        }
                         linkedAccountIds.value = owner.verifiedTelegramAccounts()
                     }
                     lifecycleScope.launch(Dispatchers.IO) {

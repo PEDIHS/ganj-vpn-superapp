@@ -103,10 +103,15 @@ internal class GanjMultiAccountVault(
         val old = active
         val result = activeVault().clear()
         if (result.isSuccess && old >= 0) {
-            // Keep the other verified accounts and return to the original
-            // guest identity. Never forget all other profiles on logout.
-            if (prefs.edit().putBoolean("verified_" + old, false)
-                .remove("return_to").putInt("active", -1).commit()) active = -1
+            if (prefs.contains("return_to")) {
+                // A transient guest logout/expiry must not lose the previous
+                // verified account's return pointer.
+                prefs.edit().putBoolean("verified_" + old, false).commit()
+            } else {
+                // Revoking one account never invalidates other saved accounts.
+                if (prefs.edit().putBoolean("verified_" + old, false)
+                    .putInt("active", -1).commit()) active = -1
+            }
         }
         result
     }
@@ -115,6 +120,12 @@ internal class GanjMultiAccountVault(
     fun confirmLinked(userId: String): Boolean = synchronized(guard) {
         val current = activeVault().restore() ?: return@synchronized false
         if (current.userId != userId) return@synchronized false
+        // One verified Telegram account occupies at most one slot.
+        if (active >= 0 && prefs.contains("return_to") &&
+            slots.indices.any { index ->
+                index != active && prefs.getBoolean("verified_" + index, false) &&
+                    slots[index].restore()?.userId == userId
+            }) return@synchronized false
         if (active < 0) {
             val slot = slots.indexOfFirst { it.restore()?.userId == userId }
                 .takeIf { it >= 0 } ?: slots.indexOfFirst { it.restore() == null }
