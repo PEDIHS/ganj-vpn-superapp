@@ -22,8 +22,20 @@ test('account-switch token registration is transactional',async()=>{
  const calls=[];
  const client={async query(sql,args){calls.push({sql,args});return {rowCount:1}},release(){}};
  await updatePushDevice({database:{async connect(){return client}},principal,token,secretHex:'a'.repeat(64)});
- assert.equal(calls[0].sql,'BEGIN');assert.match(calls[1].sql,/DELETE FROM control_phone_push_devices/);
- assert.match(calls[2].sql,/INSERT INTO control_phone_push_devices/);
- assert.equal(calls[3].sql,'COMMIT');
- assert.equal(calls[2].args[4],principal.userId);
+ assert.equal(calls[0].sql,'BEGIN');assert.match(calls[1].sql,/SELECT id FROM control_devices/);
+ assert.match(calls[2].sql,/DELETE FROM control_phone_push_devices/);
+ assert.match(calls[3].sql,/INSERT INTO control_phone_push_devices/);
+ assert.equal(calls[4].sql,'COMMIT');
+ assert.equal(calls[3].args[4],principal.userId);
+});
+
+test('unowned device cannot alter any phone registration',async()=>{
+ const calls=[];
+ const client={async query(sql,args){calls.push({sql,args});return {rowCount:0,rows:[]}},release(){}};
+ await assert.rejects(updatePushDevice({database:{async connect(){return client}},principal,token,secretHex:'a'.repeat(64)}),
+   e=>e.status===403);
+ assert.equal(calls[0].sql,'BEGIN');
+ assert.match(calls[1].sql,/SELECT id FROM control_devices/);
+ assert.equal(calls[2].sql,'ROLLBACK');
+ assert.equal(calls.some(x=>/DELETE FROM control_phone_push_devices/.test(x.sql)),false);
 });

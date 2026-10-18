@@ -25,6 +25,13 @@ export async function updatePushDevice({ database, principal, token, secretHex }
   const client = await database.connect();
   try {
     await client.query('BEGIN');
+    const owned = await client.query(
+      "SELECT id FROM control_devices WHERE id = $1 AND user_id = $2 AND status = 'active' FOR UPDATE",
+      [principal.deviceId, principal.userId],
+    );
+    if (owned.rowCount !== 1) {
+      throw new ApiError(403, 'push_device_not_owned', 'Active device binding was not found.');
+    }
     // A physical device's FCM token cannot simultaneously be associated with
     // different users after an account switch.
     await client.query('DELETE FROM control_phone_push_devices WHERE device_id = $1 OR token_sha256 = $2',
