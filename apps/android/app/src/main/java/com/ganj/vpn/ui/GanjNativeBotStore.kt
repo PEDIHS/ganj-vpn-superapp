@@ -91,21 +91,14 @@ private fun NativePaymentSpotlight(
     context: String,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(22.dp)
-    val ink = Color(0xFF253A34)
-    Column(
-        modifier.fillMaxWidth().clip(shape)
-            .background(Brush.linearGradient(listOf(Color(0xFFFFFBF0), Color(0xFFF0F7F3))))
-            .border(1.dp, Color(0xFFD7C397), shape)
-            .padding(horizontal = 19.dp, vertical = 19.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(caption, style = MaterialTheme.typography.labelMedium, color = ink.copy(alpha = 0.78f))
+    val palette = GanjFinancePalette
+    GanjCommerceFocusSurface(modifier) {
+        Text(caption, style = MaterialTheme.typography.labelMedium, color = palette.mutedInk)
         Text(botMoney(amount), style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.ExtraBold, color = ink)
+            fontWeight = FontWeight.ExtraBold, color = palette.ink)
         Text(botTomanInWords(amount), style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold, color = Color(0xFF856018))
-        Text(context, style = MaterialTheme.typography.bodySmall, color = ink.copy(alpha = 0.82f))
+            fontWeight = FontWeight.Bold, color = palette.goldInk)
+        Text(context, style = MaterialTheme.typography.bodySmall, color = palette.mutedInk)
     }
 }
 

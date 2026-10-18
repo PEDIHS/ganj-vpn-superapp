@@ -83,7 +83,8 @@ internal fun GanjSignatureButton(text: String, onClick: () -> Unit, modifier: Mo
     val effects = LocalGanjVisualEffectsPolicy.current
     val scale = animateFloatAsState(if (pressed && !effects.reduceMotion) .975f else 1f,
         if (effects.reduceMotion) snap() else tween(GanjMotion.Press), label = "signaturePress")
-    val phase = rememberSignaturePhase(active = enabled)
+    // A button needs a press response, not its own forever-running animator.
+    // The animated VIP hero retains its single phase loop.
     val shape = RoundedCornerShape(10.dp)
     val disabled = MaterialTheme.colorScheme.surfaceVariant
     val disabledInk = MaterialTheme.colorScheme.onSurfaceVariant
@@ -92,13 +93,6 @@ internal fun GanjSignatureButton(text: String, onClick: () -> Unit, modifier: Mo
         .border(1.dp, if (enabled) Color(0xFFF2D887) else disabledInk.copy(alpha = .2f), shape)
         .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center) {
-        if (enabled && !effects.reduceMotion) Canvas(Modifier.matchParentSize()) {
-            // One short reflection followed by a long resting interval; it never covers the label.
-            val x = (phase.value * 4f - 1f) * size.width
-            if (x < size.width * 1.5f) drawRect(Brush.linearGradient(
-                listOf(Color.Transparent, Color(0xFFFFFBED).copy(alpha = .32f), Color.Transparent),
-                start = Offset(x - size.width * .25f, 0f), end = Offset(x + size.width * .25f, size.height)))
-        }
         Text(text, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp),
             style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
             color = if (enabled) SignatureInk else disabledInk, textAlign = TextAlign.Center)

@@ -62,3 +62,12 @@ run_suite selection com.ganj.vpn.ui.SubscriptionSelectionTest
 
 run_suite accountvault com.ganj.vpn.composition.GanjMultiAccountVaultTest
 
+
+
+# Record actual emulator frame timings and PSS from a controlled scroll path.
+# Baselines are informative; compare against the same API/runner/hardware
+# before activating a release gate. This does not certify physical device FPS.
+python3 .github/scripts/ganj-compose-performance.py --output-dir startup-evidence \
+  > startup-evidence/performance-collector.log 2>&1 || {
+  echo "Performance baseline capture unavailable; see performance-collector.log"
+}

@@ -61,15 +61,8 @@ internal class GanjBotNativeStoreApi(
 
     private val base = "https://bot.pedramhs.ir/site/api.php"
     private val reads = setOf("profile_avatar", "products", "product", "transactions", "wallet_methods", "app_snapshot", "payment_status", "wallet_card_session", "wallet_crypto_session", "support", "support_departments", "support_tickets")
-    // Account data is always bot-DB sourced; these short TTLs only suppress
-    // duplicate reads across Profile/Store/Wallet screens in the same session.
-    private val readTtls = mapOf(
-        "products" to 45_000L,
-        "product" to 30_000L,
-        "wallet_methods" to 12_000L,
-        "transactions" to 15_000L,
-        "app_snapshot" to 12_000L,
-    )
+    // Never serve a financial balance or transaction from a timed cache.
+    // Immutable catalog data still coalesces; private reads hit Bot MySQL.
     private val writes = setOf("purchase_quote", "purchase", "wallet_card", "wallet_crypto", "wallet_gateway", "support_ticket_create", "support_ticket_reply")
 
     private suspend fun session(required: Boolean) = sessionLock.withLock {
@@ -188,7 +181,7 @@ internal class GanjBotNativeStoreApi(
                     exchange(action, parameters, false, epoch = epoch).toString()
                 }
             }
-            val ttl = if (post) null else readTtls[action]
+            val ttl = if (post) null else GanjBotReadPolicy.ttlMillis(action)
             val text = if (ttl != null) {
                 accountReadCache.read(action, parameters, ttl, load)
             } else load()
@@ -198,7 +191,12 @@ internal class GanjBotNativeStoreApi(
             if (action == "app_snapshot" && failure.httpStatus == 404) snapshotEndpointAbsent = true
             throw failure
         } finally {
-            if (post) accountReadCache.invalidate()
+            if (post) {
+                accountReadCache.invalidate()
+                // Requery the canonical Bot DB once when the payment changes,
+                // including ambiguous HTTP outcomes that must not be retried.
+                GanjAccountChangeBus.changed()
+            }
         }
     }
     override suspend fun uploadReceipt(context: Context, uri: Uri, order: String, crypto: Boolean, txLink: String): JSONObject {
@@ -243,7 +241,10 @@ internal class GanjBotNativeStoreApi(
                 }
                 response(conn, epoch)
             } finally { conn.disconnect() }
-        } } finally { accountReadCache.invalidate() }
+        } } finally {
+            accountReadCache.invalidate()
+            GanjAccountChangeBus.changed()
+        }
     }
 }
 

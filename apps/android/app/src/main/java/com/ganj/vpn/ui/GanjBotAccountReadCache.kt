@@ -20,7 +20,8 @@ internal class GanjBotAccountReadCache(
     private var generation = 0L
     private var identity: String? = null
     private val entries = linkedMapOf<String, Row>()
-    private val flights = mutableMapOf<String, Mutex>()
+    private data class Flight(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val flights = mutableMapOf<String, Flight>()
 
     fun switchIdentity(accountId: String?) = synchronized(guard) {
         if (identity != accountId) {
@@ -51,12 +52,21 @@ internal class GanjBotAccountReadCache(
         require(ttlMillis in 1..120_000)
         val cacheKey = key(action, parameters)
         val epoch: Long
-        val flight: Mutex
+        val flight: Flight
         synchronized(guard) {
             epoch = generation
-            flight = flights.getOrPut(cacheKey) { Mutex() }
+            flight = flights.getOrPut(cacheKey) { Flight() }
+            flight.users++
         }
-        flight.lock()
+        try {
+            flight.mutex.lock()
+        } catch (cancelled: CancellationException) {
+            synchronized(guard) {
+                flight.users--
+                if (flight.users == 0 && flights[cacheKey] === flight) flights.remove(cacheKey)
+            }
+            throw cancelled
+        }
         try {
             val cached = synchronized(guard) {
                 if (epoch != generation) throw CancellationException("Bot account scope changed")
@@ -79,7 +89,11 @@ internal class GanjBotAccountReadCache(
             }
             return incoming
         } finally {
-            flight.unlock()
+            flight.mutex.unlock()
+            synchronized(guard) {
+                flight.users--
+                if (flight.users == 0 && flights[cacheKey] === flight) flights.remove(cacheKey)
+            }
         }
     }
 }

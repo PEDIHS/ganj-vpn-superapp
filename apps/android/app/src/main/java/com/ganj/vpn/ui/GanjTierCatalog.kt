@@ -167,18 +167,12 @@ internal fun GanjTierCatalog(
 /** Real selected bot product; never synthesize a price or plan variant. */
 @Composable
 private fun GanjBotVariantReviewCard(product: GanjBotProduct) {
-    val shape = RoundedCornerShape(20.dp)
-    val ink = Color(0xFF243831)
+    val palette = GanjFinancePalette
+    val ink = palette.ink
     val volume = if (product.volumeGb > 0)
         String.format(java.util.Locale.US,"%.1f",product.volumeGb).removeSuffix(".0").toPersianDigits() + " گیگ"
         else "حجم طبق سرویس"
-    Column(
-        Modifier.fillMaxWidth().clip(shape)
-            .background(Brush.linearGradient(listOf(Color(0xFFFFFAEF),Color(0xFFF1F7F3))))
-            .border(1.dp,Color(0xFFD4C28F),shape)
-            .padding(16.dp),
-        verticalArrangement=Arrangement.spacedBy(9.dp),
-    ) {
+    GanjCommerceFocusSurface {
         Text("بررسی انتخاب شما",style=MaterialTheme.typography.labelLarge,
             fontWeight=FontWeight.Bold,color=ink)
         Text(product.appDisplayName(),style=MaterialTheme.typography.titleMedium,
@@ -191,8 +185,8 @@ private fun GanjBotVariantReviewCard(product: GanjBotProduct) {
                 style=MaterialTheme.typography.labelMedium,color=ink)
         }
         Text(botPrice(product),style=MaterialTheme.typography.headlineSmall,
-            fontWeight=FontWeight.ExtraBold,color=Color(0xFF765617))
+            fontWeight=FontWeight.ExtraBold,color=palette.goldInk)
         Text("مبلغ نهایی و تخفیف احتمالی در فاکتور رسمی ربات تأیید می‌شود.",
-            style=MaterialTheme.typography.labelSmall,color=ink.copy(alpha=.75f))
+            style=MaterialTheme.typography.labelSmall,color=palette.mutedInk)
     }
 }
