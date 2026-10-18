@@ -42,6 +42,7 @@ internal class GanjBotNativeStoreApi(
     /** Re-scope all cached customer reads whenever Telegram identity changes. */
     suspend fun switchAccount(accountId: String?) = sessionLock.withLock {
         accountEpoch++
+        withContext(Dispatchers.Main) { botStoreClearSession() }
         accountReadCache.switchIdentity(accountId)
         snapshotEndpointAbsent = false
         authenticated = false
@@ -51,6 +52,7 @@ internal class GanjBotNativeStoreApi(
     /** Clear in-memory customer snapshots and the private bot SSO session on logout. */
     suspend fun invalidateSession() = sessionLock.withLock {
         accountEpoch++
+        withContext(Dispatchers.Main) { botStoreClearSession() }
         accountReadCache.invalidate()
         snapshotEndpointAbsent = false
         authenticated = false
