@@ -36,6 +36,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -91,21 +92,14 @@ private fun NativePaymentSpotlight(
     context: String,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(22.dp)
-    val ink = Color(0xFF253A34)
-    Column(
-        modifier.fillMaxWidth().clip(shape)
-            .background(Brush.linearGradient(listOf(Color(0xFFFFFBF0), Color(0xFFF0F7F3))))
-            .border(1.dp, Color(0xFFD7C397), shape)
-            .padding(horizontal = 19.dp, vertical = 19.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(caption, style = MaterialTheme.typography.labelMedium, color = ink.copy(alpha = 0.78f))
+    val palette = GanjFinancePalette
+    GanjCommerceFocusSurface(modifier) {
+        Text(caption, style = MaterialTheme.typography.labelMedium, color = palette.mutedInk)
         Text(botMoney(amount), style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.ExtraBold, color = ink)
+            fontWeight = FontWeight.ExtraBold, color = palette.ink)
         Text(botTomanInWords(amount), style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold, color = Color(0xFF856018))
-        Text(context, style = MaterialTheme.typography.bodySmall, color = ink.copy(alpha = 0.82f))
+            fontWeight = FontWeight.Bold, color = palette.goldInk)
+        Text(context, style = MaterialTheme.typography.bodySmall, color = palette.mutedInk)
     }
 }
 
@@ -401,6 +395,16 @@ internal fun StitchNativeBotWallet(
     var attemptKey by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     var attemptFingerprint by rememberSaveable { mutableStateOf("") }
     BackHandler(busy) {}
+    GanjRefreshOnResume { retry++ }
+    LaunchedEffect(api) {
+        var previous = GanjAccountChangeBus.generation.value
+        GanjAccountChangeBus.generation.collect { version ->
+            if (version != previous) {
+                previous = version
+                retry++
+            }
+        }
+    }
     LaunchedEffect(retry) {
         loading = methods.isEmpty(); error = null
         try {
@@ -741,6 +745,16 @@ internal fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Uni
     var error by remember { mutableStateOf<String?>(null) }
     var retry by remember { mutableIntStateOf(0) }
     var selectedKind by rememberSaveable { mutableStateOf("all") }
+    GanjRefreshOnResume { retry++ }
+    LaunchedEffect(api) {
+        var previous = GanjAccountChangeBus.generation.value
+        GanjAccountChangeBus.generation.collect { version ->
+            if (version != previous) {
+                previous = version
+                retry++
+            }
+        }
+    }
     LaunchedEffect(retry) {
         loading = true; error = null
         try {

@@ -1,6 +1,7 @@
 package com.ganj.vpn.ui
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 
 /**
@@ -20,7 +21,9 @@ internal class GanjBotAccountReadCache(
     private var generation = 0L
     private var identity: String? = null
     private val entries = linkedMapOf<String, Row>()
-    private val flights = mutableMapOf<String, Mutex>()
+    private data class Flight(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val flights = mutableMapOf<String, Flight>()
+    private val freshFlights = mutableMapOf<String, CompletableDeferred<String>>()
 
     fun switchIdentity(accountId: String?) = synchronized(guard) {
         if (identity != accountId) {
@@ -28,6 +31,7 @@ internal class GanjBotAccountReadCache(
             generation++
             entries.clear()
             flights.clear()
+            freshFlights.clear()
         }
     }
 
@@ -35,12 +39,62 @@ internal class GanjBotAccountReadCache(
         generation++
         entries.clear()
         flights.clear()
+        freshFlights.clear()
     }
 
     private fun key(action: String, parameters: Map<String, String>): String =
         action + parameters.toSortedMap().entries.joinToString("") {
             "\u001f" + it.key.length + ":" + it.key + "=" + it.value.length + ":" + it.value
         }
+
+    /**
+     * Financial reads MUST NOT have a TTL, but concurrent consumers of the
+     * same authenticated account snapshot can safely share ONE network call.
+     * The temporary result is released once the in-flight request settles.
+     */
+    suspend fun readFresh(
+        action: String,
+        parameters: Map<String, String>,
+        load: suspend () -> String,
+    ): String {
+        val cacheKey = key(action, parameters)
+        val epoch: Long
+        val pending: CompletableDeferred<String>
+        var owner = false
+        synchronized(guard) {
+            epoch = generation
+            val existing = freshFlights[cacheKey]
+            if (existing != null) {
+                pending = existing
+            } else {
+                pending = CompletableDeferred()
+                freshFlights[cacheKey] = pending
+                owner = true
+            }
+        }
+        if (owner) {
+            try {
+                val response = load()
+                synchronized(guard) {
+                    if (epoch != generation) throw CancellationException("Bot account scope changed")
+                }
+                pending.complete(response)
+                return response
+            } catch (failure: Throwable) {
+                pending.completeExceptionally(failure)
+                throw failure
+            } finally {
+                synchronized(guard) {
+                    if (freshFlights[cacheKey] === pending) freshFlights.remove(cacheKey)
+                }
+            }
+        }
+        val result = pending.await()
+        synchronized(guard) {
+            if (epoch != generation) throw CancellationException("Bot account scope changed")
+        }
+        return result
+    }
 
     suspend fun read(
         action: String,
@@ -51,12 +105,21 @@ internal class GanjBotAccountReadCache(
         require(ttlMillis in 1..120_000)
         val cacheKey = key(action, parameters)
         val epoch: Long
-        val flight: Mutex
+        val flight: Flight
         synchronized(guard) {
             epoch = generation
-            flight = flights.getOrPut(cacheKey) { Mutex() }
+            flight = flights.getOrPut(cacheKey) { Flight() }
+            flight.users++
         }
-        flight.lock()
+        try {
+            flight.mutex.lock()
+        } catch (cancelled: CancellationException) {
+            synchronized(guard) {
+                flight.users--
+                if (flight.users == 0 && flights[cacheKey] === flight) flights.remove(cacheKey)
+            }
+            throw cancelled
+        }
         try {
             val cached = synchronized(guard) {
                 if (epoch != generation) throw CancellationException("Bot account scope changed")
@@ -79,7 +142,11 @@ internal class GanjBotAccountReadCache(
             }
             return incoming
         } finally {
-            flight.unlock()
+            flight.mutex.unlock()
+            synchronized(guard) {
+                flight.users--
+                if (flight.users == 0 && flights[cacheKey] === flight) flights.remove(cacheKey)
+            }
         }
     }
 }

@@ -12,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collect
 import org.json.JSONObject
 
 /** Read-only balance from the canonical retail-bot account; never a fake local ledger. */
@@ -32,7 +33,7 @@ internal class GanjProfileWalletState {
     var busy by mutableStateOf(true)
     var message by mutableStateOf<String?>(null)
     var refreshGeneration by mutableIntStateOf(0)
-    fun refresh() { if (!busy) refreshGeneration++ }
+    fun refresh() { refreshGeneration++ }
 }
 
 /** Owned by the screen, not a lazy list item: scrolling never restarts the balance request. */
@@ -40,6 +41,15 @@ internal class GanjProfileWalletState {
 internal fun rememberGanjProfileWallet(api: GanjBotStoreApi, accountKey: String?): GanjProfileWalletState {
     val state = remember(api, accountKey) { GanjProfileWalletState() }
     val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(state) {
+        var previous = GanjAccountChangeBus.generation.value
+        GanjAccountChangeBus.generation.collect { version ->
+            if (version != previous) {
+                previous = version
+                state.refresh()
+            }
+        }
+    }
     LaunchedEffect(api, accountKey, state.refreshGeneration, lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             // Retain a verified in-session value while refreshing; don't flash a
