@@ -34,6 +34,9 @@ class GanjCompositionOwner internal constructor(
 ) : ViewModel() {
     internal fun currentAccount(): ApiResult<CurrentAccount>? = accountSession?.currentAccount()
     internal fun verifiedTelegramAccounts(): List<String> = GanjAccountSessionProvider.verifiedAccounts()
+    internal fun beginAdditionalTelegramAccount(): Boolean = GanjAccountSessionProvider.beginAdditionalAccount()
+    internal fun abortAdditionalTelegramAccount(): Boolean = GanjAccountSessionProvider.abortAdditionalAccount()
+    internal fun hasPendingAccountAddition(): Boolean = GanjAccountSessionProvider.hasPendingAccountAddition()
     internal fun confirmTelegramAccount(account: CurrentAccount): Boolean =
         account.telegramLinked && GanjAccountSessionProvider.rememberVerifiedAccount(account.id)
     internal fun switchTelegramAccount(userId: String): Boolean =
@@ -62,7 +65,7 @@ class GanjCompositionOwner internal constructor(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(GanjCompositionOwner::class.java))
-            val deviceIdentity = AndroidDeviceIdentity.create(application)
+            val deviceIdentity = GanjAccountSessionProvider.identity(application)
 
             if (!endpoint.isValidControlApiEndpoint()) {
                 return GanjCompositionOwner(

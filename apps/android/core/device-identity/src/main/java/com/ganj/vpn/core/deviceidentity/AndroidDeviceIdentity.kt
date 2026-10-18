@@ -31,9 +31,15 @@ import org.bouncycastle.crypto.params.X25519PublicKeyParameters
 class AndroidDeviceIdentity private constructor(
     context: Context,
     private val random: SecureRandom,
+    private val namespace: String,
 ) : DeviceIdentity {
+    init { require(namespace.matches(Regex("[a-zA-Z0-9_-]{0,40}"))) }
+    // Empty suffix uses the ORIGINAL keys, preserving all installed v1
+    // users, VPN decryption, signing identity and server device registrations.
+    private val signingAlias = SIGNING_ALIAS + namespace
+    private val wrappingAlias = WRAPPING_ALIAS + namespace
     private val preferences: SharedPreferences = context.applicationContext.getSharedPreferences(
-        PREFERENCES_NAME,
+        PREFERENCES_NAME + namespace,
         Context.MODE_PRIVATE,
     )
     private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
@@ -48,7 +54,7 @@ class AndroidDeviceIdentity private constructor(
             val identity = ensureMaterial()
             val canonical = DeviceProofCanonicalizer.canonicalBytes(request, identity.keyVersion)
             val derSignature = try {
-                val privateKey = keyStore.getKey(SIGNING_ALIAS, null) as? PrivateKey
+                val privateKey = keyStore.getKey(signingAlias, null) as? PrivateKey
                     ?: throw IllegalStateException("Device signing key is unavailable")
                 Signature.getInstance("SHA256withECDSA").run {
                     initSign(privateKey, random)
@@ -127,7 +133,7 @@ class AndroidDeviceIdentity private constructor(
             generateMaterial()
         }
 
-        val certificate = keyStore.getCertificate(SIGNING_ALIAS)
+        val certificate = keyStore.getCertificate(signingAlias)
             ?: throw IllegalStateException("Device signing certificate is unavailable")
         val encryptionPublicKey = Base64Url.decode(
             preferences.getString(ENCRYPTION_PUBLIC_PREFERENCE, null)
@@ -160,7 +166,7 @@ class AndroidDeviceIdentity private constructor(
     }
 
     private fun validateExistingMaterial(): Boolean = runCatching {
-        if (!keyStore.containsAlias(SIGNING_ALIAS) || !keyStore.containsAlias(WRAPPING_ALIAS)) return false
+        if (!keyStore.containsAlias(signingAlias) || !keyStore.containsAlias(wrappingAlias)) return false
         val expectedPublic = Base64Url.decode(
             preferences.getString(ENCRYPTION_PUBLIC_PREFERENCE, null) ?: return false,
         )
@@ -190,8 +196,8 @@ class AndroidDeviceIdentity private constructor(
     }
 
     private fun resetMaterial(version: Int) {
-        runCatching { keyStore.deleteEntry(SIGNING_ALIAS) }
-        runCatching { keyStore.deleteEntry(WRAPPING_ALIAS) }
+        runCatching { keyStore.deleteEntry(signingAlias) }
+        runCatching { keyStore.deleteEntry(wrappingAlias) }
         check(
             preferences.edit()
                 .putInt(KEY_VERSION_PREFERENCE, version)
@@ -207,7 +213,7 @@ class AndroidDeviceIdentity private constructor(
         val generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, ANDROID_KEYSTORE)
         generator.initialize(
             KeyGenParameterSpec.Builder(
-                SIGNING_ALIAS,
+                signingAlias,
                 KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
             )
                 .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
@@ -219,11 +225,11 @@ class AndroidDeviceIdentity private constructor(
     }
 
     private fun ensureWrappingKey(): SecretKey {
-        (keyStore.getKey(WRAPPING_ALIAS, null) as? SecretKey)?.let { return it }
+        (keyStore.getKey(wrappingAlias, null) as? SecretKey)?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
         generator.init(
             KeyGenParameterSpec.Builder(
-                WRAPPING_ALIAS,
+                wrappingAlias,
                 KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
             )
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -287,14 +293,14 @@ class AndroidDeviceIdentity private constructor(
     }
 
     private fun isSigningKeyHardwareBacked(): Boolean = runCatching {
-        val privateKey = keyStore.getKey(SIGNING_ALIAS, null) as PrivateKey
+        val privateKey = keyStore.getKey(signingAlias, null) as PrivateKey
         val factory = KeyFactory.getInstance(privateKey.algorithm, ANDROID_KEYSTORE)
         factory.getKeySpec(privateKey, KeyInfo::class.java).isInsideSecureHardware
     }.getOrDefault(false)
 
     companion object {
-        fun create(context: Context): AndroidDeviceIdentity =
-            AndroidDeviceIdentity(context.applicationContext, SecureRandom())
+        fun create(context: Context, namespace: String = ""): AndroidDeviceIdentity =
+            AndroidDeviceIdentity(context.applicationContext, SecureRandom(), namespace)
 
         private const val PREFERENCES_NAME = "ganj_device_identity_v1"
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"

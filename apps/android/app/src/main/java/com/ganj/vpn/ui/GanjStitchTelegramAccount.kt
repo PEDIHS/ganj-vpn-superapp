@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.ganj.vpn.core.controlapi.CurrentAccount
 
-private const val MULTI_ACCOUNT_ENROLLMENT_ENABLED = false
+private const val MULTI_ACCOUNT_ENROLLMENT_ENABLED = true
 private val TelegramBlue = Color(0xFF229ED9)
 private val AccountEmerald = Color(0xFF72FCB6)
 private val AccountGold = Color(0xFFD5A63A)
@@ -63,6 +63,7 @@ internal fun StitchTelegramAccountCard(
     var showLoginConfirmation by remember { mutableStateOf(false) }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
     var pendingSwitchId by remember { mutableStateOf<String?>(null) }
+    var confirmAccountAddition by remember { mutableStateOf(false) }
     val identityName = telegramIdentityDisplayName(currentAccount)
     val identityUsername = telegramIdentityUsername(currentAccount)
     val accent = if (linked) MaterialTheme.colorScheme.primary else TelegramBlue
@@ -207,7 +208,7 @@ internal fun StitchTelegramAccountCard(
                 AccountSecondaryAction(
                     text = "افزودن حساب دوم یا سوم",
                     enabled = MULTI_ACCOUNT_ENROLLMENT_ENABLED,
-                    onClick = onAddAccount,
+                    onClick = { confirmAccountAddition = true },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (!MULTI_ACCOUNT_ENROLLMENT_ENABLED) {
@@ -373,6 +374,15 @@ internal fun StitchTelegramAccountCard(
             }
         }
     }
+
+    if (confirmAccountAddition) GanjLiquidConfirmDialog(
+        title = "افزودن حساب تلگرام جدید",
+        body = "برای حساب دوم یا سوم، یک هویت دستگاه جدا و نشست امن مستقل ساخته می‌شود. اتصال VPN فعلی قطع می‌شود؛ حساب‌های قبلی حفظ خواهند شد. سپس حساب جدید را در ربات گنج تأیید کنید.",
+        confirmText = "تأیید و باز کردن تلگرام",
+        dismissText = "انصراف",
+        onConfirm = { confirmAccountAddition = false; onAddAccount() },
+        onDismiss = { confirmAccountAddition = false },
+    )
 
     pendingSwitchId?.let { destination ->
         GanjLiquidConfirmDialog(

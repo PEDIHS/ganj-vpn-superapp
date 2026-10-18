@@ -41,6 +41,37 @@ internal class GanjMultiAccountVault(
 
     private fun activeVault() = if (active < 0) legacy else slots[active]
 
+    fun activeIdentitySlot(): Int = synchronized(guard) { active.coerceAtLeast(0) }
+
+    fun hasPendingAddition(): Boolean = synchronized(guard) { prefs.contains("return_to") }
+
+    /** A brand-new device proof and guest login are required for each new Telegram. */
+    fun beginAddition(): Boolean = synchronized(guard) {
+        if (active < 0 || !prefs.getBoolean("verified_" + active, false) ||
+            prefs.contains("return_to")) return@synchronized false
+        val next = slots.indices.firstOrNull { index ->
+            !prefs.getBoolean("verified_" + index, false) && slots[index].restore() == null
+        } ?: return@synchronized false
+        if (!prefs.edit().putInt("return_to", active).putInt("active", next).commit())
+            return@synchronized false
+        active = next
+        true
+    }
+
+    fun abortAddition(): Boolean = synchronized(guard) {
+        if (!prefs.contains("return_to")) return@synchronized false
+        val previous = prefs.getInt("return_to", -1)
+        if (previous !in 0..2 || !prefs.getBoolean("verified_" + previous, false))
+            return@synchronized false
+        // On uncertain durability, fail closed rather than restoring an
+        // unverified account as though it belonged to the previous user.
+        if (active !in 0..2 || slots[active].clear().isFailure) return@synchronized false
+        if (!prefs.edit().putInt("active",previous).remove("return_to").commit())
+            return@synchronized false
+        active = previous
+        true
+    }
+
     override fun currentAccessToken(): AccessToken? = restore()?.accessToken
     override fun currentUserId(): String? = restore()?.userId
     override fun currentDeviceId(): String? = restore()?.deviceId
@@ -48,7 +79,8 @@ internal class GanjMultiAccountVault(
     override fun restore(): AuthSessionCredentials? = synchronized(guard) { activeVault().restore() }
 
     override fun save(session: AuthSessionCredentials): Result<Unit> = synchronized(guard) {
-        if (active == -1 || activeVault().restore()?.userId == session.userId) {
+        if (active == -1 || activeVault().restore()?.userId == session.userId ||
+            (active >= 0 && prefs.contains("return_to"))) {
             return@synchronized activeVault().save(session)
         }
         // A newly verified Telegram login can replace the active identity,
@@ -71,8 +103,10 @@ internal class GanjMultiAccountVault(
         val old = active
         val result = activeVault().clear()
         if (result.isSuccess && old >= 0) {
-            prefs.edit().putBoolean("verified_" + old, false).putInt("active", -1).commit()
-            active = -1
+            // Keep the other verified accounts and return to the original
+            // guest identity. Never forget all other profiles on logout.
+            if (prefs.edit().putBoolean("verified_" + old, false)
+                .remove("return_to").putInt("active", -1).commit()) active = -1
         }
         result
     }
@@ -91,7 +125,7 @@ internal class GanjMultiAccountVault(
             legacy.clear()
             return@synchronized true
         }
-        prefs.edit().putBoolean("verified_" + active, true).commit()
+        prefs.edit().putBoolean("verified_" + active, true).remove("return_to").commit()
     }
 
     fun verifiedAccounts(): List<String> = synchronized(guard) {
@@ -101,6 +135,7 @@ internal class GanjMultiAccountVault(
     }
 
     fun selectVerified(userId: String): Boolean = synchronized(guard) {
+        if (prefs.contains("return_to")) return@synchronized false
         val index = slots.indexOfFirst { it.restore()?.userId == userId }
         if (index < 0 || !prefs.getBoolean("verified_" + index,false)) return@synchronized false
         if (index == active) return@synchronized true
