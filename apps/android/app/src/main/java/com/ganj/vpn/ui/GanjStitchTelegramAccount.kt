@@ -162,9 +162,9 @@ internal fun StitchTelegramAccountCard(
             )
         }
 
-        if (linked && !waitingForApproval && savedAccountIds.isNotEmpty()) {
+        if (!waitingForApproval && savedAccountIds.isNotEmpty()) {
             GanjInnerSectionTitle("حساب‌های تلگرام",
-                "هر حساب کیف پول و اشتراک‌های جداگانه دارد؛ جابه‌جایی، اتصال فعلی VPN را قطع می‌کند.",
+                "حساب‌های تأییدشده روی این دستگاه؛ با تعویض، اطلاعات کیف پول و سرویس‌های همان حساب نمایش داده می‌شود.",
                 GanjSignatureTone.Gold)
             savedAccountIds.take(3).forEachIndexed { index, account ->
                 val active = currentAccount?.id == account
