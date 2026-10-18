@@ -33,9 +33,15 @@ internal class GanjBotNativeStoreApi(
     private var csrf: String? = null
     private val accountReadCache = GanjBotAccountReadCache()
     @Volatile private var snapshotEndpointAbsent = false
+    @Volatile private var accountEpoch = 0L
+
+    private fun requireCurrentAccount(epoch: Long) {
+        if (epoch != accountEpoch) throw CancellationException("Telegram account changed")
+    }
 
     /** Re-scope all cached customer reads whenever Telegram identity changes. */
     suspend fun switchAccount(accountId: String?) = sessionLock.withLock {
+        accountEpoch++
         accountReadCache.switchIdentity(accountId)
         snapshotEndpointAbsent = false
         authenticated = false
@@ -44,6 +50,7 @@ internal class GanjBotNativeStoreApi(
 
     /** Clear in-memory customer snapshots and the private bot SSO session on logout. */
     suspend fun invalidateSession() = sessionLock.withLock {
+        accountEpoch++
         accountReadCache.invalidate()
         snapshotEndpointAbsent = false
         authenticated = false
@@ -74,9 +81,11 @@ internal class GanjBotNativeStoreApi(
     private suspend fun cookies(): String = if (!authenticated) "" else withContext(Dispatchers.Main) {
         CookieManager.getInstance().getCookie(base).orEmpty()
     }
-    private suspend fun saveCookies(headers: Map<String?, List<String>>) {
+    private suspend fun saveCookies(headers: Map<String?, List<String>>, epoch: Long) {
+        requireCurrentAccount(epoch)
         val values = headers.filterKeys { it?.equals("set-cookie", true) == true }.values.flatten()
         withContext(Dispatchers.Main) {
+            requireCurrentAccount(epoch)
             val jar = CookieManager.getInstance()
             values.forEach { jar.setCookie(base, it) }
             if (values.isNotEmpty()) jar.flush()
@@ -85,9 +94,13 @@ internal class GanjBotNativeStoreApi(
     private fun form(parameters: Map<String, String>): String = parameters.entries.joinToString("&") {
         URLEncoder.encode(it.key, "UTF-8") + "=" + URLEncoder.encode(it.value, "UTF-8")
     }
-    private suspend fun exchange(action: String, parameters: Map<String, String>, post: Boolean, token: String? = null): JSONObject {
+    private suspend fun exchange(action: String, parameters: Map<String, String>, post: Boolean,
+        token: String? = null, epoch: Long = accountEpoch): JSONObject {
+        requireCurrentAccount(epoch)
         val cookie = cookies()
+        requireCurrentAccount(epoch)
         return withContext(Dispatchers.IO) {
+            requireCurrentAccount(epoch)
             val suffix = if (post || parameters.isEmpty()) "" else "&" + form(parameters)
             val conn = (URL("$base?action=$action$suffix").openConnection() as HttpsURLConnection).apply {
                 instanceFollowRedirects = false
@@ -106,13 +119,15 @@ internal class GanjBotNativeStoreApi(
             }
             try {
                 if (post) conn.outputStream.use { it.write(form(parameters).toByteArray(Charsets.UTF_8)) }
-                response(conn)
+                response(conn, epoch)
             } finally { conn.disconnect() }
         }
     }
-    private suspend fun response(conn: HttpsURLConnection): JSONObject {
+    private suspend fun response(conn: HttpsURLConnection, epoch: Long): JSONObject {
         val status = conn.responseCode
-        saveCookies(conn.headerFields)
+        requireCurrentAccount(epoch)
+        saveCookies(conn.headerFields, epoch)
+        requireCurrentAccount(epoch)
         if (status == 401) { authenticated = false; csrf = null; accountReadCache.invalidate() }
         val stream = if (status in 200..299) conn.inputStream else conn.errorStream
             ?: throw GanjBotStoreException("ارتباط با فروشگاه برقرار نشد. دوباره تلاش کنید.")
@@ -133,14 +148,17 @@ internal class GanjBotNativeStoreApi(
         }
         return envelope
     }
-    private suspend fun csrfToken(): String {
+    private suspend fun csrfToken(epoch: Long): String {
+        requireCurrentAccount(epoch)
         csrf?.let { return it }
-        val value = exchange("csrf", emptyMap(), false).getJSONObject("data").getString("csrf")
+        val value = exchange("csrf", emptyMap(), false, epoch = epoch)
+        requireCurrentAccount(epoch).getJSONObject("data").getString("csrf")
         check(value.matches(Regex("[0-9a-f]{64}")))
         csrf = value
         return value
     }
     override suspend fun request(action: String, parameters: Map<String, String>): JSONObject {
+        val epoch = accountEpoch
         require(action in reads || action in writes)
         // Old bot installations have no snapshot route. Discover only once
         // per authenticated account, then fall back to the existing wallet API.
@@ -149,27 +167,29 @@ internal class GanjBotNativeStoreApi(
         }
         val publicAction = action in setOf("products", "product", "support")
         if (!publicAction || isLinked()) session(required = true)
+        requireCurrentAccount(epoch)
         val post = action in writes
-        val token = if (post) csrfToken() else null
+        val token = if (post) csrfToken(epoch) else null
         // Payment outcomes may have committed even if the response is lost.
         // Invalidate before AND after the attempt; never retry writes.
         if (post) accountReadCache.invalidate()
         try {
             val load: suspend () -> String = {
                 try {
-                    exchange(action, parameters, post, token).toString()
+                    exchange(action, parameters, post, token, epoch).toString()
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (transient: IOException) {
                     if (post) throw transient
                     delay(240)
-                    exchange(action, parameters, false).toString()
+                    exchange(action, parameters, false, epoch = epoch).toString()
                 }
             }
             val ttl = if (post) null else readTtls[action]
             val text = if (ttl != null) {
                 accountReadCache.read(action, parameters, ttl, load)
             } else load()
+            requireCurrentAccount(epoch)
             return JSONObject(text)
         } catch (failure: GanjBotStoreException) {
             if (action == "app_snapshot" && failure.httpStatus == 404) snapshotEndpointAbsent = true
@@ -179,10 +199,13 @@ internal class GanjBotNativeStoreApi(
         }
     }
     override suspend fun uploadReceipt(context: Context, uri: Uri, order: String, crypto: Boolean, txLink: String): JSONObject {
+        val epoch = accountEpoch
         require(order.matches(Regex("[A-Za-z0-9_-]{6,64}")))
         session(required = true)
+        requireCurrentAccount(epoch)
         accountReadCache.invalidate()
-        val token = csrfToken(); val cookie = cookies()
+        val token = csrfToken(epoch); val cookie = cookies()
+        requireCurrentAccount(epoch)
         return try { withContext(Dispatchers.IO) {
             val type = context.contentResolver.getType(uri).orEmpty()
             val extension = when (type) {
@@ -215,7 +238,7 @@ internal class GanjBotNativeStoreApi(
                     write("--$boundary\r\nContent-Disposition: form-data; name=\"receipt\"; filename=\"receipt.$extension\"\r\nContent-Type: $type\r\n\r\n")
                     output.write(bytes); write("\r\n--$boundary--\r\n")
                 }
-                response(conn)
+                response(conn, epoch)
             } finally { conn.disconnect() }
         } } finally { accountReadCache.invalidate() }
     }
