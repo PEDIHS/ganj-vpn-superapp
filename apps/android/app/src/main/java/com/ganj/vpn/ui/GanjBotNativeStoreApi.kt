@@ -182,9 +182,11 @@ internal class GanjBotNativeStoreApi(
                 }
             }
             val ttl = if (post) null else GanjBotReadPolicy.ttlMillis(action)
-            val text = if (ttl != null) {
-                accountReadCache.read(action, parameters, ttl, load)
-            } else load()
+            val text = when {
+                ttl != null -> accountReadCache.read(action, parameters, ttl, load)
+                !post -> accountReadCache.readFresh(action, parameters, load)
+                else -> load()
+            }
             requireCurrentAccount(epoch)
             return JSONObject(text)
         } catch (failure: GanjBotStoreException) {

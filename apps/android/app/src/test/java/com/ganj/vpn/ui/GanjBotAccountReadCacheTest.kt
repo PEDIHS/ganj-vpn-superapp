@@ -10,6 +10,47 @@ import org.junit.Test
 
 class GanjBotAccountReadCacheTest {
 
+    @Test fun financialReadsShareOnlySimultaneousNetworkCallWithoutStaleTtl() = runBlocking {
+        val cache = GanjBotAccountReadCache { 500L }
+        cache.switchIdentity("account-one")
+        var calls = 0
+        val gate = CompletableDeferred<Unit>()
+        val first = async {
+            cache.readFresh("app_snapshot", emptyMap()) { calls++; gate.await(); "snapshot" }
+        }
+        yield()
+        val second = async {
+            cache.readFresh("app_snapshot", emptyMap()) { calls++; "should-not-run" }
+        }
+        yield()
+        gate.complete(Unit)
+        assertEquals("snapshot", first.await())
+        assertEquals("snapshot", second.await())
+        assertEquals(1, calls)
+        assertEquals("updated", cache.readFresh("app_snapshot", emptyMap()) { calls++; "updated" })
+        assertEquals(2, calls)
+        val field = GanjBotAccountReadCache::class.java.getDeclaredField("freshFlights")
+        field.isAccessible = true
+        assertEquals(0, (field.get(cache) as Map<*, *>).size)
+    }
+
+    @Test fun accountSwitchCancelsPriorInflightPrivateRead() = runBlocking {
+        val cache = GanjBotAccountReadCache { 500L }
+        cache.switchIdentity("account-a")
+        val gate = CompletableDeferred<Unit>()
+        val old = async {
+            runCatching { cache.readFresh("app_snapshot", emptyMap()) {
+                gate.await()
+                "private-a"
+            } }
+        }
+        yield()
+        cache.switchIdentity("account-b")
+        gate.complete(Unit)
+        assertEquals(true, old.await().exceptionOrNull() is CancellationException)
+        assertEquals("private-b", cache.readFresh("app_snapshot", emptyMap()) { "private-b" })
+    }
+
     @Test fun highCardinalityReadKeysDoNotRetainUnusedMutexes() = runBlocking {
         val cache = GanjBotAccountReadCache { 3L }
         repeat(600) { index ->
