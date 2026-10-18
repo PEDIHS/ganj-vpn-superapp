@@ -16,11 +16,13 @@ import com.ganj.vpn.core.deviceidentity.SignedDeviceProof
 internal class GanjSwitchableDeviceIdentity(
     application: Application,
     private val slots: GanjMultiAccountVault,
+    private val testNamespacePrefix: String = "",
 ) : DeviceIdentity {
+    init { require(testNamespacePrefix.matches(Regex("[a-zA-Z0-9_-]{0,26}"))) }
     private val identities = listOf(
-        AndroidDeviceIdentity.create(application),
-        AndroidDeviceIdentity.create(application,"_account_1"),
-        AndroidDeviceIdentity.create(application,"_account_2"),
+        AndroidDeviceIdentity.create(application, if (testNamespacePrefix.isEmpty()) "" else testNamespacePrefix + "_legacy"),
+        AndroidDeviceIdentity.create(application, testNamespacePrefix + "_account_1"),
+        AndroidDeviceIdentity.create(application, testNamespacePrefix + "_account_2"),
     )
     private fun current(): DeviceIdentity = identities[slots.activeIdentitySlot()]
 

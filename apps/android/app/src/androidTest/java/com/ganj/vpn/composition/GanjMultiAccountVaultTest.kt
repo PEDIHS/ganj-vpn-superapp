@@ -7,6 +7,7 @@ import com.ganj.vpn.core.controlapi.AuthSessionCredentials
 import com.ganj.vpn.core.controlapi.RefreshToken
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -52,4 +53,30 @@ class GanjMultiAccountVaultTest {
         assertTrue(vault.selectVerified(one.userId))
         assertEquals(one.userId,vault.currentUserId())
     }
+    @Test fun eachTelegramAccountUsesIndependentDeviceKeysAndGuestIdentity() {
+        val application = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+            as android.app.Application
+        val vault = GanjMultiAccountVault(application, "proofcheck")
+        val identity = GanjSwitchableDeviceIdentity(application, vault, "_proofcheck")
+        val userOne = credentials('1')
+        val userTwo = credentials('2')
+        assertTrue(vault.save(userOne).isSuccess)
+        assertTrue(vault.confirmLinked(userOne.userId))
+        val primary = identity.publicIdentity().getOrThrow()
+        assertTrue(vault.beginAddition())
+        val second = identity.publicIdentity().getOrThrow()
+        assertNotEquals(primary.installationId, second.installationId)
+        assertNotEquals(primary.signingPublicKeySpki, second.signingPublicKeySpki)
+        assertTrue(vault.save(userTwo).isSuccess)
+        assertTrue(vault.confirmLinked(userTwo.userId))
+        assertTrue(vault.beginAddition())
+        val third = identity.publicIdentity().getOrThrow()
+        assertNotEquals(second.installationId, third.installationId)
+        assertNotEquals(primary.installationId, third.installationId)
+        assertTrue(vault.abortAddition())
+        assertEquals(second.installationId, identity.publicIdentity().getOrThrow().installationId)
+        assertTrue(vault.selectVerified(userOne.userId))
+        assertEquals(primary.installationId, identity.publicIdentity().getOrThrow().installationId)
+    }
+
 }
