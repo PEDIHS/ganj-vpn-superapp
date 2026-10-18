@@ -59,4 +59,6 @@ run_suite() {
 }
 run_suite vpn com.ganj.vpn.vpn.NativeRuntimeContractTest,com.ganj.vpn.vpn.VpnTunnelIntegrationTest
 run_suite selection com.ganj.vpn.ui.SubscriptionSelectionTest
-\nrun_suite accountvault com.ganj.vpn.composition.GanjMultiAccountVaultTest\n
+
+run_suite accountvault com.ganj.vpn.composition.GanjMultiAccountVaultTest
+
