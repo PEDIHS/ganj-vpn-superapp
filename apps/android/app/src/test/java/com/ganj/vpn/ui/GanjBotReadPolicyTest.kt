@@ -16,6 +16,14 @@ class GanjBotReadPolicyTest {
         assertEquals(45_000L, GanjBotReadPolicy.ttlMillis("products"))
         assertEquals(30_000L, GanjBotReadPolicy.ttlMillis("product"))
     }
+    @Test fun onlySettledFinancialMutationsTriggerGlobalWalletRefresh() {
+        for (action in listOf("purchase", "wallet_card", "wallet_crypto", "wallet_gateway")) {
+            org.junit.Assert.assertTrue(action, GanjBotReadPolicy.changesFinancialState(action))
+        }
+        for (action in listOf("purchase_quote", "product", "support_ticket_create", "transactions")) {
+            org.junit.Assert.assertFalse(action, GanjBotReadPolicy.changesFinancialState(action))
+        }
+    }
     @Test fun localMutationEmitsInvalidationWithoutPolling() {
         val previous = GanjAccountChangeBus.generation.value
         GanjAccountChangeBus.changed()

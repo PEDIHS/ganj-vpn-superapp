@@ -9,6 +9,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class GanjBotAccountReadCacheTest {
+
+    @Test fun highCardinalityReadKeysDoNotRetainUnusedMutexes() = runBlocking {
+        val cache = GanjBotAccountReadCache { 3L }
+        repeat(600) { index ->
+            assertEquals("ok", cache.read("products", mapOf("search" to "query-$index"), 10_000) { "ok" })
+        }
+        val field = GanjBotAccountReadCache::class.java.getDeclaredField("flights")
+        field.isAccessible = true
+        val flights = field.get(cache) as Map<*, *>
+        assertEquals("Each settled read must release its per-key synchronization", 0, flights.size)
+    }
     @Test fun repeatReadUsesTheSameAuthoritativeSnapshotUntilExpiry() = runBlocking {
         var now = 100L
         var calls = 0

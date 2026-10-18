@@ -394,6 +394,15 @@ internal fun StitchNativeBotWallet(
     var attemptKey by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     var attemptFingerprint by rememberSaveable { mutableStateOf("") }
     BackHandler(busy) {}
+    LaunchedEffect(api) {
+        var previous = GanjAccountChangeBus.generation.value
+        GanjAccountChangeBus.generation.collect { version ->
+            if (version != previous) {
+                previous = version
+                retry++
+            }
+        }
+    }
     LaunchedEffect(retry) {
         loading = methods.isEmpty(); error = null
         try {
@@ -734,6 +743,15 @@ internal fun StitchNativeBotTransactions(api: GanjBotStoreApi, onBack: () -> Uni
     var error by remember { mutableStateOf<String?>(null) }
     var retry by remember { mutableIntStateOf(0) }
     var selectedKind by rememberSaveable { mutableStateOf("all") }
+    LaunchedEffect(api) {
+        var previous = GanjAccountChangeBus.generation.value
+        GanjAccountChangeBus.generation.collect { version ->
+            if (version != previous) {
+                previous = version
+                retry++
+            }
+        }
+    }
     LaunchedEffect(retry) {
         loading = true; error = null
         try {

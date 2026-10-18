@@ -195,7 +195,7 @@ internal class GanjBotNativeStoreApi(
                 accountReadCache.invalidate()
                 // Requery the canonical Bot DB once when the payment changes,
                 // including ambiguous HTTP outcomes that must not be retried.
-                GanjAccountChangeBus.changed()
+                if (GanjBotReadPolicy.changesFinancialState(action)) GanjAccountChangeBus.changed()
             }
         }
     }
