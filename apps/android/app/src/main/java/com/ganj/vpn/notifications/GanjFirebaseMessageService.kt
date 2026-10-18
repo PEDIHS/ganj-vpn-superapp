@@ -4,6 +4,7 @@ import com.ganj.vpn.BuildConfig
 import com.ganj.vpn.composition.GanjMultiAccountVault
 import com.ganj.vpn.core.controlapi.NotificationKind
 import com.ganj.vpn.core.controlapi.UserNotification
+import com.ganj.vpn.ui.GanjAccountChangeBus
 import com.ganj.vpn.ui.GanjPhoneNotifications
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -35,6 +36,9 @@ class GanjFirebaseMessageService : FirebaseMessagingService() {
             action = null, createdAt = createdAt,
         )
         GanjPhoneNotifications.publish(applicationContext, account, listOf(item))
+        // FCM is only an invalidation signal. Wallet/services remain read from
+        // the canonical authenticated Bot APIs, never from push payload values.
+        GanjAccountChangeBus.changed()
     }
 
     override fun onNewToken(token: String) {

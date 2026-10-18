@@ -71,3 +71,5 @@ python3 .github/scripts/ganj-compose-performance.py --output-dir startup-evidenc
   > startup-evidence/performance-collector.log 2>&1 || {
   echo "Performance baseline capture unavailable; see performance-collector.log"
 }
+
+run_suite phonealerts com.ganj.vpn.ui.GanjPhoneNotificationsTest
