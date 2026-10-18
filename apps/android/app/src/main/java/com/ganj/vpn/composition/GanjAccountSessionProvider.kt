@@ -25,6 +25,8 @@ internal object GanjAccountSessionProvider {
             AndroidVpnSessionRevocationSink(application)).also { manager=it;endpoint=baseUrl }
     }
     @Synchronized fun verifiedAccounts(): List<String> = accountVault?.verifiedAccounts().orEmpty()
+    @Synchronized fun currentVerifiedUserId(): String? =
+        accountVault?.currentUserId()?.takeIf { it in verifiedAccounts() }
     @Synchronized fun beginAdditionalAccount(): Boolean {
         val change = { accountVault?.beginAddition() == true }
         return manager?.transitionAccount(change) ?: change()

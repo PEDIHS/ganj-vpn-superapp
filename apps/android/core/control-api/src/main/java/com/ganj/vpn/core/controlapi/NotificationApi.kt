@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 enum class NotificationKind {
+    SUBSCRIPTION_USAGE,
     SUBSCRIPTION_EXPIRY,
     PURCHASE_SUCCESS,
     PAYMENT_FAILURE,
